@@ -7,11 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B2CFDF4B2015333E00C81399 /* Stopwatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2CFDF4A2015333E00C81399 /* Stopwatch.swift */; };
 		B2FA799D20133D8F00CE9918 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FA799C20133D8F00CE9918 /* AppDelegate.swift */; };
 		B2FA799F20133D8F00CE9918 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FA799E20133D8F00CE9918 /* ViewController.swift */; };
 		B2FA79A420133D8F00CE9918 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B2FA79A320133D8F00CE9918 /* Assets.xcassets */; };
 		B2FA79A720133D8F00CE9918 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B2FA79A520133D8F00CE9918 /* LaunchScreen.storyboard */; };
 		B2FA79B220133D8F00CE9918 /* pathagonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FA79B120133D8F00CE9918 /* pathagonTests.swift */; };
+		B2FA79C02013C3E300CE9918 /* Protocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FA79BF2013C3E300CE9918 /* Protocols.swift */; };
+		B2FA79C22013C42C00CE9918 /* Primatives.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FA79C12013C42C00CE9918 /* Primatives.swift */; };
+		B2FA79CA2013DFAB00CE9918 /* PeiceListBoard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FA79C92013DFAB00CE9918 /* PeiceListBoard.swift */; };
+		B2FA79CC2013DFD600CE9918 /* Game.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FA79CB2013DFD600CE9918 /* Game.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -25,6 +30,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		B2CFDF4A2015333E00C81399 /* Stopwatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stopwatch.swift; sourceTree = "<group>"; };
 		B2FA799920133D8F00CE9918 /* pathagon.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = pathagon.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2FA799C20133D8F00CE9918 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		B2FA799E20133D8F00CE9918 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -34,6 +40,10 @@
 		B2FA79AD20133D8F00CE9918 /* pathagonTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = pathagonTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2FA79B120133D8F00CE9918 /* pathagonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = pathagonTests.swift; sourceTree = "<group>"; };
 		B2FA79B320133D8F00CE9918 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B2FA79BF2013C3E300CE9918 /* Protocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Protocols.swift; path = pathagon/Source/Shared/Protocols.swift; sourceTree = SOURCE_ROOT; };
+		B2FA79C12013C42C00CE9918 /* Primatives.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Primatives.swift; path = pathagon/Source/Shared/Primatives.swift; sourceTree = SOURCE_ROOT; };
+		B2FA79C92013DFAB00CE9918 /* PeiceListBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeiceListBoard.swift; sourceTree = "<group>"; };
+		B2FA79CB2013DFD600CE9918 /* Game.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Game.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,8 +85,7 @@
 		B2FA799B20133D8F00CE9918 /* pathagon */ = {
 			isa = PBXGroup;
 			children = (
-				B2FA799C20133D8F00CE9918 /* AppDelegate.swift */,
-				B2FA799E20133D8F00CE9918 /* ViewController.swift */,
+				B2FA79C42013DF2900CE9918 /* Source */,
 				B2FA79A320133D8F00CE9918 /* Assets.xcassets */,
 				B2FA79A520133D8F00CE9918 /* LaunchScreen.storyboard */,
 				B2FA79A820133D8F00CE9918 /* Info.plist */,
@@ -91,6 +100,36 @@
 				B2FA79B320133D8F00CE9918 /* Info.plist */,
 			);
 			path = pathagonTests;
+			sourceTree = "<group>";
+		};
+		B2FA79C42013DF2900CE9918 /* Source */ = {
+			isa = PBXGroup;
+			children = (
+				B2FA79C82013DF8300CE9918 /* Shared */,
+				B2FA79C52013DF4300CE9918 /* iOS */,
+			);
+			path = Source;
+			sourceTree = "<group>";
+		};
+		B2FA79C52013DF4300CE9918 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				B2FA799C20133D8F00CE9918 /* AppDelegate.swift */,
+				B2FA799E20133D8F00CE9918 /* ViewController.swift */,
+			);
+			path = iOS;
+			sourceTree = "<group>";
+		};
+		B2FA79C82013DF8300CE9918 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				B2FA79BF2013C3E300CE9918 /* Protocols.swift */,
+				B2CFDF4A2015333E00C81399 /* Stopwatch.swift */,
+				B2FA79C12013C42C00CE9918 /* Primatives.swift */,
+				B2FA79C92013DFAB00CE9918 /* PeiceListBoard.swift */,
+				B2FA79CB2013DFD600CE9918 /* Game.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -195,8 +234,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B2FA79CA2013DFAB00CE9918 /* PeiceListBoard.swift in Sources */,
+				B2FA79CC2013DFD600CE9918 /* Game.swift in Sources */,
+				B2FA79C02013C3E300CE9918 /* Protocols.swift in Sources */,
 				B2FA799F20133D8F00CE9918 /* ViewController.swift in Sources */,
 				B2FA799D20133D8F00CE9918 /* AppDelegate.swift in Sources */,
+				B2CFDF4B2015333E00C81399 /* Stopwatch.swift in Sources */,
+				B2FA79C22013C42C00CE9918 /* Primatives.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -343,6 +387,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = R83MTNZF23;
+				GCC_OPTIMIZATION_LEVEL = fast;
 				INFOPLIST_FILE = pathagon/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.solocast.pathagon;
