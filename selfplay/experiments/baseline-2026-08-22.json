@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "name": "Initial deterministic arena",
+  "date": "2026-08-22",
+  "engine": "surveyor-handcrafted-v0.2.0",
+  "opponent": "coin-flip-seeded",
+  "seed": 20260822,
+  "games": 4,
+  "colorPolicy": "alternating",
+  "openingRandomPlies": 2,
+  "maxPlies": 100,
+  "result": {
+    "wins": 4,
+    "losses": 0,
+    "draws": 0
+  },
+  "interpretation": "Pipeline validation only; four games against random play do not establish strength or Elo."
+}
