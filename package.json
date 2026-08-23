@@ -13,6 +13,7 @@
     "test": "npm run build && node --test tests/rendered-html.test.mjs && node --experimental-strip-types --test tests/pathagon.test.ts tests/opponents.test.ts tests/selfplay.test.ts",
     "selfplay": "node --experimental-strip-types selfplay/cli.ts",
     "selfplay:train": "node --experimental-strip-types selfplay/cli.ts --mode train",
+    "selfplay:league": "node --experimental-strip-types selfplay/cli.ts --mode league",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
   },

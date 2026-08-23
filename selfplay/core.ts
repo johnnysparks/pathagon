@@ -7,7 +7,7 @@ export type RandomSource = () => number;
 
 export type SelfPlayAgent = {
   id: string;
-  chooseAction(state: GameState, random: RandomSource): { action: Action | null; nodes: number };
+  chooseAction(state: GameState, random: RandomSource): { action: Action | null; nodes: number; completedDepth?: number; tableHits?: number };
 };
 
 export type MatchOptions = {
@@ -22,10 +22,12 @@ export type MoveRecord = {
   action: Action;
   captured: number[];
   nodes: number;
+  completedDepth: number;
+  tableHits: number;
 };
 
 export type GameRecord = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   seed: number;
   agents: Record<Player, string>;
   winner: Player | null;
@@ -40,7 +42,7 @@ export function createSearchAgent(id: string, config: SearchConfig): SelfPlayAge
     id,
     chooseAction(state) {
       const result = searchBestAction(state, config);
-      return { action: result.action, nodes: result.nodes };
+      return { action: result.action, nodes: result.nodes, completedDepth: result.completedDepth, tableHits: result.tableHits };
     },
   };
 }
@@ -80,6 +82,8 @@ export function playGame(light: SelfPlayAgent, dark: SelfPlayAgent, options: Mat
       action: decision.action,
       captured: [...(state.lastAction?.captured ?? [])],
       nodes: decision.nodes,
+      completedDepth: decision.completedDepth ?? 0,
+      tableHits: decision.tableHits ?? 0,
     });
   }
   if (state.winner) return gameRecord(options.seed, agents, state.winner, "path", moves);
@@ -91,6 +95,9 @@ export function mutateWeights(weights: EvaluationWeights, random: RandomSource, 
     path: mutateWeight(weights.path, random, scale),
     material: mutateWeight(weights.material, random, scale),
     capture: mutateWeight(weights.capture, random, scale),
+    structure: mutateWeight(weights.structure, random, scale),
+    threat: mutateWeight(weights.threat, random, scale),
+    edge: mutateWeight(weights.edge, random, scale),
   };
 }
 
@@ -123,7 +130,7 @@ function gameRecord(
   moves: MoveRecord[],
 ): GameRecord {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     seed,
     agents: { light: agents.light.id, dark: agents.dark.id },
     winner,

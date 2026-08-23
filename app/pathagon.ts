@@ -60,6 +60,12 @@ export function applyAction(state: GameState, action: Action): GameState {
     throw new Error("A relocated piece must move to a different square");
   }
   if (!legalActions(state).some((candidate) => sameAction(candidate, action))) throw new Error("Illegal Pathagon action");
+  return applyLegalAction(state, action);
+}
+
+// Search and self-play enumerate legal actions before applying them. Keeping that
+// hot path separate avoids rebuilding the entire legal move list at every node.
+export function applyLegalAction(state: GameState, action: Action): GameState {
   const player = state.turn;
   const opponent = otherPlayer(player);
   const board = [...state.board];

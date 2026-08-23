@@ -6,9 +6,12 @@ Digital preservation of Mark Fuchs's two-player wooden strategy game, with a mob
 npm test
 npm run selfplay -- --mode arena --games 20 --seed 20260822
 npm run selfplay:train -- --generations 5 --population 8 --games 12 --seed 20260822
+npm run selfplay:league -- --games 8 --seed 20260823
 ```
 
 See [`docs/SELF_PLAY.md`](docs/SELF_PLAY.md) for experiment structure, champion promotion, and reproducibility rules.
+
+The playable opponent ladder is deliberately compute-based: Coin Flip is random, The Surveyor searches two plies, and The Pathfinder uses iterative deepening up to four plies. "Expert" currently describes its search budget, not a solved-game or unbeatable claim.
 
 ## Runtime foundation
 

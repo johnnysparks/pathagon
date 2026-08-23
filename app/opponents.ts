@@ -1,4 +1,4 @@
-import { searchBestAction, SURVEYOR_SEARCH } from "./ai.ts";
+import { PATHFINDER_SEARCH, searchBestAction, SURVEYOR_SEARCH } from "./ai.ts";
 import { legalActions } from "./pathagon.ts";
 import type { Action, GameState } from "./pathagon.ts";
 
@@ -40,7 +40,20 @@ export const SURVEYOR_OPPONENT: Opponent = {
   },
 };
 
-export const OPPONENTS = [SURVEYOR_OPPONENT, RANDOM_OPPONENT] as const;
+export const PATHFINDER_OPPONENT: Opponent = {
+  id: "pathfinder-v0",
+  name: "The Pathfinder",
+  version: "0.3.0",
+  engine: "4-ply iterative",
+  elo: "Unrated · expert",
+  personality: "Builds quietly. Punishes shortcuts.",
+  searchDepth: 4,
+  chooseAction(state) {
+    return searchBestAction(state, PATHFINDER_SEARCH).action;
+  },
+};
+
+export const OPPONENTS = [PATHFINDER_OPPONENT, SURVEYOR_OPPONENT, RANDOM_OPPONENT] as const;
 
 export function getOpponent(id: string): Opponent {
   return OPPONENTS.find((opponent) => opponent.id === id) ?? SURVEYOR_OPPONENT;
