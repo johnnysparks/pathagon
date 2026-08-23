@@ -27,4 +27,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --all-targets --release
       - run: cargo run --release --bin pathagon-selfplay -- --games 2 --depth 2 --nodes 12000 --max-plies 80
-
+      - name: Verify persistent corpus round trip
+        run: |
+          cargo run --release --bin pathagon-selfplay -- --games 4 --seed 20260823 --depth 2 --nodes 12000 --max-plies 80 --corpus /tmp/pathagon-corpus
+          cargo run --release --bin pathagon-selfplay -- --games 4 --seed 20260823 --depth 2 --nodes 12000 --max-plies 80 --corpus /tmp/pathagon-corpus
+          test "$(grep -cv '^#' /tmp/pathagon-corpus/games.tsv)" -eq 4
