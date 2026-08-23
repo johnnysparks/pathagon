@@ -22,12 +22,16 @@ export default function Home() {
   const [selected, setSelected] = useState<number | null>(null);
   const [thinking, setThinking] = useState(false);
   const [history, setHistory] = useState<GameState[]>([]);
+  const [moveHistory, setMoveHistory] = useState<Action[]>([]);
   const [resultOpen, setResultOpen] = useState(false);
+  const [archiveStatus, setArchiveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [captureNotice, setCaptureNotice] = useState<string | null>(null);
   const [opponentId, setOpponentId] = useState(SURVEYOR_OPPONENT.id);
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resultRef = useRef<HTMLDivElement | null>(null);
   const fixtureLoaded = useRef(false);
+  const recordable = useRef(true);
+  const recordedGame = useRef<string | null>(null);
 
   const actions = useMemo(() => legalActions(game), [game]);
   const actionKeys = useMemo(() => new Set(actions.map(actionKey)), [actions]);
@@ -39,8 +43,10 @@ export default function Home() {
     if (fixtureLoaded.current) return;
     fixtureLoaded.current = true;
     if (new URLSearchParams(window.location.search).get("fixture") === "near-win") {
+      recordable.current = false;
       setGame(createNearWinFixture());
       setHistory([]);
+      setMoveHistory([]);
     }
   }, []);
 
@@ -56,6 +62,7 @@ export default function Home() {
         const decision = opponent.chooseAction(current);
         if (!decision) return current;
         setHistory((items) => [...items, current]);
+        setMoveHistory((items) => [...items, decision]);
         return applyAction(current, decision);
       });
       setThinking(false);
@@ -71,6 +78,22 @@ export default function Home() {
     const focusTimer = setTimeout(() => resultRef.current?.focus(), 40);
     return () => clearTimeout(focusTimer);
   }, [game.winner]);
+
+  useEffect(() => {
+    if (!game.winner || !recordable.current || moveHistory.length !== game.ply) return;
+    const key = `${opponent.id}:${game.winner}:${moveHistory.map(actionKey).join("|")}`;
+    if (recordedGame.current === key) return;
+    recordedGame.current = key;
+    setArchiveStatus("saving");
+    void fetch("/api/games", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ opponentId: opponent.id, winner: game.winner, actions: moveHistory }),
+    }).then((response) => {
+      if (!response.ok) throw new Error("archive rejected");
+      setArchiveStatus("saved");
+    }).catch(() => setArchiveStatus("error"));
+  }, [game.winner, game.ply, moveHistory, opponent.id]);
 
   useEffect(() => {
     const captured = game.lastAction?.captured.length ?? 0;
@@ -89,6 +112,7 @@ export default function Home() {
   function play(action: Action) {
     if (game.turn !== HUMAN || game.winner || thinking) return;
     setHistory((items) => [...items, game]);
+    setMoveHistory((items) => [...items, action]);
     setGame(applyAction(game, action));
     setSelected(null);
   }
@@ -116,10 +140,14 @@ export default function Home() {
     if (aiTimer.current) clearTimeout(aiTimer.current);
     setGame(createGame());
     setHistory([]);
+    setMoveHistory([]);
     setSelected(null);
     setThinking(false);
     setResultOpen(false);
     setCaptureNotice(null);
+    setArchiveStatus("idle");
+    recordedGame.current = null;
+    recordable.current = true;
   }
 
   function undoRound() {
@@ -128,9 +156,12 @@ export default function Home() {
     while (targetIndex > 0 && history[targetIndex].turn !== HUMAN) targetIndex -= 1;
     setGame(history[targetIndex]);
     setHistory(history.slice(0, targetIndex));
+    setMoveHistory(moveHistory.slice(0, targetIndex));
     setSelected(null);
     setResultOpen(false);
     setCaptureNotice(null);
+    setArchiveStatus("idle");
+    recordedGame.current = null;
   }
 
   function changeOpponent(id: string) {
@@ -138,10 +169,14 @@ export default function Home() {
     setOpponentId(id);
     setGame(createGame());
     setHistory([]);
+    setMoveHistory([]);
     setSelected(null);
     setThinking(false);
     setResultOpen(false);
     setCaptureNotice(null);
+    setArchiveStatus("idle");
+    recordedGame.current = null;
+    recordable.current = true;
   }
 
   const status = game.winner
@@ -290,6 +325,11 @@ export default function Home() {
               {game.winner === HUMAN
                 ? `Light connected the near and far edges in ${Math.ceil(game.ply / 2)} ${Math.ceil(game.ply / 2) === 1 ? "move" : "moves"}.`
                 : `Dark connected both edges. ${opponent.name} takes this one.`}
+            </p>
+            <p className={`archive-status ${archiveStatus}`} role="status">
+              {archiveStatus === "saving" && "Adding this game to the human strategy archive…"}
+              {archiveStatus === "saved" && "Game added to the replay-validated human strategy archive."}
+              {archiveStatus === "error" && "This game could not be archived. The result still counts on this board."}
             </p>
             <div className="result-actions">
               <button className="result-primary" onClick={newGame}>Play again</button>
