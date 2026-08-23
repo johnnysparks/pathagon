@@ -6,6 +6,7 @@ on:
       - "engine-rs/**"
       - "fixtures/**"
       - "corpus/**"
+      - "training/**"
       - ".github/workflows/rust-engine.yml"
   push:
     branches: [master]
@@ -13,6 +14,7 @@ on:
       - "engine-rs/**"
       - "fixtures/**"
       - "corpus/**"
+      - "training/**"
       - ".github/workflows/rust-engine.yml"
 
 permissions:
