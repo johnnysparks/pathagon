@@ -71,7 +71,7 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .board-frame.game-over .cell:not(.winning) .piece { opacity: .28; filter: saturate(.55); }
 .board-frame.game-over .cell.winning { z-index: 3; background: rgba(241,224,186,.72); box-shadow: inset 0 0 0 2px rgba(255,245,208,.92); }
 .board-frame.game-over .cell.winning .piece { filter: drop-shadow(0 0 10px #fff1a4) brightness(1.18); transform: scale(1.08); }
-.forbidden-mark { position: relative; z-index: 3; color: #783b31; font-size: clamp(20px, 4vw, 32px); font-weight: 400; }
+.forbidden-mark { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; color: #783b31; font-size: clamp(20px, 4vw, 32px); font-weight: 400; line-height: 1; pointer-events: none; }
 .goal-edge { position: absolute; z-index: 4; display: grid; place-items: center; font-size: 8px; font-weight: 850; letter-spacing: .18em; text-transform: uppercase; }
 .goal-edge.light { color: #5a4935; background: linear-gradient(135deg, #f2e8d6, #d5c09c); box-shadow: inset 0 0 0 1px rgba(116,89,54,.28), 0 0 12px rgba(244,226,189,.18); }
 .goal-edge.dark { color: #f2e6d2; background: linear-gradient(135deg, #58473a, #29211c); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
@@ -332,7 +332,7 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .replay-cell.last { box-shadow: inset 0 0 0 2px rgba(255,239,169,.8); }
 .replay-cell.winning { background: rgba(241,224,186,.68); box-shadow: inset 0 0 0 2px rgba(255,245,208,.88); }
 .replay-cell.winning .replay-piece { filter: drop-shadow(0 0 6px #fff1a4) brightness(1.12); }
-.replay-forbidden { position: relative; z-index: 3; color: #783b31; font-size: clamp(13px, 3vw, 26px); }
+.replay-forbidden { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; color: #783b31; font-size: clamp(13px, 3vw, 26px); line-height: 1; pointer-events: none; }
 .replay-move-summary { display: flex; align-items: center; gap: 9px; margin-top: 11px; padding: 9px 10px; border-radius: 9px; background: #eee8dc; }
 .replay-turn-dot { width: 10px; height: 10px; flex: 0 0 auto; border: 1px solid rgba(0,0,0,.2); border-radius: 50%; background: var(--light-piece); }
 .replay-turn-dot[data-player="dark"] { background: var(--dark-piece); }
