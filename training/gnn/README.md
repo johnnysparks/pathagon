@@ -33,6 +33,10 @@ The local progression includes:
   trained from 10 games / 1,883 positions. The replay contains one path win
   and nine move-cap draws; its fresh 10-game arena scored 4 wins, 3 losses,
   and 3 draws at eight simulations per move.
+- `pathagon-generation-9-5x5-r8.pt`: a 5x5 curriculum run with eight pieces
+  per side instead of the usual ten. It trained from 50 games / 1,835
+  positions, with 48 path wins and two move-cap draws. A fresh 20-game arena
+  scored 9 wins, 4 losses, and 7 draws.
 
 `learning.gnn.evaluate` provides a seeded, color-balanced smoke arena against
 the random baseline. Generation 4 scored 0 wins, 1 loss, and 4 draws in five
