@@ -29,6 +29,10 @@ The local progression includes:
 - `pathagon-generation-7-5x5.pt`: a second 5x5 curriculum generation with 25
   games / 926 positions, all path wins. In a fresh 20-game random arena it
   scored 13 wins, 7 losses, and 0 draws at 16 simulations per move.
+- `pathagon-generation-8-7x7.pt`: a 7x7 fine-tune from the 5x5 curriculum,
+  trained from 10 games / 1,883 positions. The replay contains one path win
+  and nine move-cap draws; its fresh 10-game arena scored 4 wins, 3 losses,
+  and 3 draws at eight simulations per move.
 
 `learning.gnn.evaluate` provides a seeded, color-balanced smoke arena against
 the random baseline. Generation 4 scored 0 wins, 1 loss, and 4 draws in five
@@ -37,6 +41,11 @@ claim.
 
 Generation 5 scored 0 wins, 0 losses, and 10 draws in a fresh 10-game arena
 at eight simulations per move; all ten reached the 196-ply cap.
+
+Generation 7 transferred zero-shot to 7x7 at 2 wins, 1 loss, and 7 draws in
+10 games. Generation 8 is the corresponding 7x7 fine-tune and improved that
+smoke arena to 4 wins, 3 losses, and 3 draws. These are small diagnostics, not
+promotion gates.
 
 New replay files record `boardSize` and `reservePerPlayer` so variable-size
 curriculum games can be loaded without relying on the filename. Generation 6
