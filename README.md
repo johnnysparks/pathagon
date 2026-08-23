@@ -17,6 +17,15 @@ See [`docs/SELF_PLAY.md`](docs/SELF_PLAY.md) for experiment structure and [`docs
 
 The playable opponent ladder is deliberately compute-based: Coin Flip is random, The Surveyor searches two plies, and The Pathfinder uses iterative deepening up to four plies. "Expert" currently describes its search budget, not a solved-game or unbeatable claim.
 
+## Anonymous human game archive
+
+After the first move, the web client creates a random game ID and displays it
+as selectable, copyable text. When the game finishes, the replay is validated
+and stored in D1 under that ID; no account or player identity is required.
+Anyone with the token can retrieve the move stream for study with
+`GET /api/games/<game-id>`. There is no listing endpoint, so the token is the
+only lookup key.
+
 ## Runtime foundation
 
 A clean full-stack starter running on

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compactHumanGame, validateHumanGame } from "../app/game-record.ts";
+import { compactHumanGame, createGameId, validateGameId, validateHumanGame } from "../app/game-record.ts";
 import type { Action } from "../app/pathagon.ts";
 
 const winningActions: Action[] = [
@@ -29,4 +29,13 @@ test("human archive rejects a result that replay does not prove", () => {
 test("human archive rejects illegal and oversized action streams", () => {
   assert.throws(() => validateHumanGame({ opponentId: "surveyor-v0", winner: "light", actions: [{ kind: "place", to: 99 }] }));
   assert.throws(() => validateHumanGame({ opponentId: "surveyor-v0", winner: "light", actions: Array(241).fill({ kind: "place", to: 0 }) }));
+});
+
+test("game IDs are opaque UUID tokens", () => {
+  const first = createGameId();
+  const second = createGameId();
+  assert.notEqual(first, second);
+  validateGameId(first);
+  assert.match(first, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.throws(() => validateGameId("surveyor-v0"));
 });

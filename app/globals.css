@@ -38,6 +38,11 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .turn-dot.light { background: var(--light-piece); }
 .turn-dot.dark { background: var(--dark-piece); }
 .turn-detail { margin-left: auto; color: var(--muted); font-size: 13px; }
+.game-id-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 0 4px 12px; padding: 11px 12px; border: 1px solid #c9d5c7; border-radius: 11px; color: #294a3b; background: #eef4ec; }
+.game-id-card > div { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.game-id-card code, .result-game-id code { color: var(--ink); font-size: 13px; font-weight: 750; overflow-wrap: anywhere; user-select: all; }
+.game-id-card p { margin: 0; color: #627465; font-size: 11px; line-height: 1.35; }
+.copy-button { flex: 0 0 auto; min-height: 34px; border: 1px solid #a5b9a3; border-radius: 8px; padding: 0 10px; color: #294a3b; background: rgba(255,255,255,.54); cursor: pointer; font-size: 12px; font-weight: 800; }
 .result-link { border: 0; border-bottom: 1px solid currentColor; padding: 2px 0; color: var(--green); background: transparent; cursor: pointer; font-size: 12px; font-weight: 800; }
 .goal-guide { display: flex; justify-content: space-between; gap: 12px; margin: -2px 4px 12px; padding: 9px 11px; border-radius: 9px; color: #5d554a; background: #eee7da; font-size: 12px; }
 .goal-guide span { color: var(--muted); }
@@ -110,6 +115,8 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .result-card .archive-status { min-height: 1.4em; margin-top: 12px; font-size: 13px; }
 .result-card .archive-status.saved { color: var(--green); }
 .result-card .archive-status.error { color: #7a3f2c; }
+.result-game-id { display: flex; flex-direction: column; gap: 4px; margin-top: 12px !important; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: #f2ede3; }
+.result-game-id span { color: var(--muted); font-size: 10px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
 .result-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 24px; }
 .result-primary, .result-secondary { min-height: 48px; border-radius: 11px; cursor: pointer; font-weight: 800; }
 .result-primary { border: 1px solid var(--ink); color: white; background: var(--ink); }

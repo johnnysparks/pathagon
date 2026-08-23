@@ -2,12 +2,23 @@ import { applyAction, createGame } from "./pathagon.ts";
 import type { Action, Player } from "./pathagon.ts";
 
 const ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
+const GAME_ID_PATTERN = /^(?:[0-9a-f]{24}|[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
 
 export type HumanGameSubmission = {
   opponentId: string;
   winner: Player;
   actions: Action[];
 };
+
+export function createGameId() {
+  return globalThis.crypto.randomUUID();
+}
+
+export function validateGameId(value: unknown): asserts value is string {
+  if (typeof value !== "string" || !GAME_ID_PATTERN.test(value)) {
+    throw new Error("Invalid game ID");
+  }
+}
 
 export function validateHumanGame(value: unknown): HumanGameSubmission {
   if (!value || typeof value !== "object") throw new Error("Game record must be an object");

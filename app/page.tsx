@@ -12,6 +12,7 @@ import {
   legalActions,
   playerLabel,
 } from "./pathagon";
+import { createGameId } from "./game-record";
 import { OPPONENTS, SURVEYOR_OPPONENT, getOpponent } from "./opponents";
 
 const HUMAN: Player = "light";
@@ -23,6 +24,8 @@ export default function Home() {
   const [thinking, setThinking] = useState(false);
   const [history, setHistory] = useState<GameState[]>([]);
   const [moveHistory, setMoveHistory] = useState<Action[]>([]);
+  const [gameId, setGameId] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
   const [resultOpen, setResultOpen] = useState(false);
   const [archiveStatus, setArchiveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [captureNotice, setCaptureNotice] = useState<string | null>(null);
@@ -80,7 +83,7 @@ export default function Home() {
   }, [game.winner]);
 
   useEffect(() => {
-    if (!game.winner || !recordable.current || moveHistory.length !== game.ply) return;
+    if (!game.winner || !recordable.current || !gameId || moveHistory.length !== game.ply) return;
     const key = `${opponent.id}:${game.winner}:${moveHistory.map(actionKey).join("|")}`;
     if (recordedGame.current === key) return;
     recordedGame.current = key;
@@ -88,12 +91,12 @@ export default function Home() {
     void fetch("/api/games", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ opponentId: opponent.id, winner: game.winner, actions: moveHistory }),
+      body: JSON.stringify({ id: gameId, opponentId: opponent.id, winner: game.winner, actions: moveHistory }),
     }).then((response) => {
       if (!response.ok) throw new Error("archive rejected");
       setArchiveStatus("saved");
     }).catch(() => setArchiveStatus("error"));
-  }, [game.winner, game.ply, moveHistory, opponent.id]);
+  }, [game.winner, game.ply, moveHistory, opponent.id, gameId]);
 
   useEffect(() => {
     const captured = game.lastAction?.captured.length ?? 0;
@@ -111,6 +114,7 @@ export default function Home() {
 
   function play(action: Action) {
     if (game.turn !== HUMAN || game.winner || thinking) return;
+    if (recordable.current && !gameId) setGameId(createGameId());
     setHistory((items) => [...items, game]);
     setMoveHistory((items) => [...items, action]);
     setGame(applyAction(game, action));
@@ -141,6 +145,8 @@ export default function Home() {
     setGame(createGame());
     setHistory([]);
     setMoveHistory([]);
+    setGameId(null);
+    setCopyStatus("idle");
     setSelected(null);
     setThinking(false);
     setResultOpen(false);
@@ -170,6 +176,8 @@ export default function Home() {
     setGame(createGame());
     setHistory([]);
     setMoveHistory([]);
+    setGameId(null);
+    setCopyStatus("idle");
     setSelected(null);
     setThinking(false);
     setResultOpen(false);
@@ -177,6 +185,24 @@ export default function Home() {
     setArchiveStatus("idle");
     recordedGame.current = null;
     recordable.current = true;
+  }
+
+  async function copyGameId() {
+    if (!gameId) return;
+    try {
+      await navigator.clipboard.writeText(gameId);
+      setCopyStatus("copied");
+    } catch {
+      const code = document.querySelector<HTMLElement>("code[data-game-id]");
+      if (code) {
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        const range = document.createRange();
+        range.selectNodeContents(code);
+        selection?.addRange(range);
+      }
+      setCopyStatus("error");
+    }
   }
 
   const status = game.winner
@@ -213,6 +239,19 @@ export default function Home() {
               <button className="result-link" onClick={() => setResultOpen(true)}>View result</button>
             )}
           </div>
+
+          {gameId && (
+            <div className="game-id-card" aria-label="Game ID">
+              <div>
+                <span className="stat-label">Game ID</span>
+                <code data-game-id>{gameId}</code>
+                <p>Keep this token to ask about the replay later. Anyone with it can view the game.</p>
+              </div>
+              <button className="copy-button" onClick={copyGameId} type="button">
+                {copyStatus === "copied" ? "Copied" : copyStatus === "error" ? "Select ID" : "Copy ID"}
+              </button>
+            </div>
+          )}
 
           {!game.winner && (
             <div className="goal-guide">
@@ -331,6 +370,15 @@ export default function Home() {
               {archiveStatus === "saved" && "Game added to the replay-validated human strategy archive."}
               {archiveStatus === "error" && "This game could not be archived. The result still counts on this board."}
             </p>
+            {gameId && (
+              <div className="result-game-id">
+                <span>Game ID</span>
+                <code data-game-id>{gameId}</code>
+                <button className="copy-button" onClick={copyGameId} type="button">
+                  {copyStatus === "copied" ? "Copied" : copyStatus === "error" ? "Select ID" : "Copy ID"}
+                </button>
+              </div>
+            )}
             <div className="result-actions">
               <button className="result-primary" onClick={newGame}>Play again</button>
               <button className="result-secondary" onClick={() => setResultOpen(false)}>Review board</button>
