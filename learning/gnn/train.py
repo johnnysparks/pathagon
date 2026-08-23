@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from .data import ReplayExample, action_index, load_replay_examples
 from .game import BoardConfig
 from .model import PathagonGNN
-from .selfplay import SearchExample, generate_game
+from .selfplay import SearchExample, game_record, generate_game
 
 
 def choose_device(requested: str) -> torch.device:
@@ -131,20 +131,27 @@ def run_alphazero(args: argparse.Namespace) -> None:
     model = load_model(Path(args.resume), device) if args.resume else PathagonGNN(args.hidden, args.layers).to(device)
     model.eval()
     history: List[SearchExample] = []
+    games_path = Path(args.games_out) if args.games_out else None
+    if games_path:
+        games_path.parent.mkdir(parents=True, exist_ok=True)
     for generation in range(args.generations):
         generated: List[SearchExample] = []
         lengths = []
         for game_index in range(args.games):
+            game_seed = args.seed + generation * args.games + game_index
             examples, final_state = generate_game(
                 model,
                 config,
                 simulations=args.simulations,
                 temperature_moves=args.temperature_moves,
-                seed=args.seed + generation * args.games + game_index,
+                seed=game_seed,
                 add_root_noise=True,
             )
             generated.extend(examples)
             lengths.append(final_state.ply)
+            if games_path:
+                with games_path.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(game_record(examples, final_state, game_seed), sort_keys=True) + "\n")
         history.extend(generated)
         if args.replay_limit and len(history) > args.replay_limit:
             history = history[-args.replay_limit :]
@@ -163,6 +170,7 @@ def run_alphazero(args: argparse.Namespace) -> None:
             "average_plies": sum(lengths) / len(lengths) if lengths else 0.0,
             "policy_loss": policy_loss,
             "value_loss": value_loss,
+            "games_out": str(games_path) if games_path else None,
         }
         save_model(model, Path(args.out), metadata)
         print(json.dumps(metadata | {"out": args.out, "device": str(device)}, sort_keys=True))
@@ -173,6 +181,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("mode", choices=("warmstart", "alphazero"))
     result.add_argument("--data", help="schema-v2 JSONL for replay warm-start")
     result.add_argument("--out", default="training/gnn/pathagon.pt")
+    result.add_argument("--games-out", help="append generated schema-v2 games to this JSONL file")
     result.add_argument("--resume")
     result.add_argument("--size", type=int, default=7)
     result.add_argument("--reserve", type=int, default=0)
