@@ -107,6 +107,9 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .result-kicker { color: var(--green); font-size: 11px; font-weight: 850; letter-spacing: .16em; text-transform: uppercase; }
 .result-card h2 { margin: 9px 0 8px; font-family: Georgia, "Times New Roman", serif; font-size: clamp(32px, 6vw, 44px); font-weight: 500; letter-spacing: -.025em; line-height: 1.04; }
 .result-card p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.55; }
+.result-card .archive-status { min-height: 1.4em; margin-top: 12px; font-size: 13px; }
+.result-card .archive-status.saved { color: var(--green); }
+.result-card .archive-status.error { color: #7a3f2c; }
 .result-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 24px; }
 .result-primary, .result-secondary { min-height: 48px; border-radius: 11px; cursor: pointer; font-weight: 800; }
 .result-primary { border: 1px solid var(--ink); color: white; background: var(--ink); }

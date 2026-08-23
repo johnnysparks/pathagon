@@ -35,6 +35,16 @@ The next run loads `positions.tsv` before play. A cached action is reused only w
 
 The tracked corpus is knowledge, not disposable output: keep curated batches small enough to review in Git. Large experimental runs should remain external until they earn promotion into the canonical corpus.
 
+## Evolve evaluation weights
+
+```bash
+npm run rust:train -- --generations 3 --population 6 --training-pairs 6 --evaluation-pairs 12
+```
+
+Each candidate mutates the six interpretable evaluation weights and plays paired-color games against the incumbent. Every candidate sees the same training openings within a generation. Only the best training candidate sees the disjoint evaluation seed range, preventing direct selection on the promotion games.
+
+A candidate is promoted only when it beats the incumbent on both splits and earns at least 55% of held-out points. The output keeps training and evaluation histories in separate replayable corpora alongside `report.json` and `champion.json`. This gate reduces overfitting; it does not by itself establish statistical significance or human Elo.
+
 The Rust and TypeScript harnesses use the same Mulberry32 seed algorithm, color alternation, random-opening convention, threefold-repetition rule, maximum-ply draw, action encoding, and schema-v2 move diagnostics.
 
 ## Boundary

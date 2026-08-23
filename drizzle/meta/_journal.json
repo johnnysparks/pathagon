@@ -1,5 +1,13 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1787467531224,
+      "tag": "0000_steep_mentor",
+      "breakpoints": true
+    }
+  ]
 }
