@@ -3,6 +3,7 @@
 //! Squares are row-major `0..49`. Light connects row 6 to row 0; dark
 //! connects column 0 to column 6. Both bitboards fit in a single `u64`.
 
+pub mod corpus;
 pub mod search;
 pub mod selfplay;
 
