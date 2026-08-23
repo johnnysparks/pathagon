@@ -14,6 +14,7 @@ import {
 } from "./pathagon";
 import { createGameId } from "./game-record";
 import { OPPONENTS, SURVEYOR_OPPONENT, getOpponent } from "./opponents";
+import { COACHING_SEARCH, analyzeAction, analyzeActions, type MoveEvaluation } from "./ai";
 
 const HUMAN: Player = "light";
 const AI: Player = "dark";
@@ -21,17 +22,22 @@ const AI: Player = "dark";
 export default function Home() {
   const [game, setGame] = useState<GameState>(() => createGame());
   const [selected, setSelected] = useState<number | null>(null);
-  const [thinking, setThinking] = useState(false);
   const [history, setHistory] = useState<GameState[]>([]);
   const [moveHistory, setMoveHistory] = useState<Action[]>([]);
   const [gameId, setGameId] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
-  const [resultOpen, setResultOpen] = useState(false);
+  const [resultDismissed, setResultDismissed] = useState(false);
   const [archiveStatus, setArchiveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [captureNotice, setCaptureNotice] = useState<string | null>(null);
+  const [captureNoticeDismissedPly, setCaptureNoticeDismissedPly] = useState<number | null>(null);
+  const [coachingMoves, setCoachingMoves] = useState<MoveEvaluation[]>([]);
+  const [coachingAction, setCoachingAction] = useState<Action | null>(null);
+  const [coachingEvaluation, setCoachingEvaluation] = useState<MoveEvaluation | null>(null);
+  const [coachingStatus, setCoachingStatus] = useState<"idle" | "searching" | "ready">("idle");
   const [opponentId, setOpponentId] = useState(SURVEYOR_OPPONENT.id);
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resultRef = useRef<HTMLDivElement | null>(null);
+  const coachingRequest = useRef(0);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fixtureLoaded = useRef(false);
   const recordable = useRef(true);
   const recordedGame = useRef<string | null>(null);
@@ -40,25 +46,33 @@ export default function Home() {
   const actionKeys = useMemo(() => new Set(actions.map(actionKey)), [actions]);
   const humanPlacementTurn = game.turn === HUMAN && game.reserve[HUMAN] > 0;
   const humanMovementTurn = game.turn === HUMAN && game.reserve[HUMAN] === 0;
+  const thinking = game.turn === AI && !game.winner;
   const opponent = getOpponent(opponentId);
+  const resultOpen = Boolean(game.winner) && !resultDismissed;
+  const captureCount = game.lastAction?.captured.length ?? 0;
+  const captureNotice = captureCount > 0 && captureNoticeDismissedPly !== game.ply
+    ? game.lastAction?.player === HUMAN
+      ? `Trap! ${captureCount} ${captureCount === 1 ? "piece" : "pieces"} returned to ${opponent.name}.`
+      : `Trap! ${opponent.name} returned ${captureCount} ${captureCount === 1 ? "piece" : "pieces"} to your hand.`
+    : null;
+  const bestCoachingMove = coachingMoves[0] ?? null;
 
   useEffect(() => {
     if (fixtureLoaded.current) return;
     fixtureLoaded.current = true;
     if (new URLSearchParams(window.location.search).get("fixture") === "near-win") {
       recordable.current = false;
-      setGame(createNearWinFixture());
-      setHistory([]);
-      setMoveHistory([]);
+      const fixtureTimer = setTimeout(() => {
+        setGame(createNearWinFixture());
+        setHistory([]);
+        setMoveHistory([]);
+      }, 0);
+      return () => clearTimeout(fixtureTimer);
     }
   }, []);
 
   useEffect(() => {
-    if (game.winner || game.turn !== AI) {
-      setThinking(false);
-      return;
-    }
-    setThinking(true);
+    if (game.winner || game.turn !== AI) return;
     aiTimer.current = setTimeout(() => {
       setGame((current) => {
         if (current.turn !== AI || current.winner) return current;
@@ -68,7 +82,6 @@ export default function Home() {
         setMoveHistory((items) => [...items, decision]);
         return applyAction(current, decision);
       });
-      setThinking(false);
     }, 420);
     return () => {
       if (aiTimer.current) clearTimeout(aiTimer.current);
@@ -76,11 +89,38 @@ export default function Home() {
   }, [game, opponent]);
 
   useEffect(() => {
+    coachingRequest.current += 1;
+    if (game.winner || game.turn !== HUMAN || thinking) return;
+    const request = coachingRequest.current;
+    const analysisTimer = setTimeout(() => {
+      const moves = analyzeActions(game, COACHING_SEARCH, game.reserve[HUMAN] > 0 ? 49 : 42);
+      if (coachingRequest.current !== request) return;
+      setCoachingMoves(moves);
+      setCoachingStatus("idle");
+    }, 120);
+    return () => clearTimeout(analysisTimer);
+  }, [game, thinking]);
+
+  useEffect(() => {
+    if (!coachingAction || game.winner || game.turn !== HUMAN || thinking) return;
+    const request = coachingRequest.current + 1;
+    coachingRequest.current = request;
+    const analysisTimer = setTimeout(() => {
+      const cached = coachingMoves.find((move) => sameAction(move.action, coachingAction));
+      const evaluation = cached ?? analyzeAction(game, coachingAction, COACHING_SEARCH);
+      if (coachingRequest.current !== request) return;
+      setCoachingEvaluation(evaluation);
+      setCoachingStatus("ready");
+    }, 80);
+    return () => clearTimeout(analysisTimer);
+  }, [coachingAction, coachingMoves, game, thinking]);
+
+  useEffect(() => {
     if (!game.winner) return;
-    setResultOpen(true);
+    if (!resultOpen) return;
     const focusTimer = setTimeout(() => resultRef.current?.focus(), 40);
     return () => clearTimeout(focusTimer);
-  }, [game.winner]);
+  }, [game.winner, resultOpen]);
 
   useEffect(() => {
     if (!game.winner || !recordable.current || !gameId || moveHistory.length !== game.ply) return;
@@ -99,18 +139,11 @@ export default function Home() {
   }, [game.winner, game.ply, moveHistory, opponent.id, gameId]);
 
   useEffect(() => {
-    const captured = game.lastAction?.captured.length ?? 0;
-    if (!captured) return;
-    const byHuman = game.lastAction?.player === HUMAN;
-    const count = `${captured} ${captured === 1 ? "piece" : "pieces"}`;
-    setCaptureNotice(
-      byHuman
-        ? `Trap! ${count} returned to ${opponent.name}.`
-        : `Trap! ${opponent.name} returned ${count} to your hand.`,
-    );
-    const noticeTimer = setTimeout(() => setCaptureNotice(null), 2600);
+    if (!captureCount) return;
+    const capturedPly = game.ply;
+    const noticeTimer = setTimeout(() => setCaptureNoticeDismissedPly(capturedPly), 2600);
     return () => clearTimeout(noticeTimer);
-  }, [game.ply, game.lastAction, opponent.name]);
+  }, [captureCount, game.ply]);
 
   function play(action: Action) {
     if (game.turn !== HUMAN || game.winner || thinking) return;
@@ -119,6 +152,7 @@ export default function Home() {
     setMoveHistory((items) => [...items, action]);
     setGame(applyAction(game, action));
     setSelected(null);
+    clearCoaching();
   }
 
   function handleCell(index: number) {
@@ -140,6 +174,58 @@ export default function Home() {
     }
   }
 
+  function coachingActionForCell(index: number) {
+    if (game.turn !== HUMAN || game.winner || thinking) return null;
+    if (humanPlacementTurn) {
+      const action: Action = { kind: "place", to: index };
+      return actionKeys.has(actionKey(action)) ? action : null;
+    }
+    if (!humanMovementTurn) return null;
+    if (selected !== null) {
+      const action: Action = { kind: "relocate", from: selected, to: index };
+      return actionKeys.has(actionKey(action)) ? action : null;
+    }
+    if (game.board[index] !== HUMAN) return null;
+    return coachingMoves.find((move) => move.action.kind === "relocate" && move.action.from === index)?.action ?? null;
+  }
+
+  function previewCell(index: number) {
+    const action = coachingActionForCell(index);
+    setCoachingStatus(action ? "searching" : "idle");
+    setCoachingEvaluation(null);
+    setCoachingAction(action);
+  }
+
+  function startLongPress(index: number) {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => previewCell(index), 420);
+  }
+
+  function clearLongPress() {
+    if (!longPressTimer.current) return;
+    clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+  }
+
+  function clearCoaching() {
+    clearLongPress();
+    setCoachingAction(null);
+    setCoachingEvaluation(null);
+    setCoachingMoves([]);
+    setCoachingStatus("idle");
+  }
+
+  function heatForCell(index: number) {
+    if (humanPlacementTurn) return coachingMoves.find((move) => move.action.kind === "place" && move.action.to === index);
+    if (humanMovementTurn && selected !== null) {
+      return coachingMoves.find((move) => move.action.kind === "relocate" && move.action.from === selected && move.action.to === index);
+    }
+    if (humanMovementTurn && selected === null) {
+      return coachingMoves.find((move) => move.action.kind === "relocate" && move.action.from === index);
+    }
+    return undefined;
+  }
+
   function newGame() {
     if (aiTimer.current) clearTimeout(aiTimer.current);
     setGame(createGame());
@@ -148,9 +234,9 @@ export default function Home() {
     setGameId(null);
     setCopyStatus("idle");
     setSelected(null);
-    setThinking(false);
-    setResultOpen(false);
-    setCaptureNotice(null);
+    setResultDismissed(false);
+    setCaptureNoticeDismissedPly(null);
+    clearCoaching();
     setArchiveStatus("idle");
     recordedGame.current = null;
     recordable.current = true;
@@ -164,8 +250,9 @@ export default function Home() {
     setHistory(history.slice(0, targetIndex));
     setMoveHistory(moveHistory.slice(0, targetIndex));
     setSelected(null);
-    setResultOpen(false);
-    setCaptureNotice(null);
+    setResultDismissed(false);
+    setCaptureNoticeDismissedPly(null);
+    clearCoaching();
     setArchiveStatus("idle");
     recordedGame.current = null;
   }
@@ -179,9 +266,9 @@ export default function Home() {
     setGameId(null);
     setCopyStatus("idle");
     setSelected(null);
-    setThinking(false);
-    setResultOpen(false);
-    setCaptureNotice(null);
+    setResultDismissed(false);
+    setCaptureNoticeDismissedPly(null);
+    clearCoaching();
     setArchiveStatus("idle");
     recordedGame.current = null;
     recordable.current = true;
@@ -236,7 +323,7 @@ export default function Home() {
             <strong>{status}</strong>
             <span className="turn-detail">{game.winner ? "Game complete" : `Turn ${game.ply + 1}`}</span>
             {game.winner && !resultOpen && (
-              <button className="result-link" onClick={() => setResultOpen(true)}>View result</button>
+              <button className="result-link" onClick={() => setResultDismissed(false)}>View result</button>
             )}
           </div>
 
@@ -274,11 +361,20 @@ export default function Home() {
                 const legalDestination = selected !== null && actionKeys.has(actionKey({ kind: "relocate", from: selected, to: index }));
                 const legalPlacement = humanPlacementTurn && actionKeys.has(actionKey({ kind: "place", to: index }));
                 const movable = humanMovementTurn && piece === HUMAN && game.lastRelocatedTo[HUMAN] !== index;
+                const heat = heatForCell(index);
+                const heatClassName = heat ? heatClass(heat.delta) : "";
                 return (
                   <button
                     key={index}
-                    className={`cell ${piece ? "occupied" : ""} ${isSelected ? "selected" : ""} ${isLastMove ? "last-move" : ""} ${isWinningPath ? "winning" : ""} ${legalDestination || legalPlacement ? "legal" : ""}`}
+                    className={`cell ${piece ? "occupied" : ""} ${isSelected ? "selected" : ""} ${isLastMove ? "last-move" : ""} ${isWinningPath ? "winning" : ""} ${legalDestination || legalPlacement ? "legal" : ""} ${heatClassName}`}
                     onClick={() => handleCell(index)}
+                    onMouseEnter={() => previewCell(index)}
+                    onMouseLeave={() => setCoachingAction(null)}
+                    onFocus={() => previewCell(index)}
+                    onBlur={() => setCoachingAction(null)}
+                    onTouchStart={() => startLongPress(index)}
+                    onTouchEnd={clearLongPress}
+                    onTouchCancel={clearLongPress}
                     role="gridcell"
                     aria-label={cellLabel(index, piece, forbidden, movable)}
                     disabled={game.turn !== HUMAN || thinking || Boolean(game.winner) || forbidden}
@@ -291,6 +387,13 @@ export default function Home() {
               })}
             </div>
           </div>
+
+          <CoachingPanel
+            evaluation={coachingEvaluation}
+            status={coachingStatus}
+            bestMove={bestCoachingMove}
+            hasHeatmap={coachingMoves.length > 0}
+          />
 
           <div className="piece-trays">
             <PieceTray label="You" player="light" count={game.reserve.light} active={!game.winner && game.turn === HUMAN} />
@@ -339,7 +442,7 @@ export default function Home() {
             ref={resultRef}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
-                setResultOpen(false);
+                setResultDismissed(true);
                 return;
               }
               if (event.key !== "Tab") return;
@@ -381,7 +484,7 @@ export default function Home() {
             )}
             <div className="result-actions">
               <button className="result-primary" onClick={newGame}>Play again</button>
-              <button className="result-secondary" onClick={() => setResultOpen(false)}>Review board</button>
+              <button className="result-secondary" onClick={() => setResultDismissed(true)}>Review board</button>
             </div>
           </div>
         </div>
@@ -394,8 +497,104 @@ function PieceTray({ label, player, count, active }: { label: string; player: Pl
   return <div className={`piece-tray ${active ? "active" : ""}`}><span className={`mini-piece ${player}`} /><div><strong>{label}</strong><span>{count} in hand</span></div></div>;
 }
 
+function CoachingPanel({ evaluation, status, bestMove, hasHeatmap }: { evaluation: MoveEvaluation | null; status: "idle" | "searching" | "ready"; bestMove: MoveEvaluation | null; hasHeatmap: boolean }) {
+  const signal = evaluation ? normalizeScore(evaluation.score) : 0;
+  const shift = evaluation ? normalizeShift(evaluation.delta) : 0;
+  const needleAngle = signal * 90;
+  const resultTone = evaluation ? shift > 0.12 ? "positive" : shift < -0.12 ? "negative" : "even" : "waiting";
+  const headline = !evaluation
+    ? status === "searching" ? "Searching the move tree…" : "Hover a legal move to preview it"
+    : shift > 0.22 ? "Strong improvement"
+      : shift < -0.22 ? "A costly concession"
+        : Math.abs(shift) < 0.08 ? "Keeps the balance"
+          : shift > 0 ? "Slightly better for you" : "Slightly better for them";
+
+  return (
+    <section className={`coaching-panel ${resultTone}`} aria-live="polite" aria-label="Live move coach">
+      <div className="coaching-heading">
+        <div>
+          <span className="panel-kicker">Live move coach</span>
+          <h2>{headline}</h2>
+        </div>
+        <span className="coaching-status"><span className="coach-pulse" /> {hasHeatmap ? "Tree ready" : "Warming up"}</span>
+      </div>
+      <div className="coaching-body">
+        <div className="advantage-gauge" aria-label={evaluation ? `Advantage ${formatAdvantage(signal)}` : "Advantage gauge waiting for a move preview"}>
+          <svg viewBox="0 0 220 132" role="img" aria-hidden="true">
+            <path className="gauge-track" d="M 28 108 A 82 82 0 0 1 192 108" />
+            <path className="gauge-left" d="M 28 108 A 82 82 0 0 1 110 26" />
+            <path className="gauge-right" d="M 110 26 A 82 82 0 0 1 192 108" />
+            <line className="gauge-needle" x1="110" y1="108" x2="110" y2="43" style={{ transform: `rotate(${needleAngle}deg)`, transformOrigin: "110px 108px" }} />
+            <circle className="gauge-hub" cx="110" cy="108" r="7" />
+          </svg>
+          <div className="gauge-labels"><span>Them</span><strong>{evaluation ? formatAdvantage(signal) : "—"}</strong><span>You</span></div>
+        </div>
+        <div className="coaching-copy">
+          {evaluation ? (
+            <>
+              <div className="coaching-move"><span>Previewing</span><strong>{formatAction(evaluation.action)}</strong></div>
+              <p>{formatShift(evaluation.delta)}</p>
+              <span className="coaching-meta">{evaluation.completedDepth}-ply minimax · {evaluation.nodes.toLocaleString()} nodes{evaluation.exhausted ? " · budget capped" : ""}</span>
+            </>
+          ) : (
+            <>
+              <p>Move over a square to see how the position shifts. On touch, hold a legal square for a moment.</p>
+              {bestMove && <span className="coaching-meta">Best current idea: {formatAction(bestMove.action)}</span>}
+            </>
+          )}
+        </div>
+      </div>
+      <div className="coaching-legend"><span><i className="legend-swatch good" /> helps your path</span><span><i className="legend-swatch bad" /> helps their path</span></div>
+    </section>
+  );
+}
+
 function actionKey(action: Action) {
   return action.kind === "place" ? `p:${action.to}` : `m:${action.from}:${action.to}`;
+}
+
+function sameAction(left: Action, right: Action) {
+  return actionKey(left) === actionKey(right);
+}
+
+function heatClass(delta: number) {
+  const signal = Math.max(-1, Math.min(1, delta / 420));
+  if (signal > 0.52) return "coach-heat coach-heat-strong-good";
+  if (signal > 0.12) return "coach-heat coach-heat-good";
+  if (signal < -0.52) return "coach-heat coach-heat-strong-bad";
+  if (signal < -0.12) return "coach-heat coach-heat-bad";
+  return "coach-heat coach-heat-even";
+}
+
+function normalizeScore(score: number) {
+  if (score >= 1_000_000_000) return 1;
+  if (score <= -1_000_000_000) return -1;
+  return Math.max(-1, Math.min(1, score / 650));
+}
+
+function normalizeShift(delta: number) {
+  return Math.max(-1, Math.min(1, delta / 650));
+}
+
+function formatAdvantage(signal: number) {
+  if (Math.abs(signal) < 0.08) return "Even";
+  return signal > 0 ? `You +${Math.round(signal * 100)}` : `Them +${Math.round(Math.abs(signal) * 100)}`;
+}
+
+function formatShift(delta: number) {
+  if (Math.abs(delta) < 20) return "The move keeps the advantage balance essentially unchanged.";
+  const points = Math.round(Math.abs(delta) / 10);
+  return delta > 0 ? `This move shifts the balance ${points} points toward your path.` : `This move shifts the balance ${points} points toward their path.`;
+}
+
+function formatAction(action: Action) {
+  return action.kind === "place"
+    ? coordinate(action.to)
+    : `${coordinate(action.from)} → ${coordinate(action.to)}`;
+}
+
+function coordinate(index: number) {
+  return `${String.fromCharCode(65 + (index % 7))}${Math.floor(index / 7) + 1}`;
 }
 
 function cellLabel(index: number, piece: Player | null, forbidden: boolean, movable: boolean) {

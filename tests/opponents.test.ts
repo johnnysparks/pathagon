@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { COACHING_SEARCH, analyzeAction, analyzeActions } from "../app/ai.ts";
 import { SURVEYOR_OPPONENT } from "../app/opponents.ts";
 import { applyAction, createGame } from "../app/pathagon.ts";
 import type { GameState, Player } from "../app/pathagon.ts";
@@ -45,4 +46,18 @@ test("The Surveyor sees the right-edge rush and blocks before the capture ladder
   );
   const action = SURVEYOR_OPPONENT.chooseAction(state);
   assert.deepEqual(action, { kind: "place", to: 20 });
+});
+
+test("move coaching evaluates a legal preview and reports its balance shift", () => {
+  const state = createGame();
+  const evaluation = analyzeAction(state, { kind: "place", to: 24 }, { ...COACHING_SEARCH, depth: 1, maxNodes: 100 });
+  assert.deepEqual(evaluation.action, { kind: "place", to: 24 });
+  assert.equal(evaluation.delta, evaluation.score);
+  assert.ok(evaluation.nodes > 0);
+});
+
+test("move coaching sorts the visible heatmap from best to worst", () => {
+  const moves = analyzeActions(createGame(), { ...COACHING_SEARCH, depth: 1, maxNodes: 500 }, 12);
+  assert.equal(moves.length, 12);
+  assert.ok(moves.every((move, index) => index === 0 || moves[index - 1].score >= move.score));
 });

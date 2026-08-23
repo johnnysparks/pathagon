@@ -26,6 +26,16 @@ export type SearchResult = {
   tableHits: number;
 };
 
+export type MoveEvaluation = {
+  action: Action;
+  score: number;
+  delta: number;
+  nodes: number;
+  exhausted: boolean;
+  completedDepth: number;
+  tableHits: number;
+};
+
 type Budget = { nodes: number; exhausted: boolean; tableHits: number };
 type TableEntry = { depth: number; score: number; flag: "exact" | "lower" | "upper" };
 
@@ -49,6 +59,15 @@ export const PATHFINDER_SEARCH: SearchConfig = {
   depth: 4,
   maxNodes: 90_000,
   beamWidth: 40,
+  weights: DEFAULT_WEIGHTS,
+};
+
+// Coaching intentionally stays a little lighter than the strongest opponent so
+// the board can answer a hover without making the game feel stuck.
+export const COACHING_SEARCH: SearchConfig = {
+  depth: 3,
+  maxNodes: 18_000,
+  beamWidth: 36,
   weights: DEFAULT_WEIGHTS,
 };
 
@@ -95,6 +114,62 @@ export function searchBestAction(state: GameState, config: SearchConfig): Search
     bestScore = evaluatePosition(applyLegalAction(state, bestAction), rootPlayer, config.weights);
   }
   return { action: bestAction, score: bestScore, nodes: budget.nodes, exhausted: budget.exhausted, completedDepth, tableHits: budget.tableHits };
+}
+
+export function analyzeAction(state: GameState, action: Action, config: SearchConfig = COACHING_SEARCH): MoveEvaluation {
+  const rootPlayer = state.turn;
+  const baseline = evaluatePosition(state, rootPlayer, config.weights);
+  const budget: Budget = { nodes: 0, exhausted: false, tableHits: 0 };
+  const table = new Map<string, TableEntry>();
+  const next = applyLegalAction(state, action);
+  budget.nodes += 1;
+  const score = next.winner
+    ? evaluatePosition(next, rootPlayer, config.weights)
+    : minimax(next, rootPlayer, Math.max(0, config.depth - 1), Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, config, budget, table);
+  return {
+    action,
+    score,
+    delta: score - baseline,
+    nodes: budget.nodes,
+    exhausted: budget.exhausted,
+    completedDepth: config.depth,
+    tableHits: budget.tableHits,
+  };
+}
+
+export function analyzeActions(state: GameState, config: SearchConfig = COACHING_SEARCH, maxActions = 48): MoveEvaluation[] {
+  const rootPlayer = state.turn;
+  const baseline = evaluatePosition(state, rootPlayer, config.weights);
+  const budget: Budget = { nodes: 0, exhausted: false, tableHits: 0 };
+  const table = new Map<string, TableEntry>();
+  const results: MoveEvaluation[] = [];
+  let alpha = Number.NEGATIVE_INFINITY;
+  const actions = orderActions(state, rootPlayer, config.weights).slice(0, maxActions);
+
+  for (const action of actions) {
+    if (budget.nodes >= config.maxNodes) {
+      budget.exhausted = true;
+      break;
+    }
+    const next = applyLegalAction(state, action);
+    budget.nodes += 1;
+    const score = next.winner
+      ? evaluatePosition(next, rootPlayer, config.weights)
+      : minimax(next, rootPlayer, Math.max(0, config.depth - 1), alpha, Number.POSITIVE_INFINITY, config, budget, table);
+    results.push({
+      action,
+      score,
+      delta: score - baseline,
+      nodes: budget.nodes,
+      exhausted: budget.exhausted,
+      completedDepth: config.depth,
+      tableHits: budget.tableHits,
+    });
+    alpha = Math.max(alpha, score);
+    if (budget.exhausted) break;
+  }
+
+  return results.sort((left, right) => right.score - left.score || actionOrder(left.action) - actionOrder(right.action));
 }
 
 export function evaluatePosition(state: GameState, player: Player, weights: EvaluationWeights) {
