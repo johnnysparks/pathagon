@@ -5,12 +5,14 @@ on:
     paths:
       - "engine-rs/**"
       - "fixtures/**"
+      - "corpus/**"
       - ".github/workflows/rust-engine.yml"
   push:
     branches: [master]
     paths:
       - "engine-rs/**"
       - "fixtures/**"
+      - "corpus/**"
       - ".github/workflows/rust-engine.yml"
 
 permissions:
