@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Action,
   GameState,
@@ -331,6 +332,7 @@ export default function Home() {
           <h1>Pathagon</h1>
         </div>
         <div className="header-actions">
+          <Link className="quiet-button lab-nav-link" href="/lab">Learning lab</Link>
           <button className="quiet-button" onClick={undoRound} disabled={!history.length || thinking}>Undo round</button>
           <button className="primary-button" onClick={newGame}>New game</button>
         </div>

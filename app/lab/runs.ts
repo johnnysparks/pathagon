@@ -1,0 +1,158 @@
+export type RunRecord = {
+  id: string;
+  label: string;
+  stage: string;
+  kind: "warmstart" | "alphazero";
+  boardSize: number;
+  reservePerPlayer: number;
+  parent: string | null;
+  summary: string;
+  checkpoint: { name: string; bytes: number };
+  replay: { name: string; bytes: number; games: number; positions: number } | null;
+  metrics: {
+    examples: number;
+    averagePlies: number | null;
+    policyLoss: number | null;
+    valueLoss: number | null;
+  };
+  outcomes: { wins: number; draws: number; losses: number } | null;
+  arena: { boardSize: number; games: number; simulations: number; wins: number; draws: number; losses: number } | null;
+};
+
+export const RUNS: RunRecord[] = [
+  {
+    id: "generation-8-7x7",
+    label: "Generation 8",
+    stage: "7x7 fine-tune",
+    kind: "alphazero",
+    boardSize: 7,
+    reservePerPlayer: 14,
+    parent: "Generation 7 · 5x5",
+    summary: "The current larger-board candidate, fine-tuned after two compact-board curriculum rounds.",
+    checkpoint: { name: "pathagon-generation-8-7x7.pt", bytes: 419325 },
+    replay: { name: "selfplay-generation-8-7x7.jsonl", bytes: 331268, games: 10, positions: 1883 },
+    metrics: { examples: 1883, averagePlies: 188.3, policyLoss: 2.4365, valueLoss: 0.0942 },
+    outcomes: { wins: 1, draws: 9, losses: 0 },
+    arena: { boardSize: 7, games: 10, simulations: 8, wins: 4, draws: 3, losses: 3 },
+  },
+  {
+    id: "generation-7-5x5",
+    label: "Generation 7",
+    stage: "5x5 curriculum",
+    kind: "alphazero",
+    boardSize: 5,
+    reservePerPlayer: 10,
+    parent: "Generation 6 · 5x5",
+    summary: "A second compact-board curriculum round; all self-play games found a path.",
+    checkpoint: { name: "pathagon-generation-7-5x5.pt", bytes: 419325 },
+    replay: { name: "selfplay-generation-7-5x5.jsonl", bytes: 162110, games: 25, positions: 926 },
+    metrics: { examples: 926, averagePlies: 37.04, policyLoss: 1.7036, valueLoss: 1.1871 },
+    outcomes: { wins: 25, draws: 0, losses: 0 },
+    arena: { boardSize: 5, games: 20, simulations: 16, wins: 13, draws: 0, losses: 7 },
+  },
+  {
+    id: "generation-6-5x5",
+    label: "Generation 6",
+    stage: "5x5 curriculum",
+    kind: "alphazero",
+    boardSize: 5,
+    reservePerPlayer: 10,
+    parent: "Generation 5 · 7x7",
+    summary: "The first compact-board fine-tune, trained from the larger-board checkpoint.",
+    checkpoint: { name: "pathagon-generation-6-5x5.pt", bytes: 419325 },
+    replay: { name: "selfplay-generation-6-5x5.jsonl", bytes: 119159, games: 25, positions: 687 },
+    metrics: { examples: 687, averagePlies: 27.48, policyLoss: 1.5596, valueLoss: 0.4532 },
+    outcomes: { wins: 25, draws: 0, losses: 0 },
+    arena: null,
+  },
+  {
+    id: "generation-5-7x7",
+    label: "Generation 5",
+    stage: "7x7 self-play",
+    kind: "alphazero",
+    boardSize: 7,
+    reservePerPlayer: 14,
+    parent: "Generation 4 · 7x7",
+    summary: "The first round with a meaningful mix of decisive self-play games.",
+    checkpoint: { name: "pathagon-generation-5.pt", bytes: 419037 },
+    replay: { name: "selfplay-generation-5.jsonl", bytes: 284007, games: 10, positions: 1622 },
+    metrics: { examples: 1622, averagePlies: 162.2, policyLoss: 1.1667, valueLoss: 0.1395 },
+    outcomes: { wins: 3, draws: 7, losses: 0 },
+    arena: { boardSize: 7, games: 10, simulations: 8, wins: 0, draws: 10, losses: 0 },
+  },
+  {
+    id: "generation-4-7x7",
+    label: "Generation 4",
+    stage: "7x7 self-play",
+    kind: "alphazero",
+    boardSize: 7,
+    reservePerPlayer: 14,
+    parent: "Generation 3 · 7x7",
+    summary: "A draw-heavy diagnostic round that motivated the repetition-aware search work.",
+    checkpoint: { name: "pathagon-generation-4.pt", bytes: 419037 },
+    replay: { name: "selfplay-generation-4.jsonl", bytes: 172836, games: 5, positions: 980 },
+    metrics: { examples: 980, averagePlies: 196, policyLoss: 1.1137, valueLoss: 0.0191 },
+    outcomes: { wins: 0, draws: 5, losses: 0 },
+    arena: { boardSize: 7, games: 5, simulations: 4, wins: 0, draws: 4, losses: 1 },
+  },
+  {
+    id: "generation-3-7x7",
+    label: "Generation 3",
+    stage: "7x7 self-play",
+    kind: "alphazero",
+    boardSize: 7,
+    reservePerPlayer: 14,
+    parent: "Generation 2 · 7x7",
+    summary: "A small neural self-play round with three path wins and two capped draws.",
+    checkpoint: { name: "pathagon-generation-3.pt", bytes: 419037 },
+    replay: { name: "selfplay-generation-3.jsonl", bytes: 95615, games: 5, positions: 548 },
+    metrics: { examples: 548, averagePlies: 109.6, policyLoss: 1.6444, valueLoss: 0.2106 },
+    outcomes: { wins: 3, draws: 2, losses: 0 },
+    arena: null,
+  },
+  {
+    id: "generation-2-7x7",
+    label: "Generation 2",
+    stage: "7x7 self-play",
+    kind: "alphazero",
+    boardSize: 7,
+    reservePerPlayer: 14,
+    parent: "Generation 1 · 7x7",
+    summary: "The first saved replay-producing generation; six of ten games reached the cap.",
+    checkpoint: { name: "pathagon-generation-2.pt", bytes: 419037 },
+    replay: { name: "selfplay-generation-2.jsonl", bytes: 236803, games: 10, positions: 1352 },
+    metrics: { examples: 1352, averagePlies: 135.2, policyLoss: 2.8748, valueLoss: 0.1641 },
+    outcomes: { wins: 4, draws: 6, losses: 0 },
+    arena: null,
+  },
+  {
+    id: "generation-1-7x7",
+    label: "Generation 1",
+    stage: "7x7 self-play",
+    kind: "alphazero",
+    boardSize: 7,
+    reservePerPlayer: 14,
+    parent: "Warm start",
+    summary: "The first neural self-play checkpoint, trained from twenty generated games.",
+    checkpoint: { name: "pathagon-generation-1.pt", bytes: 418973 },
+    replay: null,
+    metrics: { examples: 1298, averagePlies: 64.9, policyLoss: 3.5685, valueLoss: 0.1663 },
+    outcomes: null,
+    arena: null,
+  },
+  {
+    id: "warmstart-7x7",
+    label: "Warm start",
+    stage: "Rust archive replay",
+    kind: "warmstart",
+    boardSize: 7,
+    reservePerPlayer: 14,
+    parent: null,
+    summary: "Replay-warmed initialization from the 100-game Rust archive; not a promoted agent.",
+    checkpoint: { name: "pathagon-warmstart.pt", bytes: 418741 },
+    replay: null,
+    metrics: { examples: 3719, averagePlies: null, policyLoss: 3.7231, valueLoss: 1.0903 },
+    outcomes: null,
+    arena: null,
+  },
+];
