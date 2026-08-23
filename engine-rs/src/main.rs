@@ -99,7 +99,11 @@ fn main() {
 }
 
 fn with_optional_book(agent: Agent, book: &Option<Arc<StrategyBook>>) -> Agent {
-    book.as_ref().map_or_else(|| agent.clone(), |book| agent.with_book(Arc::clone(book)))
+    if let Some(book) = book {
+        agent.with_book(Arc::clone(book))
+    } else {
+        agent
+    }
 }
 
 fn fail(message: &str) -> ! {
