@@ -14,7 +14,7 @@ import {
 } from "./pathagon";
 import { createGameId } from "./game-record";
 import { OPPONENTS, SURVEYOR_OPPONENT, getOpponent } from "./opponents";
-import { COACHING_SEARCH, analyzeAction, analyzeActions, type MoveEvaluation } from "./ai";
+import { COACHING_SEARCH, COACHING_SEARCH_STAGES, analyzeAction, analyzeActions, type MoveEvaluation } from "./ai";
 
 const HUMAN: Player = "light";
 const AI: Player = "dark";
@@ -96,7 +96,6 @@ export default function Home() {
       const moves = analyzeActions(game, COACHING_SEARCH, game.reserve[HUMAN] > 0 ? 49 : 42);
       if (coachingRequest.current !== request) return;
       setCoachingMoves(moves);
-      setCoachingStatus("idle");
     }, 120);
     return () => clearTimeout(analysisTimer);
   }, [game, thinking]);
@@ -105,15 +104,28 @@ export default function Home() {
     if (!coachingAction || game.winner || game.turn !== HUMAN || thinking) return;
     const request = coachingRequest.current + 1;
     coachingRequest.current = request;
-    const analysisTimer = setTimeout(() => {
-      const cached = coachingMoves.find((move) => sameAction(move.action, coachingAction));
-      const evaluation = cached ?? analyzeAction(game, coachingAction, COACHING_SEARCH);
+    let stageIndex = 0;
+    let analysisTimer: ReturnType<typeof setTimeout> | null = null;
+    const searchStartedAt = performance.now();
+    const runStage = () => {
+      if (coachingRequest.current !== request) return;
+      const config = COACHING_SEARCH_STAGES[stageIndex];
+      const evaluation = analyzeAction(game, coachingAction, config);
       if (coachingRequest.current !== request) return;
       setCoachingEvaluation(evaluation);
+      const nextStage = stageIndex + 1;
+      if (nextStage < COACHING_SEARCH_STAGES.length && performance.now() - searchStartedAt < 30_000) {
+        stageIndex = nextStage;
+        analysisTimer = setTimeout(runStage, 100);
+        return;
+      }
       setCoachingStatus("ready");
-    }, 80);
-    return () => clearTimeout(analysisTimer);
-  }, [coachingAction, coachingMoves, game, thinking]);
+    };
+    analysisTimer = setTimeout(runStage, 80);
+    return () => {
+      if (analysisTimer) clearTimeout(analysisTimer);
+    };
+  }, [coachingAction, game, thinking]);
 
   useEffect(() => {
     if (!game.winner) return;
@@ -186,7 +198,9 @@ export default function Home() {
       return actionKeys.has(actionKey(action)) ? action : null;
     }
     if (game.board[index] !== HUMAN) return null;
-    return coachingMoves.find((move) => move.action.kind === "relocate" && move.action.from === index)?.action ?? null;
+    return coachingMoves.find((move) => move.action.kind === "relocate" && move.action.from === index)?.action
+      ?? actions.find((action) => action.kind === "relocate" && action.from === index)
+      ?? null;
   }
 
   function previewCell(index: number) {
@@ -194,6 +208,12 @@ export default function Home() {
     setCoachingStatus(action ? "searching" : "idle");
     setCoachingEvaluation(null);
     setCoachingAction(action);
+  }
+
+  function clearCoachingPreview() {
+    setCoachingAction(null);
+    setCoachingEvaluation(null);
+    setCoachingStatus("idle");
   }
 
   function startLongPress(index: number) {
@@ -369,9 +389,9 @@ export default function Home() {
                     className={`cell ${piece ? "occupied" : ""} ${isSelected ? "selected" : ""} ${isLastMove ? "last-move" : ""} ${isWinningPath ? "winning" : ""} ${legalDestination || legalPlacement ? "legal" : ""} ${heatClassName}`}
                     onClick={() => handleCell(index)}
                     onMouseEnter={() => previewCell(index)}
-                    onMouseLeave={() => setCoachingAction(null)}
+                    onMouseLeave={clearCoachingPreview}
                     onFocus={() => previewCell(index)}
-                    onBlur={() => setCoachingAction(null)}
+                    onBlur={clearCoachingPreview}
                     onTouchStart={() => startLongPress(index)}
                     onTouchEnd={clearLongPress}
                     onTouchCancel={clearLongPress}
@@ -386,6 +406,13 @@ export default function Home() {
                 );
               })}
             </div>
+          </div>
+
+          <div className="board-orientation" role="note" aria-label="Board coordinate orientation">
+            <span className="orientation-title">Board map</span>
+            <span><strong>Letters</strong> A → G, left to right</span>
+            <span><strong>Numbers</strong> 1 → 7, top to bottom</span>
+            <span className="orientation-example"><strong>D3</strong> = column D, row 3</span>
           </div>
 
           <CoachingPanel
@@ -516,7 +543,7 @@ function CoachingPanel({ evaluation, status, bestMove, hasHeatmap }: { evaluatio
           <span className="panel-kicker">Live move coach</span>
           <h2>{headline}</h2>
         </div>
-        <span className="coaching-status"><span className="coach-pulse" /> {hasHeatmap ? "Tree ready" : "Warming up"}</span>
+        <span className="coaching-status"><span className="coach-pulse" /> {status === "searching" ? `Refining${evaluation ? ` · ${evaluation.completedDepth}-ply` : "…"}` : hasHeatmap ? "Tree ready" : "Warming up"}</span>
       </div>
       <div className="coaching-body">
         <div className="advantage-gauge" aria-label={evaluation ? `Advantage ${formatAdvantage(signal)}` : "Advantage gauge waiting for a move preview"}>
@@ -551,10 +578,6 @@ function CoachingPanel({ evaluation, status, bestMove, hasHeatmap }: { evaluatio
 
 function actionKey(action: Action) {
   return action.kind === "place" ? `p:${action.to}` : `m:${action.from}:${action.to}`;
-}
-
-function sameAction(left: Action, right: Action) {
-  return actionKey(left) === actionKey(right);
 }
 
 function heatClass(delta: number) {

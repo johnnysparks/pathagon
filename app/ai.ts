@@ -71,6 +71,17 @@ export const COACHING_SEARCH: SearchConfig = {
   weights: DEFAULT_WEIGHTS,
 };
 
+// Each stage is deliberately bounded so the browser can yield between deeper
+// searches while a player keeps a piece or move hovered.
+export const COACHING_SEARCH_STAGES: SearchConfig[] = [
+  COACHING_SEARCH,
+  { ...COACHING_SEARCH, depth: 4, maxNodes: 50_000 },
+  { ...COACHING_SEARCH, depth: 5, maxNodes: 80_000 },
+  { ...COACHING_SEARCH, depth: 6, maxNodes: 45_000 },
+  { ...COACHING_SEARCH, depth: 7, maxNodes: 60_000 },
+  { ...COACHING_SEARCH, depth: 8, maxNodes: 80_000 },
+];
+
 export function searchBestAction(state: GameState, config: SearchConfig): SearchResult {
   const rootPlayer = state.turn;
   const initialActions = orderActions(state, rootPlayer, config.weights);

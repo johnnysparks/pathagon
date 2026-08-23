@@ -90,6 +90,10 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .mini-piece { width: 28px; height: 28px; flex: 0 0 auto; clip-path: polygon(29% 0, 71% 0, 100% 29%, 100% 71%, 71% 100%, 29% 100%, 0 71%, 0 29%); }
 .mini-piece.light { background: var(--light-piece); border: 1px solid #bca98b; }
 .mini-piece.dark { background: var(--dark-piece); }
+.board-orientation { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: -7px 4px 14px; padding: 8px 10px; border: 1px solid #ded5c6; border-radius: 9px; color: var(--muted); background: rgba(238,232,220,.72); font-size: 11px; line-height: 1.35; }
+.board-orientation strong { color: var(--ink); font-weight: 850; }
+.orientation-title { color: var(--ink); font-size: 10px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.orientation-example { margin-left: auto; }
 .coaching-panel { margin: 0 0 16px; padding: 15px 16px 12px; border: 1px solid #d6cdbc; border-radius: 14px; background: rgba(247,243,235,.92); box-shadow: inset 0 1px 0 rgba(255,255,255,.66); }
 .coaching-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .coaching-heading h2 { margin: 4px 0 0; font-size: 18px; letter-spacing: -.02em; }
@@ -195,6 +199,8 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
   .piece-trays { gap: 6px; }
   .piece-tray { padding-inline: 8px; }
   .coaching-panel { padding-inline: 12px; }
+  .board-orientation { align-items: flex-start; gap: 5px 10px; margin-inline: 3px; }
+  .orientation-example { width: 100%; margin-left: 0; }
   .coaching-body { grid-template-columns: 1fr; gap: 0; }
   .advantage-gauge { width: min(190px, 68vw); margin: -2px auto 2px; }
   .coaching-copy { text-align: center; }
