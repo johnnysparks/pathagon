@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use std::env;
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Instant;
 
+use pathagon_engine::corpus::{write_corpus, StrategyBook};
 use pathagon_engine::search::{EvaluationWeights, SearchConfig};
 use pathagon_engine::selfplay::{play_game, Agent, MatchOptions};
 use pathagon_engine::Player;
@@ -17,6 +20,12 @@ fn main() {
     let beam_width = number(&args, "beam", 40_usize);
     let opponent_name = args.get("opponent").map(String::as_str).unwrap_or("random");
     let jsonl = args.contains_key("jsonl");
+    let corpus_directory = args.get("corpus").map(PathBuf::from);
+    let book = corpus_directory.as_ref()
+        .map(|directory| StrategyBook::load(&directory.join("positions.tsv")))
+        .transpose()
+        .unwrap_or_else(|error| fail(&format!("cannot load strategy book: {error}")))
+        .map(Arc::new);
 
     let config = SearchConfig {
         depth,
@@ -24,12 +33,12 @@ fn main() {
         beam_width,
         weights: EvaluationWeights::default(),
     };
-    let champion = Agent::search("rust-pathfinder-v0.1.0", config);
+    let champion = with_optional_book(Agent::search("rust-pathfinder-v0.1.0", config), &book);
     let opponent = if opponent_name == "search" {
-        Agent::search(
+        with_optional_book(Agent::search(
             "rust-surveyor-v0.1.0",
             SearchConfig { depth: 2, max_nodes: 12_000, beam_width: 64, ..config },
-        )
+        ), &book)
     } else {
         Agent::random("coin-flip-seeded")
     };
@@ -40,6 +49,8 @@ fn main() {
     let mut draws = 0_u32;
     let mut total_plies = 0_u64;
     let mut total_nodes = 0_u64;
+    let mut book_hits = 0_u64;
+    let mut records = Vec::with_capacity(games as usize);
     for game in 0..games {
         let champion_is_light = game % 2 == 0;
         let record = play_game(
@@ -58,13 +69,18 @@ fn main() {
         }
         total_plies += record.moves.len() as u64;
         total_nodes += record.moves.iter().map(|movement| movement.nodes).sum::<u64>();
+        book_hits += record.moves.iter().filter(|movement| movement.book_hit).count() as u64;
         if jsonl {
             println!("{}", record.to_json());
         }
+        records.push(record);
     }
+    let corpus = corpus_directory.as_ref().map(|directory| {
+        write_corpus(directory, &records).unwrap_or_else(|error| fail(&format!("cannot write corpus: {error}")))
+    });
     let elapsed = started.elapsed().as_secs_f64();
     println!(
-        "{{\"schemaVersion\":1,\"engine\":\"rust\",\"agent\":\"{}\",\"opponent\":\"{}\",\"seed\":{},\"games\":{},\"wins\":{},\"losses\":{},\"draws\":{},\"plies\":{},\"nodes\":{},\"seconds\":{:.6},\"gamesPerSecond\":{:.3}}}",
+        "{{\"schemaVersion\":2,\"engine\":\"rust\",\"agent\":\"{}\",\"opponent\":\"{}\",\"seed\":{},\"games\":{},\"wins\":{},\"losses\":{},\"draws\":{},\"plies\":{},\"nodes\":{},\"bookHits\":{},\"corpusGames\":{},\"corpusPositions\":{},\"seconds\":{:.6},\"gamesPerSecond\":{:.3}}}",
         champion.id(),
         opponent.id(),
         seed,
@@ -74,9 +90,21 @@ fn main() {
         draws,
         total_plies,
         total_nodes,
+        book_hits,
+        corpus.map_or(0, |summary| summary.games),
+        corpus.map_or(0, |summary| summary.positions),
         elapsed,
         if elapsed > 0.0 { games as f64 / elapsed } else { 0.0 },
     );
+}
+
+fn with_optional_book(agent: Agent, book: &Option<Arc<StrategyBook>>) -> Agent {
+    book.as_ref().map_or_else(|| agent.clone(), |book| agent.with_book(Arc::clone(book)))
+}
+
+fn fail(message: &str) -> ! {
+    eprintln!("pathagon-selfplay: {message}");
+    std::process::exit(2)
 }
 
 fn parse_args() -> HashMap<String, String> {
