@@ -6,6 +6,7 @@
 pub mod corpus;
 pub mod search;
 pub mod selfplay;
+pub mod training;
 
 use std::fmt;
 
