@@ -40,3 +40,6 @@ next-env.d.ts
 /.sites-runtime/
 /outputs/
 /work/
+/.venv-pathagon-gnn/
+__pycache__/
+*.py[cod]

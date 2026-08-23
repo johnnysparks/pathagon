@@ -64,3 +64,17 @@ multiple color-balanced batches, and retain every evaluation replay.
    learning.
 4. Promote a candidate only after it passes disjoint replay tests and repeated
    arena gates; the browser engine remains unchanged until then.
+
+## GNN AlphaZero direction
+
+The next learner is under `learning/gnn/`. It follows the scale-invariant
+proposal with two Pathagon-specific changes: policy logits are defined over
+the legal action list so relocations have source/destination heads, and the
+value path receives explicit reserves, capture, turn, repetition-adjacent,
+and virtual-goal features alongside pooled node embeddings.
+
+The implementation currently supports dynamic 5x5 and 7x7 graph construction,
+replay warm-start training, PUCT search, and a compact neural self-play loop.
+The 7x7 archived games are used only to initialize and exercise the pipeline;
+they are not enough to establish AlphaZero strength. Curriculum learning starts
+after variable-size parity is expanded beyond the current unit cases.

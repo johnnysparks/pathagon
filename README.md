@@ -15,6 +15,11 @@ npm run rust:train -- --generations 3 --population 6 --training-pairs 6 --evalua
 
 See [`docs/SELF_PLAY.md`](docs/SELF_PLAY.md) for experiment structure and [`docs/RUST_ENGINE.md`](docs/RUST_ENGINE.md) for the native engine contract.
 
+The experimental scale-invariant GNN/PUCT learner lives under
+[`learning/gnn/`](learning/gnn/). It supports dynamic 5x5 and 7x7 graph
+construction, replay warm-starts, and compact neural self-play; it is not yet
+the browser opponent.
+
 The playable opponent ladder is deliberately compute-based: Coin Flip is random, The Surveyor searches two plies, and The Pathfinder uses iterative deepening up to four plies. "Expert" currently describes its search budget, not a solved-game or unbeatable claim.
 
 ## Anonymous human game archive
