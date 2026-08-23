@@ -318,7 +318,7 @@ pub fn decode_action(token: &str) -> Result<Action, String> {
     Ok(Action::Relocate { from: from as u8, to: to as u8 })
 }
 
-fn encode_state(state: GameState) -> String {
+pub fn encode_state(state: GameState) -> String {
     format!(
         "{}.{}.{}.{}.{}.{}.{}.{}.{}.{}.{}",
         encode_radix(state.light),
@@ -335,7 +335,7 @@ fn encode_state(state: GameState) -> String {
     )
 }
 
-fn decode_state(text: &str) -> Result<GameState, String> {
+pub fn decode_state(text: &str) -> Result<GameState, String> {
     let fields: Vec<&str> = text.split('.').collect();
     if fields.len() != 11 {
         return Err("invalid state key".to_owned());

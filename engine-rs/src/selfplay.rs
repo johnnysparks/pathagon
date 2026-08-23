@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::corpus::StrategyBook;
+use crate::learned::LearnedBook;
 use crate::search::{search_best_action, SearchConfig};
 use crate::{bit_squares, Action, GameState, Player};
 
@@ -9,6 +10,7 @@ use crate::{bit_squares, Action, GameState, Player};
 pub enum Agent {
     Random { id: String },
     Search { id: String, config: SearchConfig, book: Option<Arc<StrategyBook>> },
+    Learned { id: String, config: SearchConfig, book: Arc<LearnedBook>, minimum_visits: u32 },
 }
 
 impl Agent {
@@ -27,9 +29,13 @@ impl Agent {
         }
     }
 
+    pub fn learned(id: impl Into<String>, config: SearchConfig, book: Arc<LearnedBook>, minimum_visits: u32) -> Self {
+        Self::Learned { id: id.into(), config, book, minimum_visits }
+    }
+
     pub fn id(&self) -> &str {
         match self {
-            Self::Random { id } | Self::Search { id, .. } => id,
+            Self::Random { id } | Self::Search { id, .. } | Self::Learned { id, .. } => id,
         }
     }
 
@@ -53,6 +59,27 @@ impl Agent {
                         score: choice.score,
                         nodes: 0,
                         completed_depth: choice.completed_depth,
+                        table_hits: 0,
+                        book_hit: true,
+                    };
+                }
+                let result = search_best_action(state, *config);
+                Decision {
+                    action: result.action,
+                    score: result.score,
+                    nodes: result.nodes,
+                    completed_depth: result.completed_depth,
+                    table_hits: result.table_hits,
+                    book_hit: false,
+                }
+            }
+            Self::Learned { config, book, minimum_visits, .. } => {
+                if let Some(choice) = book.choose(state, *minimum_visits) {
+                    return Decision {
+                        action: Some(choice.action),
+                        score: choice.points_rate_per_mille() as i32,
+                        nodes: 0,
+                        completed_depth: 0,
                         table_hits: 0,
                         book_hit: true,
                     };

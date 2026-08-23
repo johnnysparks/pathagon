@@ -35,6 +35,40 @@ The next run loads `positions.tsv` before play. A cached action is reused only w
 
 The tracked corpus is knowledge, not disposable output: keep curated batches small enough to review in Git. Large experimental runs should remain external until they earn promotion into the canonical corpus.
 
+## Learn a tabular candidate
+
+The Rust engine also has a deliberately modest replay learner. It builds an
+exact-state action book from completed games, scores each observed action by
+the mover's empirical win/draw rate, and falls back to normal search for
+unseen states. This is useful for testing the learning pipeline on a small
+archive; it is not a neural network or a generally valid policy model.
+
+Convert archived schema-v2 JSONL into the Rust replay format, then build the
+book:
+
+```bash
+python3 scripts/jsonl-to-rust-games.py \
+  --input /tmp/pathagon-rust-selfplay.jsonl \
+  --output /tmp/pathagon-rust-selfplay.games.tsv
+npm run rust:learn -- \
+  --games /tmp/pathagon-rust-selfplay.games.tsv \
+  --out training/rust-v1/learned-100
+```
+
+Evaluate it without changing the browser opponent:
+
+```bash
+npm run rust:selfplay -- \
+  --learned training/rust-v1/learned-100/learned.tsv \
+  --learned-min-visits 1 \
+  --opponent search --games 20 --seed 20261001 --jsonl
+```
+
+`--learned-min-visits 2` is the safer default. Keep the candidate local until
+it is tested on a disjoint evaluation set and beats the incumbent repeatedly;
+the current 100-game sample has too few repeated exact positions to justify
+promoting it to the web game.
+
 ## Evolve evaluation weights
 
 ```bash

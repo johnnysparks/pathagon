@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use pathagon_engine::corpus::{write_corpus, StrategyBook};
+use pathagon_engine::learned::LearnedBook;
 use pathagon_engine::search::{EvaluationWeights, SearchConfig};
 use pathagon_engine::selfplay::{play_game, Agent, MatchOptions};
 use pathagon_engine::Player;
@@ -21,6 +22,12 @@ fn main() {
     let opponent_name = args.get("opponent").map(String::as_str).unwrap_or("random");
     let jsonl = args.contains_key("jsonl");
     let corpus_directory = args.get("corpus").map(PathBuf::from);
+    let learned_book = args.get("learned").map(PathBuf::from)
+        .map(|path| LearnedBook::load(&path))
+        .transpose()
+        .unwrap_or_else(|error| fail(&format!("cannot load learned book: {error}")))
+        .map(Arc::new);
+    let learned_minimum_visits = number(&args, "learned-min-visits", 2_u32);
     let book = corpus_directory.as_ref()
         .map(|directory| StrategyBook::load(&directory.join("positions.tsv")))
         .transpose()
@@ -33,12 +40,18 @@ fn main() {
         beam_width,
         weights: EvaluationWeights::default(),
     };
-    let champion = with_optional_book(Agent::search("rust-pathfinder-v0.1.0", config), &book);
+    let champion = learned_book.as_ref().map_or_else(
+        || with_optional_book(Agent::search("rust-pathfinder-v0.1.0", config), &book),
+        |book| Agent::learned("rust-learned-tabular-v0.1.0", config, Arc::clone(book), learned_minimum_visits),
+    );
     let opponent = if opponent_name == "search" {
         with_optional_book(Agent::search(
             "rust-surveyor-v0.1.0",
             SearchConfig { depth: 2, max_nodes: 12_000, beam_width: 64, ..config },
         ), &book)
+    } else if opponent_name == "learned" {
+        let book = learned_book.as_ref().unwrap_or_else(|| fail("--opponent learned requires --learned <learned.tsv>"));
+        Agent::learned("rust-learned-tabular-v0.1.0", SearchConfig { depth: 2, max_nodes: 12_000, beam_width: 64, ..config }, Arc::clone(book), learned_minimum_visits)
     } else {
         Agent::random("coin-flip-seeded")
     };

@@ -17,6 +17,10 @@ path = "src/main.rs"
 name = "pathagon-train"
 path = "src/train_main.rs"
 
+[[bin]]
+name = "pathagon-learn"
+path = "src/learn_main.rs"
+
 [profile.release]
 lto = "thin"
 codegen-units = 1
