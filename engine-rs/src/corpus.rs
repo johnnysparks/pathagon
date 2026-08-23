@@ -223,7 +223,7 @@ pub fn write_corpus(directory: &Path, records: &[GameRecord]) -> io::Result<Corp
     }
     let mut sorted = lines.into_iter().collect::<Vec<_>>();
     sorted.sort();
-    let mut game_output = String::from("# p1\tseed36\tlight\tdark\twinner\treason\t2-char-actions\n");
+    let mut game_output = String::from("# p1\tseed64\tlight\tdark\twinner\treason\t2-char-actions\n");
     game_output.push_str(&sorted.join("\n"));
     game_output.push('\n');
     fs::write(&games_path, game_output)?;
