@@ -1,11 +1,14 @@
 {
-  "schemaVersion": 1,
-  "id": "surveyor-handcrafted-v0.2.0",
+  "schemaVersion": 2,
+  "id": "surveyor-handcrafted-v0.3.0",
   "generation": 0,
   "weights": {
     "path": 240,
     "material": 110,
-    "capture": 700
+    "capture": 700,
+    "structure": 55,
+    "threat": 130,
+    "edge": 80
   },
   "search": {
     "depth": 2,

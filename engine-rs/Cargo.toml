@@ -1,0 +1,20 @@
+[package]
+name = "pathagon-engine"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Deterministic headless Pathagon rules, search, and self-play engine"
+
+[lib]
+name = "pathagon_engine"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pathagon-selfplay"
+path = "src/main.rs"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+

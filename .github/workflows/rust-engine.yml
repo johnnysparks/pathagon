@@ -1,0 +1,43 @@
+name: Rust engine
+
+on:
+  pull_request:
+    paths:
+      - "engine-rs/**"
+      - "fixtures/**"
+      - "corpus/**"
+      - ".github/workflows/rust-engine.yml"
+  push:
+    branches: [master]
+    paths:
+      - "engine-rs/**"
+      - "fixtures/**"
+      - "corpus/**"
+      - ".github/workflows/rust-engine.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: engine-rs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --all-targets --release
+      - run: cargo run --release --bin pathagon-selfplay -- --games 2 --depth 2 --nodes 12000 --max-plies 80
+      - name: Verify persistent corpus round trip
+        run: |
+          cargo run --release --bin pathagon-selfplay -- --games 4 --seed 20260823 --depth 2 --nodes 12000 --max-plies 80 --corpus /tmp/pathagon-corpus
+          cargo run --release --bin pathagon-selfplay -- --games 4 --seed 20260823 --depth 2 --nodes 12000 --max-plies 80 --corpus /tmp/pathagon-corpus
+          test "$(grep -cv '^#' /tmp/pathagon-corpus/games.tsv)" -eq 4
+      - name: Generate canonical seed corpus
+        run: cargo run --release --bin pathagon-selfplay -- --games 64 --seed 20260823 --depth 2 --nodes 12000 --beam 49 --max-plies 120 --opening-random-plies 4 --opponent search --corpus ../corpus/rust-v1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rust-selfplay-corpus
+          path: corpus/rust-v1
+          if-no-files-found: error

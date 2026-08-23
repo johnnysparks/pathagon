@@ -1,10 +1,13 @@
-import { applyAction, legalActions, otherPlayer } from "./pathagon.ts";
+import { applyLegalAction, legalActions, otherPlayer } from "./pathagon.ts";
 import type { Action, GameState, Player } from "./pathagon.ts";
 
 export type EvaluationWeights = {
   path: number;
   material: number;
   capture: number;
+  structure: number;
+  threat: number;
+  edge: number;
 };
 
 export type SearchConfig = {
@@ -19,12 +22,20 @@ export type SearchResult = {
   score: number;
   nodes: number;
   exhausted: boolean;
+  completedDepth: number;
+  tableHits: number;
 };
+
+type Budget = { nodes: number; exhausted: boolean; tableHits: number };
+type TableEntry = { depth: number; score: number; flag: "exact" | "lower" | "upper" };
 
 export const DEFAULT_WEIGHTS: EvaluationWeights = {
   path: 240,
   material: 110,
   capture: 700,
+  structure: 55,
+  threat: 130,
+  edge: 80,
 };
 
 export const SURVEYOR_SEARCH: SearchConfig = {
@@ -34,23 +45,56 @@ export const SURVEYOR_SEARCH: SearchConfig = {
   weights: DEFAULT_WEIGHTS,
 };
 
+export const PATHFINDER_SEARCH: SearchConfig = {
+  depth: 4,
+  maxNodes: 90_000,
+  beamWidth: 40,
+  weights: DEFAULT_WEIGHTS,
+};
+
 export function searchBestAction(state: GameState, config: SearchConfig): SearchResult {
   const rootPlayer = state.turn;
-  const actions = orderActions(state, rootPlayer, config.weights);
-  if (!actions.length) return { action: null, score: evaluatePosition(state, rootPlayer, config.weights), nodes: 0, exhausted: false };
-  const budget = { nodes: 0, exhausted: false };
-  let bestAction = actions[0];
-  let bestScore = Number.NEGATIVE_INFINITY;
-  for (const action of actions) {
-    const next = applyAction(state, action);
-    budget.nodes += 1;
-    const score = minimax(next, rootPlayer, config.depth - 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, config, budget);
-    if (score > bestScore || (score === bestScore && actionOrder(action) < actionOrder(bestAction))) {
-      bestAction = action;
-      bestScore = score;
-    }
+  const initialActions = orderActions(state, rootPlayer, config.weights);
+  if (!initialActions.length) {
+    return { action: null, score: evaluatePosition(state, rootPlayer, config.weights), nodes: 0, exhausted: false, completedDepth: 0, tableHits: 0 };
   }
-  return { action: bestAction, score: bestScore, nodes: budget.nodes, exhausted: budget.exhausted };
+
+  const budget: Budget = { nodes: 0, exhausted: false, tableHits: 0 };
+  const table = new Map<string, TableEntry>();
+  let bestAction = initialActions[0];
+  let bestScore = Number.NEGATIVE_INFINITY;
+  let completedDepth = 0;
+
+  // Preserve the best move from the last fully completed depth when a mobile-
+  // friendly node budget expires.
+  for (let depth = 1; depth <= config.depth; depth += 1) {
+    const actions = putFirst(orderActions(state, rootPlayer, config.weights), bestAction);
+    let iterationAction = actions[0];
+    let iterationScore = Number.NEGATIVE_INFINITY;
+    let complete = true;
+    let alpha = Number.NEGATIVE_INFINITY;
+    for (const action of actions) {
+      if (budget.nodes >= config.maxNodes) { budget.exhausted = true; complete = false; break; }
+      const next = applyLegalAction(state, action);
+      budget.nodes += 1;
+      const score = minimax(next, rootPlayer, depth - 1, alpha, Number.POSITIVE_INFINITY, config, budget, table);
+      if (score > iterationScore || (score === iterationScore && actionOrder(action) < actionOrder(iterationAction))) {
+        iterationAction = action;
+        iterationScore = score;
+      }
+      alpha = Math.max(alpha, iterationScore);
+      if (budget.exhausted) { complete = false; break; }
+    }
+    if (!complete) break;
+    bestAction = iterationAction;
+    bestScore = iterationScore;
+    completedDepth = depth;
+  }
+
+  if (completedDepth === 0) {
+    bestScore = evaluatePosition(applyLegalAction(state, bestAction), rootPlayer, config.weights);
+  }
+  return { action: bestAction, score: bestScore, nodes: budget.nodes, exhausted: budget.exhausted, completedDepth, tableHits: budget.tableHits };
 }
 
 export function evaluatePosition(state: GameState, player: Player, weights: EvaluationWeights) {
@@ -63,9 +107,15 @@ export function evaluatePosition(state: GameState, player: Player, weights: Eval
   const opponentPieces = state.board.filter((piece) => piece === opponent).length;
   const lastCapture = state.lastAction?.captured.length ?? 0;
   const captureDirection = state.lastAction?.player === player ? 1 : -1;
+  const structure = largestComponent(state.board, player) - largestComponent(state.board, opponent);
+  const threats = captureOpportunities(state, player) - captureOpportunities(state, opponent);
+  const edges = edgePresence(state.board, player) - edgePresence(state.board, opponent);
   return (opponentDistance - ownDistance) * weights.path
     + (ownPieces - opponentPieces) * weights.material
-    + captureDirection * lastCapture * weights.capture;
+    + captureDirection * lastCapture * weights.capture
+    + structure * weights.structure
+    + threats * weights.threat
+    + edges * weights.edge;
 }
 
 function minimax(
@@ -75,21 +125,35 @@ function minimax(
   alpha: number,
   beta: number,
   config: SearchConfig,
-  budget: { nodes: number; exhausted: boolean },
+  budget: Budget,
+  table: Map<string, TableEntry>,
 ): number {
   if (state.winner || depth <= 0) return evaluatePosition(state, rootPlayer, config.weights);
   if (budget.nodes >= config.maxNodes) {
     budget.exhausted = true;
     return evaluatePosition(state, rootPlayer, config.weights);
   }
+
+  const key = searchKey(state, rootPlayer);
+  const cached = table.get(key);
+  const originalAlpha = alpha;
+  const originalBeta = beta;
+  if (cached && cached.depth >= depth) {
+    budget.tableHits += 1;
+    if (cached.flag === "exact") return cached.score;
+    if (cached.flag === "lower") alpha = Math.max(alpha, cached.score);
+    else beta = Math.min(beta, cached.score);
+    if (alpha >= beta) return cached.score;
+  }
+
   const maximizing = state.turn === rootPlayer;
   const actions = orderActions(state, rootPlayer, config.weights).slice(0, config.beamWidth);
   if (!actions.length) return evaluatePosition(state, rootPlayer, config.weights);
   let best = maximizing ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
   for (const action of actions) {
-    const next = applyAction(state, action);
+    const next = applyLegalAction(state, action);
     budget.nodes += 1;
-    const score = minimax(next, rootPlayer, depth - 1, alpha, beta, config, budget);
+    const score = minimax(next, rootPlayer, depth - 1, alpha, beta, config, budget, table);
     if (maximizing) {
       best = Math.max(best, score);
       alpha = Math.max(alpha, best);
@@ -99,6 +163,11 @@ function minimax(
     }
     if (beta <= alpha || budget.nodes >= config.maxNodes) break;
   }
+  if (!budget.exhausted) {
+    const flag = best <= originalAlpha ? "upper" : best >= originalBeta ? "lower" : "exact";
+    table.set(key, { depth, score: best, flag });
+  }
+  if (budget.nodes >= config.maxNodes) budget.exhausted = true;
   return best;
 }
 
@@ -106,10 +175,9 @@ function orderActions(state: GameState, rootPlayer: Player, weights: EvaluationW
   const maximizing = state.turn === rootPlayer;
   return legalActions(state)
     .map((action) => {
-      const next = applyAction(state, action);
+      const next = applyLegalAction(state, action);
       const tactical = next.winner === state.turn ? 2_000_000_000 : (next.lastAction?.captured.length ?? 0) * 10_000;
-      const score = tactical + evaluatePosition(next, rootPlayer, weights);
-      return { action, score };
+      return { action, score: tactical + evaluatePosition(next, rootPlayer, weights) };
     })
     .sort((left, right) => {
       const difference = maximizing ? right.score - left.score : left.score - right.score;
@@ -118,8 +186,7 @@ function orderActions(state: GameState, rootPlayer: Player, weights: EvaluationW
     .map(({ action }) => action);
 }
 
-// Dijkstra over the board: our pieces cost 0, empty cells cost 1,
-// and opposing pieces are walls. Lower distance means a more complete path.
+// Dijkstra: our pieces cost 0, empty cells cost 1, opponents are walls.
 export function connectionDistance(board: GameState["board"], player: Player) {
   const distances = Array<number>(49).fill(Number.POSITIVE_INFINITY);
   const frontier: Array<{ square: number; distance: number }> = [];
@@ -137,11 +204,7 @@ export function connectionDistance(board: GameState["board"], player: Player) {
     const row = Math.floor(current.square / 7);
     const column = current.square % 7;
     if ((player === "light" && row === 0) || (player === "dark" && column === 6)) return current.distance;
-    for (const [rowDelta, columnDelta] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-      const nextRow = row + rowDelta;
-      const nextColumn = column + columnDelta;
-      if (nextRow < 0 || nextRow >= 7 || nextColumn < 0 || nextColumn >= 7) continue;
-      const next = nextRow * 7 + nextColumn;
+    for (const next of neighbors(current.square)) {
       if (board[next] === otherPlayer(player)) continue;
       const distance = current.distance + (board[next] === player ? 0 : 1);
       if (distance >= distances[next]) continue;
@@ -150,6 +213,81 @@ export function connectionDistance(board: GameState["board"], player: Player) {
     }
   }
   return 49;
+}
+
+function largestComponent(board: GameState["board"], player: Player) {
+  const remaining = new Set(board.flatMap((piece, square) => piece === player ? [square] : []));
+  let largest = 0;
+  while (remaining.size) {
+    const first = remaining.values().next().value as number;
+    const stack = [first];
+    remaining.delete(first);
+    let size = 0;
+    while (stack.length) {
+      const square = stack.pop()!;
+      size += 1;
+      for (const next of neighbors(square)) {
+        if (!remaining.has(next)) continue;
+        remaining.delete(next);
+        stack.push(next);
+      }
+    }
+    largest = Math.max(largest, size);
+  }
+  return largest;
+}
+
+function captureOpportunities(state: GameState, player: Player) {
+  const forbidden = new Set(state.forbidden);
+  const victims = new Set<number>();
+  for (let origin = 0; origin < 49; origin += 1) {
+    if (state.board[origin] || forbidden.has(origin)) continue;
+    const row = Math.floor(origin / 7);
+    const column = origin % 7;
+    for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      const farRow = row + dr * 2;
+      const farColumn = column + dc * 2;
+      if (farRow < 0 || farRow >= 7 || farColumn < 0 || farColumn >= 7) continue;
+      const near = (row + dr) * 7 + column + dc;
+      const far = farRow * 7 + farColumn;
+      if (state.board[near] === otherPlayer(player) && state.board[far] === player) victims.add(near);
+    }
+  }
+  return victims.size;
+}
+
+function edgePresence(board: GameState["board"], player: Player) {
+  let near = false;
+  let far = false;
+  for (let index = 0; index < 7; index += 1) {
+    const nearSquare = player === "light" ? 42 + index : index * 7;
+    const farSquare = player === "light" ? index : index * 7 + 6;
+    near ||= board[nearSquare] === player;
+    far ||= board[farSquare] === player;
+  }
+  return Number(near) + Number(far);
+}
+
+function neighbors(square: number) {
+  const row = Math.floor(square / 7);
+  const column = square % 7;
+  const result: number[] = [];
+  if (row > 0) result.push(square - 7);
+  if (row < 6) result.push(square + 7);
+  if (column > 0) result.push(square - 1);
+  if (column < 6) result.push(square + 1);
+  return result;
+}
+
+function searchKey(state: GameState, rootPlayer: Player) {
+  const board = state.board.map((piece) => piece === "light" ? "L" : piece === "dark" ? "D" : ".").join("");
+  return `${rootPlayer}|${board}|${state.turn}|${state.reserve.light},${state.reserve.dark}|${state.forbidden.join(",")}|${state.lastRelocatedTo.light},${state.lastRelocatedTo.dark}`;
+}
+
+function putFirst(actions: Action[], preferred: Action) {
+  const index = actions.findIndex((action) => actionOrder(action) === actionOrder(preferred));
+  if (index <= 0) return actions;
+  return [actions[index], ...actions.slice(0, index), ...actions.slice(index + 1)];
 }
 
 function actionOrder(action: Action) {
