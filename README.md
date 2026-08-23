@@ -10,6 +10,7 @@ npm run selfplay -- --mode arena --games 20 --seed 20260822
 npm run selfplay:train -- --generations 5 --population 8 --games 12 --seed 20260822
 npm run selfplay:league -- --games 8 --seed 20260823
 cargo test --manifest-path engine-rs/Cargo.toml --release
+npm run rust:train -- --generations 3 --population 6 --training-pairs 6 --evaluation-pairs 12
 ```
 
 See [`docs/SELF_PLAY.md`](docs/SELF_PLAY.md) for experiment structure and [`docs/RUST_ENGINE.md`](docs/RUST_ENGINE.md) for the native engine contract.
