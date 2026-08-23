@@ -1,12 +1,14 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use crate::corpus::StrategyBook;
 use crate::search::{search_best_action, SearchConfig};
 use crate::{bit_squares, Action, GameState, Player};
 
 #[derive(Clone, Debug)]
 pub enum Agent {
     Random { id: String },
-    Search { id: String, config: SearchConfig },
+    Search { id: String, config: SearchConfig, book: Option<Arc<StrategyBook>> },
 }
 
 impl Agent {
@@ -15,7 +17,14 @@ impl Agent {
     }
 
     pub fn search(id: impl Into<String>, config: SearchConfig) -> Self {
-        Self::Search { id: id.into(), config }
+        Self::Search { id: id.into(), config, book: None }
+    }
+
+    pub fn with_book(self, book: Arc<StrategyBook>) -> Self {
+        match self {
+            Self::Search { id, config, .. } => Self::Search { id, config, book: Some(book) },
+            random => random,
+        }
     }
 
     pub fn id(&self) -> &str {
@@ -30,18 +39,32 @@ impl Agent {
                 let actions = state.legal_actions();
                 Decision {
                     action: random.choose(&actions),
+                    score: 0,
                     nodes: u64::from(!actions.is_empty()),
                     completed_depth: 0,
                     table_hits: 0,
+                    book_hit: false,
                 }
             }
-            Self::Search { config, .. } => {
+            Self::Search { id, config, book } => {
+                if let Some(choice) = book.as_ref().and_then(|book| book.choose(id, state, config.depth)) {
+                    return Decision {
+                        action: Some(choice.action),
+                        score: choice.score,
+                        nodes: 0,
+                        completed_depth: choice.completed_depth,
+                        table_hits: 0,
+                        book_hit: true,
+                    };
+                }
                 let result = search_best_action(state, *config);
                 Decision {
                     action: result.action,
+                    score: result.score,
                     nodes: result.nodes,
                     completed_depth: result.completed_depth,
                     table_hits: result.table_hits,
+                    book_hit: false,
                 }
             }
         }
@@ -67,9 +90,11 @@ pub struct MoveRecord {
     pub player: Player,
     pub action: Action,
     pub captured: u64,
+    pub score: i32,
     pub nodes: u64,
     pub completed_depth: u8,
     pub table_hits: u64,
+    pub book_hit: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -111,14 +136,16 @@ impl GameRecord {
             };
             let captured = bit_squares(record.captured).iter().map(u8::to_string).collect::<Vec<_>>().join(",");
             format!(
-                "{{\"ply\":{},\"player\":\"{}\",\"action\":{},\"captured\":[{}],\"nodes\":{},\"completedDepth\":{},\"tableHits\":{}}}",
+                "{{\"ply\":{},\"player\":\"{}\",\"action\":{},\"captured\":[{}],\"score\":{},\"nodes\":{},\"completedDepth\":{},\"tableHits\":{},\"bookHit\":{}}}",
                 record.ply,
                 record.player.as_str(),
                 action,
                 captured,
+                record.score,
                 record.nodes,
                 record.completed_depth,
                 record.table_hits,
+                record.book_hit,
             )
         }).collect::<Vec<_>>().join(",");
         format!(
@@ -153,7 +180,14 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
         }
         let player = state.turn;
         let decision = if state.ply < options.opening_random_plies {
-            Decision { action: random.choose(&actions), nodes: 1, completed_depth: 0, table_hits: 0 }
+            Decision {
+                action: random.choose(&actions),
+                score: 0,
+                nodes: 1,
+                completed_depth: 0,
+                table_hits: 0,
+                book_hit: false,
+            }
         } else if player == Player::Light {
             light.choose(state, &mut random)
         } else {
@@ -172,9 +206,11 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
             player,
             action,
             captured: transition.captured,
+            score: decision.score,
             nodes: decision.nodes,
             completed_depth: decision.completed_depth,
             table_hits: decision.table_hits,
+            book_hit: decision.book_hit,
         });
     }
     if let Some(winner) = state.winner {
@@ -187,9 +223,11 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
 #[derive(Clone, Copy, Debug)]
 struct Decision {
     action: Option<Action>,
+    score: i32,
     nodes: u64,
     completed_depth: u8,
     table_hits: u64,
+    book_hit: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
