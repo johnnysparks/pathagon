@@ -1,0 +1,11 @@
+# name	placements	turn	light_reserve	dark_reserve	forbidden	last_light	last_dark	action	legal	winner	captured
+aba_capture	21D,22L	dark	13	13	-	-	-	P23	true	-	22
+abba_no_capture	21D,22L,23L	dark	12	13	-	-	-	P24	true	-	-
+four_way_capture	10D,17L,22D,23L,25L,26D,31L,38D	dark	10	10	-	-	-	P24	true	-	17,23,25,31
+light_path_win	7L,14L,21L,28L,35L,42L	light	8	14	-	-	-	P0	true	light	-
+dark_path_win	0D,1D,2D,3D,4D,5D	dark	14	8	-	-	-	P6	true	dark	-
+diagonal_not_path	12L,18L,24L,30L,36L,42L	light	8	14	-	-	-	P6	true	-	-
+captured_hole_forbidden	-	light	14	14	22	-	-	P22	false	-	-
+relocation_changes_square	0L,1L,2L,3L,4L,5L,6L,7L,8L,9L,10L,11L,12L,13L	light	0	14	-	-	-	R0>48	true	-	-
+last_relocated_piece_locked	0L,1L,2L,3L,4L,5L,6L,7L,8L,9L,10L,11L,12L,13L	light	0	14	-	0	-	R0>48	false	-	-
+relocation_cannot_pass	0L,1L,2L,3L,4L,5L,6L,7L,8L,9L,10L,11L,12L,13L	light	0	14	-	-	-	R0>0	false	-	-

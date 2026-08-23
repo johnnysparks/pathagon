@@ -1,0 +1,30 @@
+name: Rust engine
+
+on:
+  pull_request:
+    paths:
+      - "engine-rs/**"
+      - "fixtures/**"
+      - ".github/workflows/rust-engine.yml"
+  push:
+    branches: [master]
+    paths:
+      - "engine-rs/**"
+      - "fixtures/**"
+      - ".github/workflows/rust-engine.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: engine-rs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --all-targets --release
+      - run: cargo run --release --bin pathagon-selfplay -- --games 2 --depth 2 --nodes 12000 --max-plies 80
+
