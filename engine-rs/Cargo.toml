@@ -13,8 +13,11 @@ path = "src/lib.rs"
 name = "pathagon-selfplay"
 path = "src/main.rs"
 
+[[bin]]
+name = "pathagon-train"
+path = "src/train_main.rs"
+
 [profile.release]
 lto = "thin"
 codegen-units = 1
 panic = "abort"
-
