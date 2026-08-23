@@ -17,6 +17,7 @@
     "rust:test": "cargo test --manifest-path engine-rs/Cargo.toml --all-targets --release",
     "rust:selfplay": "cargo run --release --manifest-path engine-rs/Cargo.toml --bin pathagon-selfplay --",
     "rust:corpus": "cargo run --release --manifest-path engine-rs/Cargo.toml --bin pathagon-selfplay -- --corpus corpus/rust-v1",
+    "rust:train": "cargo run --release --manifest-path engine-rs/Cargo.toml --bin pathagon-train --",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
   },
