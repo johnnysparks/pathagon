@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import torch
 
-from .game import Action, GameState, winner_value
+from .game import Action, GameState, repetition_key, winner_value
 from .model import PathagonGNN
 
 
@@ -58,21 +58,30 @@ class PUCTSearch:
         node.expanded = True
         return float(value.detach().cpu())
 
-    def run(self, state: GameState, add_root_noise: bool = False) -> Tuple[MCTSNode, List[Action], List[float]]:
+    def run(
+        self,
+        state: GameState,
+        add_root_noise: bool = False,
+        history: Optional[Set[tuple]] = None,
+    ) -> Tuple[MCTSNode, List[Action], List[float]]:
         root = MCTSNode(state)
         self.expand(root)
         if add_root_noise and root.priors:
             self._add_root_noise(root)
+        previous_positions = set(history or ())
+        previous_positions.discard(repetition_key(state))
         for _ in range(self.simulations):
-            self._simulate(root, set())
+            self._simulate(root, set(previous_positions))
         actions = list(state.legal_actions())
         probabilities = self.visit_policy(root, actions, temperature=1.0)
         return root, actions, probabilities
 
-    def _simulate(self, node: MCTSNode, path_states: Set[GameState]) -> float:
-        if node.state in path_states:
+    def _simulate(self, node: MCTSNode, path_positions: Set[tuple]) -> float:
+        position = repetition_key(node.state)
+        if position in path_positions:
+            node.visit_count += 1
             return 0.0
-        path_states.add(node.state)
+        path_positions.add(position)
         try:
             if not node.expanded:
                 value = self.expand(node)
@@ -84,12 +93,12 @@ class PUCTSearch:
                 if child is None:
                     child = MCTSNode(node.state.apply_legal(action), node, action)
                     node.children[action] = child
-                value = -self._simulate(child, path_states)
+                value = -self._simulate(child, path_positions)
             node.visit_count += 1
             node.value_sum += value
             return value
         finally:
-            path_states.remove(node.state)
+            path_positions.remove(position)
 
     def _select_action(self, node: MCTSNode) -> Action:
         parent_scale = math.sqrt(max(1, node.visit_count))
@@ -127,4 +136,3 @@ class PUCTSearch:
             return
         for action, sample in zip(actions, noise):
             root.priors[action] = (1.0 - self.dirichlet_epsilon) * root.priors[action] + self.dirichlet_epsilon * sample / total
-

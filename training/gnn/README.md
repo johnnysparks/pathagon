@@ -16,6 +16,15 @@ The local progression includes:
   its JSONL is replay-valid and includes six move-cap draws.
 - `pathagon-generation-3.pt`: trained from five neural games / 548 positions.
   `selfplay-generation-3.jsonl` contains three wins and two move-cap draws.
+- `pathagon-generation-4.pt`: trained from five neural games / 980 positions.
+  `selfplay-generation-4.jsonl` is replay-valid; all five games reached the
+  196-ply cap, which is useful as a draw diagnostic but weak as a learning
+  signal.
+
+`learning.gnn.evaluate` provides a seeded, color-balanced smoke arena against
+the random baseline. Generation 4 scored 0 wins, 1 loss, and 4 draws in five
+games at four simulations per move. This is a diagnostic, not a strength
+claim.
 
 Games that reach the current move cap remain draws and should not be counted
 as wins or losses.

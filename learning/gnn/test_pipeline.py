@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from .game import BoardConfig, GameState, Player
+from .game import BoardConfig, GameState, Player, repetition_key
 from .graph import build_graph
 from .model import PathagonGNN
 
@@ -29,7 +29,24 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(next_state.dark, 0)
         self.assertEqual(next_state.reserves[Player.DARK], 11)
 
+    def test_repetition_identity_ignores_only_ply(self) -> None:
+        config = BoardConfig(5)
+        first = GameState.initial(config)
+        later = GameState(
+            config,
+            first.light,
+            first.dark,
+            first.reserves,
+            first.turn,
+            first.forbidden,
+            first.last_relocated_to,
+            first.last_capture + 1,
+            Player.DARK,
+            first.winner,
+            first.ply + 10,
+        )
+        self.assertEqual(repetition_key(first), repetition_key(later))
+
 
 if __name__ == "__main__":
     unittest.main()
-

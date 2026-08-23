@@ -263,3 +263,22 @@ def winner_value(state: GameState, perspective: Player) -> float:
     if state.winner is None:
         return 0.0
     return 1.0 if state.winner is perspective else -1.0
+
+
+def repetition_key(state: GameState) -> tuple:
+    """Return the rule-relevant position identity used for repetition draws.
+
+    This mirrors the shared Rust/TypeScript engines. ``ply`` and capture
+    metadata are intentionally omitted: they record how the position arose,
+    not the position used by the threefold rule. The forbidden square and
+    relocation markers remain because they affect legal moves.
+    """
+
+    return (
+        state.light,
+        state.dark,
+        state.reserves,
+        state.turn,
+        state.forbidden,
+        state.last_relocated_to,
+    )
