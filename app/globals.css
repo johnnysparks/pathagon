@@ -111,12 +111,20 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .gauge-needle { stroke: #43382e; stroke-width: 3; stroke-linecap: round; transition: transform 180ms ease-out; }
 .coaching-panel.positive .gauge-needle { stroke: #356d4e; }
 .coaching-panel.negative .gauge-needle { stroke: #a84d3c; }
+.gauge-needle-before { stroke: #6f675d; stroke-width: 2; stroke-dasharray: 3 3; opacity: .72; }
+.coaching-panel.positive .gauge-needle-before,
+.coaching-panel.negative .gauge-needle-before { stroke: #6f675d; }
 .gauge-hub { fill: #43382e; }
 .coaching-panel.positive .gauge-hub { fill: #356d4e; }
 .coaching-panel.negative .gauge-hub { fill: #a84d3c; }
 .gauge-labels { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 5px; margin-top: -2px; color: var(--muted); font-size: 10px; font-weight: 800; text-transform: uppercase; }
 .gauge-labels strong { color: var(--ink); font-size: 12px; text-align: center; text-transform: none; }
 .gauge-labels span:last-child { text-align: right; }
+.gauge-readouts { display: flex; justify-content: center; gap: 12px; margin-top: 5px; color: var(--muted); font-size: 10px; font-weight: 800; }
+.gauge-dot { display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 50%; vertical-align: -1px; }
+.gauge-dot-before { background: #6f675d; }
+.gauge-dot-after { background: #356d4e; }
+.coaching-panel.negative .gauge-dot-after { background: #a84d3c; }
 .coaching-copy { min-width: 0; }
 .coaching-move { display: flex; align-items: baseline; gap: 8px; }
 .coaching-move span { color: var(--muted); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; }

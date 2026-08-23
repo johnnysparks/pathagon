@@ -28,6 +28,7 @@ export type SearchResult = {
 
 export type MoveEvaluation = {
   action: Action;
+  beforeScore: number;
   score: number;
   delta: number;
   nodes: number;
@@ -139,6 +140,7 @@ export function analyzeAction(state: GameState, action: Action, config: SearchCo
     : minimax(next, rootPlayer, Math.max(0, config.depth - 1), Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, config, budget, table);
   return {
     action,
+    beforeScore: baseline,
     score,
     delta: score - baseline,
     nodes: budget.nodes,
@@ -169,6 +171,7 @@ export function analyzeActions(state: GameState, config: SearchConfig = COACHING
       : minimax(next, rootPlayer, Math.max(0, config.depth - 1), alpha, Number.POSITIVE_INFINITY, config, budget, table);
     results.push({
       action,
+      beforeScore: baseline,
       score,
       delta: score - baseline,
       nodes: budget.nodes,

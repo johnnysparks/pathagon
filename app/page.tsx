@@ -525,9 +525,11 @@ function PieceTray({ label, player, count, active }: { label: string; player: Pl
 }
 
 function CoachingPanel({ evaluation, status, bestMove, hasHeatmap }: { evaluation: MoveEvaluation | null; status: "idle" | "searching" | "ready"; bestMove: MoveEvaluation | null; hasHeatmap: boolean }) {
-  const signal = evaluation ? normalizeScore(evaluation.score) : 0;
+  const beforeSignal = evaluation ? normalizeScore(evaluation.beforeScore) : 0;
+  const afterSignal = evaluation ? normalizeScore(evaluation.score) : 0;
   const shift = evaluation ? normalizeShift(evaluation.delta) : 0;
-  const needleAngle = signal * 90;
+  const beforeNeedleAngle = beforeSignal * 90;
+  const afterNeedleAngle = afterSignal * 90;
   const resultTone = evaluation ? shift > 0.12 ? "positive" : shift < -0.12 ? "negative" : "even" : "waiting";
   const headline = !evaluation
     ? status === "searching" ? "Searching the move tree…" : "Hover a legal move to preview it"
@@ -546,15 +548,22 @@ function CoachingPanel({ evaluation, status, bestMove, hasHeatmap }: { evaluatio
         <span className="coaching-status"><span className="coach-pulse" /> {status === "searching" ? `Refining${evaluation ? ` · ${evaluation.completedDepth}-ply` : "…"}` : hasHeatmap ? "Tree ready" : "Warming up"}</span>
       </div>
       <div className="coaching-body">
-        <div className="advantage-gauge" aria-label={evaluation ? `Advantage ${formatAdvantage(signal)}` : "Advantage gauge waiting for a move preview"}>
+        <div className="advantage-gauge" aria-label={evaluation ? `Current ${formatAdvantage(beforeSignal)}; after ${formatAdvantage(afterSignal)}` : "Advantage gauge waiting for a move preview"}>
           <svg viewBox="0 0 220 132" role="img" aria-hidden="true">
             <path className="gauge-track" d="M 28 108 A 82 82 0 0 1 192 108" />
             <path className="gauge-left" d="M 28 108 A 82 82 0 0 1 110 26" />
             <path className="gauge-right" d="M 110 26 A 82 82 0 0 1 192 108" />
-            <line className="gauge-needle" x1="110" y1="108" x2="110" y2="43" style={{ transform: `rotate(${needleAngle}deg)`, transformOrigin: "110px 108px" }} />
+            <line className="gauge-needle gauge-needle-before" x1="110" y1="108" x2="110" y2="43" style={{ transform: `rotate(${beforeNeedleAngle}deg)`, transformOrigin: "110px 108px" }} />
+            <line className="gauge-needle gauge-needle-after" x1="110" y1="108" x2="110" y2="43" style={{ transform: `rotate(${afterNeedleAngle}deg)`, transformOrigin: "110px 108px" }} />
             <circle className="gauge-hub" cx="110" cy="108" r="7" />
           </svg>
-          <div className="gauge-labels"><span>Them</span><strong>{evaluation ? formatAdvantage(signal) : "—"}</strong><span>You</span></div>
+          <div className="gauge-labels"><span>Them</span><strong>After move</strong><span>You</span></div>
+          {evaluation && (
+            <div className="gauge-readouts">
+              <span><i className="gauge-dot gauge-dot-before" /> Now: {formatAdvantage(beforeSignal)}</span>
+              <span><i className="gauge-dot gauge-dot-after" /> After: {formatAdvantage(afterSignal)}</span>
+            </div>
+          )}
         </div>
         <div className="coaching-copy">
           {evaluation ? (
@@ -592,7 +601,7 @@ function heatClass(delta: number) {
 function normalizeScore(score: number) {
   if (score >= 1_000_000_000) return 1;
   if (score <= -1_000_000_000) return -1;
-  return Math.max(-1, Math.min(1, score / 650));
+  return Math.max(-1, Math.min(1, Math.tanh(score / 3_500)));
 }
 
 function normalizeShift(delta: number) {
