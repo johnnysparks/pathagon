@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { RUNS, type RunRecord } from "./runs";
+import { buildReplayPositions, coordinate, formatReplayAction, parseReplayArchive, type ReplayGame } from "./replay";
 
 export default function LearningLab() {
   const [selectedId, setSelectedId] = useState(RUNS[0].id);
@@ -120,8 +121,129 @@ function RunDetail({ run }: { run: RunRecord }) {
         <div className="arena-heading"><div><span className="lab-kicker">Independent check</span><h3>Random-baseline arena</h3></div>{arena && <span className="arena-pill">{arena.boardSize}×{arena.boardSize} · {arena.simulations} sims</span>}</div>
         {arena ? <div className="arena-body"><div className="arena-score"><strong>{arena.wins}–{arena.draws}–{arena.losses}</strong><span>{arena.games} games · wins · draws · losses</span></div><div className="arena-track" aria-label={`${arena.wins} wins, ${arena.draws} draws, ${arena.losses} losses`}><span className="arena-win" style={{ width: `${(arena.wins / arena.games) * 100}%` }} /><span className="arena-draw" style={{ width: `${(arena.draws / arena.games) * 100}%` }} /><span className="arena-loss" style={{ width: `${(arena.losses / arena.games) * 100}%` }} /></div></div> : <p className="empty-state">No independent arena result recorded for this checkpoint.</p>}
       </section>
+
+      <ReplayViewer run={run} />
     </div>
   );
+}
+
+function ReplayViewer({ run }: { run: RunRecord }) {
+  const [games, setGames] = useState<ReplayGame[]>([]);
+  const [gameIndex, setGameIndex] = useState(0);
+  const [ply, setPly] = useState(0);
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [playing, setPlaying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const game = games[gameIndex] ?? null;
+  const positions = useMemo(() => game ? buildReplayPositions(game) : [], [game]);
+  const position = positions[ply] ?? positions[0] ?? null;
+
+  useEffect(() => {
+    setGames([]);
+    setGameIndex(0);
+    setPly(0);
+    setPlaying(false);
+    setError(null);
+    if (!run.replay) {
+      setStatus("idle");
+      return;
+    }
+    let cancelled = false;
+    setStatus("loading");
+    fetch(`/lab/replays/${run.replay.name}`)
+      .then((response) => {
+        if (!response.ok) throw new Error("Replay archive unavailable");
+        return response.text();
+      })
+      .then((text) => {
+        if (cancelled) return;
+        setGames(parseReplayArchive(text, run.boardSize, run.reservePerPlayer));
+        setStatus("ready");
+      })
+      .catch((cause: unknown) => {
+        if (cancelled) return;
+        setError(cause instanceof Error ? cause.message : "Replay archive unavailable");
+        setStatus("error");
+      });
+    return () => { cancelled = true; };
+  }, [run.boardSize, run.reservePerPlayer, run.replay, run.replay?.name]);
+
+  useEffect(() => {
+    if (!playing || !positions.length) return;
+    const timer = setInterval(() => {
+      setPly((current) => {
+        if (current >= positions.length - 1) {
+          setPlaying(false);
+          return current;
+        }
+        return current + 1;
+      });
+    }, 520);
+    return () => clearInterval(timer);
+  }, [playing, positions.length]);
+
+  function chooseGame(index: number) {
+    setGameIndex(index);
+    setPly(0);
+    setPlaying(false);
+  }
+
+  if (!run.replay) return <section className="replay-card"><ReplayHeading /><p className="empty-state">This legacy checkpoint has no separately saved replay archive.</p></section>;
+  if (status === "loading") return <section className="replay-card"><ReplayHeading /><p className="empty-state">Loading replay archive…</p></section>;
+  if (status === "error") return <section className="replay-card"><ReplayHeading /><p className="empty-state">{error ?? "Replay archive unavailable."}</p></section>;
+  if (!game || !position) return <section className="replay-card"><ReplayHeading /><p className="empty-state">The replay archive contains no games.</p></section>;
+
+  const move = ply > 0 ? game.moves[ply - 1] : null;
+  const resultLabel = game.winner ? `${capitalize(game.winner)} path` : "Draw";
+  return (
+    <section className="replay-card" aria-label="Replay archive viewer">
+      <ReplayHeading gameCount={games.length} />
+      <div className="replay-layout">
+        <div className="replay-games">
+          <div className="replay-games-heading"><span className="lab-kicker">Games</span><span>{games.length}</span></div>
+          <div className="replay-game-list">
+            {games.map((candidate, index) => (
+              <button className={`replay-game-item ${index === gameIndex ? "selected" : ""}`} key={`${candidate.seed}-${index}`} onClick={() => chooseGame(index)} type="button" aria-pressed={index === gameIndex}>
+                <span><strong>Game {index + 1}</strong><small>seed {candidate.seed}</small></span>
+                <span className={`replay-result ${candidate.winner ?? "draw"}`}>{candidate.winner ? `${capitalize(candidate.winner)} win` : "Draw"}<small>{candidate.plies} ply</small></span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="replay-stage">
+          <div className="replay-stage-heading">
+            <div><span className="lab-kicker">Game {gameIndex + 1} · {game.reason.replaceAll("-", " ")}</span><h3>{resultLabel}</h3></div>
+            <span className="replay-position-count">{ply} / {game.plies}</span>
+          </div>
+          <div className="replay-board-frame">
+            <div className="replay-board" role="grid" aria-label={`${game.boardSize} by ${game.boardSize} replay board`} style={{ gridTemplateColumns: `repeat(${game.boardSize}, 1fr)` }}>
+              {position.board.map((piece, index) => {
+                const isWinning = position.winningPath.includes(index);
+                const isLastMove = Boolean(move && (move.action.to === index || (move.action.kind === "relocate" && move.action.from === index)));
+                const isForbidden = position.forbidden.includes(index);
+                return <div className={`replay-cell ${piece ?? "empty"} ${isWinning ? "winning" : ""} ${isLastMove ? "last" : ""}`} key={index} role="gridcell" aria-label={`${coordinate(index, game.boardSize)} ${piece ? `${piece} piece` : "empty"}`}><span className="replay-socket" />{piece && <span className={`replay-piece ${piece}`} />}{isForbidden && <span className="replay-forbidden">×</span>}</div>;
+              })}
+            </div>
+          </div>
+          <div className="replay-move-summary">
+            <span className="replay-turn-dot" data-player={position.lastMove?.player ?? position.turn} />
+            <div><strong>{move ? `${capitalize(move.player)} · ${formatReplayAction(move.action, game.boardSize)}` : "Opening position"}</strong><small>{move ? `${move.captured.length ? `Captured ${move.captured.length} · ` : ""}${position.reserve.light} light / ${position.reserve.dark} dark in hand` : `${position.reserve.light} pieces in each reserve`}</small></div>
+          </div>
+          <div className="replay-controls">
+            <button className="replay-control" onClick={() => setPly(0)} disabled={ply === 0} type="button" aria-label="Reset replay">↤</button>
+            <button className="replay-control replay-play" onClick={() => setPlaying((value) => !value)} type="button">{playing ? "Pause" : "Play"}</button>
+            <button className="replay-control" onClick={() => setPly((value) => Math.min(value + 1, positions.length - 1))} disabled={ply >= positions.length - 1} type="button" aria-label="Next move">→</button>
+          </div>
+          <input className="replay-scrubber" type="range" min="0" max={Math.max(0, positions.length - 1)} value={ply} onChange={(event) => { setPlaying(false); setPly(Number(event.target.value)); }} aria-label="Replay move" />
+          <div className="replay-scrubber-labels"><span>Start</span><span>{move ? `Move ${move.ply}` : "Opening"}</span><span>End</span></div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ReplayHeading({ gameCount }: { gameCount?: number }) {
+  return <div className="replay-heading"><div><span className="lab-kicker">Replay archive</span><h3>Walk the games</h3></div>{gameCount !== undefined && <span className="replay-count">{gameCount} games loaded</span>}</div>;
 }
 
 function FileRow({ label, name, bytes, detail }: { label: string; name: string; bytes: number; detail: string }) {
@@ -147,4 +269,8 @@ function formatBytes(bytes: number) {
 
 function formatMetric(value: number | null) {
   return value === null ? "—" : value.toFixed(3);
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
