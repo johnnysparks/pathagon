@@ -29,6 +29,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --all-targets --release
       - run: cargo run --release --bin pathagon-selfplay -- --games 2 --depth 2 --nodes 12000 --max-plies 80
+      - name: Verify held-out trainer
+        run: |
+          cargo run --release --bin pathagon-train -- --generations 1 --population 2 --training-pairs 1 --evaluation-pairs 1 --depth 1 --nodes 500 --beam 20 --max-plies 50 --out /tmp/pathagon-training
+          test -s /tmp/pathagon-training/report.json
+          test -s /tmp/pathagon-training/champion.json
       - name: Verify persistent corpus round trip
         run: |
           cargo run --release --bin pathagon-selfplay -- --games 4 --seed 20260823 --depth 2 --nodes 12000 --max-plies 80 --corpus /tmp/pathagon-corpus
@@ -40,4 +45,11 @@ jobs:
         with:
           name: rust-selfplay-corpus
           path: corpus/rust-v1
+          if-no-files-found: error
+      - name: Generate first held-out evolution run
+        run: cargo run --release --bin pathagon-train -- --generations 1 --population 4 --training-pairs 4 --evaluation-pairs 8 --depth 2 --nodes 12000 --beam 49 --max-plies 120 --opening-random-plies 4 --out ../training/rust-v1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rust-training-run
+          path: training/rust-v1
           if-no-files-found: error
