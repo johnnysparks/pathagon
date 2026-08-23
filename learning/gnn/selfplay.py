@@ -138,6 +138,8 @@ def game_record(examples: List[SearchExample], final_state: GameState, seed: int
     return {
         "schemaVersion": 2,
         "seed": seed,
+        "boardSize": final_state.config.size,
+        "reservePerPlayer": final_state.config.reserve_per_player,
         "agents": {"light": "python-gnn-puct-v0.1.0", "dark": "python-gnn-puct-v0.1.0"},
         "winner": winner,
         "result": "win" if winner is not None else "draw",

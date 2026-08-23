@@ -23,6 +23,12 @@ The local progression includes:
 - `pathagon-generation-5.pt`: trained from 10 neural games / 1,622 positions.
   `selfplay-generation-5.jsonl` contains three path wins and seven move-cap
   draws.
+- `pathagon-generation-6-5x5.pt`: a 5x5 curriculum fine-tune from generation
+  5, trained from 25 games / 687 positions. Its replay file contains 25 path
+  wins with no capped draws.
+- `pathagon-generation-7-5x5.pt`: a second 5x5 curriculum generation with 25
+  games / 926 positions, all path wins. In a fresh 20-game random arena it
+  scored 13 wins, 7 losses, and 0 draws at 16 simulations per move.
 
 `learning.gnn.evaluate` provides a seeded, color-balanced smoke arena against
 the random baseline. Generation 4 scored 0 wins, 1 loss, and 4 draws in five
@@ -31,6 +37,10 @@ claim.
 
 Generation 5 scored 0 wins, 0 losses, and 10 draws in a fresh 10-game arena
 at eight simulations per move; all ten reached the 196-ply cap.
+
+New replay files record `boardSize` and `reservePerPlayer` so variable-size
+curriculum games can be loaded without relying on the filename. Generation 6
+predates those fields and remains loadable when passed `BoardConfig(5, 10)`.
 
 Games that reach the current move cap remain draws and should not be counted
 as wins or losses.

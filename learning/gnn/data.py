@@ -35,9 +35,12 @@ def iter_records(path: Path) -> Iterable[dict]:
 
 
 def load_replay_examples(path: Path, config: Optional[BoardConfig] = None) -> List[ReplayExample]:
-    board = config or BoardConfig(size=7, reserve_per_player=14)
     examples: List[ReplayExample] = []
     for record in iter_records(path):
+        board = config or BoardConfig(
+            size=int(record.get("boardSize", 7)),
+            reserve_per_player=int(record.get("reservePerPlayer", 14)),
+        )
         state = GameState.initial(board)
         seed = int(record["seed"])
         for move in record["moves"]:
