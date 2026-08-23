@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { DEFAULT_WEIGHTS, searchBestAction } from "../app/ai.ts";
 import { createGame } from "../app/pathagon.ts";
+import { validateSelfPlayRecord } from "../app/selfplay-record.ts";
 import { createRandomAgent, playGame } from "../selfplay/core.ts";
 
 test("seeded self-play is reproducible", () => {
@@ -28,4 +29,17 @@ test("iterative search returns the last completed depth inside its node budget",
   assert.ok(result.nodes <= 120);
   assert.equal(result.exhausted, true);
   assert.ok(result.completedDepth >= 1 && result.completedDepth < 5);
+});
+
+test("self-play archive validation proves the stored replay", () => {
+  const record = playGame(
+    createRandomAgent("light-random"),
+    createRandomAgent("dark-random"),
+    { seed: 99, maxPlies: 30, openingRandomPlies: 0 },
+  );
+  assert.deepEqual(validateSelfPlayRecord(record), record);
+  assert.throws(
+    () => validateSelfPlayRecord({ ...record, winner: record.winner === "light" ? "dark" : "light" }),
+    /winner does not match replay|result does not match winner/,
+  );
 });

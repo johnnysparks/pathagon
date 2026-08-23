@@ -26,6 +26,14 @@ Anyone with the token can retrieve the move stream for study with
 `GET /api/games/<game-id>`. There is no listing endpoint, so the token is the
 only lookup key.
 
+## Self-play game archive
+
+Completed local TypeScript and Rust self-play records can be uploaded to the
+same private D1 database for later filtering and analysis. The database keeps
+searchable run metadata alongside each replay; Git remains reserved for small,
+curated corpora. See [`docs/GAME_ARCHIVE.md`](docs/GAME_ARCHIVE.md) for the
+uploader and JSONL query examples.
+
 ## Runtime foundation
 
 A clean full-stack starter running on

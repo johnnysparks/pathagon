@@ -2,6 +2,10 @@ import { searchBestAction } from "../app/ai.ts";
 import type { EvaluationWeights, SearchConfig } from "../app/ai.ts";
 import { applyAction, createGame, legalActions } from "../app/pathagon.ts";
 import type { Action, GameState, Player } from "../app/pathagon.ts";
+import type { SelfPlayGameRecord, SelfPlayMoveRecord } from "../app/selfplay-record.ts";
+
+export type GameRecord = SelfPlayGameRecord;
+export type MoveRecord = SelfPlayMoveRecord;
 
 export type RandomSource = () => number;
 
@@ -14,27 +18,6 @@ export type MatchOptions = {
   seed: number;
   maxPlies: number;
   openingRandomPlies: number;
-};
-
-export type MoveRecord = {
-  ply: number;
-  player: Player;
-  action: Action;
-  captured: number[];
-  nodes: number;
-  completedDepth: number;
-  tableHits: number;
-};
-
-export type GameRecord = {
-  schemaVersion: 2;
-  seed: number;
-  agents: Record<Player, string>;
-  winner: Player | null;
-  result: "win" | "draw";
-  reason: "path" | "threefold-repetition" | "max-plies" | "no-legal-action";
-  plies: number;
-  moves: MoveRecord[];
 };
 
 export function createSearchAgent(id: string, config: SearchConfig): SelfPlayAgent {
