@@ -25,6 +25,15 @@ npm run selfplay:archive -- \
   --engine typescript
 ```
 
+For the current owner-only Site, provide the Sites bearer through
+`PATHAGON_ARCHIVE_TOKEN`; omit it if the Site is later made public:
+
+```bash
+PATHAGON_ARCHIVE_TOKEN='…' npm run selfplay:archive -- \
+  --file selfplay/progress/runs/arena-20260823.json \
+  --url https://pathagon-game.sparks-house-6466.chatgpt.site
+```
+
 For Rust JSONL output, save the complete records and then use the same
 uploader. The aggregate summary line is ignored automatically:
 

@@ -29,7 +29,7 @@ for (let start = 0; start < records.length; start += 100) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...(token ? { "OAI-Sites-Authorization": `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({ engine, mode, runId, games }),
   });
