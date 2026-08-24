@@ -64,10 +64,10 @@ const MODELS = [
     id: "gnn-scout-7x7",
     name: "GNN Scout",
     family: "Compact message passing · 17.5k params",
-    role: "offline generator only",
+    role: "neural data generator",
     tone: "violet",
     glyph: "S",
-    disabled: true,
+    disabled: false,
   },
 ] as const;
 
@@ -210,7 +210,7 @@ export default function LearningLab() {
       </header>
 
       <section className="leaderboard-stat-grid" aria-label="Model league summary">
-        <LeaderboardStat label="Live agents" value={crossPlay ? String(crossPlay.standings.length) : "—"} detail="4 playable · 2 neural" accent="green" />
+        <LeaderboardStat label="Live agents" value={crossPlay ? String(crossPlay.standings.length) : "—"} detail="4 playable · 3 neural" accent="green" />
         <LeaderboardStat label="7×7 benchmark" value="3,251" detail="2,037 unique · 416 held out" accent="gold" />
         <LeaderboardStat label="Live cross-play" value={crossPlay ? String(crossPlay.games) : "—"} detail={crossPlay ? "cumulative database records" : "waiting for first poll"} accent="gold" />
         <LeaderboardStat label="Held-out policy NLL" value="2.112" detail="GNN · 416 held-out records" accent="ink" />
@@ -235,7 +235,7 @@ export default function LearningLab() {
           <div><span className="portal-kicker">Standings · live database</span><h2 id="standings-title">Every model in the ladder.</h2></div>
           <span className="leaderboard-status"><span /> {crossPlay ? `${crossPlay.standings.length} agents · polling` : "Polling database"}</span>
         </div>
-        <p className="leaderboard-intro">Rankings and records are cumulative across all archived 7×7 cross-play games. GNN Scout is shown as disabled because it generates offline data but has no live ladder record.</p>
+        <p className="leaderboard-intro">Rankings and records are cumulative across all archived 7×7 cross-play games. Offline benchmark metrics remain separate from live ladder evidence.</p>
 
         <div className="leaderboard-table" role="table" aria-label="Current model standings">
           <div className="leaderboard-table-row leaderboard-table-header" role="row">
