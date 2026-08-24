@@ -4,8 +4,9 @@ import unittest
 
 import torch
 
-from .game import BoardConfig, GameState, Player
+from .game import BoardConfig, GameState, Player, repetition_key
 from .mcts import PUCTSearch
+from .solver import ExactSolver
 from .tactics import (
     connection_distance_delta,
     immediate_winning_actions,
@@ -69,6 +70,26 @@ class TacticsTest(unittest.TestCase):
         self.assertTrue(allowed)
         for action, probability in zip(actions, probabilities):
             self.assertEqual(probability > 0.0, action in allowed)
+
+    def test_generic_solver_labels_the_fixtures_without_tactic_predicates(self) -> None:
+        solver = ExactSolver(horizon=3)
+        cases = (
+            (self.immediate, 1, {"R2>0", "R10>0"}),
+            (self.block, 0, {"R5>0", "R7>0", "R9>0", "R11>0", "R15>0"}),
+            (self.fork, 1, {"R10>12", "R15>12"}),
+        )
+        for state, expected_outcome, expected_actions in cases:
+            analysis = solver.analyze(state)
+            self.assertEqual(analysis.result.outcome, expected_outcome)
+            self.assertEqual({action.short() for action in analysis.optimal_actions}, expected_actions)
+        self.assertGreater(solver.stats.cache_hits, 0)
+
+    def test_solver_respects_threefold_history_before_search(self) -> None:
+        state = GameState.initial(BoardConfig(3, 3, 12))
+        solver = ExactSolver(horizon=3)
+        result = solver.solve(state, {repetition_key(state): 2})
+        self.assertEqual(result.outcome, 0)
+        self.assertEqual(solver.stats.nodes, 1)
 
 
 if __name__ == "__main__":

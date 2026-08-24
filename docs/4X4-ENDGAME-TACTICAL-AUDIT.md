@@ -1,48 +1,53 @@
-# 4x4 five-piece tactical audit
+# 4x4 five-piece endgame audit
 
-The toy endgame suite uses a 4x4 board with exactly five pieces per side,
-zero reserves, and no overlapping pieces. It exhaustively evaluates the root
-actions, every opponent reply, and the next winning replies needed to prove an
-immediate win, a forced block, or a true forced fork.
+The audit uses a 4x4 board with exactly five pieces per side, zero reserves,
+and no overlapping pieces. It evaluates 24 positions: eight symmetry
+transforms each of an immediate-win, forced-block, and forced-fork fixture.
+Every position has 30 root actions.
 
 Run it with:
 
 ```bash
 .venv-pathagon-gnn/bin/python scripts/evaluate-4x4-endgame.py \
   --checkpoint training/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-gnn-30k.pt \
-  --budgets 0,32,128
+  --budgets 0,32,128 \
+  --solver-horizon 3
 ```
 
-The suite contains 24 positions: eight transforms each of the three tactical
-families. Every position has 30 root actions. The exhaustive tree contains
-768 root/reply edges for immediate-win positions, 900 for forced blocks, and
-684 for forced forks.
+## Solver labels
+
+`learning/gnn/solver.py` provides a generic legal-move AND/OR search with:
+
+- a transposition table with exact, lower-bound, and upper-bound entries;
+- repetition-count signatures in the cache key, so threefold repetition is
+  not confused with a first occurrence of the same position;
+- terminal wins, no-legal-action draws, the ply cap, and a finite proof
+  horizon;
+- no named block, fork, or one-away predicates.
+
+The audit uses a three-ply solver horizon. A non-terminal position at that
+horizon is treated as draw/unknown, which is sufficient to label these
+one-move tactical fixtures without pretending this is a complete 4x4
+tablebase. The solver labels are the correctness target; `tactical_root` is
+still run only as a diagnostic baseline for the optional MCTS guard.
 
 ## Result
 
-`policyAccuracy` is the action selected from the probabilities returned by
-PUCT. The guarded mode applies the exact small-board tactical priority after
-search; it does not rewrite the underlying visit counts.
+`policyAccuracy` is the action selected from the returned policy
+probabilities. `visitAccuracy` is the most-visited root action. Both are
+scored against solver-optimal actions.
 
-| Family | Unguarded, 32 sims | Unguarded, 128 sims | Guarded, 32 sims | Guarded, 128 sims |
+| Family | Unguarded, 32 sims | Unguarded, 128 sims | Guarded diagnostic, 32 sims | Guarded diagnostic, 128 sims |
 | --- | ---: | ---: | ---: | ---: |
 | Immediate win | 8/8 | 8/8 | 8/8 | 8/8 |
 | Forced block | 0/8 | 0/8 | 8/8 | 8/8 |
 | True forced fork | 0/8 | 0/8 | 8/8 | 8/8 |
 
-The exact tactical layer is therefore sufficient to solve the toy problem.
-The guard is opt-in and restricted to boards of size 4 or smaller, so the
-existing 7x7 search behavior is unchanged.
+The current unguarded stack finds immediate wins but does not discover the
+forced blocks or forks at these budgets. The diagnostic guard selects the
+solver-optimal actions, but its visit counts still do not: it changes the
+returned policy after search and does not rewrite the tree statistics.
 
-## Implementation boundary
-
-`learning/gnn/tactics.py` uses graph distance for general path estimates and
-caches simple 4x4 goal-path masks as a one-away prefilter. The authoritative
-checks remain action-aware: captures, relocation restrictions, opponent
-replies, and forced forks are evaluated by the legal move graph rather than by
-a scalar board score.
-
-This is a tactical regression suite, not a complete 4x4 tablebase. Full
-win-distance solving still needs a transposition-table search with repetition
-handling. The tactical features are the intended transition targets for the
-separated Q/advantage experiment.
+This establishes a useful next experiment: use the GNN to order actions and
+provide values, then add generic proof/search extensions and measure whether
+the search—not a tactical rule list—recovers the solver labels.

@@ -17,6 +17,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from learning.gnn.game import BoardConfig, GameState, Player  # noqa: E402
 from learning.gnn.mcts import PUCTSearch  # noqa: E402
+from learning.gnn.solver import ExactSolver  # noqa: E402
 from learning.gnn.tactics import tactical_root  # noqa: E402
 from learning.gnn.train import load_model  # noqa: E402
 
@@ -105,23 +106,47 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT)
     parser.add_argument("--budgets", type=parse_budgets, default=(0, 4, 8, 16, 32, 64, 128))
+    parser.add_argument(
+        "--solver-horizon",
+        type=int,
+        default=3,
+        help="number of plies for the exact solver labels (default: 3)",
+    )
     args = parser.parse_args()
+    if args.solver_horizon < 1:
+        parser.error("--solver-horizon must be positive")
 
     model = load_model(args.checkpoint.resolve(), torch.device("cpu"))
     model.eval()
     torch.set_num_threads(1)
     test_positions = positions()
+    solver = ExactSolver(max_size=4, horizon=args.solver_horizon)
     counts = defaultdict(lambda: defaultdict(lambda: {"policyCorrect": 0, "visitCorrect": 0, "total": 0}))
-    tree = defaultdict(lambda: {"positions": 0, "rootActions": set(), "replyEdges": set(), "correctMoves": []})
+    tree = defaultdict(
+        lambda: {
+            "positions": 0,
+            "rootActions": set(),
+            "replyEdges": set(),
+            "correctMoves": [],
+            "solverOutcomes": set(),
+            "guardOptimalPositions": 0,
+        }
+    )
 
     for category, _name, state in test_positions:
+        analysis = solver.analyze(state)
+        correct = set(analysis.optimal_actions)
+        if not correct:
+            raise RuntimeError(f"solver produced no optimal action for {category}")
         tactical = tactical_root(state)
-        correct = set(tactical.priority_actions)
+        guard_actions = set(tactical.priority_actions)
         category_tree = tree[category]
         category_tree["positions"] += 1
         category_tree["rootActions"].add(tactical.root_action_count)
         category_tree["replyEdges"].add(tactical.root_reply_edges)
         category_tree["correctMoves"].append(len(correct))
+        category_tree["solverOutcomes"].add(analysis.result.outcome)
+        category_tree["guardOptimalPositions"] += int(bool(guard_actions) and guard_actions <= correct)
         for guarded in (False, True):
             mode = "guarded" if guarded else "unguarded"
             for budget in args.budgets:
@@ -137,12 +162,21 @@ def main() -> None:
     output = {
         "checkpoint": str(args.checkpoint),
         "positions": len(test_positions),
+        "solver": {
+            "horizon": args.solver_horizon,
+            "outcomePerspective": "side-to-move",
+            "nodes": solver.stats.nodes,
+            "cacheHits": solver.stats.cache_hits,
+            "tableEntries": solver.stats.table_entries,
+        },
         "tree": {
             category: {
                 "positions": value["positions"],
                 "rootActions": sorted(value["rootActions"]),
                 "replyEdges": sorted(value["replyEdges"]),
                 "meanCorrectMoves": sum(value["correctMoves"]) / len(value["correctMoves"]),
+                "solverOutcomes": sorted(value["solverOutcomes"]),
+                "guardOptimalPositions": value["guardOptimalPositions"],
             }
             for category, value in tree.items()
         },

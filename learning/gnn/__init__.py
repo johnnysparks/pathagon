@@ -3,5 +3,17 @@
 from .game import Action, BoardConfig, GameState, Player
 from .cnn_model import PathagonCNN
 from .model import PathagonGNN
+from .solver import ExactSolver, SolverAnalysis, SolverResult, SolverStats
 
-__all__ = ["Action", "BoardConfig", "GameState", "PathagonCNN", "PathagonGNN", "Player"]
+__all__ = [
+    "Action",
+    "BoardConfig",
+    "ExactSolver",
+    "GameState",
+    "PathagonCNN",
+    "PathagonGNN",
+    "Player",
+    "SolverAnalysis",
+    "SolverResult",
+    "SolverStats",
+]
