@@ -8,39 +8,10 @@ export type SelfPlayArchiveEntry = {
   record: SelfPlayGameRecord;
 };
 
-const tableSql = `CREATE TABLE IF NOT EXISTS selfplay_games (
-  id TEXT PRIMARY KEY,
-  schema_version INTEGER NOT NULL,
-  recorded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  engine TEXT NOT NULL,
-  mode TEXT NOT NULL,
-  run_id TEXT,
-  seed INTEGER NOT NULL,
-  light_agent TEXT NOT NULL,
-  dark_agent TEXT NOT NULL,
-  winner TEXT,
-  result TEXT NOT NULL,
-  reason TEXT NOT NULL,
-  plies INTEGER NOT NULL,
-  record TEXT NOT NULL,
-  source TEXT NOT NULL DEFAULT 'selfplay-v1'
-)`;
-const recordedIndexSql = "CREATE INDEX IF NOT EXISTS selfplay_games_recorded_at_idx ON selfplay_games(recorded_at)";
-const engineModeIndexSql = "CREATE INDEX IF NOT EXISTS selfplay_games_engine_mode_idx ON selfplay_games(engine, mode)";
-const agentsIndexSql = "CREATE INDEX IF NOT EXISTS selfplay_games_agents_idx ON selfplay_games(light_agent, dark_agent)";
-const resultIndexSql = "CREATE INDEX IF NOT EXISTS selfplay_games_result_idx ON selfplay_games(result, winner)";
-
 async function database() {
   const { env } = await import("cloudflare:workers");
   const d1 = env.DB;
   if (!d1) throw new Error("Self-play database is unavailable");
-  await d1.batch([
-    d1.prepare(tableSql),
-    d1.prepare(recordedIndexSql),
-    d1.prepare(engineModeIndexSql),
-    d1.prepare(agentsIndexSql),
-    d1.prepare(resultIndexSql),
-  ]);
   return d1;
 }
 

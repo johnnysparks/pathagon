@@ -77,6 +77,33 @@ pub struct EngineMetadata {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct EvaluatorWeights {
+    pub path: i32,
+    pub material: i32,
+    pub capture: i32,
+    pub structure: i32,
+    pub threat: i32,
+    pub edge: i32,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct AgentManifest {
+    #[serde(rename = "manifestVersion")]
+    pub manifest_version: u8,
+    pub runtime: String,
+    #[serde(rename = "rulesVersion")]
+    pub rules_version: String,
+    #[serde(rename = "evaluatorWeights")]
+    pub evaluator_weights: EvaluatorWeights,
+    pub depth: u32,
+    #[serde(rename = "nodeBudget")]
+    pub node_budget: u64,
+    pub beam: u32,
+    #[serde(rename = "modelHash")]
+    pub model_hash: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct AgentSpecification {
     pub id: String,
     pub name: String,
@@ -84,6 +111,7 @@ pub struct AgentSpecification {
     pub kind: String,
     #[serde(rename = "engineId")]
     pub engine_id: String,
+    pub manifest: AgentManifest,
     pub parameters: Option<serde_json::Value>,
 }
 
@@ -183,6 +211,20 @@ impl AgentSpecification {
     pub fn validate(&self) -> Result<(), String> {
         if self.id.is_empty() || self.name.is_empty() || self.version.is_empty() || self.engine_id.is_empty() { return Err("invalid agent specification fields".to_owned()); }
         if !matches!(self.kind.as_str(), "random" | "heuristic" | "search" | "learned" | "puct") { return Err("invalid agent kind".to_owned()); }
+        self.manifest.validate()?;
+        Ok(())
+    }
+}
+
+impl AgentManifest {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.manifest_version != 1 || !matches!(self.runtime.as_str(), "typescript" | "rust" | "python") || self.rules_version != RULES_VERSION {
+            return Err("invalid agent manifest metadata".to_owned());
+        }
+        if let Some(hash) = &self.model_hash {
+            let digest = hash.strip_prefix("sha256:").unwrap_or("");
+            if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit()) { return Err("invalid agent model hash".to_owned()); }
+        }
         Ok(())
     }
 }

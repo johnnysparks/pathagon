@@ -1,5 +1,5 @@
 import { searchBestAction } from "../app/ai.ts";
-import type { EvaluationWeights, SearchConfig } from "../app/ai.ts";
+import type { SearchConfig } from "../app/ai.ts";
 import { DEFAULT_GAME_CONFIG, TYPESCRIPT_ENGINE, defaultAgentSpecification } from "../app/contract.ts";
 import type { GameConfig } from "../app/contract.ts";
 import { applyAction, createGame, legalActions } from "../app/pathagon.ts";
@@ -27,7 +27,12 @@ export type MatchOptions = {
 export function createSearchAgent(id: string, config: SearchConfig): SelfPlayAgent {
   return {
     id,
-    spec: { ...defaultAgentSpecification(id, "search", TYPESCRIPT_ENGINE), parameters: { depth: config.depth, maxNodes: config.maxNodes, beamWidth: config.beamWidth, weights: config.weights } },
+    spec: defaultAgentSpecification(id, "search", TYPESCRIPT_ENGINE, {
+      depth: config.depth,
+      nodeBudget: config.maxNodes,
+      beam: config.beamWidth,
+      evaluatorWeights: config.weights,
+    }),
     chooseAction(state) {
       const result = searchBestAction(state, config);
       return { action: result.action, nodes: result.nodes, completedDepth: result.completedDepth, tableHits: result.tableHits };
@@ -80,17 +85,6 @@ export function playGame(light: SelfPlayAgent, dark: SelfPlayAgent, options: Mat
   return gameRecord(options.seed, agents, config, null, "max-plies", moves);
 }
 
-export function mutateWeights(weights: EvaluationWeights, random: RandomSource, scale = 0.2): EvaluationWeights {
-  return {
-    path: mutateWeight(weights.path, random, scale),
-    material: mutateWeight(weights.material, random, scale),
-    capture: mutateWeight(weights.capture, random, scale),
-    structure: mutateWeight(weights.structure, random, scale),
-    threat: mutateWeight(weights.threat, random, scale),
-    edge: mutateWeight(weights.edge, random, scale),
-  };
-}
-
 export function mulberry32(seed: number): RandomSource {
   let value = seed >>> 0;
   return () => {
@@ -100,11 +94,6 @@ export function mulberry32(seed: number): RandomSource {
     result ^= result + Math.imul(result ^ (result >>> 7), result | 61);
     return ((result ^ (result >>> 14)) >>> 0) / 4_294_967_296;
   };
-}
-
-function mutateWeight(value: number, random: RandomSource, scale: number) {
-  const multiplier = 1 + (random() * 2 - 1) * scale;
-  return Math.max(1, Math.round(value * multiplier));
 }
 
 function stateKey(state: GameState) {

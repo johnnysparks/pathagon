@@ -21,14 +21,34 @@
       "name": "Coin Flip",
       "version": "1.0.0",
       "kind": "random",
-      "engineId": "typescript-reference"
+      "engineId": "typescript-reference",
+      "manifest": {
+        "manifestVersion": 1,
+        "runtime": "typescript",
+        "rulesVersion": "pathagon-rules-v1",
+        "evaluatorWeights": { "path": 240, "material": 110, "capture": 700, "structure": 55, "threat": 130, "edge": 80 },
+        "depth": 0,
+        "nodeBudget": 0,
+        "beam": 0,
+        "modelHash": null
+      }
     },
     "dark": {
       "id": "coin-flip-v1",
       "name": "Coin Flip",
       "version": "1.0.0",
       "kind": "random",
-      "engineId": "typescript-reference"
+      "engineId": "typescript-reference",
+      "manifest": {
+        "manifestVersion": 1,
+        "runtime": "typescript",
+        "rulesVersion": "pathagon-rules-v1",
+        "evaluatorWeights": { "path": 240, "material": 110, "capture": 700, "structure": 55, "threat": 130, "edge": 80 },
+        "depth": 0,
+        "nodeBudget": 0,
+        "beam": 0,
+        "modelHash": null
+      }
     }
   },
   "winner": null,

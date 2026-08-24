@@ -93,16 +93,45 @@
         "rulesVersion": { "type": "string", "const": "pathagon-rules-v1" }
       }
     },
+    "evaluatorWeights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "material", "capture", "structure", "threat", "edge"],
+      "properties": {
+        "path": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+        "material": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+        "capture": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+        "structure": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+        "threat": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+        "edge": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 }
+      }
+    },
+    "agentManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifestVersion", "runtime", "rulesVersion", "evaluatorWeights", "depth", "nodeBudget", "beam", "modelHash"],
+      "properties": {
+        "manifestVersion": { "const": 1 },
+        "runtime": { "type": "string", "enum": ["typescript", "rust", "python"] },
+        "rulesVersion": { "type": "string", "const": "pathagon-rules-v1" },
+        "evaluatorWeights": { "$ref": "#/$defs/evaluatorWeights" },
+        "depth": { "type": "integer", "minimum": 0 },
+        "nodeBudget": { "type": "integer", "minimum": 0 },
+        "beam": { "type": "integer", "minimum": 0 },
+        "modelHash": { "type": ["string", "null"], "pattern": "^sha256:[A-Fa-f0-9]{64}$" }
+      }
+    },
     "agentSpecification": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "version", "kind", "engineId"],
+      "required": ["id", "name", "version", "kind", "engineId", "manifest"],
       "properties": {
         "id": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
         "name": { "type": "string", "minLength": 1, "maxLength": 128 },
         "version": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,32}$" },
         "kind": { "type": "string", "enum": ["random", "heuristic", "search", "learned", "puct"] },
         "engineId": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
+        "manifest": { "$ref": "#/$defs/agentManifest" },
         "parameters": { "type": "object" }
       }
     },

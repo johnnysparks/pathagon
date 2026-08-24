@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 from .game import Action, BoardConfig, GameState, Player, bits, repetition_key
-from .contract import agent_specification, engine_metadata, game_config
+from .contract import agent_manifest, agent_specification, engine_metadata, game_config
 from .mcts import PUCTSearch
 from .model import PathagonGNN
 
@@ -19,6 +19,50 @@ class SearchExample:
     policy: Tuple[float, ...]
     selected_action: Action
     value: float
+
+
+@dataclass(frozen=True)
+class MatchResult:
+    state: GameState
+    reason: str
+
+
+ActionChooser = Callable[[GameState, Tuple[Action, ...], random.Random, Set[tuple]], Optional[Action]]
+MoveObserver = Callable[[GameState, Action, GameState], None]
+
+
+def run_match(
+    config: BoardConfig,
+    seed: int,
+    choose_action: ActionChooser,
+    observe_move: Optional[MoveObserver] = None,
+    progress: Optional[Callable[[GameState], None]] = None,
+) -> MatchResult:
+    """Run one deterministic match with shared termination and legality rules."""
+
+    rng = random.Random(seed)
+    state = GameState.initial(config)
+    repetitions: Dict[tuple, int] = {}
+    while state.winner is None and state.ply < config.max_plies:
+        position = repetition_key(state)
+        repetitions[position] = repetitions.get(position, 0) + 1
+        if repetitions[position] >= 3:
+            return MatchResult(state, "threefold-repetition")
+        actions = tuple(state.legal_actions())
+        if not actions:
+            return MatchResult(state, "no-legal-action")
+        action = choose_action(state, actions, rng, set(repetitions))
+        if action is None or action not in actions:
+            return MatchResult(state, "no-legal-action")
+        next_state = state.apply_legal(action)
+        if observe_move is not None:
+            observe_move(state, action, next_state)
+        state = next_state
+        if progress is not None:
+            progress(state)
+    if state.winner is not None:
+        return MatchResult(state, "path")
+    return MatchResult(state, "max-plies")
 
 
 def avoid_repeated_successors(
@@ -66,37 +110,28 @@ def generate_game(
     add_root_noise: bool = True,
     progress: Optional[Callable[[GameState], None]] = None,
 ) -> Tuple[List[SearchExample], GameState]:
-    random.seed(seed)
     search = PUCTSearch(model, simulations=simulations)
-    state = GameState.initial(config)
     examples: List[Tuple[GameState, Tuple[Action, ...], Tuple[float, ...], Action]] = []
-    repetitions: Dict[tuple, int] = {}
-    while state.winner is None and state.ply < config.max_plies:
-        position = repetition_key(state)
-        repetitions[position] = repetitions.get(position, 0) + 1
-        if repetitions[position] >= 3:
-            break
-        actions = list(state.legal_actions())
-        if not actions:
-            break
+
+    def choose_action(state: GameState, actions: Tuple[Action, ...], rng: random.Random, history: Set[tuple]) -> Action:
         _, search_actions, probabilities = search.run(
             state,
             add_root_noise=add_root_noise,
-            history=set(repetitions),
+            history=history,
+            rng=rng,
         )
-        if tuple(actions) != tuple(search_actions):
+        if actions != tuple(search_actions):
             raise AssertionError("MCTS action order diverged from the state action list")
-        _, probabilities = avoid_repeated_successors(state, actions, probabilities, set(repetitions))
+        _, probabilities = avoid_repeated_successors(state, actions, probabilities, history)
         if state.ply < temperature_moves:
-            action = random.choices(actions, weights=probabilities, k=1)[0]
+            action = rng.choices(actions, weights=probabilities, k=1)[0]
         else:
             action = actions[max(range(len(actions)), key=lambda index: (probabilities[index], -actions[index].to))]
         examples.append((state, tuple(actions), tuple(probabilities), action))
-        state = state.apply_legal(action)
-        if progress is not None:
-            progress(state)
+        return action
 
-    final_winner = state.winner
+    result = run_match(config, seed, choose_action, progress=progress)
+    final_winner = result.state.winner
     labeled = []
     for sample_state, sample_actions, sample_policy, selected_action in examples:
         if final_winner is None:
@@ -104,10 +139,16 @@ def generate_game(
         else:
             value = 1.0 if final_winner is sample_state.turn else -1.0
         labeled.append(SearchExample(sample_state, sample_actions, sample_policy, selected_action, value))
-    return labeled, state
+    return labeled, result.state
 
 
-def game_record(examples: List[SearchExample], final_state: GameState, seed: int) -> dict:
+def game_record(
+    examples: List[SearchExample],
+    final_state: GameState,
+    seed: int,
+    simulations: int = 0,
+    model_hash: str | None = None,
+) -> dict:
     """Serialize a neural game in the archive's schema-v2 shape."""
 
     moves = []
@@ -139,6 +180,7 @@ def game_record(examples: List[SearchExample], final_state: GameState, seed: int
         reason = "max-plies"
     else:
         reason = "threefold-repetition"
+    manifest = agent_manifest(runtime="python", node_budget=simulations, model_hash=model_hash)
     return {
         "contractVersion": 1,
         "seed": seed,
@@ -146,8 +188,8 @@ def game_record(examples: List[SearchExample], final_state: GameState, seed: int
         "engine": engine_metadata("python-gnn", "python"),
         "agents": {"light": "python-gnn-puct-v0.1.0", "dark": "python-gnn-puct-v0.1.0"},
         "agentSpecifications": {
-            "light": agent_specification("python-gnn-puct-v0.1.0", "Python GNN PUCT", "0.1.0", "puct", "python-gnn"),
-            "dark": agent_specification("python-gnn-puct-v0.1.0", "Python GNN PUCT", "0.1.0", "puct", "python-gnn"),
+            "light": agent_specification("python-gnn-puct-v0.1.0", "Python GNN PUCT", "0.1.0", "puct", "python-gnn", manifest=manifest),
+            "dark": agent_specification("python-gnn-puct-v0.1.0", "Python GNN PUCT", "0.1.0", "puct", "python-gnn", manifest=manifest),
         },
         "winner": winner,
         "result": "win" if winner is not None else "draw",

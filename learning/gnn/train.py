@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import multiprocessing
 import random
@@ -37,6 +38,14 @@ def choose_device(requested: str) -> torch.device:
     if torch.backends.mps.is_available():
         return torch.device("mps")
     return torch.device("cpu")
+
+
+def model_state_hash(model: PathagonGNN) -> str:
+    digest = hashlib.sha256()
+    for name, tensor in sorted(model.state_dict().items()):
+        digest.update(name.encode("utf-8"))
+        digest.update(tensor.detach().cpu().contiguous().numpy().tobytes())
+    return f"sha256:{digest.hexdigest()}"
 
 
 def save_model(model: PathagonGNN, path: Path, metadata: Dict) -> None:
@@ -284,6 +293,7 @@ def run_alphazero(args: argparse.Namespace) -> None:
         results: Dict[int, List[SearchExample]] = {}
         final_states: Dict[int, GameState] = {}
         state_dict = {key: value.detach().cpu() for key, value in model.state_dict().items()}
+        generation_model_hash = model_state_hash(model)
         process_context = multiprocessing.get_context("spawn")
         with ProcessPoolExecutor(
             max_workers=workers,
@@ -332,7 +342,7 @@ def run_alphazero(args: argparse.Namespace) -> None:
             generated.extend(examples)
             if games_path:
                 with games_path.open("a", encoding="utf-8") as handle:
-                    handle.write(json.dumps(game_record(examples, final_state, game_seed), sort_keys=True) + "\n")
+                    handle.write(json.dumps(game_record(examples, final_state, game_seed, args.simulations, generation_model_hash), sort_keys=True) + "\n")
         history.extend(generated)
         if args.replay_limit and len(history) > args.replay_limit:
             history = history[-args.replay_limit :]

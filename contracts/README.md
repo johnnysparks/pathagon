@@ -3,7 +3,9 @@
 `pathagon-contract-v1.schema.json` is the canonical wire contract for the
 three runtimes. It defines the rule configuration, actions, complete
 rule-relevant positions, replay moves, termination reasons, engine metadata,
-and agent specifications. The small replay fixture is consumed by the
+and agent specifications. Each agent specification carries a manifest with
+runtime, rules version, evaluator weights, search depth, node budget, beam,
+and an optional model hash. The small replay fixture is consumed by the
 TypeScript, Python, and Rust contract tests.
 
 New records use `contractVersion: 1`. Older schema-v2 records remain readable

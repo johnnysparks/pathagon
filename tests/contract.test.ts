@@ -11,6 +11,8 @@ test("canonical contract fixture validates in TypeScript", async () => {
   assert.equal(record.contractVersion, 1);
   assert.equal(record.config.boardSize, 3);
   assert.equal(record.agentSpecifications.light.id, record.agents.light);
+  assert.equal(record.agentSpecifications.light.manifest.runtime, "typescript");
+  assert.equal(record.agentSpecifications.light.manifest.nodeBudget, 0);
 });
 
 test("contract positions carry the complete rule-relevant state", () => {

@@ -15,7 +15,7 @@ import {
 } from "./pathagon";
 import { createGameId } from "./game-record";
 import { OPPONENTS, SURVEYOR_OPPONENT, getOpponent } from "./opponents";
-import { COACHING_SEARCH, COACHING_SEARCH_STAGES, analyzeAction, analyzeActions, type MoveEvaluation } from "./ai";
+import { COACHING_SEARCH, analyzeAction, analyzeActions, type MoveEvaluation } from "./ai";
 
 const HUMAN: Player = "light";
 const AI: Player = "dark";
@@ -105,27 +105,14 @@ export default function Home() {
     if (!coachingAction || game.winner || game.turn !== HUMAN || thinking) return;
     const request = coachingRequest.current + 1;
     coachingRequest.current = request;
-    let stageIndex = 0;
-    let analysisTimer: ReturnType<typeof setTimeout> | null = null;
-    const searchStartedAt = performance.now();
-    const runStage = () => {
+    const analysisTimer = setTimeout(() => {
       if (coachingRequest.current !== request) return;
-      const config = COACHING_SEARCH_STAGES[stageIndex];
-      const evaluation = analyzeAction(game, coachingAction, config);
+      const evaluation = analyzeAction(game, coachingAction, COACHING_SEARCH);
       if (coachingRequest.current !== request) return;
       setCoachingEvaluation(evaluation);
-      const nextStage = stageIndex + 1;
-      if (nextStage < COACHING_SEARCH_STAGES.length && performance.now() - searchStartedAt < 30_000) {
-        stageIndex = nextStage;
-        analysisTimer = setTimeout(runStage, 100);
-        return;
-      }
       setCoachingStatus("ready");
-    };
-    analysisTimer = setTimeout(runStage, 80);
-    return () => {
-      if (analysisTimer) clearTimeout(analysisTimer);
-    };
+    }, 80);
+    return () => clearTimeout(analysisTimer);
   }, [coachingAction, game, thinking]);
 
   useEffect(() => {
@@ -547,7 +534,7 @@ function CoachingPanel({ evaluation, status, bestMove, hasHeatmap }: { evaluatio
           <span className="panel-kicker">Live move coach</span>
           <h2>{headline}</h2>
         </div>
-        <span className="coaching-status"><span className="coach-pulse" /> {status === "searching" ? `Refining${evaluation ? ` · ${evaluation.completedDepth}-ply` : "…"}` : hasHeatmap ? "Tree ready" : "Warming up"}</span>
+        <span className="coaching-status"><span className="coach-pulse" /> {status === "searching" ? `Analyzing${evaluation ? ` · ${evaluation.completedDepth}-ply` : "…"}` : hasHeatmap ? "Tree ready" : "Warming up"}</span>
       </div>
       <div className="coaching-body">
         <div className="advantage-gauge" aria-label={evaluation ? `Current ${formatAdvantage(beforeSignal)}; after ${formatAdvantage(afterSignal)}` : "Advantage gauge waiting for a move preview"}>

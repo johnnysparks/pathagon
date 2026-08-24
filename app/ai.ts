@@ -1,14 +1,9 @@
 import { applyLegalAction, legalActions, otherPlayer } from "./pathagon.ts";
 import type { Action, GameState, Player } from "./pathagon.ts";
+import { DEFAULT_EVALUATOR_WEIGHTS } from "./contract.ts";
+import type { EvaluatorWeights } from "./contract.ts";
 
-export type EvaluationWeights = {
-  path: number;
-  material: number;
-  capture: number;
-  structure: number;
-  threat: number;
-  edge: number;
-};
+export type EvaluationWeights = EvaluatorWeights;
 
 export type SearchConfig = {
   depth: number;
@@ -40,14 +35,7 @@ export type MoveEvaluation = {
 type Budget = { nodes: number; exhausted: boolean; tableHits: number };
 type TableEntry = { depth: number; score: number; flag: "exact" | "lower" | "upper" };
 
-export const DEFAULT_WEIGHTS: EvaluationWeights = {
-  path: 240,
-  material: 110,
-  capture: 700,
-  structure: 55,
-  threat: 130,
-  edge: 80,
-};
+export const DEFAULT_WEIGHTS: EvaluationWeights = DEFAULT_EVALUATOR_WEIGHTS;
 
 export const SURVEYOR_SEARCH: SearchConfig = {
   depth: 2,
@@ -63,25 +51,14 @@ export const PATHFINDER_SEARCH: SearchConfig = {
   weights: DEFAULT_WEIGHTS,
 };
 
-// Coaching intentionally stays a little lighter than the strongest opponent so
-// the board can answer a hover without making the game feel stuck.
+// Coaching is a single bounded reference search. Deeper search belongs to the
+// Rust engine rather than running an unbounded refinement loop in the browser.
 export const COACHING_SEARCH: SearchConfig = {
   depth: 3,
   maxNodes: 18_000,
   beamWidth: 36,
   weights: DEFAULT_WEIGHTS,
 };
-
-// Each stage is deliberately bounded so the browser can yield between deeper
-// searches while a player keeps a piece or move hovered.
-export const COACHING_SEARCH_STAGES: SearchConfig[] = [
-  COACHING_SEARCH,
-  { ...COACHING_SEARCH, depth: 4, maxNodes: 50_000 },
-  { ...COACHING_SEARCH, depth: 5, maxNodes: 80_000 },
-  { ...COACHING_SEARCH, depth: 6, maxNodes: 45_000 },
-  { ...COACHING_SEARCH, depth: 7, maxNodes: 60_000 },
-  { ...COACHING_SEARCH, depth: 8, maxNodes: 80_000 },
-];
 
 export function searchBestAction(state: GameState, config: SearchConfig): SearchResult {
   const rootPlayer = state.turn;

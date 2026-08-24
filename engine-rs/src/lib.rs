@@ -1,7 +1,8 @@
 //! Reference-compatible, allocation-light Pathagon engine.
 //!
-//! Squares are row-major `0..49`. Light connects row 6 to row 0; dark
-//! connects column 0 to column 6. Both bitboards fit in a single `u64`.
+//! Squares are row-major. Light connects the far row to the near row; dark
+//! connects the left column to the right column. Boards from 3x3 through 8x8
+//! fit in the bitboard representation and share the same rule implementation.
 
 pub mod corpus;
 pub mod contract;
@@ -12,9 +13,44 @@ pub mod training;
 
 use std::fmt;
 
+pub const MIN_BOARD_SIZE: u8 = 3;
+pub const MAX_BOARD_SIZE: u8 = 8;
 pub const BOARD_SIZE: u8 = 7;
-pub const CELL_COUNT: u8 = 49;
-const FULL_BOARD: u64 = (1_u64 << CELL_COUNT) - 1;
+pub const CELL_COUNT: u8 = BOARD_SIZE * BOARD_SIZE;
+pub const MAX_CELL_COUNT: u8 = MAX_BOARD_SIZE * MAX_BOARD_SIZE;
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct BoardConfig {
+    pub board_size: u8,
+    pub reserve_per_player: u8,
+}
+
+impl BoardConfig {
+    pub const DEFAULT: Self = Self { board_size: BOARD_SIZE, reserve_per_player: 14 };
+
+    pub fn new(board_size: u8, reserve_per_player: u8) -> Result<Self, String> {
+        if !(MIN_BOARD_SIZE..=MAX_BOARD_SIZE).contains(&board_size) {
+            return Err(format!("board size outside {MIN_BOARD_SIZE}..{MAX_BOARD_SIZE}"));
+        }
+        if reserve_per_player == 0 || reserve_per_player > 64 {
+            return Err("reserve outside 1..64".to_owned());
+        }
+        Ok(Self { board_size, reserve_per_player })
+    }
+
+    pub fn from_contract(config: &crate::contract::GameConfig) -> Result<Self, String> {
+        config.validate()?;
+        Self::new(config.board_size, config.reserve_per_player)
+    }
+
+    pub const fn cells(self) -> u8 {
+        self.board_size * self.board_size
+    }
+
+    pub const fn full_board(self) -> u64 {
+        if self.cells() == 64 { u64::MAX } else { (1_u64 << self.cells()) - 1 }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Player {
@@ -61,7 +97,7 @@ impl Action {
     pub const fn order(self) -> u16 {
         match self {
             Self::Place { to } => to as u16,
-            Self::Relocate { from, to } => from as u16 * CELL_COUNT as u16 + to as u16,
+            Self::Relocate { from, to } => from as u16 * MAX_CELL_COUNT as u16 + to as u16,
         }
     }
 }
@@ -77,6 +113,7 @@ impl fmt::Display for Action {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct GameState {
+    pub config: BoardConfig,
     pub light: u64,
     pub dark: u64,
     pub reserve: [u8; 2],
@@ -97,10 +134,24 @@ impl Default for GameState {
 
 impl GameState {
     pub const fn new() -> Self {
+        Self::with_config_const(BoardConfig::DEFAULT)
+    }
+
+    pub fn with_board_size(board_size: u8) -> Self {
+        let reserve = board_size.saturating_mul(2);
+        Self::with_config(BoardConfig::new(board_size, reserve).expect("valid board size"))
+    }
+
+    pub fn with_config(config: BoardConfig) -> Self {
+        Self::with_config_const(config)
+    }
+
+    const fn with_config_const(config: BoardConfig) -> Self {
         Self {
+            config,
             light: 0,
             dark: 0,
-            reserve: [14, 14],
+            reserve: [config.reserve_per_player, config.reserve_per_player],
             turn: Player::Light,
             forbidden: 0,
             last_relocated_to: [None, None],
@@ -133,7 +184,7 @@ impl GameState {
         if self.winner.is_some() {
             return Vec::new();
         }
-        let destinations = FULL_BOARD & !(self.light | self.dark | self.forbidden);
+        let destinations = self.config.full_board() & !(self.light | self.dark | self.forbidden);
         if self.reserve[self.turn.index()] > 0 {
             return squares(destinations)
                 .map(|to| Action::Place { to })
@@ -216,16 +267,8 @@ pub struct Transition {
 
 pub fn has_winning_path(state: GameState, player: Player) -> bool {
     let pieces = state.pieces(player);
-    let near_edge = if player == Player::Light {
-        0x7f_u64 << 42
-    } else {
-        column_mask(0)
-    };
-    let far_edge = if player == Player::Light {
-        0x7f
-    } else {
-        column_mask(6)
-    };
+    let near_edge = if player == Player::Light { row_mask(state.config.board_size, state.config.board_size - 1) } else { column_mask(state.config.board_size, 0) };
+    let far_edge = if player == Player::Light { row_mask(state.config.board_size, 0) } else { column_mask(state.config.board_size, state.config.board_size - 1) };
     let mut frontier = pieces & near_edge;
     let mut visited = frontier;
     while frontier != 0 {
@@ -234,7 +277,7 @@ pub fn has_winning_path(state: GameState, player: Player) -> bool {
         }
         let mut adjacent = 0;
         for square in squares(frontier) {
-            adjacent |= neighbor_mask(square);
+            adjacent |= neighbor_mask_for(state.config.board_size, square);
         }
         frontier = adjacent & pieces & !visited;
         visited |= frontier;
@@ -286,20 +329,20 @@ impl Iterator for Squares {
     }
 }
 
-pub(crate) fn neighbor_mask(square: u8) -> u64 {
-    let row = square / BOARD_SIZE;
-    let column = square % BOARD_SIZE;
+pub(crate) fn neighbor_mask_for(board_size: u8, square: u8) -> u64 {
+    let row = square / board_size;
+    let column = square % board_size;
     let mut mask = 0;
     if row > 0 {
-        mask |= bit(square - BOARD_SIZE);
+        mask |= bit(square - board_size);
     }
-    if row + 1 < BOARD_SIZE {
-        mask |= bit(square + BOARD_SIZE);
+    if row + 1 < board_size {
+        mask |= bit(square + board_size);
     }
     if column > 0 {
         mask |= bit(square - 1);
     }
-    if column + 1 < BOARD_SIZE {
+    if column + 1 < board_size {
         mask |= bit(square + 1);
     }
     mask
@@ -307,19 +350,20 @@ pub(crate) fn neighbor_mask(square: u8) -> u64 {
 
 fn captures_from(state: GameState, origin: u8, player: Player) -> u64 {
     let opponent = player.other();
-    let row = (origin / BOARD_SIZE) as i8;
-    let column = (origin % BOARD_SIZE) as i8;
+    let board_size = state.config.board_size;
+    let row = (origin / board_size) as i8;
+    let column = (origin % board_size) as i8;
     let mut captured = 0;
     for (row_delta, column_delta) in [(-1_i8, 0_i8), (1, 0), (0, -1), (0, 1)] {
         let near_row = row + row_delta;
         let near_column = column + column_delta;
         let far_row = row + row_delta * 2;
         let far_column = column + column_delta * 2;
-        if !(0..BOARD_SIZE as i8).contains(&far_row) || !(0..BOARD_SIZE as i8).contains(&far_column) {
+        if !(0..board_size as i8).contains(&far_row) || !(0..board_size as i8).contains(&far_column) {
             continue;
         }
-        let near = (near_row * BOARD_SIZE as i8 + near_column) as u8;
-        let far = (far_row * BOARD_SIZE as i8 + far_column) as u8;
+        let near = (near_row * board_size as i8 + near_column) as u8;
+        let far = (far_row * board_size as i8 + far_column) as u8;
         if state.board_at(near) == Some(opponent) && state.board_at(far) == Some(player) {
             captured |= bit(near);
         }
@@ -327,11 +371,21 @@ fn captures_from(state: GameState, origin: u8, player: Player) -> u64 {
     captured
 }
 
-const fn column_mask(column: u8) -> u64 {
+const fn row_mask(board_size: u8, row: u8) -> u64 {
+    let mut mask = 0;
+    let mut column = 0;
+    while column < board_size {
+        mask |= bit(row * board_size + column);
+        column += 1;
+    }
+    mask
+}
+
+const fn column_mask(board_size: u8, column: u8) -> u64 {
     let mut mask = 0;
     let mut row = 0;
-    while row < BOARD_SIZE {
-        mask |= bit(row * BOARD_SIZE + column);
+    while row < board_size {
+        mask |= bit(row * board_size + column);
         row += 1;
     }
     mask
@@ -339,7 +393,7 @@ const fn column_mask(column: u8) -> u64 {
 
 fn parse_square(text: &str) -> Result<u8, String> {
     let square: u8 = text.parse().map_err(|_| format!("invalid square: {text}"))?;
-    if square >= CELL_COUNT {
+    if square >= MAX_CELL_COUNT {
         return Err(format!("square outside board: {square}"));
     }
     Ok(square)
@@ -352,6 +406,14 @@ mod tests {
     #[test]
     fn empty_board_has_49_moves() {
         assert_eq!(GameState::new().legal_actions().len(), 49);
+    }
+
+    #[test]
+    fn variable_boards_have_size_appropriate_place_moves() {
+        for size in 4..=7 {
+            let state = GameState::with_board_size(size);
+            assert_eq!(state.legal_actions().len(), (size * size) as usize);
+        }
     }
 
     #[test]

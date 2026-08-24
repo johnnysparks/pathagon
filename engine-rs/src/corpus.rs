@@ -11,7 +11,7 @@ use std::io;
 use std::path::Path;
 
 use crate::selfplay::{GameRecord, TerminationReason};
-use crate::{Action, GameState, Player, CELL_COUNT};
+use crate::{Action, BoardConfig, GameState, Player, CELL_COUNT};
 
 const ALPHABET: &[u8; 64] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
 
@@ -141,7 +141,7 @@ impl StrategyBook {
     }
 
     pub fn record_game(&mut self, game: &GameRecord) -> Result<(), String> {
-        let mut state = GameState::new();
+        let mut state = GameState::with_config(BoardConfig::new(game.board_size, game.reserve_per_player)?);
         for movement in &game.moves {
             if movement.completed_depth > 0 {
                 let agent = if movement.player == Player::Light {
@@ -206,6 +206,12 @@ impl StrategyBook {
 }
 
 pub fn write_corpus(directory: &Path, records: &[GameRecord]) -> io::Result<CorpusSummary> {
+    if records.iter().any(|record| record.board_size != BoardConfig::DEFAULT.board_size || record.reserve_per_player != BoardConfig::DEFAULT.reserve_per_player) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "compact corpus export currently requires the default 7x7/14-reserve configuration",
+        ));
+    }
     fs::create_dir_all(directory)?;
     let games_path = directory.join("games.tsv");
     let positions_path = directory.join("positions.tsv");
@@ -341,6 +347,7 @@ pub fn decode_state(text: &str) -> Result<GameState, String> {
         return Err("invalid state key".to_owned());
     }
     Ok(GameState {
+        config: BoardConfig::DEFAULT,
         light: decode_radix(fields[0])?,
         dark: decode_radix(fields[1])?,
         reserve: [small_radix(fields[2])?, small_radix(fields[3])?],
@@ -468,7 +475,7 @@ mod tests {
         let record = play_game(
             &light,
             &dark,
-            MatchOptions { seed: 17, max_plies: 80, opening_random_plies: 2 },
+            MatchOptions { seed: 17, max_plies: 80, opening_random_plies: 2, ..MatchOptions::default() },
         );
         let compact = parse_compact_game(&compact_game_line(&record)).unwrap();
         assert_eq!(compact.actions, record.moves.iter().map(|movement| movement.action).collect::<Vec<_>>());

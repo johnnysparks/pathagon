@@ -4,6 +4,7 @@ import {
   DEFAULT_GAME_CONFIG,
   PATHAGON_CONTRACT_VERSION,
   TYPESCRIPT_ENGINE,
+  defaultAgentManifest,
   defaultAgentSpecification,
   validateAgentSpecification,
   validateContractReplay,
@@ -108,14 +109,23 @@ function normalizeEngine(value: unknown): EngineMetadata {
 function normalizeAgentSpecifications(value: unknown, agents: Record<Player, string>, engine: EngineMetadata): Record<Player, AgentSpecification> {
   if (value && typeof value === "object") {
     const input = value as Record<string, unknown>;
-    const light = validateAgentSpecification(input.light);
-    const dark = validateAgentSpecification(input.dark);
+    const light = validateAgentSpecification(normalizeAgentSpecification(input.light, engine));
+    const dark = validateAgentSpecification(normalizeAgentSpecification(input.dark, engine));
     if (light.id !== agents.light || dark.id !== agents.dark) throw new Error("Replay agent ID does not match specification");
     return { light, dark };
   }
   return {
     light: defaultAgentSpecification(agents.light, "search", engine),
     dark: defaultAgentSpecification(agents.dark, "search", engine),
+  };
+}
+
+function normalizeAgentSpecification(value: unknown, engine: EngineMetadata): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const input = value as Record<string, unknown>;
+  return {
+    ...input,
+    manifest: input.manifest ?? defaultAgentManifest(engine),
   };
 }
 

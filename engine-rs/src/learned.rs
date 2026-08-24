@@ -216,6 +216,7 @@ mod tests {
                 seed: 9,
                 max_plies: 40,
                 opening_random_plies: 0,
+                ..MatchOptions::default()
             },
         );
         let line = compact_game_line(&record);

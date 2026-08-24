@@ -7,7 +7,6 @@ The repository now contains two production rules implementations: TypeScript is 
 ```bash
 npm test
 npm run selfplay -- --mode arena --games 20 --seed 20260822
-npm run selfplay:train -- --generations 5 --population 8 --games 12 --seed 20260822
 npm run selfplay:league -- --games 8 --seed 20260823
 cargo test --manifest-path engine-rs/Cargo.toml --release
 npm run rust:train -- --generations 3 --population 6 --training-pairs 6 --evaluation-pairs 12
@@ -23,6 +22,10 @@ opponent. See [`docs/LEARNING_TOURNAMENTS.md`](docs/LEARNING_TOURNAMENTS.md)
 for the clone-on-another-Mac, generate, merge, and retrain workflow.
 
 The playable opponent ladder mixes search and heuristic baselines: Coin Flip is random, Lunatic is a deliberately naive one-ply pattern heuristic, The Surveyor searches two plies, and The Pathfinder uses iterative deepening up to four plies. "Expert" currently describes its search budget, not a solved-game or unbeatable claim.
+
+TypeScript promotion training is retired; Rust owns evaluator-weight promotion,
+while Python owns checkpoint/GNN league experiments. The TypeScript runner still
+supports browser-reference arenas and historical league comparisons.
 
 ## Anonymous human game archive
 
@@ -63,6 +66,11 @@ environment (including the cross-runtime contract tests):
 
 The versioned cross-runtime interchange contract is documented in
 [`contracts/README.md`](contracts/README.md).
+
+Every new replay agent specification includes a manifest-backed identity:
+runtime, rules version, evaluator weights, depth, node budget, beam, and model
+hash. The JSON schema and native validators are exercised by all three runtime
+test suites.
 
 ## Sites Lifecycle
 

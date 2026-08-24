@@ -8,7 +8,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from .contract import validate_position, validate_replay_record
+from .contract import agent_manifest, agent_specification, validate_position, validate_replay_record
 
 
 class ContractTest(unittest.TestCase):
@@ -32,6 +32,23 @@ class ContractTest(unittest.TestCase):
             "ply": 1,
         }
         self.assertEqual(validate_position(position)["board"].count(None), 7)
+
+    def test_agent_manifest_carries_search_and_model_identity(self) -> None:
+        manifest = agent_manifest(runtime="python", depth=3, node_budget=64, beam=12, model_hash="sha256:" + "a" * 64)
+        specification = agent_specification("gnn-v1", "GNN", "1.0.0", "puct", "python-gnn", manifest=manifest)
+        self.assertEqual(validate_replay_record({
+            "contractVersion": 1,
+            "seed": 1,
+            "config": {"rulesVersion": "pathagon-rules-v1", "boardSize": 3, "reservePerPlayer": 6, "maxPlies": 36, "repetitionLimit": 3},
+            "engine": {"id": "python-gnn", "runtime": "python", "version": "1.0.0", "rulesVersion": "pathagon-rules-v1"},
+            "agents": {"light": "gnn-v1", "dark": "gnn-v1"},
+            "agentSpecifications": {"light": specification, "dark": specification},
+            "winner": None,
+            "result": "draw",
+            "reason": "max-plies",
+            "plies": 0,
+            "moves": [],
+        })["agentSpecifications"]["light"]["manifest"]["nodeBudget"], 64)
 
 
 if __name__ == "__main__":

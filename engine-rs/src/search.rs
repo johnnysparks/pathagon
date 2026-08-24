@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
-use crate::{bit, neighbor_mask, squares, Action, GameState, Player, BOARD_SIZE, CELL_COUNT};
+use crate::{bit, neighbor_mask_for, squares, Action, GameState, Player};
 
 const WIN_SCORE: i32 = 1_000_000_000;
 const NEG_INF: i32 = i32::MIN / 4;
@@ -327,10 +327,12 @@ fn ordered_actions(state: GameState, root_player: Player, weights: EvaluationWei
 
 fn connection_distance(state: GameState, player: Player) -> i32 {
     let opponent = player.other();
-    let mut distance = [u8::MAX; CELL_COUNT as usize];
+    let board_size = state.config.board_size;
+    let cell_count = state.config.cells();
+    let mut distance = vec![u8::MAX; cell_count as usize];
     let mut queue = VecDeque::new();
-    for index in 0..BOARD_SIZE {
-        let square = if player == Player::Light { 42 + index } else { index * BOARD_SIZE };
+    for index in 0..board_size {
+        let square = if player == Player::Light { (board_size - 1) * board_size + index } else { index * board_size };
         if state.board_at(square) == Some(opponent) {
             continue;
         }
@@ -343,12 +345,12 @@ fn connection_distance(state: GameState, player: Player) -> i32 {
         }
     }
     while let Some(square) = queue.pop_front() {
-        let row = square / BOARD_SIZE;
-        let column = square % BOARD_SIZE;
-        if (player == Player::Light && row == 0) || (player == Player::Dark && column == 6) {
+        let row = square / board_size;
+        let column = square % board_size;
+        if (player == Player::Light && row == 0) || (player == Player::Dark && column == board_size - 1) {
             return distance[square as usize] as i32;
         }
-        for next in squares(neighbor_mask(square)) {
+        for next in squares(neighbor_mask_for(board_size, square)) {
             if state.board_at(next) == Some(opponent) {
                 continue;
             }
@@ -365,7 +367,7 @@ fn connection_distance(state: GameState, player: Player) -> i32 {
             }
         }
     }
-    49
+    cell_count as i32
 }
 
 fn largest_component(state: GameState, player: Player) -> i32 {
@@ -377,7 +379,7 @@ fn largest_component(state: GameState, player: Player) -> i32 {
         let mut size = 0;
         while let Some(square) = stack.pop() {
             size += 1;
-            let adjacent = neighbor_mask(square) & remaining;
+            let adjacent = neighbor_mask_for(state.config.board_size, square) & remaining;
             for next in squares(adjacent) {
                 remaining &= !bit(next);
                 stack.push(next);
@@ -390,21 +392,22 @@ fn largest_component(state: GameState, player: Player) -> i32 {
 
 fn capture_opportunities(state: GameState, player: Player) -> i32 {
     let occupied = state.light | state.dark | state.forbidden;
+    let board_size = state.config.board_size;
     let mut victims = 0;
-    for origin in 0..CELL_COUNT {
+    for origin in 0..state.config.cells() {
         if occupied & bit(origin) != 0 {
             continue;
         }
-        let row = (origin / BOARD_SIZE) as i8;
-        let column = (origin % BOARD_SIZE) as i8;
+        let row = (origin / board_size) as i8;
+        let column = (origin % board_size) as i8;
         for (row_delta, column_delta) in [(-1_i8, 0_i8), (1, 0), (0, -1), (0, 1)] {
             let far_row = row + row_delta * 2;
             let far_column = column + column_delta * 2;
-            if !(0..BOARD_SIZE as i8).contains(&far_row) || !(0..BOARD_SIZE as i8).contains(&far_column) {
+            if !(0..board_size as i8).contains(&far_row) || !(0..board_size as i8).contains(&far_column) {
                 continue;
             }
-            let near = ((row + row_delta) * BOARD_SIZE as i8 + column + column_delta) as u8;
-            let far = (far_row * BOARD_SIZE as i8 + far_column) as u8;
+            let near = ((row + row_delta) * board_size as i8 + column + column_delta) as u8;
+            let far = (far_row * board_size as i8 + far_column) as u8;
             if state.board_at(near) == Some(player.other()) && state.board_at(far) == Some(player) {
                 victims |= bit(near);
             }
@@ -414,11 +417,12 @@ fn capture_opportunities(state: GameState, player: Player) -> i32 {
 }
 
 fn edge_presence(state: GameState, player: Player) -> i32 {
+    let board_size = state.config.board_size;
     let mut near = false;
     let mut far = false;
-    for index in 0..BOARD_SIZE {
-        let near_square = if player == Player::Light { 42 + index } else { index * BOARD_SIZE };
-        let far_square = if player == Player::Light { index } else { index * BOARD_SIZE + 6 };
+    for index in 0..board_size {
+        let near_square = if player == Player::Light { (board_size - 1) * board_size + index } else { index * board_size };
+        let far_square = if player == Player::Light { index } else { index * board_size + board_size - 1 };
         near |= state.board_at(near_square) == Some(player);
         far |= state.board_at(far_square) == Some(player);
     }
@@ -454,5 +458,18 @@ mod tests {
         assert!(result.action.is_some());
         assert!(state.legal_actions().contains(&result.action.unwrap()));
         assert_eq!(result.completed_depth, 1);
+    }
+
+    #[test]
+    fn search_supports_variable_board_sizes() {
+        for size in 4..=7 {
+            let state = GameState::with_board_size(size);
+            let result = search_best_action(
+                state,
+                SearchConfig { depth: 1, max_nodes: 256, beam_width: 64, ..SearchConfig::default() },
+            );
+            assert!(result.action.is_some(), "{size}x{size} search returned no action");
+            assert!(state.legal_actions().contains(&result.action.unwrap()), "{size}x{size} search returned an illegal action");
+        }
     }
 }

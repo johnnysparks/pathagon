@@ -38,12 +38,33 @@ export type EngineMetadata = {
   rulesVersion: typeof PATHAGON_RULES_VERSION;
 };
 
+export type EvaluatorWeights = {
+  path: number;
+  material: number;
+  capture: number;
+  structure: number;
+  threat: number;
+  edge: number;
+};
+
+export type AgentManifest = {
+  manifestVersion: 1;
+  runtime: EngineMetadata["runtime"];
+  rulesVersion: typeof PATHAGON_RULES_VERSION;
+  evaluatorWeights: EvaluatorWeights;
+  depth: number;
+  nodeBudget: number;
+  beam: number;
+  modelHash: string | null;
+};
+
 export type AgentSpecification = {
   id: string;
   name: string;
   version: string;
   kind: "random" | "heuristic" | "search" | "learned" | "puct";
   engineId: string;
+  manifest: AgentManifest;
   parameters?: Record<string, unknown>;
 };
 
@@ -81,6 +102,15 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   repetitionLimit: 3,
 };
 
+export const DEFAULT_EVALUATOR_WEIGHTS: EvaluatorWeights = {
+  path: 240,
+  material: 110,
+  capture: 700,
+  structure: 55,
+  threat: 130,
+  edge: 80,
+};
+
 export const TYPESCRIPT_ENGINE: EngineMetadata = {
   id: "typescript-reference",
   runtime: "typescript",
@@ -88,8 +118,26 @@ export const TYPESCRIPT_ENGINE: EngineMetadata = {
   rulesVersion: PATHAGON_RULES_VERSION,
 };
 
-export function defaultAgentSpecification(id: string, kind: AgentSpecification["kind"], engine = TYPESCRIPT_ENGINE): AgentSpecification {
-  return { id, name: id, version: "1.0.0", kind, engineId: engine.id };
+export function defaultAgentManifest(engine = TYPESCRIPT_ENGINE, overrides: Partial<Omit<AgentManifest, "manifestVersion" | "runtime" | "rulesVersion">> = {}): AgentManifest {
+  return {
+    manifestVersion: 1,
+    runtime: engine.runtime,
+    rulesVersion: PATHAGON_RULES_VERSION,
+    evaluatorWeights: { ...DEFAULT_EVALUATOR_WEIGHTS, ...(overrides.evaluatorWeights ?? {}) },
+    depth: overrides.depth ?? 0,
+    nodeBudget: overrides.nodeBudget ?? 0,
+    beam: overrides.beam ?? 0,
+    modelHash: overrides.modelHash ?? null,
+  };
+}
+
+export function defaultAgentSpecification(
+  id: string,
+  kind: AgentSpecification["kind"],
+  engine = TYPESCRIPT_ENGINE,
+  manifestOverrides: Partial<Omit<AgentManifest, "manifestVersion" | "runtime" | "rulesVersion">> = {},
+): AgentSpecification {
+  return { id, name: id, version: "1.0.0", kind, engineId: engine.id, manifest: defaultAgentManifest(engine, manifestOverrides) };
 }
 
 export function validateGameConfig(value: unknown): GameConfig {
@@ -138,8 +186,29 @@ export function validateEngineMetadata(value: unknown): EngineMetadata {
 export function validateAgentSpecification(value: unknown): AgentSpecification {
   if (!isRecord(value) || !field(value.id) || typeof value.name !== "string" || value.name.length < 1 || value.name.length > 128 || !field(value.version) || !field(value.engineId)) throw new Error("Invalid agent specification");
   if (!["random", "heuristic", "search", "learned", "puct"].includes(String(value.kind))) throw new Error("Invalid agent kind");
+  const manifest = validateAgentManifest(value.manifest);
   if (value.parameters !== undefined && !isRecord(value.parameters)) throw new Error("Invalid agent parameters");
-  return { id: value.id, name: value.name, version: value.version, kind: value.kind as AgentSpecification["kind"], engineId: value.engineId, ...(value.parameters === undefined ? {} : { parameters: value.parameters }) };
+  return { id: value.id, name: value.name, version: value.version, kind: value.kind as AgentSpecification["kind"], engineId: value.engineId, manifest, ...(value.parameters === undefined ? {} : { parameters: value.parameters }) };
+}
+
+export function validateAgentManifest(value: unknown): AgentManifest {
+  if (!isRecord(value) || value.manifestVersion !== 1 || value.rulesVersion !== PATHAGON_RULES_VERSION || !isRecord(value.evaluatorWeights)) {
+    throw new Error("Invalid agent manifest");
+  }
+  if (value.runtime !== "typescript" && value.runtime !== "rust" && value.runtime !== "python") throw new Error("Invalid agent manifest runtime");
+  const evaluatorWeights = {
+    path: evaluatorWeight(value.evaluatorWeights.path, "path evaluator weight"),
+    material: evaluatorWeight(value.evaluatorWeights.material, "material evaluator weight"),
+    capture: evaluatorWeight(value.evaluatorWeights.capture, "capture evaluator weight"),
+    structure: evaluatorWeight(value.evaluatorWeights.structure, "structure evaluator weight"),
+    threat: evaluatorWeight(value.evaluatorWeights.threat, "threat evaluator weight"),
+    edge: evaluatorWeight(value.evaluatorWeights.edge, "edge evaluator weight"),
+  };
+  const depth = nonNegativeInteger(value.depth, "agent depth");
+  const nodeBudget = nonNegativeInteger(value.nodeBudget, "agent node budget");
+  const beam = nonNegativeInteger(value.beam, "agent beam");
+  if (value.modelHash !== null && (typeof value.modelHash !== "string" || !/^sha256:[A-Fa-f0-9]{64}$/.test(value.modelHash))) throw new Error("Invalid agent model hash");
+  return { manifestVersion: 1, runtime: value.runtime, rulesVersion: PATHAGON_RULES_VERSION, evaluatorWeights, depth, nodeBudget, beam, modelHash: value.modelHash as string | null };
 }
 
 export function validateContractReplay(value: unknown): ContractReplayRecord {
@@ -183,5 +252,6 @@ function isTerminationReason(value: unknown): value is TerminationReason { retur
 function field(value: unknown): value is string { return typeof value === "string" && /^[A-Za-z0-9._:-]{1,128}$/.test(value); }
 function integer(value: unknown, label: string) { if (!Number.isSafeInteger(value)) throw new Error(`Invalid ${label}`); return Number(value); }
 function nonNegativeInteger(value: unknown, label: string) { const number = integer(value, label); if (number < 0) throw new Error(`Invalid ${label}`); return number; }
+function evaluatorWeight(value: unknown, label: string) { const number = integer(value, label); if (number < -2_147_483_648 || number > 2_147_483_647) throw new Error(`Invalid ${label}`); return number; }
 function integerInRange(value: unknown, minimum: number, maximum: number): value is number { return Number.isSafeInteger(value) && Number(value) >= minimum && Number(value) <= maximum; }
 function isRecord(value: unknown): value is Record<string, any> { return Boolean(value) && typeof value === "object" && !Array.isArray(value); }

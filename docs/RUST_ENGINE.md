@@ -1,6 +1,6 @@
 # Rust headless engine
 
-`engine-rs` is a native implementation of the Pathagon rules, evaluator, iterative-deepening search, deterministic self-play harness, and the shared contract boundary. It uses two 49-bit bitboards inside `u64` values and is intended for high-volume training and eventual WebAssembly use.
+`engine-rs` is a native implementation of the Pathagon rules, evaluator, iterative-deepening search, deterministic self-play harness, and the shared contract boundary. It uses `u64` bitboards and a size-aware rules kernel for 3×3 through 8×8 boards; the supported parity matrix currently exercises 4×4 through 7×7. It is intended for high-volume training and eventual WebAssembly use.
 
 ## Verify rules and search
 
@@ -9,6 +9,17 @@ cargo test --manifest-path engine-rs/Cargo.toml --all-targets --release
 ```
 
 Both engines consume `fixtures/rules-parity.tsv`. The fixture covers exact A-B-A capture, rejected A-B-B-A capture, simultaneous four-direction capture, both winning axes, diagonal non-wins, the one-reply capture-hole prohibition, and movement-phase restrictions.
+
+Run the generated differential corpus when changing rules code:
+
+```bash
+npm run test:parity
+```
+
+This generates deterministic positions for each 4×4, 5×5, 6×6, and 7×7
+configuration, then compares the complete position state, every legal action,
+and the complete post-action state for every legal action across TypeScript,
+Rust, and Python.
 
 ## Run headless matches
 
@@ -26,9 +37,12 @@ The browser-matched Lunatic baseline is also available in the native engine:
 ```
 
 This is the intended local tournament command. It writes a contract-v1 JSONL
-archive plus a compact indexed corpus. The current Rust bitboard fast path is
-7×7 with a 14-piece reserve; the Python GNN league owns the 4×4, 5×5, 6×6,
-and 7×7 curriculum matrix.
+archive plus a compact indexed corpus. The Rust kernel accepts
+`--board-size 4` through `--board-size 7` (and a matching `--reserve` override);
+the Python GNN league retains its Torch-facing adapter for curriculum
+experiments. The legacy compact corpus format remains deliberately guarded to
+the default 7×7/14-reserve configuration; variable-size matches can still be
+emitted as contract JSONL with `--jsonl`.
 
 ## Build a persistent strategy corpus
 
@@ -94,4 +108,4 @@ The Rust and TypeScript harnesses use the same Mulberry32 seed algorithm, color 
 
 ## Boundary
 
-The Rust engine is currently native/headless. It does not yet replace the browser engine. Before compiling it to WebAssembly, parity will be extended from curated fixtures to generated state/action corpora. That prevents a fast engine with subtly different rules from training the wrong game.
+The Rust engine is currently native/headless. It does not yet replace the browser engine. The generated state/action parity corpus is now the guardrail for a future WebAssembly build: the next integration step is to expose this same kernel through a small WASM adapter and keep the browser contract boundary unchanged. That prevents a fast engine with subtly different rules from training or displaying the wrong game.

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::corpus::StrategyBook;
 use crate::learned::LearnedBook;
 use crate::search::{lunatic_action, search_best_action, SearchConfig};
-use crate::{bit_squares, Action, GameState, Player};
+use crate::{bit_squares, Action, BoardConfig, GameState, Player};
 
 #[derive(Clone, Debug)]
 pub enum Agent {
@@ -119,11 +119,13 @@ pub struct MatchOptions {
     pub seed: u32,
     pub max_plies: u16,
     pub opening_random_plies: u16,
+    pub board_size: u8,
+    pub reserve_per_player: u8,
 }
 
 impl Default for MatchOptions {
     fn default() -> Self {
-        Self { seed: 20_260_823, max_plies: 180, opening_random_plies: 2 }
+        Self { seed: 20_260_823, max_plies: 180, opening_random_plies: 2, board_size: 7, reserve_per_player: 14 }
     }
 }
 
@@ -163,8 +165,12 @@ impl TerminationReason {
 pub struct GameRecord {
     pub seed: u32,
     pub max_plies: u16,
+    pub board_size: u8,
+    pub reserve_per_player: u8,
     pub light_agent: String,
     pub dark_agent: String,
+    pub light_specification: String,
+    pub dark_specification: String,
     pub winner: Option<Player>,
     pub reason: TerminationReason,
     pub moves: Vec<MoveRecord>,
@@ -193,14 +199,15 @@ impl GameRecord {
             )
         }).collect::<Vec<_>>().join(",");
         format!(
-            "{{\"contractVersion\":1,\"seed\":{},\"config\":{{\"rulesVersion\":\"pathagon-rules-v1\",\"boardSize\":{},\"reservePerPlayer\":14,\"maxPlies\":{},\"repetitionLimit\":3}},\"engine\":{{\"id\":\"rust-bitboard\",\"runtime\":\"rust\",\"version\":\"1.0.0\",\"rulesVersion\":\"pathagon-rules-v1\"}},\"agents\":{{\"light\":\"{}\",\"dark\":\"{}\"}},\"agentSpecifications\":{{\"light\":{},\"dark\":{}}},\"winner\":{},\"result\":\"{}\",\"reason\":\"{}\",\"plies\":{},\"moves\":[{}]}}",
+            "{{\"contractVersion\":1,\"seed\":{},\"config\":{{\"rulesVersion\":\"pathagon-rules-v1\",\"boardSize\":{},\"reservePerPlayer\":{},\"maxPlies\":{},\"repetitionLimit\":3}},\"engine\":{{\"id\":\"rust-bitboard\",\"runtime\":\"rust\",\"version\":\"1.0.0\",\"rulesVersion\":\"pathagon-rules-v1\"}},\"agents\":{{\"light\":\"{}\",\"dark\":\"{}\"}},\"agentSpecifications\":{{\"light\":{},\"dark\":{}}},\"winner\":{},\"result\":\"{}\",\"reason\":\"{}\",\"plies\":{},\"moves\":[{}]}}",
             self.seed,
-            crate::BOARD_SIZE,
+            self.board_size,
+            self.reserve_per_player,
             self.max_plies,
             json_escape(&self.light_agent),
             json_escape(&self.dark_agent),
-            agent_spec_json(&self.light_agent),
-            agent_spec_json(&self.dark_agent),
+            self.light_specification,
+            self.dark_specification,
             winner,
             if self.winner.is_some() { "win" } else { "draw" },
             self.reason.as_str(),
@@ -210,22 +217,23 @@ impl GameRecord {
     }
 }
 
-fn agent_spec_json(id: &str) -> String {
-    let (kind, name) = if id.contains("random") || id.contains("coin-flip") {
-        ("random", "Coin Flip")
-    } else if id.contains("lunatic") {
-        ("heuristic", "Lunatic")
-    } else if id.contains("learned") {
-        ("learned", "Learned")
-    } else {
-        ("search", "Rust Search")
+fn agent_spec_json(agent: &Agent) -> String {
+    let (kind, name, depth, node_budget, beam, weights) = match agent {
+        Agent::Random { .. } => ("random", "Coin Flip", 0, 0, 0, crate::search::EvaluationWeights::default()),
+        Agent::Lunatic { .. } => ("heuristic", "Lunatic", 1, 0, 0, crate::search::EvaluationWeights::default()),
+        Agent::Search { config, .. } => ("search", "Rust Search", u32::from(config.depth), config.max_nodes, config.beam_width as u32, config.weights),
+        Agent::Learned { config, .. } => ("learned", "Learned", u32::from(config.depth), config.max_nodes, config.beam_width as u32, config.weights),
     };
-    format!("{{\"id\":\"{}\",\"name\":\"{}\",\"version\":\"1.0.0\",\"kind\":\"{}\",\"engineId\":\"rust-bitboard\"}}", json_escape(id), name, kind)
+    format!(
+        "{{\"id\":\"{}\",\"name\":\"{}\",\"version\":\"1.0.0\",\"kind\":\"{}\",\"engineId\":\"rust-bitboard\",\"manifest\":{{\"manifestVersion\":1,\"runtime\":\"rust\",\"rulesVersion\":\"pathagon-rules-v1\",\"evaluatorWeights\":{{\"path\":{},\"material\":{},\"capture\":{},\"structure\":{},\"threat\":{},\"edge\":{}}},\"depth\":{},\"nodeBudget\":{},\"beam\":{},\"modelHash\":null}}}}",
+        json_escape(agent.id()), name, kind, weights.path, weights.material, weights.capture, weights.structure, weights.threat, weights.edge, depth, node_budget, beam,
+    )
 }
 
 pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameRecord {
     let mut random = Mulberry32::new(options.seed);
-    let mut state = GameState::new();
+    let config = BoardConfig::new(options.board_size, options.reserve_per_player).expect("valid match configuration");
+    let mut state = GameState::with_config(config);
     let mut moves = Vec::new();
     let mut repetitions = HashMap::<RepetitionKey, u8>::new();
 
@@ -233,11 +241,11 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
         let repeated = repetitions.entry(RepetitionKey::from(state)).or_default();
         *repeated += 1;
         if *repeated >= 3 {
-            return record(light, dark, options.seed, options.max_plies, None, TerminationReason::ThreefoldRepetition, moves);
+            return record(light, dark, options, None, TerminationReason::ThreefoldRepetition, moves);
         }
         let actions = state.legal_actions();
         if actions.is_empty() {
-            return record(light, dark, options.seed, options.max_plies, None, TerminationReason::NoLegalAction, moves);
+            return record(light, dark, options, None, TerminationReason::NoLegalAction, moves);
         }
         let player = state.turn;
         let decision = if state.ply < options.opening_random_plies {
@@ -255,10 +263,10 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
             dark.choose(state, &mut random)
         };
         let Some(action) = decision.action else {
-            return record(light, dark, options.seed, options.max_plies, None, TerminationReason::NoLegalAction, moves);
+            return record(light, dark, options, None, TerminationReason::NoLegalAction, moves);
         };
         if !actions.contains(&action) {
-            return record(light, dark, options.seed, options.max_plies, None, TerminationReason::NoLegalAction, moves);
+            return record(light, dark, options, None, TerminationReason::NoLegalAction, moves);
         }
         let transition = state.apply_legal(action);
         state = transition.state;
@@ -275,9 +283,9 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
         });
     }
     if let Some(winner) = state.winner {
-        record(light, dark, options.seed, options.max_plies, Some(winner), TerminationReason::Path, moves)
+        record(light, dark, options, Some(winner), TerminationReason::Path, moves)
     } else {
-        record(light, dark, options.seed, options.max_plies, None, TerminationReason::MaxPlies, moves)
+        record(light, dark, options, None, TerminationReason::MaxPlies, moves)
     }
 }
 
@@ -342,17 +350,20 @@ impl Mulberry32 {
 fn record(
     light: &Agent,
     dark: &Agent,
-    seed: u32,
-    max_plies: u16,
+    options: MatchOptions,
     winner: Option<Player>,
     reason: TerminationReason,
     moves: Vec<MoveRecord>,
 ) -> GameRecord {
     GameRecord {
-        seed,
-        max_plies,
+        seed: options.seed,
+        max_plies: options.max_plies,
+        board_size: options.board_size,
+        reserve_per_player: options.reserve_per_player,
         light_agent: light.id().to_owned(),
         dark_agent: dark.id().to_owned(),
+        light_specification: agent_spec_json(light),
+        dark_specification: agent_spec_json(dark),
         winner,
         reason,
         moves,
@@ -371,7 +382,7 @@ mod tests {
     fn seeded_random_games_are_reproducible() {
         let light = Agent::random("light-random");
         let dark = Agent::random("dark-random");
-        let options = MatchOptions { seed: 42, max_plies: 60, opening_random_plies: 2 };
+        let options = MatchOptions { seed: 42, max_plies: 60, opening_random_plies: 2, ..MatchOptions::default() };
         assert_eq!(play_game(&light, &dark, options), play_game(&light, &dark, options));
     }
 
@@ -379,11 +390,21 @@ mod tests {
     fn lunatic_games_are_reproducible_and_nonempty() {
         let light = Agent::lunatic("lunatic-v0.1.0");
         let dark = Agent::random("dark-random");
-        let options = MatchOptions { seed: 4242, max_plies: 60, opening_random_plies: 2 };
+        let options = MatchOptions { seed: 4242, max_plies: 60, opening_random_plies: 2, ..MatchOptions::default() };
         let record = play_game(&light, &dark, options);
         assert!(!record.moves.is_empty());
         assert_eq!(record, play_game(&light, &dark, options));
         assert_eq!(record.moves.first().unwrap().ply, 1);
+    }
+
+    #[test]
+    fn generated_records_include_manifest_backed_agent_identity() {
+        let light = Agent::search("rust-pathfinder-v0.1.0", SearchConfig::default());
+        let dark = Agent::random("coin-flip-seeded");
+        let record = play_game(&light, &dark, MatchOptions { seed: 7, max_plies: 8, opening_random_plies: 0, board_size: 4, reserve_per_player: 8 });
+        let replay = crate::contract::ReplayRecord::from_json(&record.to_json()).expect("generated replay follows contract");
+        assert_eq!(replay.agent_specifications.light.manifest.runtime, "rust");
+        assert_eq!(replay.agent_specifications.light.manifest.node_budget, 90_000);
     }
 
     #[test]

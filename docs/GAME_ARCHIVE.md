@@ -13,6 +13,11 @@ This keeps the archive queryable without turning the repository into a log
 store. Git continues to hold only small, curated corpora and reproducibility
 fixtures. Hugging Face and R2 are intentionally not part of this pipeline.
 
+The checked-in Drizzle migrations are the sole database-schema authority. The
+request handlers only use the bound D1 tables; they never create or alter
+tables at request time. Apply migrations during deployment before enabling
+archive writes.
+
 ## Upload local self-play
 
 Run a TypeScript arena and archive its completed games:

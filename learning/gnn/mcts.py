@@ -63,11 +63,12 @@ class PUCTSearch:
         state: GameState,
         add_root_noise: bool = False,
         history: Optional[Set[tuple]] = None,
+        rng: Optional[random.Random] = None,
     ) -> Tuple[MCTSNode, List[Action], List[float]]:
         root = MCTSNode(state)
         self.expand(root)
         if add_root_noise and root.priors:
-            self._add_root_noise(root)
+            self._add_root_noise(root, rng)
         previous_positions = set(history or ())
         previous_positions.discard(repetition_key(state))
         for _ in range(self.simulations):
@@ -128,9 +129,10 @@ class PUCTSearch:
         total = sum(powered)
         return [value / total for value in powered]
 
-    def _add_root_noise(self, root: MCTSNode) -> None:
+    def _add_root_noise(self, root: MCTSNode, rng: Optional[random.Random] = None) -> None:
         actions = list(root.priors)
-        noise = [random.gammavariate(self.dirichlet_alpha, 1.0) for _ in actions]
+        source = rng or random
+        noise = [source.gammavariate(self.dirichlet_alpha, 1.0) for _ in actions]
         total = sum(noise)
         if total == 0:
             return

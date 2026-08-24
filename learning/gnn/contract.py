@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, Mapping
 
 CONTRACT_VERSION = 1
 RULES_VERSION = "pathagon-rules-v1"
 TERMINATION_REASONS = {"path", "threefold-repetition", "max-plies", "no-legal-action"}
 PLAYER_VALUES = {"light", "dark"}
+DEFAULT_EVALUATOR_WEIGHTS = {
+    "path": 240,
+    "material": 110,
+    "capture": 700,
+    "structure": 55,
+    "threat": 130,
+    "edge": 80,
+}
 
 
 def game_config(size: int = 7, reserve: int = 14, max_plies: int = 180, repetition_limit: int = 3) -> dict:
@@ -28,8 +37,42 @@ def engine_metadata(engine_id: str, runtime: str, version: str = "1.0.0") -> dic
     return value
 
 
-def agent_specification(agent_id: str, name: str, version: str, kind: str, engine_id: str, parameters: dict | None = None) -> dict:
+def agent_manifest(
+    runtime: str = "python",
+    evaluator_weights: dict | None = None,
+    depth: int = 0,
+    node_budget: int = 0,
+    beam: int = 0,
+    model_hash: str | None = None,
+) -> dict:
+    value = {
+        "manifestVersion": 1,
+        "runtime": runtime,
+        "rulesVersion": RULES_VERSION,
+        "evaluatorWeights": {**DEFAULT_EVALUATOR_WEIGHTS, **(evaluator_weights or {})},
+        "depth": depth,
+        "nodeBudget": node_budget,
+        "beam": beam,
+        "modelHash": model_hash,
+    }
+    validate_agent_manifest(value)
+    return value
+
+
+def agent_specification(
+    agent_id: str,
+    name: str,
+    version: str,
+    kind: str,
+    engine_id: str,
+    parameters: dict | None = None,
+    manifest: dict | None = None,
+) -> dict:
     value = {"id": agent_id, "name": name, "version": version, "kind": kind, "engineId": engine_id}
+    if manifest is None:
+        runtime = "python" if "python" in engine_id else "rust" if "rust" in engine_id else "typescript"
+        manifest = agent_manifest(runtime=runtime)
+    value["manifest"] = manifest
     if parameters is not None:
         value["parameters"] = parameters
     validate_agent_specification(value)
@@ -99,8 +142,26 @@ def validate_agent_specification(value: Any) -> dict:
             raise ValueError(f"invalid agent {field}")
     if value.get("kind") not in {"random", "heuristic", "search", "learned", "puct"}:
         raise ValueError("invalid agent kind")
+    validate_agent_manifest(value.get("manifest"))
     if "parameters" in value and not isinstance(value["parameters"], dict):
         raise ValueError("invalid agent parameters")
+    return dict(value)
+
+
+def validate_agent_manifest(value: Any) -> dict:
+    _record(value, "agent manifest")
+    if value.get("manifestVersion") != 1 or value.get("runtime") not in {"typescript", "rust", "python"} or value.get("rulesVersion") != RULES_VERSION:
+        raise ValueError("invalid agent manifest metadata")
+    weights = value.get("evaluatorWeights")
+    _record(weights, "evaluator weights")
+    for name in DEFAULT_EVALUATOR_WEIGHTS:
+        _integer_range(weights.get(name), -2_147_483_648, 2_147_483_647, f"evaluator weight {name}")
+    for name in ("depth", "nodeBudget", "beam"):
+        if not _in_range(value.get(name), 0, 4_294_967_295):
+            raise ValueError(f"invalid agent {name}")
+    model_hash = value.get("modelHash")
+    if model_hash is not None and (not isinstance(model_hash, str) or re.fullmatch(r"sha256:[A-Fa-f0-9]{64}", model_hash) is None):
+        raise ValueError("invalid agent model hash")
     return dict(value)
 
 

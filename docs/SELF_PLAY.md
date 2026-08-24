@@ -12,23 +12,14 @@ This alternates the tracked champion between light and dark against a seeded ran
 
 Use `--opponent surveyor` or `--opponent pathfinder` for a named regression arena. Pathfinder is deliberately outside the promotion pool: evaluator mutations should not be permanently blocked merely because a candidate is tested with a smaller search budget than the expert browser opponent.
 
-## Train evaluation weights
+## Promotion training ownership
 
-```bash
-npm run selfplay:train -- --generations 5 --population 8 --games 12 --seed 20260822
-```
-
-Each candidate mutates six interpretable weights: path distance, material, immediate captures, connected structure, capture threats, and edge control. Candidates play paired-color matches with shared opening seeds against both the incumbent and recent historical champions.
-
-A candidate is promoted only when it:
-
-- beats the incumbent head-to-head;
-- does not lose a matchup against any member of its evaluation pool; and
-- wins at least 55% of decisive games across the pool.
-
-Generated match logs live under `selfplay/progress/runs/` and are ignored by Git. The promoted `selfplay/progress/champion.json` is tracked so strategy progress is reviewable and reproducible.
-
-Training never changes the live opponent automatically. A promoted champion must pass the tactical regression suite and a named evaluation arena before its weights are copied into the browser opponent.
+The TypeScript promotion trainer has been retired. TypeScript remains the
+browser/reference self-play and league runner; evaluator-weight promotion is
+owned by the Rust trainer (`npm run rust:train`), with the Python GNN league
+handling checkpoint-based experiments. Historical TypeScript champion and
+league manifests remain readable for replay and arena comparison, but no new
+TypeScript promotion artifacts are produced.
 
 ## Run the historical league
 
@@ -38,7 +29,11 @@ npm run selfplay:league -- --games 8 --seed 20260823
 
 This runs a paired-color round robin over tracked champions and produces provisional within-pool ratings. These numbers compare agents in this league only; they are not human Elo ratings.
 
-The browser now exposes four compute levels: random Coin Flip, the intentionally naive one-ply Lunatic pattern heuristic, the novice two-ply Surveyor, and the four-ply Pathfinder. Search uses iterative deepening, alpha-beta pruning, a transposition table, tactical move ordering, and a strict node budget. That makes strength tunable without making mobile response time unbounded.
+The browser exposes four opponent levels: random Coin Flip, the intentionally
+naive one-ply Lunatic pattern heuristic, the novice two-ply Surveyor, and the
+four-ply Pathfinder. Hover coaching is one fixed, bounded reference search;
+deeper iterative search belongs in the Rust engine so touch input does not
+trigger an unbounded browser refinement loop.
 
 ## Reproducibility contract
 

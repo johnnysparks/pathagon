@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import heapq
 import json
 import random
@@ -12,10 +13,10 @@ from typing import Dict, Iterable, List, Sequence, Set, Tuple
 
 import torch
 
-from .game import Action, BoardConfig, GameState, Player, repetition_key
-from .contract import agent_specification, engine_metadata, game_config
+from .game import Action, BoardConfig, GameState, Player
+from .contract import agent_manifest, agent_specification, engine_metadata, game_config
 from .mcts import PUCTSearch
-from .selfplay import avoid_repeated_successors
+from .selfplay import avoid_repeated_successors, run_match
 from .train import choose_device, load_model
 
 
@@ -25,6 +26,7 @@ class AgentSpec:
     label: str
     kind: str
     choose: object
+    manifest: dict
 
 
 class RandomAgent:
@@ -290,9 +292,16 @@ def build_roster(size: int, reserve: int, simulations: int, device: torch.device
     else:
         raise ValueError("league supports only 4x4, 5x5, 6x6, and 7x7 boards")
     for agent_id, label, checkpoint in checkpoints:
-        model = load_model(Path(checkpoint), device)
+        checkpoint_path = Path(checkpoint)
+        model = load_model(checkpoint_path, device)
         model.eval()
-        roster.append(AgentSpec(agent_id, label, "gnn", GNNAgent(model, simulations)))
+        roster.append(AgentSpec(
+            agent_id,
+            label,
+            "gnn",
+            GNNAgent(model, simulations),
+            agent_manifest(runtime="python", node_budget=simulations, model_hash=checkpoint_hash(checkpoint_path)),
+        ))
     if size == 4:
         pathfinder = HeuristicAgent(depth=3, beam_width=12, max_nodes=1_200)
         surveyor = HeuristicAgent(depth=2, beam_width=16, max_nodes=800)
@@ -303,33 +312,22 @@ def build_roster(size: int, reserve: int, simulations: int, device: torch.device
         pathfinder = HeuristicAgent(depth=2, beam_width=8, max_nodes=1_000)
         surveyor = HeuristicAgent(depth=1, beam_width=12, max_nodes=500)
     roster.extend([
-        AgentSpec("pathfinder-v0.3.0", "The Pathfinder", "heuristic", pathfinder),
-        AgentSpec("surveyor-v0.2.0", "The Surveyor", "heuristic", surveyor),
-        AgentSpec("lunatic-v0.1.0", "Lunatic", "heuristic", LunaticAgent()),
-        AgentSpec("coin-flip-v0.0.1", "Coin Flip", "random", RandomAgent()),
+        AgentSpec("pathfinder-v0.3.0", "The Pathfinder", "heuristic", pathfinder, agent_manifest(runtime="python", depth=pathfinder.depth, node_budget=pathfinder.max_nodes, beam=pathfinder.beam_width)),
+        AgentSpec("surveyor-v0.2.0", "The Surveyor", "heuristic", surveyor, agent_manifest(runtime="python", depth=surveyor.depth, node_budget=surveyor.max_nodes, beam=surveyor.beam_width)),
+        AgentSpec("lunatic-v0.1.0", "Lunatic", "heuristic", LunaticAgent(), agent_manifest(runtime="python", depth=1)),
+        AgentSpec("coin-flip-v0.0.1", "Coin Flip", "random", RandomAgent(), agent_manifest(runtime="python")),
     ])
     return roster
 
 
 def play_game(light: AgentSpec, dark: AgentSpec, config: BoardConfig, seed: int) -> dict:
-    rng = random.Random(seed)
-    state = GameState.initial(config)
     moves = []
-    repetitions: Dict[tuple, int] = {}
-    while state.winner is None and state.ply < config.max_plies:
-        position = repetition_key(state)
-        repetitions[position] = repetitions.get(position, 0) + 1
-        if repetitions[position] >= 3:
-            return record_game(light, dark, config, seed, None, "threefold-repetition", moves)
-        actions = list(state.legal_actions())
-        if not actions:
-            return record_game(light, dark, config, seed, None, "no-legal-action", moves)
+
+    def choose_action(state: GameState, _actions: Tuple[Action, ...], rng: random.Random, history: Set[tuple]) -> Action | None:
         agent = light if state.turn is Player.LIGHT else dark
-        chooser = agent.choose
-        action = chooser.choose_action(state, rng, set(repetitions))
-        if action is None or action not in actions:
-            return record_game(light, dark, config, seed, None, "no-legal-action", moves)
-        next_state = state.apply_legal(action)
+        return agent.choose.choose_action(state, rng, history)
+
+    def observe_move(state: GameState, action: Action, next_state: GameState) -> None:
         moves.append({
             "ply": state.ply + 1,
             "player": "light" if state.turn is Player.LIGHT else "dark",
@@ -341,10 +339,10 @@ def play_game(light: AgentSpec, dark: AgentSpec, config: BoardConfig, seed: int)
             "score": 0,
             "bookHit": False,
         })
-        state = next_state
-    if state.winner is not None:
-        return record_game(light, dark, config, seed, "light" if state.winner is Player.LIGHT else "dark", "path", moves)
-    return record_game(light, dark, config, seed, None, "max-plies", moves)
+
+    result = run_match(config, seed, choose_action, observe_move)
+    winner = None if result.state.winner is None else ("light" if result.state.winner is Player.LIGHT else "dark")
+    return record_game(light, dark, config, seed, winner, result.reason, moves)
 
 
 def record_game(light: AgentSpec, dark: AgentSpec, config: BoardConfig, seed: int, winner: str | None, reason: str, moves: list) -> dict:
@@ -355,8 +353,8 @@ def record_game(light: AgentSpec, dark: AgentSpec, config: BoardConfig, seed: in
         "engine": engine_metadata("python-gnn", "python"),
         "agents": {"light": light.id, "dark": dark.id},
         "agentSpecifications": {
-            "light": agent_specification(light.id, light.label, agent_version(light.id), "puct" if light.kind == "gnn" else light.kind, "python-gnn"),
-            "dark": agent_specification(dark.id, dark.label, agent_version(dark.id), "puct" if dark.kind == "gnn" else dark.kind, "python-gnn"),
+            "light": agent_specification(light.id, light.label, agent_version(light.id), "puct" if light.kind == "gnn" else light.kind, "python-gnn", manifest=light.manifest),
+            "dark": agent_specification(dark.id, dark.label, agent_version(dark.id), "puct" if dark.kind == "gnn" else dark.kind, "python-gnn", manifest=dark.manifest),
         },
         "winner": winner,
         "result": "win" if winner else "draw",
@@ -364,6 +362,14 @@ def record_game(light: AgentSpec, dark: AgentSpec, config: BoardConfig, seed: in
         "plies": len(moves),
         "moves": moves,
     }
+
+
+def checkpoint_hash(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return f"sha256:{digest.hexdigest()}"
 
 
 def agent_version(agent_id: str) -> str:

@@ -16,6 +16,8 @@ fn main() {
     let seed = number(&args, "seed", 20_260_823_u32);
     let max_plies = number(&args, "max-plies", 180_u16);
     let opening_random_plies = number(&args, "opening-random-plies", 2_u16);
+    let board_size = number(&args, "board-size", 7_u8);
+    let reserve_per_player = number(&args, "reserve", board_size.saturating_mul(2));
     let depth = number(&args, "depth", 4_u8);
     let max_nodes = number(&args, "nodes", 90_000_u64);
     let beam_width = number(&args, "beam", 40_usize);
@@ -76,6 +78,8 @@ fn main() {
                 seed: seed.wrapping_add(game),
                 max_plies,
                 opening_random_plies,
+                board_size,
+                reserve_per_player,
             },
         );
         match record.winner {

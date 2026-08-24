@@ -225,6 +225,7 @@ fn paired_series(
             seed: seed.wrapping_add(pair as u32),
             max_plies: config.max_plies,
             opening_random_plies: config.opening_random_plies,
+            ..MatchOptions::default()
         };
         records.push(play_game(&candidate, &incumbent_agent, options));
         records.push(play_game(&incumbent_agent, &candidate, options));
