@@ -16,6 +16,16 @@ with 200 optimizer updates and symmetry augmentation enabled. Its initial
 20-game random smoke evaluation at four PUCT simulations scored 2 wins, 3
 losses, and 15 draws; this is a baseline artifact, not a promotion result.
 
+## Hardware note
+
+On the current Apple Silicon development hardware, the replay warm-start loop
+is faster on CPU than MPS for these small unbatched models. A 300-update
+benchmark on the full 7×7 training split measured 103.9 CPU vs 12.5 MPS
+updates/sec for the CNN and 92.7 CPU vs 13.1 MPS for the full GNN. The loop
+builds small graphs per example and synchronizes scalar losses each update, so
+MPS overhead dominates. Use CPU for this warm-start path unless the model or
+batching strategy changes; re-benchmark for self-play or larger batched jobs.
+
 The local progression includes:
 
 - `pathagon-generation-1.pt`: trained from 20 neural games / 1,298 positions.

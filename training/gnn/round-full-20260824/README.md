@@ -63,3 +63,20 @@ used during training.
 | --- | --- |
 | `cnn-full-seed20260828.pt` | `c5dca2e7e69c01469169ba4e428e8b27c616a08e529f7ebee93d9cbb9d767056` |
 | `full-gnn-seed20260829.pt` | `c399a4cbaf07777ffb2ec50b7caa03f90299fc65c9a86c3ac5cc782441ef50f6` |
+
+## Hardware note: Apple Silicon
+
+On this Apple Silicon / PyTorch environment, CPU is the preferred device for
+the current warm-start implementation. The loop performs one small graph
+forward/backward pass per example and synchronizes scalar losses every update,
+so MPS launch and synchronization overhead outweighs its accelerator benefit.
+
+| model | CPU updates/sec | MPS updates/sec | CPU speedup |
+| --- | ---: | ---: | ---: |
+| CNN, 32 × 4 | 103.9 | 12.5 | 8.3× |
+| Full GNN, 64 × 8 | 92.7 | 13.1 | 7.1× |
+
+These are 300-update measurements on the same full 7×7 training split, not a
+claim about all Apple Silicon workloads. Use `--device cpu` for these small
+unbatched replay warm starts; re-benchmark before switching to MPS for larger
+models, batched training, or self-play search.
