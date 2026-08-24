@@ -2,7 +2,7 @@ import random
 import unittest
 
 from .game import BoardConfig, GameState
-from .league import HeuristicAgent, update_elo
+from .league import HeuristicAgent, LunaticAgent, update_elo
 
 
 class LeagueTest(unittest.TestCase):
@@ -29,6 +29,11 @@ class LeagueTest(unittest.TestCase):
             action = HeuristicAgent(depth=1, beam_width=4, max_nodes=20).choose_action(state, random.Random(size), set())
             self.assertIn(action, list(state.legal_actions()))
             self.assertEqual(state.config.max_plies, size * size * 4)
+
+    def test_lunatic_returns_a_legal_action(self) -> None:
+        state = GameState.initial(BoardConfig(4, 6))
+        action = LunaticAgent().choose_action(state, random.Random(0), set())
+        self.assertIn(action, list(state.legal_actions()))
 
 
 if __name__ == "__main__":

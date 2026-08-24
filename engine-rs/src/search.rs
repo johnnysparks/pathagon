@@ -158,6 +158,53 @@ pub fn search_best_action(state: GameState, config: SearchConfig) -> SearchResul
     }
 }
 
+/// Choose the same shallow local-pattern move as the browser Lunatic baseline.
+/// It deliberately evaluates each legal action once without considering the
+/// opponent's reply, making it a cheap breadth opponent for large arenas.
+pub fn lunatic_action(state: GameState) -> SearchResult {
+    let actions = state.legal_actions();
+    if actions.is_empty() {
+        return SearchResult {
+            action: None,
+            score: evaluate(state, state.turn, EvaluationWeights::default()),
+            nodes: 0,
+            exhausted: false,
+            completed_depth: 0,
+            table_hits: 0,
+        };
+    }
+    let player = state.turn;
+    let before_own_distance = connection_distance(state, player);
+    let before_opponent_distance = connection_distance(state, player.other());
+    let mut best_action = actions[0];
+    let mut best_score = NEG_INF;
+    for action in actions.iter().copied() {
+        let transition = state.apply_legal(action);
+        let score = if transition.state.winner == Some(player) {
+            WIN_SCORE
+        } else {
+            let own_distance = connection_distance(transition.state, player);
+            let opponent_distance = connection_distance(transition.state, player.other());
+            transition.captured.count_ones() as i32 * 10_000
+                + (before_own_distance - own_distance) * 500
+                + (opponent_distance - before_opponent_distance) * 350
+                + if matches!(action, Action::Relocate { .. }) { 10 } else { 0 }
+        };
+        if score > best_score || (score == best_score && action.order() < best_action.order()) {
+            best_action = action;
+            best_score = score;
+        }
+    }
+    SearchResult {
+        action: Some(best_action),
+        score: best_score,
+        nodes: actions.len() as u64,
+        exhausted: false,
+        completed_depth: 1,
+        table_hits: 0,
+    }
+}
+
 pub fn evaluate(state: GameState, player: Player, weights: EvaluationWeights) -> i32 {
     if state.winner == Some(player) {
         return WIN_SCORE - state.ply as i32;
@@ -398,5 +445,14 @@ mod tests {
         assert!(result.nodes <= 120);
         assert!(result.exhausted);
         assert!((1..5).contains(&result.completed_depth));
+    }
+
+    #[test]
+    fn lunatic_returns_a_legal_action() {
+        let state = GameState::new();
+        let result = lunatic_action(state);
+        assert!(result.action.is_some());
+        assert!(state.legal_actions().contains(&result.action.unwrap()));
+        assert_eq!(result.completed_depth, 1);
     }
 }

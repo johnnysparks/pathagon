@@ -19,6 +19,17 @@ cargo run --release --manifest-path engine-rs/Cargo.toml --bin pathagon-selfplay
 
 Use `--opponent search` for search-versus-search games and `--jsonl` to emit complete machine-readable game records before the aggregate summary.
 
+The browser-matched Lunatic baseline is also available in the native engine:
+
+```bash
+./scripts/run-rust-archive.sh macbook-lunatic-001 1000 20260824 lunatic
+```
+
+This is the intended local tournament command. It writes a schema-v2 JSONL
+archive plus a compact indexed corpus. The current Rust bitboard fast path is
+7×7 with a 14-piece reserve; the Python GNN league owns the 4×4, 5×5, 6×6,
+and 7×7 curriculum matrix.
+
 ## Build a persistent strategy corpus
 
 ```bash

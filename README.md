@@ -17,8 +17,10 @@ See [`docs/SELF_PLAY.md`](docs/SELF_PLAY.md) for experiment structure and [`docs
 
 The experimental scale-invariant GNN/PUCT learner lives under
 [`learning/gnn/`](learning/gnn/). It supports dynamic 5x5 and 7x7 graph
-construction, replay warm-starts, and compact neural self-play; it is not yet
-the browser opponent.
+construction, replay warm-starts, and compact neural self-play; the current
+league also exercises 4x4 and 6x6 transfer boards. It is not yet the browser
+opponent. See [`docs/LEARNING_TOURNAMENTS.md`](docs/LEARNING_TOURNAMENTS.md)
+for the clone-on-another-Mac, generate, merge, and retrain workflow.
 
 The playable opponent ladder mixes search and heuristic baselines: Coin Flip is random, Lunatic is a deliberately naive one-ply pattern heuristic, The Surveyor searches two plies, and The Pathfinder uses iterative deepening up to four plies. "Expert" currently describes its search budget, not a solved-game or unbeatable claim.
 
@@ -48,6 +50,8 @@ Drizzle support.
 ## Prerequisites
 
 - Node.js `>=22.13.0`
+- Rust `1.98.0` via rustup for the native tournament engine
+- Python 3 with a virtual environment for the GNN learner
 - Linux with `flock`, `curl`, and GNU `timeout`
 
 ## Sites Lifecycle

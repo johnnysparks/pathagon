@@ -52,6 +52,8 @@ fn main() {
     } else if opponent_name == "learned" {
         let book = learned_book.as_ref().unwrap_or_else(|| fail("--opponent learned requires --learned <learned.tsv>"));
         Agent::learned("rust-learned-tabular-v0.1.0", SearchConfig { depth: 2, max_nodes: 12_000, beam_width: 64, ..config }, Arc::clone(book), learned_minimum_visits)
+    } else if opponent_name == "lunatic" {
+        Agent::lunatic("lunatic-v0.1.0")
     } else {
         Agent::random("coin-flip-seeded")
     };
@@ -92,7 +94,7 @@ fn main() {
         write_corpus(directory, &records).unwrap_or_else(|error| fail(&format!("cannot write corpus: {error}")))
     });
     let elapsed = started.elapsed().as_secs_f64();
-    println!(
+    let summary = format!(
         "{{\"schemaVersion\":2,\"engine\":\"rust\",\"agent\":\"{}\",\"opponent\":\"{}\",\"seed\":{},\"games\":{},\"wins\":{},\"losses\":{},\"draws\":{},\"plies\":{},\"nodes\":{},\"bookHits\":{},\"corpusGames\":{},\"corpusPositions\":{},\"seconds\":{:.6},\"gamesPerSecond\":{:.3}}}",
         champion.id(),
         opponent.id(),
@@ -109,6 +111,11 @@ fn main() {
         elapsed,
         if elapsed > 0.0 { games as f64 / elapsed } else { 0.0 },
     );
+    if jsonl {
+        eprintln!("{summary}");
+    } else {
+        println!("{summary}");
+    }
 }
 
 fn with_optional_book(agent: Agent, book: &Option<Arc<StrategyBook>>) -> Agent {

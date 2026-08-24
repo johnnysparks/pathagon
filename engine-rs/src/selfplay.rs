@@ -3,12 +3,13 @@ use std::sync::Arc;
 
 use crate::corpus::StrategyBook;
 use crate::learned::LearnedBook;
-use crate::search::{search_best_action, SearchConfig};
+use crate::search::{lunatic_action, search_best_action, SearchConfig};
 use crate::{bit_squares, Action, GameState, Player};
 
 #[derive(Clone, Debug)]
 pub enum Agent {
     Random { id: String },
+    Lunatic { id: String },
     Search { id: String, config: SearchConfig, book: Option<Arc<StrategyBook>> },
     Learned { id: String, config: SearchConfig, book: Arc<LearnedBook>, minimum_visits: u32 },
 }
@@ -20,6 +21,10 @@ impl Agent {
 
     pub fn search(id: impl Into<String>, config: SearchConfig) -> Self {
         Self::Search { id: id.into(), config, book: None }
+    }
+
+    pub fn lunatic(id: impl Into<String>) -> Self {
+        Self::Lunatic { id: id.into() }
     }
 
     pub fn with_book(self, book: Arc<StrategyBook>) -> Self {
@@ -35,7 +40,7 @@ impl Agent {
 
     pub fn id(&self) -> &str {
         match self {
-            Self::Random { id } | Self::Search { id, .. } | Self::Learned { id, .. } => id,
+            Self::Random { id } | Self::Lunatic { id } | Self::Search { id, .. } | Self::Learned { id, .. } => id,
         }
     }
 
@@ -49,6 +54,17 @@ impl Agent {
                     nodes: u64::from(!actions.is_empty()),
                     completed_depth: 0,
                     table_hits: 0,
+                    book_hit: false,
+                }
+            }
+            Self::Lunatic { .. } => {
+                let result = lunatic_action(state);
+                Decision {
+                    action: result.action,
+                    score: result.score,
+                    nodes: result.nodes,
+                    completed_depth: result.completed_depth,
+                    table_hits: result.table_hits,
                     book_hit: false,
                 }
             }
@@ -176,8 +192,9 @@ impl GameRecord {
             )
         }).collect::<Vec<_>>().join(",");
         format!(
-            "{{\"schemaVersion\":2,\"seed\":{},\"agents\":{{\"light\":\"{}\",\"dark\":\"{}\"}},\"winner\":{},\"result\":\"{}\",\"reason\":\"{}\",\"plies\":{},\"moves\":[{}]}}",
+            "{{\"schemaVersion\":2,\"engine\":\"rust\",\"seed\":{},\"boardSize\":{},\"reservePerPlayer\":14,\"agents\":{{\"light\":\"{}\",\"dark\":\"{}\"}},\"winner\":{},\"result\":\"{}\",\"reason\":\"{}\",\"plies\":{},\"moves\":[{}]}}",
             self.seed,
+            crate::BOARD_SIZE,
             json_escape(&self.light_agent),
             json_escape(&self.dark_agent),
             winner,
@@ -337,6 +354,17 @@ mod tests {
         let dark = Agent::random("dark-random");
         let options = MatchOptions { seed: 42, max_plies: 60, opening_random_plies: 2 };
         assert_eq!(play_game(&light, &dark, options), play_game(&light, &dark, options));
+    }
+
+    #[test]
+    fn lunatic_games_are_reproducible_and_nonempty() {
+        let light = Agent::lunatic("lunatic-v0.1.0");
+        let dark = Agent::random("dark-random");
+        let options = MatchOptions { seed: 4242, max_plies: 60, opening_random_plies: 2 };
+        let record = play_game(&light, &dark, options);
+        assert!(!record.moves.is_empty());
+        assert_eq!(record, play_game(&light, &dark, options));
+        assert_eq!(record.moves.first().unwrap().ply, 1);
     }
 
     #[test]

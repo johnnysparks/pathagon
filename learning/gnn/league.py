@@ -32,6 +32,38 @@ class RandomAgent:
         return rng.choice(actions) if actions else None
 
 
+class LunaticAgent:
+    """One-ply local-pattern baseline matching the browser Lunatic opponent."""
+
+    def choose_action(self, state: GameState, _rng: random.Random, _history: Set[tuple]) -> Action | None:
+        actions = list(state.legal_actions())
+        if not actions:
+            return None
+        player = state.turn
+        before_own_distance = connection_distance(state, player)
+        before_opponent_distance = connection_distance(state, player.other())
+        best_action = actions[0]
+        best_score = float("-inf")
+        for action in actions:
+            next_state = state.apply_legal(action)
+            captured = next_state.last_capture
+            if next_state.winner is player:
+                score = 1_000_000_000
+            else:
+                own_distance = connection_distance(next_state, player)
+                opponent_distance = connection_distance(next_state, player.other())
+                score = (
+                    captured * 10_000
+                    + (before_own_distance - own_distance) * 500
+                    + (opponent_distance - before_opponent_distance) * 350
+                    + (10 if action.kind == 1 else 0)
+                )
+            if score > best_score or (score == best_score and action_sort_key(action) < action_sort_key(best_action)):
+                best_action = action
+                best_score = score
+        return best_action
+
+
 class HeuristicAgent:
     def __init__(self, depth: int, beam_width: int, max_nodes: int) -> None:
         self.depth = depth
@@ -272,6 +304,7 @@ def build_roster(size: int, reserve: int, simulations: int, device: torch.device
     roster.extend([
         AgentSpec("pathfinder-v0.3.0", "The Pathfinder", "heuristic", pathfinder),
         AgentSpec("surveyor-v0.2.0", "The Surveyor", "heuristic", surveyor),
+        AgentSpec("lunatic-v0.1.0", "Lunatic", "heuristic", LunaticAgent()),
         AgentSpec("coin-flip-v0.0.1", "Coin Flip", "random", RandomAgent()),
     ])
     return roster
