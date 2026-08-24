@@ -1,0 +1,38 @@
+"""Contract v1 parity tests for the Python runtime."""
+
+from __future__ import annotations
+
+import json
+import unittest
+from pathlib import Path
+
+from jsonschema import Draft202012Validator
+
+from .contract import validate_position, validate_replay_record
+
+
+class ContractTest(unittest.TestCase):
+    def test_shared_replay_fixture(self) -> None:
+        path = Path(__file__).parents[2] / "contracts" / "fixtures" / "replay-v1.json"
+        record = json.loads(path.read_text(encoding="utf-8"))
+        schema = json.loads((path.parents[1] / "pathagon-contract-v1.schema.json").read_text(encoding="utf-8"))
+        Draft202012Validator(schema).validate(record)
+        self.assertEqual(validate_replay_record(record)["contractVersion"], 1)
+
+    def test_position_contains_rule_relevant_state(self) -> None:
+        position = {
+            "contractVersion": 1,
+            "config": {"rulesVersion": "pathagon-rules-v1", "boardSize": 3, "reservePerPlayer": 6, "maxPlies": 36, "repetitionLimit": 3},
+            "board": ["light", None, None, None, "dark", None, None, None, None],
+            "reserve": {"light": 5, "dark": 6},
+            "turn": "dark",
+            "forbidden": [],
+            "lastRelocatedTo": {"light": None, "dark": None},
+            "winner": None,
+            "ply": 1,
+        }
+        self.assertEqual(validate_position(position)["board"].count(None), 7)
+
+
+if __name__ == "__main__":
+    unittest.main()

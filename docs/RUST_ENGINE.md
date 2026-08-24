@@ -1,6 +1,6 @@
 # Rust headless engine
 
-`engine-rs` is a dependency-free native implementation of the Pathagon rules, evaluator, iterative-deepening search, and deterministic self-play harness. It uses two 49-bit bitboards inside `u64` values and is intended for high-volume training and eventual WebAssembly use.
+`engine-rs` is a native implementation of the Pathagon rules, evaluator, iterative-deepening search, deterministic self-play harness, and the shared contract boundary. It uses two 49-bit bitboards inside `u64` values and is intended for high-volume training and eventual WebAssembly use.
 
 ## Verify rules and search
 
@@ -25,7 +25,7 @@ The browser-matched Lunatic baseline is also available in the native engine:
 ./scripts/run-rust-archive.sh macbook-lunatic-001 1000 20260824 lunatic
 ```
 
-This is the intended local tournament command. It writes a schema-v2 JSONL
+This is the intended local tournament command. It writes a contract-v1 JSONL
 archive plus a compact indexed corpus. The current Rust bitboard fast path is
 7×7 with a 14-piece reserve; the Python GNN league owns the 4×4, 5×5, 6×6,
 and 7×7 curriculum matrix.
@@ -54,7 +54,7 @@ the mover's empirical win/draw rate, and falls back to normal search for
 unseen states. This is useful for testing the learning pipeline on a small
 archive; it is not a neural network or a generally valid policy model.
 
-Convert archived schema-v2 JSONL into the Rust replay format, then build the
+Convert archived contract-v1 (or legacy schema-v2) JSONL into the Rust replay format, then build the
 book:
 
 ```bash
@@ -90,7 +90,7 @@ Each candidate mutates the six interpretable evaluation weights and plays paired
 
 A candidate is promoted only when it beats the incumbent on both splits and earns at least 55% of held-out points. The output keeps training and evaluation histories in separate replayable corpora alongside `report.json` and `champion.json`. This gate reduces overfitting; it does not by itself establish statistical significance or human Elo.
 
-The Rust and TypeScript harnesses use the same Mulberry32 seed algorithm, color alternation, random-opening convention, threefold-repetition rule, maximum-ply draw, action encoding, and schema-v2 move diagnostics.
+The Rust and TypeScript harnesses use the same Mulberry32 seed algorithm, color alternation, random-opening convention, threefold-repetition rule, maximum-ply draw, action encoding, and contract-v1 move diagnostics.
 
 ## Boundary
 

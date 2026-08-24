@@ -1,5 +1,7 @@
 import { searchBestAction } from "../app/ai.ts";
 import type { EvaluationWeights, SearchConfig } from "../app/ai.ts";
+import { DEFAULT_GAME_CONFIG, TYPESCRIPT_ENGINE, defaultAgentSpecification } from "../app/contract.ts";
+import type { GameConfig } from "../app/contract.ts";
 import { applyAction, createGame, legalActions } from "../app/pathagon.ts";
 import type { Action, GameState, Player } from "../app/pathagon.ts";
 import type { SelfPlayGameRecord, SelfPlayMoveRecord } from "../app/selfplay-record.ts";
@@ -11,6 +13,7 @@ export type RandomSource = () => number;
 
 export type SelfPlayAgent = {
   id: string;
+  spec: ReturnType<typeof defaultAgentSpecification>;
   chooseAction(state: GameState, random: RandomSource): { action: Action | null; nodes: number; completedDepth?: number; tableHits?: number };
 };
 
@@ -18,11 +21,13 @@ export type MatchOptions = {
   seed: number;
   maxPlies: number;
   openingRandomPlies: number;
+  config?: Partial<GameConfig>;
 };
 
 export function createSearchAgent(id: string, config: SearchConfig): SelfPlayAgent {
   return {
     id,
+    spec: { ...defaultAgentSpecification(id, "search", TYPESCRIPT_ENGINE), parameters: { depth: config.depth, maxNodes: config.maxNodes, beamWidth: config.beamWidth, weights: config.weights } },
     chooseAction(state) {
       const result = searchBestAction(state, config);
       return { action: result.action, nodes: result.nodes, completedDepth: result.completedDepth, tableHits: result.tableHits };
@@ -33,6 +38,7 @@ export function createSearchAgent(id: string, config: SearchConfig): SelfPlayAge
 export function createRandomAgent(id = "random"): SelfPlayAgent {
   return {
     id,
+    spec: defaultAgentSpecification(id, "random", TYPESCRIPT_ENGINE),
     chooseAction(state, random) {
       const actions = legalActions(state);
       return { action: actions.length ? actions[Math.floor(random() * actions.length)] : null, nodes: 1 };
@@ -43,21 +49,22 @@ export function createRandomAgent(id = "random"): SelfPlayAgent {
 export function playGame(light: SelfPlayAgent, dark: SelfPlayAgent, options: MatchOptions): GameRecord {
   const random = mulberry32(options.seed);
   const agents = { light, dark };
-  let state = createGame();
+  const config: GameConfig = { ...DEFAULT_GAME_CONFIG, ...options.config, maxPlies: options.maxPlies };
+  let state = createGame(config);
   const moves: MoveRecord[] = [];
   const repetitions = new Map<string, number>();
-  while (!state.winner && state.ply < options.maxPlies) {
+  while (!state.winner && state.ply < config.maxPlies) {
     const key = stateKey(state);
     const repeated = (repetitions.get(key) ?? 0) + 1;
     repetitions.set(key, repeated);
-    if (repeated >= 3) return gameRecord(options.seed, agents, null, "threefold-repetition", moves);
+    if (repeated >= config.repetitionLimit) return gameRecord(options.seed, agents, config, null, "threefold-repetition", moves);
     const player = state.turn;
     const legal = legalActions(state);
-    if (!legal.length) return gameRecord(options.seed, agents, null, "no-legal-action", moves);
+    if (!legal.length) return gameRecord(options.seed, agents, config, null, "no-legal-action", moves);
     const decision = state.ply < options.openingRandomPlies
       ? { action: legal[Math.floor(random() * legal.length)], nodes: 1 }
       : agents[player].chooseAction(state, random);
-    if (!decision.action) return gameRecord(options.seed, agents, null, "no-legal-action", moves);
+    if (!decision.action) return gameRecord(options.seed, agents, config, null, "no-legal-action", moves);
     state = applyAction(state, decision.action);
     moves.push({
       ply: state.ply,
@@ -69,8 +76,8 @@ export function playGame(light: SelfPlayAgent, dark: SelfPlayAgent, options: Mat
       tableHits: decision.tableHits ?? 0,
     });
   }
-  if (state.winner) return gameRecord(options.seed, agents, state.winner, "path", moves);
-  return gameRecord(options.seed, agents, null, "max-plies", moves);
+  if (state.winner) return gameRecord(options.seed, agents, config, state.winner, "path", moves);
+  return gameRecord(options.seed, agents, config, null, "max-plies", moves);
 }
 
 export function mutateWeights(weights: EvaluationWeights, random: RandomSource, scale = 0.2): EvaluationWeights {
@@ -108,14 +115,18 @@ function stateKey(state: GameState) {
 function gameRecord(
   seed: number,
   agents: Record<Player, SelfPlayAgent>,
+  config: GameConfig,
   winner: Player | null,
   reason: GameRecord["reason"],
   moves: MoveRecord[],
 ): GameRecord {
   return {
-    schemaVersion: 2,
+    contractVersion: 1,
     seed,
+    config,
+    engine: TYPESCRIPT_ENGINE,
     agents: { light: agents.light.id, dark: agents.dark.id },
+    agentSpecifications: { light: agents.light.spec, dark: agents.dark.spec },
     winner,
     result: winner ? "win" : "draw",
     reason,

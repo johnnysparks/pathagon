@@ -19,6 +19,9 @@ test("self-play records every applied move", () => {
     { seed: 7, maxPlies: 30, openingRandomPlies: 0 },
   );
   assert.equal(record.plies, record.moves.length);
+  assert.equal(record.contractVersion, 1);
+  assert.equal(record.config.boardSize, 7);
+  assert.equal(record.agentSpecifications.light.id, record.agents.light);
   assert.ok(record.moves.every((move, index) => move.ply === index + 1));
   assert.ok(record.moves.every((move) => Number.isInteger(move.completedDepth) && Number.isInteger(move.tableHits)));
 });

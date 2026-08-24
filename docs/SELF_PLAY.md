@@ -1,6 +1,6 @@
 # Pathagon self-play
 
-The self-play layer treats the browser game engine as the reference rules implementation. Every match is seeded and records every action, capture, node count, result, and termination reason.
+The self-play layer treats the browser game engine as the reference rules implementation. Every match uses contract v1 metadata and records every action, capture, node count, result, and termination reason.
 
 ## Run an arena
 

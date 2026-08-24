@@ -52,7 +52,7 @@ export async function storeSelfPlayGames(entries: SelfPlayArchiveEntry[]) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .bind(
       id,
-      record.schemaVersion,
+      record.contractVersion,
       engine,
       mode,
       runId,

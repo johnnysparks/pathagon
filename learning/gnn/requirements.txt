@@ -2,3 +2,4 @@
 # choose the newest wheel available for the host Python/architecture.
 torch>=2.8.0,<2.14.0
 numpy>=1.26.4,<3.0.0
+jsonschema>=4.23.0,<5.0.0

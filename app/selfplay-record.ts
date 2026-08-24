@@ -1,31 +1,22 @@
 import { applyAction, createGame, legalActions } from "./pathagon.ts";
 import type { Action, Player } from "./pathagon.ts";
+import {
+  DEFAULT_GAME_CONFIG,
+  PATHAGON_CONTRACT_VERSION,
+  TYPESCRIPT_ENGINE,
+  defaultAgentSpecification,
+  validateAgentSpecification,
+  validateContractReplay,
+  validateEngineMetadata,
+  validateGameConfig,
+} from "./contract.ts";
+import type { AgentSpecification, ContractReplayRecord, EngineMetadata, GameConfig } from "./contract.ts";
 
 export const SELF_PLAY_SCHEMA_VERSION = 2;
 export const SELF_PLAY_MAX_PLIES = 512;
 
-export type SelfPlayMoveRecord = {
-  ply: number;
-  player: Player;
-  action: Action;
-  captured: number[];
-  nodes: number;
-  completedDepth: number;
-  tableHits: number;
-  score?: number;
-  bookHit?: boolean;
-};
-
-export type SelfPlayGameRecord = {
-  schemaVersion: 2;
-  seed: number;
-  agents: Record<Player, string>;
-  winner: Player | null;
-  result: "win" | "draw";
-  reason: "path" | "threefold-repetition" | "max-plies" | "no-legal-action";
-  plies: number;
-  moves: SelfPlayMoveRecord[];
-};
+export type SelfPlayMoveRecord = ContractReplayRecord["moves"][number];
+export type SelfPlayGameRecord = ContractReplayRecord;
 
 const TERMINATION_REASONS = new Set<SelfPlayGameRecord["reason"]>([
   "path",
@@ -37,26 +28,30 @@ const TERMINATION_REASONS = new Set<SelfPlayGameRecord["reason"]>([
 export function validateSelfPlayRecord(value: unknown): SelfPlayGameRecord {
   if (!value || typeof value !== "object") throw new Error("Self-play record must be an object");
   const input = value as Record<string, unknown>;
-  if (input.schemaVersion !== SELF_PLAY_SCHEMA_VERSION) throw new Error("Unsupported self-play schema version");
+  if (input.contractVersion !== PATHAGON_CONTRACT_VERSION && input.schemaVersion !== SELF_PLAY_SCHEMA_VERSION) throw new Error("Unsupported self-play contract version");
   if (!Number.isSafeInteger(input.seed) || Number(input.seed) < 0 || Number(input.seed) > 4_294_967_295) {
     throw new Error("Invalid self-play seed");
   }
   const agents = validateAgents(input.agents);
+  const plies = input.plies;
+  const config = normalizeConfig(input.config, input.boardSize, input.reservePerPlayer, plies);
+  const engine = normalizeEngine(input.engine);
+  const agentSpecifications = normalizeAgentSpecifications(input.agentSpecifications, agents, engine);
   const winner = input.winner === null ? null : validatePlayer(input.winner, "winner");
   if (input.result !== (winner ? "win" : "draw")) throw new Error("Self-play result does not match winner");
   if (typeof input.reason !== "string" || !TERMINATION_REASONS.has(input.reason as SelfPlayGameRecord["reason"])) {
     throw new Error("Invalid self-play termination reason");
   }
-  if (!Number.isInteger(input.plies) || Number(input.plies) < 0 || Number(input.plies) > SELF_PLAY_MAX_PLIES) {
+  if (!Number.isInteger(plies) || Number(plies) < 0 || Number(plies) > Math.min(SELF_PLAY_MAX_PLIES, config.maxPlies)) {
     throw new Error("Invalid self-play ply count");
   }
-  if (!Array.isArray(input.moves) || input.moves.length !== input.plies) {
+  if (!Array.isArray(input.moves) || input.moves.length !== plies) {
     throw new Error("Self-play plies do not match moves");
   }
 
-  let state = createGame();
+  let state = createGame(config);
   const moves = input.moves.map((candidate, index) => {
-    const move = validateMove(candidate, index, state.turn);
+    const move = validateMove(candidate, index, state.turn, config.boardSize * config.boardSize);
     let next: ReturnType<typeof applyAction>;
     try {
       next = applyAction(state, move.action);
@@ -77,15 +72,50 @@ export function validateSelfPlayRecord(value: unknown): SelfPlayGameRecord {
     throw new Error("No-legal-action termination is not proved by replay");
   }
 
-  return {
-    schemaVersion: SELF_PLAY_SCHEMA_VERSION,
+  const normalized: SelfPlayGameRecord = {
+    contractVersion: PATHAGON_CONTRACT_VERSION,
     seed: Number(input.seed),
+    config,
+    engine,
     agents,
+    agentSpecifications,
     winner,
     result: winner ? "win" : "draw",
     reason: input.reason as SelfPlayGameRecord["reason"],
-    plies: Number(input.plies),
+    plies: Number(plies),
     moves,
+  };
+  return validateContractReplay(normalized);
+}
+
+function normalizeConfig(value: unknown, boardSize: unknown, reserve: unknown, plies: unknown): GameConfig {
+  if (value !== undefined) return validateGameConfig(value);
+  const size = Number.isInteger(boardSize) ? Number(boardSize) : DEFAULT_GAME_CONFIG.boardSize;
+  const pieces = Number.isInteger(reserve) ? Number(reserve) : DEFAULT_GAME_CONFIG.reservePerPlayer;
+  const maxPlies = Math.max(DEFAULT_GAME_CONFIG.maxPlies, Number.isInteger(plies) ? Number(plies) : 0);
+  return validateGameConfig({ ...DEFAULT_GAME_CONFIG, boardSize: size, reservePerPlayer: pieces, maxPlies });
+}
+
+function normalizeEngine(value: unknown): EngineMetadata {
+  if (value && typeof value === "object") return validateEngineMetadata(value);
+  if (typeof value === "string") {
+    const runtime = value.includes("python") ? "python" : value.includes("rust") ? "rust" : "typescript";
+    return validateEngineMetadata({ ...TYPESCRIPT_ENGINE, id: value, runtime });
+  }
+  return TYPESCRIPT_ENGINE;
+}
+
+function normalizeAgentSpecifications(value: unknown, agents: Record<Player, string>, engine: EngineMetadata): Record<Player, AgentSpecification> {
+  if (value && typeof value === "object") {
+    const input = value as Record<string, unknown>;
+    const light = validateAgentSpecification(input.light);
+    const dark = validateAgentSpecification(input.dark);
+    if (light.id !== agents.light || dark.id !== agents.dark) throw new Error("Replay agent ID does not match specification");
+    return { light, dark };
+  }
+  return {
+    light: defaultAgentSpecification(agents.light, "search", engine),
+    dark: defaultAgentSpecification(agents.dark, "search", engine),
   };
 }
 
@@ -105,18 +135,18 @@ function validateAgentId(value: unknown) {
   return value;
 }
 
-function validateMove(value: unknown, index: number, expectedPlayer: Player): SelfPlayMoveRecord {
+function validateMove(value: unknown, index: number, expectedPlayer: Player, cellCount: number): SelfPlayMoveRecord {
   if (!value || typeof value !== "object") throw new Error(`Invalid self-play move at ply ${index + 1}`);
   const input = value as Record<string, unknown>;
   if (input.ply !== index + 1) throw new Error(`Invalid self-play move number at ply ${index + 1}`);
   if (input.player !== expectedPlayer) throw new Error(`Invalid self-play player at ply ${index + 1}`);
-  if (!Array.isArray(input.captured) || input.captured.some((square) => !Number.isInteger(square) || Number(square) < 0 || Number(square) >= 49)) {
+  if (!Array.isArray(input.captured) || input.captured.some((square) => !Number.isInteger(square) || Number(square) < 0 || Number(square) >= cellCount)) {
     throw new Error(`Invalid self-play captures at ply ${index + 1}`);
   }
   if (new Set(input.captured as number[]).size !== input.captured.length) {
     throw new Error(`Duplicate self-play capture at ply ${index + 1}`);
   }
-  const action = validateAction(input.action);
+  const action = validateAction(input.action, cellCount);
   const move: SelfPlayMoveRecord = {
     ply: index + 1,
     player: expectedPlayer,
@@ -134,13 +164,13 @@ function validateMove(value: unknown, index: number, expectedPlayer: Player): Se
   return move;
 }
 
-function validateAction(value: unknown): Action {
+function validateAction(value: unknown, cellCount: number): Action {
   if (!value || typeof value !== "object") throw new Error("Invalid self-play action");
   const input = value as Record<string, unknown>;
-  if (input.kind === "place" && Number.isInteger(input.to) && Number(input.to) >= 0 && Number(input.to) < 49) {
+  if (input.kind === "place" && Number.isInteger(input.to) && Number(input.to) >= 0 && Number(input.to) < cellCount) {
     return { kind: "place", to: Number(input.to) };
   }
-  if (input.kind === "relocate" && Number.isInteger(input.from) && Number(input.from) >= 0 && Number(input.from) < 49 && Number.isInteger(input.to) && Number(input.to) >= 0 && Number(input.to) < 49) {
+  if (input.kind === "relocate" && Number.isInteger(input.from) && Number(input.from) >= 0 && Number(input.from) < cellCount && Number.isInteger(input.to) && Number(input.to) >= 0 && Number(input.to) < cellCount) {
     return { kind: "relocate", from: Number(input.from), to: Number(input.to) };
   }
   throw new Error("Invalid self-play action");

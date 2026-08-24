@@ -1,0 +1,49 @@
+{
+  "contractVersion": 1,
+  "seed": 7,
+  "config": {
+    "rulesVersion": "pathagon-rules-v1",
+    "boardSize": 3,
+    "reservePerPlayer": 6,
+    "maxPlies": 36,
+    "repetitionLimit": 3
+  },
+  "engine": {
+    "id": "typescript-reference",
+    "runtime": "typescript",
+    "version": "1.0.0",
+    "rulesVersion": "pathagon-rules-v1"
+  },
+  "agents": { "light": "coin-flip-v1", "dark": "coin-flip-v1" },
+  "agentSpecifications": {
+    "light": {
+      "id": "coin-flip-v1",
+      "name": "Coin Flip",
+      "version": "1.0.0",
+      "kind": "random",
+      "engineId": "typescript-reference"
+    },
+    "dark": {
+      "id": "coin-flip-v1",
+      "name": "Coin Flip",
+      "version": "1.0.0",
+      "kind": "random",
+      "engineId": "typescript-reference"
+    }
+  },
+  "winner": null,
+  "result": "draw",
+  "reason": "max-plies",
+  "plies": 1,
+  "moves": [
+    {
+      "ply": 1,
+      "player": "light",
+      "action": { "kind": "place", "to": 0 },
+      "captured": [],
+      "nodes": 1,
+      "completedDepth": 0,
+      "tableHits": 0
+    }
+  ]
+}

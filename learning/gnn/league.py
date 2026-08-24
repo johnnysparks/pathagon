@@ -13,6 +13,7 @@ from typing import Dict, Iterable, List, Sequence, Set, Tuple
 import torch
 
 from .game import Action, BoardConfig, GameState, Player, repetition_key
+from .contract import agent_specification, engine_metadata, game_config
 from .mcts import PUCTSearch
 from .selfplay import avoid_repeated_successors
 from .train import choose_device, load_model
@@ -348,17 +349,26 @@ def play_game(light: AgentSpec, dark: AgentSpec, config: BoardConfig, seed: int)
 
 def record_game(light: AgentSpec, dark: AgentSpec, config: BoardConfig, seed: int, winner: str | None, reason: str, moves: list) -> dict:
     return {
-        "schemaVersion": 2,
+        "contractVersion": 1,
         "seed": seed,
-        "boardSize": config.size,
-        "reservePerPlayer": config.reserve_per_player,
+        "config": game_config(config.size, config.reserve_per_player, config.max_plies),
+        "engine": engine_metadata("python-gnn", "python"),
         "agents": {"light": light.id, "dark": dark.id},
+        "agentSpecifications": {
+            "light": agent_specification(light.id, light.label, agent_version(light.id), "puct" if light.kind == "gnn" else light.kind, "python-gnn"),
+            "dark": agent_specification(dark.id, dark.label, agent_version(dark.id), "puct" if dark.kind == "gnn" else dark.kind, "python-gnn"),
+        },
         "winner": winner,
         "result": "win" if winner else "draw",
         "reason": reason,
         "plies": len(moves),
         "moves": moves,
     }
+
+
+def agent_version(agent_id: str) -> str:
+    marker = agent_id.rsplit("-v", 1)
+    return marker[1] if len(marker) == 2 and marker[1] else "1.0.0"
 
 
 def outcome_for(record: dict, agent_id: str) -> str:

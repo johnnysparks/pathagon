@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 from .game import Action, BoardConfig, GameState, Player, bits, repetition_key
+from .contract import agent_specification, engine_metadata, game_config
 from .mcts import PUCTSearch
 from .model import PathagonGNN
 
@@ -139,11 +140,15 @@ def game_record(examples: List[SearchExample], final_state: GameState, seed: int
     else:
         reason = "threefold-repetition"
     return {
-        "schemaVersion": 2,
+        "contractVersion": 1,
         "seed": seed,
-        "boardSize": final_state.config.size,
-        "reservePerPlayer": final_state.config.reserve_per_player,
+        "config": game_config(final_state.config.size, final_state.config.reserve_per_player, final_state.config.max_plies),
+        "engine": engine_metadata("python-gnn", "python"),
         "agents": {"light": "python-gnn-puct-v0.1.0", "dark": "python-gnn-puct-v0.1.0"},
+        "agentSpecifications": {
+            "light": agent_specification("python-gnn-puct-v0.1.0", "Python GNN PUCT", "0.1.0", "puct", "python-gnn"),
+            "dark": agent_specification("python-gnn-puct-v0.1.0", "Python GNN PUCT", "0.1.0", "puct", "python-gnn"),
+        },
         "winner": winner,
         "result": "win" if winner is not None else "draw",
         "reason": reason,

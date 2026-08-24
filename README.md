@@ -2,7 +2,7 @@
 
 Digital preservation of Mark Fuchs's two-player wooden strategy game, with a mobile web client, deterministic rules engine, AI opponents, and a reproducible self-play laboratory.
 
-The repository now contains two rules implementations: TypeScript is the browser reference engine, while the dependency-free Rust bitboard engine runs high-volume headless search and self-play. Shared parity fixtures keep their move legality, captures, and win resolution aligned.
+The repository now contains two production rules implementations: TypeScript is the browser reference engine, while the small Rust bitboard engine runs high-volume headless search and self-play. Shared parity fixtures keep their move legality, captures, and win resolution aligned.
 
 ```bash
 npm test
@@ -53,6 +53,16 @@ Drizzle support.
 - Rust `1.98.0` via rustup for the native tournament engine
 - Python 3 with a virtual environment for the GNN learner
 - Linux with `flock`, `curl`, and GNU `timeout`
+
+Run the Python learner's complete regression suite with the project virtual
+environment (including the cross-runtime contract tests):
+
+```bash
+./scripts/test-python.sh
+```
+
+The versioned cross-runtime interchange contract is documented in
+[`contracts/README.md`](contracts/README.md).
 
 ## Sites Lifecycle
 

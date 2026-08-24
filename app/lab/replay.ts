@@ -40,11 +40,12 @@ export function parseReplayArchive(text: string, fallbackBoardSize: number, fall
   return text.split("\n").filter((line) => line.trim()).map((line) => {
     const raw = JSON.parse(line) as Record<string, unknown>;
     const moves = Array.isArray(raw.moves) ? raw.moves.map(normalizeMove) : [];
+    const config = raw.config && typeof raw.config === "object" ? raw.config as Record<string, unknown> : {};
     return {
-      schemaVersion: Number(raw.schemaVersion ?? 2),
+      schemaVersion: Number(raw.schemaVersion ?? raw.contractVersion ?? 2),
       seed: Number(raw.seed),
-      boardSize: Number(raw.boardSize ?? fallbackBoardSize),
-      reservePerPlayer: Number(raw.reservePerPlayer ?? fallbackReserve),
+      boardSize: Number(config.boardSize ?? raw.boardSize ?? fallbackBoardSize),
+      reservePerPlayer: Number(config.reservePerPlayer ?? raw.reservePerPlayer ?? fallbackReserve),
       agents: (raw.agents ?? { light: "unknown", dark: "unknown" }) as Record<ReplayPlayer, string>,
       winner: raw.winner === "light" || raw.winner === "dark" ? raw.winner : null,
       result: raw.result === "win" ? "win" : "draw",

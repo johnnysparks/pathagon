@@ -7,7 +7,7 @@ site. It has two separate tables:
   bearer token and there is no listing endpoint.
 - `selfplay_games` stores replay-validated TypeScript and Rust matches. The
   engine, mode, run ID, agents, result, termination reason, seed, and ply count
-  are indexed metadata; the complete schema-v2 replay is retained as JSON.
+  are indexed metadata; the complete contract-v1 replay is retained as JSON.
 
 This keeps the archive queryable without turning the repository into a log
 store. Git continues to hold only small, curated corpora and reproducibility
@@ -46,9 +46,11 @@ npm run selfplay:archive -- \
   --engine rust
 ```
 
-Uploads are replayed against the reference rules before insertion. Reusing
-the same generated run file is idempotent because the uploader derives stable
-record IDs from the engine, run, seed, and position in the run.
+Uploads are normalized to contract v1 and replayed against the configured
+reference rules before insertion. Older schema-v2 files are accepted through
+the compatibility normalizer. Reusing the same generated run file is
+idempotent because the uploader derives stable record IDs from the engine, run,
+seed, and position in the run.
 
 ## Query records
 

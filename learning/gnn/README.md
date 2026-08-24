@@ -11,7 +11,7 @@ research pipeline, not the browser opponent.
 - A dynamic policy head: node logits for placement and source/destination
   pair logits for relocation.
 - A graph-level value head using mean/max pooling plus normalized game state.
-- Replay validation and policy/value warm-start training from schema-v2 JSONL.
+- Replay validation and policy/value warm-start training from contract-v1 JSONL (with schema-v2 compatibility).
 - PUCT search and neural-guided self-play example generation.
 - Compact AlphaZero-style generation/training loop.
 

@@ -162,6 +162,7 @@ impl TerminationReason {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GameRecord {
     pub seed: u32,
+    pub max_plies: u16,
     pub light_agent: String,
     pub dark_agent: String,
     pub winner: Option<Player>,
@@ -192,11 +193,14 @@ impl GameRecord {
             )
         }).collect::<Vec<_>>().join(",");
         format!(
-            "{{\"schemaVersion\":2,\"engine\":\"rust\",\"seed\":{},\"boardSize\":{},\"reservePerPlayer\":14,\"agents\":{{\"light\":\"{}\",\"dark\":\"{}\"}},\"winner\":{},\"result\":\"{}\",\"reason\":\"{}\",\"plies\":{},\"moves\":[{}]}}",
+            "{{\"contractVersion\":1,\"seed\":{},\"config\":{{\"rulesVersion\":\"pathagon-rules-v1\",\"boardSize\":{},\"reservePerPlayer\":14,\"maxPlies\":{},\"repetitionLimit\":3}},\"engine\":{{\"id\":\"rust-bitboard\",\"runtime\":\"rust\",\"version\":\"1.0.0\",\"rulesVersion\":\"pathagon-rules-v1\"}},\"agents\":{{\"light\":\"{}\",\"dark\":\"{}\"}},\"agentSpecifications\":{{\"light\":{},\"dark\":{}}},\"winner\":{},\"result\":\"{}\",\"reason\":\"{}\",\"plies\":{},\"moves\":[{}]}}",
             self.seed,
             crate::BOARD_SIZE,
+            self.max_plies,
             json_escape(&self.light_agent),
             json_escape(&self.dark_agent),
+            agent_spec_json(&self.light_agent),
+            agent_spec_json(&self.dark_agent),
             winner,
             if self.winner.is_some() { "win" } else { "draw" },
             self.reason.as_str(),
@@ -204,6 +208,19 @@ impl GameRecord {
             moves,
         )
     }
+}
+
+fn agent_spec_json(id: &str) -> String {
+    let (kind, name) = if id.contains("random") || id.contains("coin-flip") {
+        ("random", "Coin Flip")
+    } else if id.contains("lunatic") {
+        ("heuristic", "Lunatic")
+    } else if id.contains("learned") {
+        ("learned", "Learned")
+    } else {
+        ("search", "Rust Search")
+    };
+    format!("{{\"id\":\"{}\",\"name\":\"{}\",\"version\":\"1.0.0\",\"kind\":\"{}\",\"engineId\":\"rust-bitboard\"}}", json_escape(id), name, kind)
 }
 
 pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameRecord {
@@ -216,11 +233,11 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
         let repeated = repetitions.entry(RepetitionKey::from(state)).or_default();
         *repeated += 1;
         if *repeated >= 3 {
-            return record(light, dark, options.seed, None, TerminationReason::ThreefoldRepetition, moves);
+            return record(light, dark, options.seed, options.max_plies, None, TerminationReason::ThreefoldRepetition, moves);
         }
         let actions = state.legal_actions();
         if actions.is_empty() {
-            return record(light, dark, options.seed, None, TerminationReason::NoLegalAction, moves);
+            return record(light, dark, options.seed, options.max_plies, None, TerminationReason::NoLegalAction, moves);
         }
         let player = state.turn;
         let decision = if state.ply < options.opening_random_plies {
@@ -238,10 +255,10 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
             dark.choose(state, &mut random)
         };
         let Some(action) = decision.action else {
-            return record(light, dark, options.seed, None, TerminationReason::NoLegalAction, moves);
+            return record(light, dark, options.seed, options.max_plies, None, TerminationReason::NoLegalAction, moves);
         };
         if !actions.contains(&action) {
-            return record(light, dark, options.seed, None, TerminationReason::NoLegalAction, moves);
+            return record(light, dark, options.seed, options.max_plies, None, TerminationReason::NoLegalAction, moves);
         }
         let transition = state.apply_legal(action);
         state = transition.state;
@@ -258,9 +275,9 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
         });
     }
     if let Some(winner) = state.winner {
-        record(light, dark, options.seed, Some(winner), TerminationReason::Path, moves)
+        record(light, dark, options.seed, options.max_plies, Some(winner), TerminationReason::Path, moves)
     } else {
-        record(light, dark, options.seed, None, TerminationReason::MaxPlies, moves)
+        record(light, dark, options.seed, options.max_plies, None, TerminationReason::MaxPlies, moves)
     }
 }
 
@@ -326,12 +343,14 @@ fn record(
     light: &Agent,
     dark: &Agent,
     seed: u32,
+    max_plies: u16,
     winner: Option<Player>,
     reason: TerminationReason,
     moves: Vec<MoveRecord>,
 ) -> GameRecord {
     GameRecord {
         seed,
+        max_plies,
         light_agent: light.id().to_owned(),
         dark_agent: dark.id().to_owned(),
         winner,

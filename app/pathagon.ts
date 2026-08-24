@@ -1,12 +1,14 @@
-export type Player = "light" | "dark";
+import { DEFAULT_GAME_CONFIG } from "./contract.ts";
+import type { ContractAction, GameConfig, Player as ContractPlayer } from "./contract.ts";
 
-export type Action =
-  | { kind: "place"; to: number }
-  | { kind: "relocate"; from: number; to: number };
+export type Player = ContractPlayer;
+
+export type Action = ContractAction;
 
 export type ResolvedAction = Action & { player: Player; captured: number[] };
 
 export type GameState = {
+  config: GameConfig;
   board: Array<Player | null>;
   reserve: Record<Player, number>;
   turn: Player;
@@ -18,14 +20,14 @@ export type GameState = {
   ply: number;
 };
 
-const BOARD_SIZE = 7;
-const CELL_COUNT = BOARD_SIZE * BOARD_SIZE;
 const DIRECTIONS = [[-1, 0], [1, 0], [0, -1], [0, 1]] as const;
 
-export function createGame(): GameState {
+export function createGame(config: GameConfig = DEFAULT_GAME_CONFIG): GameState {
+  const cellCount = config.boardSize * config.boardSize;
   return {
-    board: Array<Player | null>(CELL_COUNT).fill(null),
-    reserve: { light: 14, dark: 14 },
+    config,
+    board: Array<Player | null>(cellCount).fill(null),
+    reserve: { light: config.reservePerPlayer, dark: config.reservePerPlayer },
     turn: "light",
     forbidden: [],
     lastRelocatedTo: { light: null, dark: null },
@@ -79,35 +81,35 @@ export function applyLegalAction(state: GameState, action: Action): GameState {
     lastRelocatedTo[player] = action.to;
   }
   board[action.to] = player;
-  const captured = capturesFrom(board, action.to, player);
+  const captured = capturesFrom(board, action.to, player, state.config.boardSize);
   for (const square of captured) board[square] = null;
   reserve[opponent] += captured.length;
-  const winningPath = findWinningPath(board, player);
-  return { board, reserve, turn: opponent, forbidden: captured, lastRelocatedTo, winner: winningPath.length ? player : null, winningPath, lastAction: { ...action, player, captured }, ply: state.ply + 1 };
+  const winningPath = findWinningPath(board, player, state.config.boardSize);
+  return { config: state.config, board, reserve, turn: opponent, forbidden: captured, lastRelocatedTo, winner: winningPath.length ? player : null, winningPath, lastAction: { ...action, player, captured }, ply: state.ply + 1 };
 }
 
-function capturesFrom(board: Array<Player | null>, origin: number, player: Player) {
+function capturesFrom(board: Array<Player | null>, origin: number, player: Player, boardSize: number) {
   const opponent = otherPlayer(player);
-  const row = Math.floor(origin / BOARD_SIZE);
-  const column = origin % BOARD_SIZE;
+  const row = Math.floor(origin / boardSize);
+  const column = origin % boardSize;
   const captured: number[] = [];
   for (const [rowDelta, columnDelta] of DIRECTIONS) {
     const nearRow = row + rowDelta;
     const nearColumn = column + columnDelta;
     const farRow = row + rowDelta * 2;
     const farColumn = column + columnDelta * 2;
-    if (!inBounds(farRow, farColumn)) continue;
-    const near = nearRow * BOARD_SIZE + nearColumn;
-    const far = farRow * BOARD_SIZE + farColumn;
+    if (!inBounds(farRow, farColumn, boardSize)) continue;
+    const near = nearRow * boardSize + nearColumn;
+    const far = farRow * boardSize + farColumn;
     if (board[near] === opponent && board[far] === player) captured.push(near);
   }
   return captured;
 }
 
-function findWinningPath(board: Array<Player | null>, player: Player) {
+function findWinningPath(board: Array<Player | null>, player: Player, boardSize: number) {
   const starts: number[] = [];
-  for (let i = 0; i < BOARD_SIZE; i += 1) {
-    const square = player === "light" ? (BOARD_SIZE - 1) * BOARD_SIZE + i : i * BOARD_SIZE;
+  for (let i = 0; i < boardSize; i += 1) {
+    const square = player === "light" ? (boardSize - 1) * boardSize + i : i * boardSize;
     if (board[square] === player) starts.push(square);
   }
   const queue = [...starts];
@@ -115,9 +117,9 @@ function findWinningPath(board: Array<Player | null>, player: Player) {
   const parent = new Map<number, number>();
   while (queue.length) {
     const square = queue.shift()!;
-    const row = Math.floor(square / BOARD_SIZE);
-    const column = square % BOARD_SIZE;
-    const reached = player === "light" ? row === 0 : column === BOARD_SIZE - 1;
+    const row = Math.floor(square / boardSize);
+    const column = square % boardSize;
+    const reached = player === "light" ? row === 0 : column === boardSize - 1;
     if (reached) {
       const path = [square];
       let cursor = square;
@@ -127,8 +129,8 @@ function findWinningPath(board: Array<Player | null>, player: Player) {
     for (const [rowDelta, columnDelta] of DIRECTIONS) {
       const nextRow = row + rowDelta;
       const nextColumn = column + columnDelta;
-      if (!inBounds(nextRow, nextColumn)) continue;
-      const next = nextRow * BOARD_SIZE + nextColumn;
+      if (!inBounds(nextRow, nextColumn, boardSize)) continue;
+      const next = nextRow * boardSize + nextColumn;
       if (board[next] !== player || visited.has(next)) continue;
       visited.add(next); parent.set(next, square); queue.push(next);
     }
@@ -139,7 +141,7 @@ function findWinningPath(board: Array<Player | null>, player: Player) {
 function sameAction(left: Action, right: Action) {
   return left.kind === right.kind && left.to === right.to && (left.kind === "place" || (right.kind === "relocate" && left.from === right.from));
 }
-function inBounds(row: number, column: number) { return row >= 0 && row < BOARD_SIZE && column >= 0 && column < BOARD_SIZE; }
+function inBounds(row: number, column: number, boardSize: number) { return row >= 0 && row < boardSize && column >= 0 && column < boardSize; }
 export function otherPlayer(player: Player): Player { return player === "light" ? "dark" : "light"; }
 export function playerLabel(player: Player) { return player === "light" ? "light" : "dark"; }
 export function describeAction(action: ResolvedAction) {

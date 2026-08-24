@@ -2,7 +2,7 @@
 
 The intended near-term workflow is local and reproducible: clone the repo on
 another Mac, install the pinned toolchains, generate Rust archives, merge them,
-and warm-start or retrain the GNN from the resulting schema-v2 JSONL.
+and warm-start or retrain the GNN from the resulting contract-v1 JSONL.
 
 ## First setup on a new Mac
 
