@@ -3,27 +3,68 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const GENERATION_COMMAND = `./.venv-pathagon-gnn/bin/python -m learning.gnn.train alphazero \\
-  --resume training/gnn/benchmark-7x7/small-gnn-warmstart.pt \\
-  --games 1000 --workers 8 --simulations 4 \\
-  --temperature-moves 32 --updates 1`;
+const BATCH_COMMAND = `./.venv-pathagon-gnn/bin/python scripts/generate-7x7-selfplay.py \\
+  --games-per-player 1000 --players scout,learner,cnn \\
+  --workers 8 --simulations 4 --temperature-moves 32 \\
+  --max-plies 196 \\
+  --output-dir training/gnn/benchmark-7x7/generated/<batch-id>`;
 
-const BOARD_PIECES: Record<number, "light" | "dark"> = {
-  3: "dark",
-  9: "light",
-  14: "dark",
-  19: "light",
-  24: "dark",
-  28: "light",
-  34: "dark",
-  39: "light",
-  44: "dark",
-};
+const MODELS = [
+  {
+    rank: "01",
+    name: "GNN Learner",
+    family: "Residual message passing",
+    role: "current candidate",
+    params: "100.2k",
+    nll: "2.112",
+    delta: "−0.103 vs Scout",
+    games: "1,000",
+    positions: "129,790",
+    tone: "green",
+    glyph: "G",
+    status: "Promote next",
+  },
+  {
+    rank: "02",
+    name: "GNN Scout",
+    family: "Compact message passing",
+    role: "bulk data generator",
+    params: "17.5k",
+    nll: "2.215",
+    delta: "fastest search",
+    games: "1,000",
+    positions: "142,760",
+    tone: "violet",
+    glyph: "S",
+    status: "Generating",
+  },
+  {
+    rank: "03",
+    name: "CNN baseline",
+    family: "7×7 residual CNN",
+    role: "parallel reference",
+    params: "87.4k",
+    nll: "2.291",
+    delta: "−0.079 vs Scout",
+    games: "1,000",
+    positions: "147,920",
+    tone: "gold",
+    glyph: "C",
+    status: "Reference",
+  },
+];
 
-const ACTIVITY = [
-  { label: "Scout checkpoint trained", detail: "17.5k params · 2.215 held-out policy NLL", tone: "green" },
-  { label: "Held-out gate passed", detail: "416 games · 25,751 positions · 0 seed overlap", tone: "gold" },
-  { label: "Canonical corpus locked", detail: "2,037 unique 7×7 games · 123,691 positions", tone: "ink" },
+const MATCHUPS = [
+  { left: "GNN Learner", right: "GNN Scout", detail: "100 games · alternating colors" },
+  { left: "GNN Learner", right: "CNN baseline", detail: "100 games · alternating colors" },
+  { left: "GNN Scout", right: "CNN baseline", detail: "100 games · alternating colors" },
+];
+
+const FLOW = [
+  { number: "01", label: "Train", detail: "A checkpoint clears its parent on held-out play.", state: "complete" },
+  { number: "02", label: "Generate", detail: "The promoted model makes the next 7×7 batch.", state: "active" },
+  { number: "03", label: "Cross-play", detail: "Every model meets every other model for Elo evidence.", state: "waiting" },
+  { number: "04", label: "Promote", detail: "A small, repeatable improvement becomes the new baseline.", state: "waiting" },
 ];
 
 export default function LearningLab() {
@@ -50,9 +91,9 @@ export default function LearningLab() {
     window.localStorage.setItem("pathagon-lab-theme", nextTheme);
   }
 
-  async function copyGenerationCommand() {
+  async function copyBatchCommand() {
     try {
-      await navigator.clipboard.writeText(GENERATION_COMMAND);
+      await navigator.clipboard.writeText(BATCH_COMMAND);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2200);
     } catch {
@@ -61,16 +102,16 @@ export default function LearningLab() {
   }
 
   return (
-    <main className={`portal-app ${theme === "dark" ? "dark" : ""}`}>
-      <nav className="portal-nav" aria-label="Lab navigation">
+    <main className={`portal-app leaderboard-app ${theme === "dark" ? "dark" : ""}`}>
+      <nav className="portal-nav" aria-label="Leaderboard navigation">
         <Link className="portal-breadcrumb" href="/">
           <span className="portal-mark">P</span>
           <span>Pathagon</span>
           <span className="portal-slash">/</span>
-          <span>Learning lab</span>
+          <span>Leaderboard</span>
         </Link>
         <div className="portal-nav-right">
-          <span className="portal-live"><span /> 7×7 target locked</span>
+          <span className="portal-live"><span /> 7×7 league</span>
           <button className="portal-theme-toggle" type="button" onClick={toggleTheme} aria-pressed={theme === "dark"} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
             <span aria-hidden="true">{theme === "dark" ? "☼" : "☾"}</span>
             {theme === "dark" ? "Light" : "Dark"}
@@ -79,117 +120,132 @@ export default function LearningLab() {
         </div>
       </nav>
 
-      <header className="portal-hero">
-        <div className="portal-hero-copy">
-          <span className="portal-kicker">Diverse game generation · control room</span>
-          <h1>Make the dataset<br /><em>harder to fool.</em></h1>
-          <p>One board size. Many ways to play it. This is the progress portal for building a deep, diverse 7×7 corpus that can keep improving the learner.</p>
+      <header className="leaderboard-hero">
+        <div className="leaderboard-hero-copy">
+          <span className="portal-kicker">Model progression · 7×7 league</span>
+          <h1>A quiet ratchet<br /><em>for stronger play.</em></h1>
+          <p>Every new checkpoint should be a little better than the one before it. The winner makes the next games; the games teach the next model; cross-play keeps the ranking honest.</p>
           <div className="portal-actions">
-            <button className="portal-primary" type="button" onClick={copyGenerationCommand}>
-              {copied ? "Command copied" : "Copy next run command"}<span>{copied ? "✓" : "↗"}</span>
+            <button className="portal-primary" type="button" onClick={copyBatchCommand}>
+              {copied ? "Batch command copied" : "Copy next batch recipe"}<span>{copied ? "✓" : "↗"}</span>
             </button>
-            <a className="portal-quiet-action" href="#proof">Inspect the proof archive <span>↓</span></a>
+            <a className="portal-quiet-action" href="#standings">See current standings <span>↓</span></a>
           </div>
         </div>
-        <div className="portal-board-card" aria-label="Illustration of the 7 by 7 generation field">
-          <div className="portal-board-topline"><span>SCOUT / FIELD 01</span><span>7 × 7</span></div>
-          <PortalBoard />
-          <div className="portal-board-caption"><span>Current exploration field</span><strong>root noise + τ 32</strong></div>
+
+        <div className="leaderboard-leader-card" aria-label="Current model leader">
+          <div className="leaderboard-card-topline"><span>Current leader</span><span className="leaderboard-provisional">Policy signal</span></div>
+          <div className="leaderboard-leader-main">
+            <ModelGlyph tone="green" glyph="G" />
+            <div className="leaderboard-leader-name"><strong>GNN Learner</strong><span>64 channels · 8 message layers</span></div>
+            <div className="leaderboard-leader-score"><strong>2.112</strong><small>held-out NLL</small></div>
+          </div>
+          <div className="leaderboard-signal-row"><span>−0.103 vs compact Scout</span><span>lower is better</span></div>
+          <div className="leaderboard-signal-bar"><span /></div>
+          <div className="leaderboard-card-footer"><span><i className="live-dot" /> candidate for promotion</span><small>Elo pending cross-play</small></div>
         </div>
       </header>
 
-      <section className="portal-stat-grid" aria-label="7x7 corpus summary">
-        <PortalStat label="Canonical games" value="2,037" detail="unique records in the 7×7 set" accent="green" />
-        <PortalStat label="Position bank" value="123,691" detail="states available for training" accent="ink" />
-        <PortalStat label="Held-out gate" value="416" detail="games kept outside the train split" accent="gold" />
-        <PortalStat label="Scout footprint" value="17.5k" detail="parameters in the fast generator" accent="violet" />
+      <section className="leaderboard-stat-grid" aria-label="Model league summary">
+        <LeaderboardStat label="Models in league" value="3" detail="two GNNs · one CNN" accent="green" />
+        <LeaderboardStat label="Fresh games" value="3,000" detail="1,000 from each player" accent="gold" />
+        <LeaderboardStat label="Positions generated" value="420,470" detail="seed-clean 7×7 replay" accent="violet" />
+        <LeaderboardStat label="Best held-out NLL" value="2.112" detail="GNN Learner · current signal" accent="ink" />
       </section>
 
-      <section className="portal-panel portal-progress-panel" aria-labelledby="progress-title">
-        <div className="portal-panel-heading">
-          <div><span className="portal-kicker">Corpus mission</span><h2 id="progress-title">Fill the 10k game target</h2></div>
-          <span className="portal-status ready"><span /> Ready to launch</span>
+      <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
+        <div className="leaderboard-panel-heading">
+          <div><span className="portal-kicker">Standings · signal quality</span><h2 id="standings-title">Models first. Elo next.</h2></div>
+          <span className="leaderboard-status"><span /> provisional ranking</span>
         </div>
-        <p className="portal-panel-intro">The archive is clean enough to grow now. The next batch is designed to add movement-phase variety instead of simply repeating the opening distribution.</p>
-        <div className="portal-progress-track"><span style={{ width: "20.37%" }} /></div>
-        <div className="portal-progress-meta"><strong>2,037 <small>/ 10,000 games</small></strong><span>20.4% of target corpus</span></div>
-        <div className="portal-pipeline" aria-label="Generation pipeline">
-          <PipelineStep number="01" label="Archive" detail="2,037 games" state="complete" />
-          <PipelineStep number="02" label="Deduplicate" detail="0 seed overlap" state="complete" />
-          <PipelineStep number="03" label="Scout batch" detail="1,000 games queued" state="active" />
-          <PipelineStep number="04" label="Retrain learner" detail="After quality gate" state="waiting" />
-        </div>
-      </section>
+        <p className="leaderboard-intro">The current order is based on held-out policy quality, not a claimed strength rating. Once the league has balanced cross-play, this table can promote a model because it is both better on paper and better across the board.</p>
 
-      <section className="portal-two-column">
-        <div className="portal-panel portal-recipe-panel">
-          <div className="portal-panel-heading"><div><span className="portal-kicker">Next run</span><h2>The Scout recipe</h2></div><span className="portal-chip green">Fast + diverse</span></div>
-          <p className="portal-panel-intro">A compact GNN plays the field cheaply, while search noise and a long temperature window keep the corpus from collapsing into one style.</p>
-          <div className="portal-recipe-grid">
-            <RecipeItem label="Player" value="Compact GNN" detail="32 channels · 4 layers" />
-            <RecipeItem label="Search" value="4 simulations" detail="per move" />
-            <RecipeItem label="Exploration" value="τ 32" detail="temperature window" />
-            <RecipeItem label="Workers" value="8 CPU lanes" detail="parallel games" />
+        <div className="leaderboard-grid">
+          <div className="leaderboard-table" role="table" aria-label="Current model standings">
+            <div className="leaderboard-table-row leaderboard-table-header" role="row">
+              <span>#</span><span>Model</span><span>Role</span><span>Params</span><span>NLL</span><span>New games</span>
+            </div>
+            {MODELS.map((model) => <ModelStanding key={model.name} model={model} />)}
           </div>
-          <div className="portal-command"><code>{GENERATION_COMMAND}</code><button type="button" onClick={copyGenerationCommand} aria-label="Copy generation command">{copied ? "✓" : "⧉"}</button></div>
-        </div>
 
-        <div className="portal-panel portal-health-panel">
-          <div className="portal-panel-heading"><div><span className="portal-kicker">Quality gates</span><h2>Dataset health</h2></div><span className="portal-chip gold">Held-out v1</span></div>
-          <HealthRow label="Split integrity" value="0 overlap" detail="seed groups stay disjoint" meter={100} tone="green" />
-          <HealthRow label="Phase coverage" value="61 / 39" detail="placement / relocation in held out" meter={61} tone="gold" />
-          <HealthRow label="Draw pressure" value="High" detail="more variety needed beyond the cap" meter={74} tone="violet" />
-          <HealthRow label="Board commitment" value="7×7 locked" detail="14 pieces per player" meter={100} tone="ink" />
-        </div>
-      </section>
-
-      <section className="portal-two-column portal-lower-grid">
-        <div className="portal-panel">
-          <div className="portal-panel-heading"><div><span className="portal-kicker">Model bench</span><h2>Who is playing?</h2></div><span className="portal-muted">same held-out set</span></div>
-          <div className="portal-model-list">
-            <ModelRow name="Scout" tag="generator" detail="Compact GNN · 17.5k params" score="2.215" outcome="7–5–28" active />
-            <ModelRow name="Learner" tag="target" detail="GNN · 100.2k params" score="2.112" outcome="5–6–29" />
-            <ModelRow name="CNN" tag="baseline" detail="7×7 CNN · 87.4k params" score="2.291" outcome="8–5–27" />
-          </div>
-          <div className="portal-model-legend"><span><i className="legend-dot green" /> lower NLL is better</span><span><i className="legend-dot gold" /> arena W–L–D smoke check</span></div>
-        </div>
-
-        <div className="portal-panel portal-activity-panel">
-          <div className="portal-panel-heading"><div><span className="portal-kicker">Run log</span><h2>What changed</h2></div><span className="portal-muted">latest work</span></div>
-          <div className="portal-activity-list">{ACTIVITY.map((item) => <div className="portal-activity-item" key={item.label}><span className={`activity-dot ${item.tone}`} /><div><strong>{item.label}</strong><span>{item.detail}</span></div><small>done</small></div>)}</div>
+          <aside className="elo-card" aria-labelledby="elo-title">
+            <div className="elo-card-heading"><div><span className="portal-kicker">Strength evidence</span><h3 id="elo-title">Elo ladder</h3></div><span className="portal-chip gold">not locked</span></div>
+            <div className="elo-score"><strong>—</strong><span>provisional until cross-play</span></div>
+            <div className="elo-track"><span style={{ width: "0%" }} /></div>
+            <div className="elo-meta"><strong>0 / 3</strong><span>pairings complete</span></div>
+            <p>Self-play makes data. Head-to-head matches make a ranking. Run every pairing with alternating colors, then update ratings after each accepted generation.</p>
+            <a className="elo-link" href="#cross-play">View the cross-play gate <span>↓</span></a>
+          </aside>
         </div>
       </section>
 
-      <section className="portal-proof" id="proof" aria-labelledby="proof-title">
-        <div className="portal-proof-copy"><span className="portal-kicker">Proof of life</span><h2 id="proof-title">The archive is playable.</h2><p>Before the next flood of games, inspect the existing 7×7 material that anchors the experiment. It is the baseline the Scout needs to broaden—not erase.</p><div className="portal-proof-actions"><a className="portal-primary small" href="/lab/replays/selfplay-generation-8-7x7.jsonl" download>Download replay JSONL <span>↓</span></a><span className="portal-proof-note">10 games · 1,883 positions</span></div></div>
-        <div className="portal-proof-board"><div className="portal-proof-board-label"><span>ARCHIVE SAMPLE</span><strong>generation 8</strong></div><PortalBoard compact /></div>
+      <section className="leaderboard-panel leaderboard-lineage-panel" aria-labelledby="lineage-title">
+        <div className="leaderboard-panel-heading"><div><span className="portal-kicker">Model lineage</span><h2 id="lineage-title">A small step is still a step.</h2></div><span className="portal-muted">promote slowly</span></div>
+        <div className="leaderboard-lineage">
+          <LineageNode label="Warm start" detail="replay baseline" status="archived" tone="muted" />
+          <LineageConnector />
+          <LineageNode label="GNN Scout" detail="17.5k params · generator" status="makes data" tone="violet" />
+          <LineageConnector />
+          <LineageNode label="GNN Learner" detail="100.2k params · candidate" status="current leader" tone="green" />
+          <LineageConnector branch />
+          <LineageNode label="CNN baseline" detail="87.4k params · reference" status="parallel check" tone="gold" />
+        </div>
       </section>
 
-      <footer className="portal-footer"><span>7×7 diverse game generation</span><span>Scout first. Measure everything. Promote slowly.</span></footer>
+      <section className="leaderboard-flow-panel" aria-labelledby="flow-title">
+        <div className="leaderboard-flow-copy"><span className="portal-kicker">Promotion loop</span><h2 id="flow-title">Each generation earns the right to make the next one.</h2><p>We want a stable upward drift, not a dramatic leap followed by a collapse. The league is the guardrail around that loop.</p></div>
+        <div className="leaderboard-flow-steps">{FLOW.map((step) => <FlowStep key={step.number} {...step} />)}</div>
+      </section>
+
+      <section className="leaderboard-evidence-grid" aria-label="Current model evidence">
+        <div className="leaderboard-panel signal-panel">
+          <div className="leaderboard-panel-heading"><div><span className="portal-kicker">Best current signal</span><h2>GNN Learner</h2></div><span className="portal-chip green">2.112 NLL</span></div>
+          <p className="leaderboard-intro">The larger GNN is the current learner to beat. Its advantage is clearest in placement, while relocation remains a useful second gate.</p>
+          <div className="signal-metrics"><SignalMetric label="Placement NLL" value="2.024" note="best of the three" /><SignalMetric label="Relocation NLL" value="2.248" note="phase to improve" /><SignalMetric label="Value MSE" value="0.609" note="effectively tied" /></div>
+        </div>
+
+        <div className="leaderboard-panel batch-panel">
+          <div className="leaderboard-panel-heading"><div><span className="portal-kicker">Latest generation</span><h2>3,000 games in the bank.</h2></div><span className="portal-chip green">seed clean</span></div>
+          <div className="batch-summary"><div><strong>420,470</strong><span>positions</span></div><div><strong>0</strong><span>duplicate replays</span></div><div><strong>3,000</strong><span>unique seeds</span></div></div>
+          <div className="batch-bar"><span className="batch-bar-scout" style={{ width: "33.33%" }} /><span className="batch-bar-learner" style={{ width: "33.33%" }} /><span className="batch-bar-cnn" style={{ width: "33.34%" }} /></div>
+          <div className="batch-legend"><span><i className="legend-dot violet" /> Scout · 1k</span><span><i className="legend-dot green" /> Learner · 1k</span><span><i className="legend-dot gold" /> CNN · 1k</span></div>
+        </div>
+      </section>
+
+      <section className="leaderboard-panel cross-play-panel" id="cross-play" aria-labelledby="cross-play-title">
+        <div className="cross-play-heading"><div><span className="portal-kicker">Next gate · cross-play</span><h2 id="cross-play-title">Let the models settle the order.</h2><p>Self-play archives stay separate. The next league run lets every model face every other model, swaps colors, and turns those results into a real Elo baseline.</p></div><span className="portal-chip gold">6 color-balanced legs</span></div>
+        <div className="matchup-list">{MATCHUPS.map((matchup) => <div className="matchup-card" key={`${matchup.left}-${matchup.right}`}><div className="matchup-model"><ModelGlyph tone={matchup.left.includes("Learner") ? "green" : matchup.left.includes("Scout") ? "violet" : "gold"} glyph={matchup.left.charAt(4)} /><strong>{matchup.left}</strong></div><span className="matchup-versus">vs</span><div className="matchup-model"><ModelGlyph tone={matchup.right.includes("Learner") ? "green" : matchup.right.includes("Scout") ? "violet" : "gold"} glyph={matchup.right.charAt(0)} /><strong>{matchup.right}</strong></div><small>{matchup.detail}</small><span className="matchup-queued">queued</span></div>)}</div>
+      </section>
+
+      <footer className="portal-footer"><span>7×7 model leaderboard</span><span>Train a little. Play a lot. Promote slowly.</span></footer>
     </main>
   );
 }
 
-function PortalBoard({ compact = false }: { compact?: boolean }) {
-  return <div className={`portal-board ${compact ? "compact" : ""}`}>{Array.from({ length: 49 }, (_, index) => <span className={`portal-board-cell ${index % 8 === 0 ? "route" : ""}`} key={index}>{BOARD_PIECES[index] && <i className={`portal-board-piece ${BOARD_PIECES[index]}`} />}</span>)}</div>;
+function ModelGlyph({ tone, glyph }: { tone: string; glyph: string }) {
+  return <span className={`model-glyph ${tone}`} aria-hidden="true">{glyph}</span>;
 }
 
-function PortalStat({ label, value, detail, accent }: { label: string; value: string; detail: string; accent: string }) {
-  return <div className={`portal-stat ${accent}`}><span className="portal-stat-label">{label}</span><strong>{value}</strong><small>{detail}</small></div>;
+function LeaderboardStat({ label, value, detail, accent }: { label: string; value: string; detail: string; accent: string }) {
+  return <div className={`leaderboard-stat ${accent}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></div>;
 }
 
-function PipelineStep({ number, label, detail, state }: { number: string; label: string; detail: string; state: "complete" | "active" | "waiting" }) {
-  return <div className={`portal-pipeline-step ${state}`}><span className="pipeline-number">{state === "complete" ? "✓" : number}</span><div><strong>{label}</strong><small>{detail}</small></div></div>;
+function ModelStanding({ model }: { model: (typeof MODELS)[number] }) {
+  return <div className={`leaderboard-table-row model-standing ${model.rank === "01" ? "leader" : ""}`} role="row"><span className="model-rank">{model.rank}</span><div className="standing-model"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><strong>{model.name}</strong><span>{model.family}</span></div></div><div className="standing-role"><strong>{model.status}</strong><span>{model.role}</span></div><span className="standing-value">{model.params}</span><div className="standing-nll"><strong>{model.nll}</strong><span>{model.delta}</span></div><div className="standing-games"><strong>{model.games}</strong><span>{model.positions} pos.</span></div></div>;
 }
 
-function RecipeItem({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return <div className="portal-recipe-item"><span>{label}</span><strong>{value}</strong><small>{detail}</small></div>;
+function LineageNode({ label, detail, status, tone }: { label: string; detail: string; status: string; tone: string }) {
+  return <div className={`lineage-node ${tone}`}><div className="lineage-node-top"><span className="lineage-pip" /><small>{status}</small></div><strong>{label}</strong><span>{detail}</span></div>;
 }
 
-function HealthRow({ label, value, detail, meter, tone }: { label: string; value: string; detail: string; meter: number; tone: string }) {
-  return <div className="portal-health-row"><div className="portal-health-copy"><span>{label}</span><strong>{value}</strong><small>{detail}</small></div><div className="portal-health-meter"><span className={tone} style={{ width: `${meter}%` }} /></div></div>;
+function LineageConnector({ branch = false }: { branch?: boolean }) {
+  return <span className={`lineage-connector ${branch ? "branch" : ""}`} aria-hidden="true"><i /></span>;
 }
 
-function ModelRow({ name, tag, detail, score, outcome, active = false }: { name: string; tag: string; detail: string; score: string; outcome: string; active?: boolean }) {
-  return <div className={`portal-model-row ${active ? "active" : ""}`}><span className="model-status" /><div className="portal-model-name"><strong>{name}</strong><span>{tag}</span><small>{detail}</small></div><div className="portal-model-metric"><small>NLL</small><strong>{score}</strong></div><div className="portal-model-metric arena"><small>arena</small><strong>{outcome}</strong></div></div>;
+function FlowStep({ number, label, detail, state }: { number: string; label: string; detail: string; state: string }) {
+  return <div className={`leaderboard-flow-step ${state}`}><span>{state === "complete" ? "✓" : number}</span><strong>{label}</strong><p>{detail}</p></div>;
+}
+
+function SignalMetric({ label, value, note }: { label: string; value: string; note: string }) {
+  return <div className="signal-metric"><span>{label}</span><strong>{value}</strong><small>{note}</small></div>;
 }
