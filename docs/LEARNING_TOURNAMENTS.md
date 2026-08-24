@@ -16,6 +16,11 @@ python3 -m venv .venv-pathagon-gnn
 python -m pip install -r learning/gnn/requirements.txt
 ```
 
+The requirements intentionally use compatible ranges rather than a single
+Torch wheel: pip chooses the newest Torch release available for that Mac's
+Python version and architecture. The current code supports Torch 2.8 through
+the 2.13 series.
+
 Node dependencies remain available for the browser and TypeScript parity
 tests with `npm ci`.
 
