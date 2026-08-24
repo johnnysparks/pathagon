@@ -148,6 +148,11 @@ def game_record(
     seed: int,
     simulations: int = 0,
     model_hash: str | None = None,
+    agent_id: str = "python-gnn-puct-v0.1.0",
+    agent_name: str = "Python GNN PUCT",
+    agent_version: str = "0.1.0",
+    agent_kind: str = "puct",
+    engine_id: str = "python-gnn",
 ) -> dict:
     """Serialize a neural game in the archive's schema-v2 shape."""
 
@@ -181,16 +186,21 @@ def game_record(
     else:
         reason = "threefold-repetition"
     manifest = agent_manifest(runtime="python", node_budget=simulations, model_hash=model_hash)
+    specification = agent_specification(
+        agent_id,
+        agent_name,
+        agent_version,
+        agent_kind,
+        engine_id,
+        manifest=manifest,
+    )
     return {
         "contractVersion": 1,
         "seed": seed,
         "config": game_config(final_state.config.size, final_state.config.reserve_per_player, final_state.config.max_plies),
-        "engine": engine_metadata("python-gnn", "python"),
-        "agents": {"light": "python-gnn-puct-v0.1.0", "dark": "python-gnn-puct-v0.1.0"},
-        "agentSpecifications": {
-            "light": agent_specification("python-gnn-puct-v0.1.0", "Python GNN PUCT", "0.1.0", "puct", "python-gnn", manifest=manifest),
-            "dark": agent_specification("python-gnn-puct-v0.1.0", "Python GNN PUCT", "0.1.0", "puct", "python-gnn", manifest=manifest),
-        },
+        "engine": engine_metadata(engine_id, "python"),
+        "agents": {"light": agent_id, "dark": agent_id},
+        "agentSpecifications": {"light": specification, "dark": specification},
         "winner": winner,
         "result": "win" if winner is not None else "draw",
         "reason": reason,

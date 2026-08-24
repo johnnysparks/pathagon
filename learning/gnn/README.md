@@ -61,6 +61,24 @@ Run a small neural self-play generation:
   --replay-limit 100000
 ```
 
+Generate a larger, provenance-stamped 7x7 data batch from the three current
+neural players:
+
+```bash
+./.venv-pathagon-gnn/bin/python scripts/generate-7x7-selfplay.py \
+  --games-per-player 1000 --players scout,learner,cnn \
+  --workers 8 --simulations 4 --temperature-moves 32 \
+  --max-plies 196 \
+  --output-dir training/gnn/benchmark-7x7/generated/<batch-id>
+```
+
+The batch runner gives each player a disjoint seed range and writes separate
+JSONL archives plus a manifest containing checkpoint hashes and result counts.
+Each game is same-model self-play (the selected player controls both colors),
+so cross-player matches should be generated as a separate evaluation slice.
+The runner uses `--updates 0`: it creates data only and does not adapt the
+checkpoints during generation.
+
 For a 7x7 run, use the full 196-ply board cap so move-cap draws are not
 introduced by the learner. Training targets should use 32-64 PUCT simulations;
 the defaults retain 64 simulations, 10,000 optimizer updates, and 100,000

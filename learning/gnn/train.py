@@ -340,6 +340,8 @@ def run_alphazero(args: argparse.Namespace) -> None:
         raise SystemExit("--games must be positive")
     if args.workers < 1:
         raise SystemExit("--workers must be positive")
+    if args.updates < 0:
+        raise SystemExit("--updates cannot be negative")
     workers = min(args.workers, args.games)
     model = load_model(Path(args.resume), device) if args.resume else build_model(
         args.architecture,
@@ -418,19 +420,36 @@ def run_alphazero(args: argparse.Namespace) -> None:
             generated.extend(examples)
             if games_path:
                 with games_path.open("a", encoding="utf-8") as handle:
-                    handle.write(json.dumps(game_record(examples, final_state, game_seed, args.simulations, generation_model_hash), sort_keys=True) + "\n")
+                    handle.write(json.dumps(
+                        game_record(
+                            examples,
+                            final_state,
+                            game_seed,
+                            args.simulations,
+                            generation_model_hash,
+                            args.agent_id,
+                            args.agent_name,
+                            args.agent_version,
+                            args.agent_kind,
+                            args.agent_engine,
+                        ),
+                        sort_keys=True,
+                    ) + "\n")
         history.extend(generated)
         if args.replay_limit and len(history) > args.replay_limit:
             history = history[-args.replay_limit :]
-        policy_loss, value_loss = train_search_examples(
-            model,
-            history,
-            args.updates,
-            args.learning_rate,
-            args.seed + generation,
-            progress=training_progress(f"alphazero: generation {generation + 1} training"),
-            symmetry_augmentation=args.symmetry_augmentation,
-        )
+        if args.updates:
+            policy_loss, value_loss = train_search_examples(
+                model,
+                history,
+                args.updates,
+                args.learning_rate,
+                args.seed + generation,
+                progress=training_progress(f"alphazero: generation {generation + 1} training"),
+                symmetry_augmentation=args.symmetry_augmentation,
+            )
+        else:
+            policy_loss, value_loss = None, None
         model.eval()
         metadata = {
             "mode": "alphazero-generation",
@@ -480,9 +499,14 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--workers", type=int, default=1, help="parallel self-play worker processes")
     result.add_argument("--selfplay-device", default="cpu", help="device used by self-play workers")
     result.add_argument("--simulations", type=int, default=64, help="PUCT simulations per move (32-64 recommended for training)")
-    result.add_argument("--updates", type=int, default=10_000, help="optimizer updates per generation")
+    result.add_argument("--updates", type=int, default=10_000, help="optimizer updates per generation (0 generates data without training)")
     result.add_argument("--replay-limit", type=int, default=100_000, help="maximum positions retained in the replay buffer")
     result.add_argument("--temperature-moves", type=int, default=8)
+    result.add_argument("--agent-id", default="python-gnn-puct-v0.1.0")
+    result.add_argument("--agent-name", default="Python GNN PUCT")
+    result.add_argument("--agent-version", default="0.1.0")
+    result.add_argument("--agent-kind", default="puct")
+    result.add_argument("--agent-engine", default="python-gnn")
     result.add_argument(
         "--no-symmetry-augmentation",
         dest="symmetry_augmentation",
