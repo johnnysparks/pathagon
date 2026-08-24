@@ -293,6 +293,13 @@ def build_roster(size: int, reserve: int, simulations: int, device: torch.device
         ]
     else:
         raise ValueError("league supports only 4x4, 5x5, 6x6, and 7x7 boards")
+    if size == 7:
+        optional_checkpoints = [
+            ("cnn-warmstart-7x7", "CNN warm start · 7x7", "training/gnn/pathagon-cnn-7x7-warmstart.pt"),
+        ]
+        for agent_id, label, checkpoint in optional_checkpoints:
+            if Path(checkpoint).exists():
+                checkpoints.insert(0, (agent_id, label, checkpoint))
     for agent_id, label, checkpoint in checkpoints:
         checkpoint_path = Path(checkpoint)
         model = load_model(checkpoint_path, device)

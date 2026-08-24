@@ -1,7 +1,8 @@
-# Scale-invariant GNN AlphaZero lab
+# 7x7 GNN/CNN AlphaZero lab
 
-This is the first implementation of the proposed GNN learner. It is a
-research pipeline, not the browser opponent.
+This is a research pipeline, not the browser opponent. The GNN remains the
+scale-compatible baseline; the CNN path is intentionally fixed to the target
+7x7 board so it can be compared under the same PUCT and replay workflow.
 
 ## What is implemented
 
@@ -14,6 +15,9 @@ research pipeline, not the browser opponent.
 - Replay validation and policy/value warm-start training from contract-v1 JSONL (with schema-v2 compatibility).
 - PUCT search and neural-guided self-play example generation.
 - Compact AlphaZero-style generation/training loop.
+- Rules-preserving D4 symmetry augmentation during replay and self-play-target
+  optimizer updates.
+- A small residual CNN alternative with the same dynamic policy/value heads.
 
 The model is scale-compatible, but scale-compatible weights are not proof of
 zero-shot playing strength. The learner receives normalized coordinates,
@@ -33,6 +37,16 @@ Warm-start from the complete local Rust archive:
 .venv-pathagon-gnn/bin/python -m learning.gnn.train warmstart \
   --data /tmp/pathagon-rust-selfplay-100-20260823.jsonl \
   --out training/gnn/pathagon-warmstart.pt \
+  --steps 200
+```
+
+Warm-start the fixed-size CNN alternative:
+
+```bash
+.venv-pathagon-gnn/bin/python -m learning.gnn.train warmstart \
+  --architecture cnn --size 7 --hidden 32 --cnn-blocks 4 \
+  --data /tmp/pathagon-rust-selfplay-100-20260823.jsonl \
+  --out training/gnn/pathagon-cnn-7x7-warmstart.pt \
   --steps 200
 ```
 
@@ -56,10 +70,17 @@ scale toward 10,000 games only after its held-out league results improve.
 The small graph operations used during search are typically faster on CPU;
 checkpoint updates can still use MPS through the default `--device auto`.
 
-Use `--size 5` with a fresh model to exercise the dynamic graph path. The
-5x5 rules adapter uses a scaled reserve of `2 * size` by default; it is a
-curriculum environment, not a claim that the historical 7x7 game had a
-different reserve count.
+Training samples a random one of the eight square-board symmetries by default.
+The four axis-preserving transforms keep player identities unchanged; rotations
+by 90 degrees and diagonal reflections also exchange Light and Dark so the
+vertical and horizontal connection objectives remain equivalent. This is
+augmentation rather than a fixed architectural guarantee, and
+`--no-symmetry-augmentation` is available for ablation runs.
+
+The CNN requires `--size 7`; it is a deliberately focused comparison model.
+The GNN can still use `--size 5` with a fresh model to exercise the dynamic
+graph path. Smaller boards remain curriculum and regression environments, not
+part of the canonical 7x7 training distribution.
 
 ## Important boundaries
 

@@ -78,3 +78,11 @@ replay warm-start training, PUCT search, and a compact neural self-play loop.
 The 7x7 archived games are used only to initialize and exercise the pipeline;
 they are not enough to establish AlphaZero strength. Curriculum learning starts
 after variable-size parity is expanded beyond the current unit cases.
+
+## 7x7 CNN comparison
+
+The canonical experiment is now 7x7 with 14 reserves per player. The learner
+also includes a compact fixed-size residual CNN with the same dynamic
+placement/relocation action heads and PUCT interface as the GNN. Train it with
+`--architecture cnn --size 7`; do not mix the 4x4, 5x5, or 6x6 curriculum
+archives into the primary 7x7 replay buffer when comparing model strength.

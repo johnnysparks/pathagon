@@ -17,19 +17,59 @@ import torch
 import torch.nn.functional as F
 
 from .data import ReplayExample, action_index, load_replay_examples
+from .cnn_model import PathagonCNN
 from .game import BoardConfig, GameState
 from .model import PathagonGNN
 from .selfplay import SearchExample, game_record, generate_game
+from .symmetry import Symmetry, sample_symmetry, transform_action, transform_state
 
 
 TrainingProgress = Callable[[int, int, float, float], None]
-_SELFPLAY_MODEL: Optional[PathagonGNN] = None
+NeuralModel = PathagonGNN | PathagonCNN
+_SELFPLAY_MODEL: Optional[NeuralModel] = None
 _SELFPLAY_CONFIG: Optional[BoardConfig] = None
 _SELFPLAY_SIMULATIONS = 0
 _SELFPLAY_TEMPERATURE_MOVES = 0
 _SELFPLAY_GENERATION = 0
 _SELFPLAY_GENERATIONS = 0
 _SELFPLAY_GAMES = 0
+
+
+def build_model(
+    architecture: str,
+    hidden_size: int,
+    message_layers: int,
+    residual_blocks: int,
+    board_size: int,
+) -> NeuralModel:
+    if architecture == "cnn":
+        return PathagonCNN(hidden_size=hidden_size, residual_blocks=residual_blocks, board_size=board_size)
+    if architecture == "gnn":
+        return PathagonGNN(hidden_size=hidden_size, message_layers=message_layers)
+    raise ValueError(f"unsupported architecture: {architecture}")
+
+
+def transform_replay_example(example: ReplayExample, symmetry: Symmetry) -> ReplayExample:
+    """Transform a replay example without changing its player-relative value."""
+
+    return ReplayExample(
+        state=transform_state(example.state, symmetry),
+        action=transform_action(example.action, example.state.config, symmetry),
+        value=example.value,
+        seed=example.seed,
+    )
+
+
+def transform_search_example(example: SearchExample, symmetry: Symmetry) -> SearchExample:
+    """Transform an MCTS target while preserving action/probability alignment."""
+
+    return SearchExample(
+        state=transform_state(example.state, symmetry),
+        actions=tuple(transform_action(action, example.state.config, symmetry) for action in example.actions),
+        policy=example.policy,
+        selected_action=transform_action(example.selected_action, example.state.config, symmetry),
+        value=example.value,
+    )
 
 
 def choose_device(requested: str) -> torch.device:
@@ -40,7 +80,7 @@ def choose_device(requested: str) -> torch.device:
     return torch.device("cpu")
 
 
-def model_state_hash(model: PathagonGNN) -> str:
+def model_state_hash(model: NeuralModel) -> str:
     digest = hashlib.sha256()
     for name, tensor in sorted(model.state_dict().items()):
         digest.update(name.encode("utf-8"))
@@ -48,26 +88,35 @@ def model_state_hash(model: PathagonGNN) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
-def save_model(model: PathagonGNN, path: Path, metadata: Dict) -> None:
+def save_model(model: NeuralModel, path: Path, metadata: Dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save({"model_config": model.config_dict(), "state_dict": model.state_dict(), "metadata": metadata}, path)
 
 
-def load_model(path: Path, device: torch.device) -> PathagonGNN:
+def load_model(path: Path, device: torch.device) -> NeuralModel:
     checkpoint = torch.load(path, map_location=device)
     config = checkpoint["model_config"]
-    model = PathagonGNN(config["hidden_size"], config["message_layers"]).to(device)
+    architecture = config.get("architecture", "residual-mean-message-passing")
+    if architecture == "residual-cnn-7x7":
+        model = PathagonCNN(
+            hidden_size=config["hidden_size"],
+            residual_blocks=config["residual_blocks"],
+            board_size=config.get("board_size", 7),
+        ).to(device)
+    else:
+        model = PathagonGNN(config["hidden_size"], config["message_layers"]).to(device)
     model.load_state_dict(checkpoint["state_dict"])
     return model
 
 
 def train_replay(
-    model: PathagonGNN,
+    model: NeuralModel,
     examples: Sequence[ReplayExample],
     steps: int,
     learning_rate: float,
     seed: int,
     progress: Optional[TrainingProgress] = None,
+    symmetry_augmentation: bool = True,
 ) -> Tuple[float, float]:
     if not examples:
         raise ValueError("replay dataset is empty")
@@ -78,6 +127,8 @@ def train_replay(
     value_total = 0.0
     for step in range(1, steps + 1):
         example = examples[rng.randrange(len(examples))]
+        if symmetry_augmentation:
+            example = transform_replay_example(example, sample_symmetry(rng))
         actions = list(example.state.legal_actions())
         logits, value = model.policy_value(example.state, actions)
         target = torch.tensor([action_index(example.state, example.action)], dtype=torch.long, device=logits.device)
@@ -97,12 +148,13 @@ def train_replay(
 
 
 def train_search_examples(
-    model: PathagonGNN,
+    model: NeuralModel,
     examples: Sequence[SearchExample],
     steps: int,
     learning_rate: float,
     seed: int,
     progress: Optional[TrainingProgress] = None,
+    symmetry_augmentation: bool = True,
 ) -> Tuple[float, float]:
     if not examples:
         raise ValueError("MCTS dataset is empty")
@@ -113,6 +165,8 @@ def train_search_examples(
     value_total = 0.0
     for step in range(1, steps + 1):
         example = examples[rng.randrange(len(examples))]
+        if symmetry_augmentation:
+            example = transform_search_example(example, sample_symmetry(rng))
         actions = list(example.actions)
         logits, value = model.policy_value(example.state, actions)
         target_policy = torch.tensor(example.policy, dtype=logits.dtype, device=logits.device)
@@ -175,7 +229,14 @@ def initialize_selfplay_worker(
     device = choose_device(device_name)
     if device.type == "cpu":
         torch.set_num_threads(1)
-    model = PathagonGNN(model_config["hidden_size"], model_config["message_layers"])
+    architecture = "cnn" if model_config.get("architecture") == "residual-cnn-7x7" else "gnn"
+    model = build_model(
+        architecture=architecture,
+        hidden_size=model_config["hidden_size"],
+        message_layers=model_config.get("message_layers", 8),
+        residual_blocks=model_config.get("residual_blocks", 4),
+        board_size=model_config.get("board_size", board_size),
+    )
     model.load_state_dict(state_dict)
     model.to(device)
     model.eval()
@@ -219,6 +280,8 @@ def generate_game_worker(game_index: int, game_seed: int) -> Tuple[int, List[Sea
 def run_warmstart(args: argparse.Namespace) -> None:
     device = choose_device(args.device)
     torch.manual_seed(args.seed)
+    if args.architecture == "cnn" and args.size != 7:
+        raise SystemExit("--architecture cnn requires --size 7")
     config = BoardConfig(args.size, args.reserve)
     load_started = time.perf_counter()
     print(f"warmstart: loading and validating replay from {args.data}", file=sys.stderr, flush=True)
@@ -241,7 +304,7 @@ def run_warmstart(args: argparse.Namespace) -> None:
         file=sys.stderr,
         flush=True,
     )
-    model = PathagonGNN(args.hidden, args.layers).to(device)
+    model = build_model(args.architecture, args.hidden, args.layers, args.cnn_blocks, args.size).to(device)
     policy_loss, value_loss = train_replay(
         model,
         examples,
@@ -249,13 +312,16 @@ def run_warmstart(args: argparse.Namespace) -> None:
         args.learning_rate,
         args.seed,
         progress=training_progress("warmstart"),
+        symmetry_augmentation=args.symmetry_augmentation,
     )
     metadata = {
         "mode": "replay-warmstart",
         "data": str(args.data),
         "examples": len(examples),
+        "architecture": model.config_dict()["architecture"],
         "board_size": args.size,
         "reserve_per_player": config.reserve_per_player,
+        "symmetry_augmentation": args.symmetry_augmentation,
         "policy_loss": policy_loss,
         "value_loss": value_loss,
     }
@@ -267,13 +333,23 @@ def run_alphazero(args: argparse.Namespace) -> None:
     device = choose_device(args.device)
     selfplay_device = choose_device(args.selfplay_device)
     torch.manual_seed(args.seed)
+    if args.architecture == "cnn" and args.size != 7:
+        raise SystemExit("--architecture cnn requires --size 7")
     config = BoardConfig(args.size, args.reserve, args.max_plies)
     if args.games < 1:
         raise SystemExit("--games must be positive")
     if args.workers < 1:
         raise SystemExit("--workers must be positive")
     workers = min(args.workers, args.games)
-    model = load_model(Path(args.resume), device) if args.resume else PathagonGNN(args.hidden, args.layers).to(device)
+    model = load_model(Path(args.resume), device) if args.resume else build_model(
+        args.architecture,
+        args.hidden,
+        args.layers,
+        args.cnn_blocks,
+        args.size,
+    ).to(device)
+    if isinstance(model, PathagonCNN) and config.size != model.board_size:
+        raise SystemExit(f"CNN checkpoint requires a {model.board_size}x{model.board_size} board")
     model.eval()
     history: List[SearchExample] = []
     games_path = Path(args.games_out) if args.games_out else None
@@ -353,10 +429,12 @@ def run_alphazero(args: argparse.Namespace) -> None:
             args.learning_rate,
             args.seed + generation,
             progress=training_progress(f"alphazero: generation {generation + 1} training"),
+            symmetry_augmentation=args.symmetry_augmentation,
         )
         model.eval()
         metadata = {
             "mode": "alphazero-generation",
+            "architecture": model.config_dict()["architecture"],
             "generation": generation,
             "board_size": args.size,
             "reserve_per_player": config.reserve_per_player,
@@ -368,6 +446,7 @@ def run_alphazero(args: argparse.Namespace) -> None:
             "temperature_moves": args.temperature_moves,
             "updates": args.updates,
             "replay_limit": args.replay_limit,
+            "symmetry_augmentation": args.symmetry_augmentation,
             "examples": len(generated),
             "replay_buffer": len(history),
             "average_plies": sum(lengths) / len(lengths) if lengths else 0.0,
@@ -386,11 +465,13 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--out", default="training/gnn/pathagon.pt")
     result.add_argument("--games-out", help="append generated schema-v2 games to this JSONL file")
     result.add_argument("--resume")
+    result.add_argument("--architecture", choices=("gnn", "cnn"), default="gnn")
     result.add_argument("--size", type=int, default=7)
     result.add_argument("--reserve", type=int, default=0)
     result.add_argument("--max-plies", type=int, default=0, help="ply cap for AlphaZero self-play games (0 uses the board default: 196 on 7x7)")
     result.add_argument("--hidden", type=int, default=64)
     result.add_argument("--layers", type=int, default=8)
+    result.add_argument("--cnn-blocks", type=int, default=4, help="residual blocks for the fixed-7x7 CNN")
     result.add_argument("--steps", type=int, default=200)
     result.add_argument("--learning-rate", type=float, default=3e-4)
     result.add_argument("--max-examples", type=int, default=0)
@@ -402,6 +483,13 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--updates", type=int, default=10_000, help="optimizer updates per generation")
     result.add_argument("--replay-limit", type=int, default=100_000, help="maximum positions retained in the replay buffer")
     result.add_argument("--temperature-moves", type=int, default=8)
+    result.add_argument(
+        "--no-symmetry-augmentation",
+        dest="symmetry_augmentation",
+        action="store_false",
+        default=True,
+        help="disable D4 board-symmetry augmentation during optimizer updates",
+    )
     result.add_argument("--seed", type=int, default=20260823)
     result.add_argument("--device", default="auto")
     return result

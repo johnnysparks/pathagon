@@ -9,6 +9,13 @@ It is an initialization point for PUCT self-play, not a promoted game agent.
 The checkpoint can be loaded on a 5x5 graph even though it was warmed on 7x7;
 that demonstrates architectural transfer, not playing-strength transfer.
 
+`pathagon-cnn-7x7-warmstart.pt` is the first fixed-size CNN comparison
+checkpoint. It was trained on the 1,000-game 7x7 neural archive
+(`pathagon-rust-7x7-generation-2.jsonl`), covering 88,715 replay positions,
+with 200 optimizer updates and symmetry augmentation enabled. Its initial
+20-game random smoke evaluation at four PUCT simulations scored 2 wins, 3
+losses, and 15 draws; this is a baseline artifact, not a promotion result.
+
 The local progression includes:
 
 - `pathagon-generation-1.pt`: trained from 20 neural games / 1,298 positions.
