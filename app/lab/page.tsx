@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 const BATCH_COMMAND = `./.venv-pathagon-gnn/bin/python scripts/generate-7x7-selfplay.py \\
@@ -9,8 +9,11 @@ const BATCH_COMMAND = `./.venv-pathagon-gnn/bin/python scripts/generate-7x7-self
   --max-plies 196 \\
   --output-dir training/gnn/benchmark-7x7/generated/<batch-id>`;
 
+const TARGET_CROSS_PLAY_GAMES = 10;
+
 const MODELS = [
   {
+    id: "pathfinder-v0.3.0",
     rank: "01",
     name: "The Pathfinder",
     family: "4-ply iterative search",
@@ -24,6 +27,7 @@ const MODELS = [
     status: "Strength leader",
   },
   {
+    id: "surveyor-v0.2.0",
     rank: "02",
     name: "The Surveyor",
     family: "2-ply broad-beam search",
@@ -37,6 +41,7 @@ const MODELS = [
     status: "Provisional #2",
   },
   {
+    id: "lunatic-v0.1.0",
     rank: "03",
     name: "Lunatic",
     family: "1-ply pattern heuristic",
@@ -50,6 +55,7 @@ const MODELS = [
     status: "Playable",
   },
   {
+    id: "coin-flip-v0.0.1",
     rank: "04",
     name: "Coin Flip",
     family: "Random legal action",
@@ -63,6 +69,7 @@ const MODELS = [
     status: "Playable",
   },
   {
+    id: "gnn-learner-7x7",
     rank: "—",
     name: "GNN Learner",
     family: "64 channels · 8 message layers",
@@ -76,6 +83,7 @@ const MODELS = [
     status: "Cross-play queued",
   },
   {
+    id: "gnn-scout-7x7",
     rank: "—",
     name: "GNN Scout",
     family: "Compact message passing · 17.5k params",
@@ -89,6 +97,7 @@ const MODELS = [
     status: "Cross-play queued",
   },
   {
+    id: "cnn-baseline-7x7",
     rank: "—",
     name: "CNN baseline",
     family: "7×7 residual CNN · 87.4k params",
@@ -119,9 +128,49 @@ const FLOW = [
   { number: "04", label: "Promote", detail: "A small, repeatable improvement becomes the new baseline.", state: "waiting" },
 ];
 
+type LiveStanding = {
+  id: string;
+  label: string;
+  rating: number;
+  games: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  points: number;
+};
+
+type LiveGame = {
+  id: string;
+  seed: number;
+  light: string;
+  dark: string;
+  winner: string | null;
+  result: "win" | "draw";
+  reason: string;
+  plies: number;
+};
+
+type CrossPlayState = {
+  runId: string;
+  targetGames: number;
+  games: number;
+  status: "ready" | "running" | "complete";
+  standings: LiveStanding[];
+  latest: LiveGame[];
+};
+
 export default function LearningLab() {
   const [copied, setCopied] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [crossPlay, setCrossPlay] = useState<CrossPlayState | null>(null);
+  const [crossPlayRunId, setCrossPlayRunId] = useState<string | null>(null);
+  const [crossPlayBusy, setCrossPlayBusy] = useState(false);
+  const [crossPlayError, setCrossPlayError] = useState<string | null>(null);
+
+  const liveStandingById = useMemo(() => new Map((crossPlay?.standings ?? []).map((standing) => [standing.id, standing])), [crossPlay]);
+  const liveRankById = useMemo(() => new Map((crossPlay?.standings ?? []).map((standing, index) => [standing.id, String(index + 1).padStart(2, "0")])), [crossPlay]);
+  const strengthLeader = MODELS.find((model) => model.id === (crossPlay?.standings[0]?.id ?? "pathfinder-v0.3.0")) ?? MODELS[0];
+  const strengthLeaderLive = liveStandingById.get(strengthLeader.id);
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("pathagon-lab-theme");
@@ -137,6 +186,29 @@ export default function LearningLab() {
     return () => { delete document.body.dataset.labTheme; };
   }, [theme]);
 
+  useEffect(() => {
+    const savedRun = window.localStorage.getItem("pathagon-cross-play-run");
+    if (!savedRun) return;
+    const timer = window.setTimeout(() => setCrossPlayRunId(savedRun), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!crossPlayRunId) return;
+    let active = true;
+    const refresh = () => {
+      void readCrossPlay(crossPlayRunId)
+        .then((snapshot) => { if (active) setCrossPlay(snapshot); })
+        .catch((error: unknown) => { if (active) setCrossPlayError(error instanceof Error ? error.message : "Live run unavailable"); });
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 900);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [crossPlayRunId]);
+
   function toggleTheme() {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
@@ -150,6 +222,33 @@ export default function LearningLab() {
       window.setTimeout(() => setCopied(false), 2200);
     } catch {
       setCopied(false);
+    }
+  }
+
+  async function startCrossPlay() {
+    if (crossPlayBusy) return;
+    const runId = crypto.randomUUID();
+    const baseSeed = Math.floor(Math.random() * 2_000_000_000);
+    window.localStorage.setItem("pathagon-cross-play-run", runId);
+    setCrossPlayRunId(runId);
+    setCrossPlay({ runId, targetGames: 10, games: 0, status: "ready", standings: [], latest: [] });
+    setCrossPlayError(null);
+    setCrossPlayBusy(true);
+    try {
+      for (let sequence = 0; sequence < TARGET_CROSS_PLAY_GAMES; sequence += 1) {
+        const response = await fetch("/api/cross-play", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ runId, sequence, seed: baseSeed + sequence }),
+        });
+        const payload = await response.json() as { accepted?: boolean; error?: string };
+        if (!response.ok || !payload.accepted) throw new Error(payload.error ?? "Cross-play game rejected");
+        setCrossPlay(await readCrossPlay(runId));
+      }
+    } catch (error) {
+      setCrossPlayError(error instanceof Error ? error.message : "Cross-play run stopped");
+    } finally {
+      setCrossPlayBusy(false);
     }
   }
 
@@ -185,24 +284,38 @@ export default function LearningLab() {
           </div>
         </div>
 
-        <div className="leaderboard-leader-card" aria-label="Current model leader">
+        <div className="leaderboard-leader-card" aria-label="Current strength leader">
           <div className="leaderboard-card-topline"><span>Strength leader</span><span className="leaderboard-provisional">Archived Elo</span></div>
           <div className="leaderboard-leader-main">
-            <ModelGlyph tone="green" glyph="P" />
-            <div className="leaderboard-leader-name"><strong>The Pathfinder</strong><span>4-ply iterative · playable opponent</span></div>
-            <div className="leaderboard-leader-score"><strong>1,142</strong><small>provisional Elo</small></div>
+            <ModelGlyph tone={strengthLeader.tone} glyph={strengthLeader.glyph} />
+            <div className="leaderboard-leader-name"><strong>{strengthLeader.name}</strong><span>{strengthLeader.family} · playable opponent</span></div>
+            <div className="leaderboard-leader-score"><strong>{strengthLeaderLive?.rating.toLocaleString() ?? strengthLeader.elo}</strong><small>{strengthLeaderLive ? "live Elo" : "provisional Elo"}</small></div>
           </div>
-          <div className="leaderboard-signal-row"><span>14–0–0 in the 7×7 archive</span><span>higher is better</span></div>
+          <div className="leaderboard-signal-row"><span>{strengthLeaderLive ? `${formatRecord(strengthLeaderLive)} in this run` : `${strengthLeader.record} in the 7×7 archive`}</span><span>higher is better</span></div>
           <div className="leaderboard-signal-bar"><span /></div>
-          <div className="leaderboard-card-footer"><span><i className="live-dot" /> playable strength anchor</span><small>candidates queue below</small></div>
+          <div className="leaderboard-card-footer"><span><i className="live-dot" /> {crossPlay?.games ? `${crossPlay.games} live games counted` : "playable strength anchor"}</span><small>candidates queue below</small></div>
         </div>
       </header>
 
       <section className="leaderboard-stat-grid" aria-label="Model league summary">
         <LeaderboardStat label="Agents tracked" value="7" detail="4 playable · 3 candidates" accent="green" />
         <LeaderboardStat label="Archived league" value="56" detail="7×7 · color-balanced games" accent="gold" />
-        <LeaderboardStat label="Fresh games" value="3,000" detail="1,000 from each player" accent="gold" />
+        <LeaderboardStat label="Live cross-play" value={String(crossPlay?.games ?? 0)} detail={crossPlay ? `${crossPlay.games} of ${crossPlay.targetGames} games` : "10-game starter run"} accent="gold" />
         <LeaderboardStat label="Best held-out NLL" value="2.112" detail="GNN Learner · policy signal" accent="ink" />
+      </section>
+
+      <section className="leaderboard-panel cross-play-live-panel" aria-labelledby="live-run-title">
+        <div className="cross-play-live-heading">
+          <div><span className="portal-kicker">Live arena · random cross-play</span><h2 id="live-run-title">Make the ladder move.</h2><p>Ten seeded games are drawn from the four playable opponents. Each result is archived immediately and the standings below refresh while the run is playing.</p></div>
+          <button className="portal-primary live-run-button" type="button" onClick={startCrossPlay} disabled={crossPlayBusy}>{crossPlayBusy ? `Playing ${Math.min((crossPlay?.games ?? 0) + 1, TARGET_CROSS_PLAY_GAMES)} / ${TARGET_CROSS_PLAY_GAMES}…` : crossPlay?.status === "complete" ? "Play another 10" : "Play 10 random games"}<span>{crossPlayBusy ? "◌" : "↗"}</span></button>
+        </div>
+        <div className="live-run-summary">
+          <div><strong>{crossPlay?.games ?? 0}<small> / {TARGET_CROSS_PLAY_GAMES}</small></strong><span>games complete</span></div>
+          <div><strong>{crossPlay?.status === "complete" ? "Ready" : crossPlayBusy ? "Playing" : "Idle"}</strong><span>run status</span></div>
+          <div><strong>{crossPlay?.latest[0]?.winner ?? "—"}</strong><span>latest winner</span></div>
+        </div>
+        {crossPlayError ? <p className="live-run-error" role="status">{crossPlayError}</p> : null}
+        {crossPlay?.latest.length ? <div className="live-game-list" aria-label="Latest cross-play games">{crossPlay.latest.map((game) => <div className="live-game-row" key={game.id}><span className="live-game-number">#{game.seed % 1000}</span><strong>{game.light}</strong><span>vs</span><strong>{game.dark}</strong><span className="live-game-result">{game.winner ? `${game.winner} · ${game.plies} plies` : `draw · ${game.plies} plies`}</span></div>)}</div> : <p className="live-run-empty">No live games yet. Start the run and watch each pairing land here.</p>}
       </section>
 
       <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
@@ -217,7 +330,7 @@ export default function LearningLab() {
             <div className="leaderboard-table-row leaderboard-table-header" role="row">
               <span>#</span><span>Agent</span><span>Role</span><span>Elo</span><span>Record</span><span>Signal</span>
             </div>
-            {MODELS.map((model) => <ModelStanding key={model.name} model={model} />)}
+            {MODELS.map((model) => <ModelStanding key={model.name} model={model} live={liveStandingById.get(model.id)} liveRank={liveRankById.get(model.id)} />)}
           </div>
 
           <aside className="elo-card" aria-labelledby="elo-title">
@@ -282,8 +395,12 @@ function LeaderboardStat({ label, value, detail, accent }: { label: string; valu
   return <div className={`leaderboard-stat ${accent}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></div>;
 }
 
-function ModelStanding({ model }: { model: (typeof MODELS)[number] }) {
-  return <div className={`leaderboard-table-row model-standing ${model.rank === "01" ? "leader" : ""}`} role="row"><span className="model-rank">{model.rank}</span><div className="standing-model"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><strong>{model.name}</strong><span>{model.family}</span></div></div><div className="standing-role"><strong>{model.status}</strong><span>{model.role}</span></div><span className="standing-elo">{model.elo}</span><div className="standing-record"><strong>{model.record}</strong><span>{model.rank === "—" ? "awaiting games" : "archive record"}</span></div><div className="standing-signal"><strong>{model.signal}</strong><span>{model.signalDetail}</span></div></div>;
+function ModelStanding({ model, live, liveRank }: { model: (typeof MODELS)[number]; live?: LiveStanding; liveRank?: string }) {
+  const rank = liveRank ?? model.rank;
+  const record = live?.games ? formatRecord(live) : model.record;
+  const signal = live?.games ? `${live.games} live games` : model.signal;
+  const signalDetail = live?.games ? `${live.points.toFixed(1)} points · updates live` : model.signalDetail;
+  return <div className={`leaderboard-table-row model-standing ${rank === "01" ? "leader" : ""}`} role="row"><span className="model-rank">{rank}</span><div className="standing-model"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><strong>{model.name}</strong><span>{model.family}</span></div></div><div className="standing-role"><strong>{live?.games ? "Live ladder" : model.status}</strong><span>{model.role}</span></div><span className="standing-elo">{live?.rating.toLocaleString() ?? model.elo}</span><div className="standing-record"><strong>{record}</strong><span>{live?.games ? "this run" : model.rank === "—" ? "awaiting games" : "archive record"}</span></div><div className="standing-signal"><strong>{signal}</strong><span>{signalDetail}</span></div></div>;
 }
 
 function glyphTone(name: string) {
@@ -301,6 +418,17 @@ function glyphFor(name: string) {
   if (name.includes("CNN")) return "C";
   if (name.includes("Coin")) return "C";
   return "L";
+}
+
+function formatRecord(standing: Pick<LiveStanding, "wins" | "losses" | "draws">) {
+  return `${standing.wins}–${standing.losses}–${standing.draws}`;
+}
+
+async function readCrossPlay(runId: string): Promise<CrossPlayState> {
+  const response = await fetch(`/api/cross-play?runId=${encodeURIComponent(runId)}`, { cache: "no-store" });
+  const payload = await response.json() as CrossPlayState & { error?: string };
+  if (!response.ok) throw new Error(payload.error ?? "Live run unavailable");
+  return payload;
 }
 
 function LineageNode({ label, detail, status, tone }: { label: string; detail: string; status: string; tone: string }) {
