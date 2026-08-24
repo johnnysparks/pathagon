@@ -1,88 +1,58 @@
-# Learning from the game archive
+# Learning laboratory
 
-The first learning agent is intentionally simple and inspectable:
-`rust-learned-tabular-v0.1.0`.
+The learning code is a research pipeline, not an automatic browser-opponent
+promotion system. The canonical comparison target is 7x7 with 14 reserves per
+player.
 
-It is a replay-derived exact-state policy. For every observed position and
-legal action, it stores visits, wins, losses, and draws from the perspective
-of the player who made that move. At play time it chooses the action with the
-best empirical points rate, requires a configurable minimum number of visits,
-and delegates unseen or weakly supported positions to the existing search
-agent.
+## Learner families
 
-That design is appropriate for the current “crazy small” dataset because it
-cannot invent a broad strategy from a handful of games. Its weakness is also
-visible: exact board positions rarely repeat, so most moves still use search.
-The book is a useful retrieval and evaluation baseline, not evidence that the
-agent has learned Pathagon in a general sense.
+| Family | Role | Status |
+| --- | --- | --- |
+| Rust tabular book | Exact-state replay baseline | Historical diagnostic |
+| Compact GNN | Fast neural data generator and learner candidate | Active research |
+| Full GNN | Higher-capacity graph policy/value model | Active research |
+| CNN | Fixed 7x7 comparison and browser export candidate | Active research |
 
-## Current candidate
+The graph implementation can exercise smaller boards for curriculum and
+regression, but strength comparisons should use the canonical 7x7 distribution.
 
-`training/rust-v1/learned-100/` was built from the uploaded
-`rust-selfplay-100-20260823` run:
+## Current artifacts
 
-- 100 games
-- 3,719 replay moves
-- 3,624 exact position/action entries
-- 20-game held-out-style smoke evaluation versus `rust-surveyor-v0.1.0`
-- result: 9 wins, 11 losses, 0 draws
-- 21 learned-book moves; all other moves fell back to search
+- [`training/gnn/benchmark-7x7/`](../training/gnn/benchmark-7x7/) contains the
+  earlier deduplicated benchmark and held-out report.
+- [`training/gnn/benchmark-7x7-full-20260824/`](../training/gnn/benchmark-7x7-full-20260824/)
+  contains the full-data split manifest and ignored replay payloads.
+- [`training/gnn/round-full-20260824/`](../training/gnn/round-full-20260824/)
+  contains compact, CNN, and full-GNN checkpoints with scoring snapshots.
+- [`training/rust-v1/learned-100/`](../training/rust-v1/learned-100/) contains
+  the historical exact-state learner.
 
-The evaluation is too small to establish a strength improvement. The
-candidate is not wired into the browser game and should not be treated as a
-promoted model.
+## Dataset rules
 
-## Rebuild from an archive export
+Use imported/offline records with contract validation. Deduplicate complete
+games, split by game or seed group, preserve color balance, and record the
+source manifest. Human games should be included only when their consent and
+privacy status is explicit.
 
-For a complete local export:
+Symmetry augmentation is a training transform, not a substitute for held-out
+games. Draws remain draws and should not be silently converted into losses.
 
-```bash
-curl -H "OAI-Sites-Authorization: Bearer $PATHAGON_ARCHIVE_TOKEN" \
-  'https://pathagon-game.sparks-house-6466.chatgpt.site/api/selfplay?engine=rust&format=jsonl&limit=500' \
-  > /tmp/pathagon-rust-archive.jsonl
-python3 scripts/jsonl-to-rust-games.py \
-  --input /tmp/pathagon-rust-archive.jsonl \
-  --output /tmp/pathagon-rust-archive.games.tsv
-npm run rust:learn -- \
-  --games /tmp/pathagon-rust-archive.games.tsv \
-  --out training/rust-v1/learned-latest
-```
+## Training and evaluation
 
-Run evaluation with a new seed range and report `bookHits` from the aggregate
-JSON line. For a serious promotion gate, keep the evaluation games separate
-from the games used to build the book, compare against the incumbent over
-multiple color-balanced batches, and retain every evaluation replay.
+The command-level workflow is in [`WORKFLOWS.md`](WORKFLOWS.md). Every serious
+run should retain:
 
-## Next learning steps
+- dataset manifest and split seed;
+- model architecture and checkpoint hash;
+- optimizer/device/seed configuration;
+- held-out policy/value metrics;
+- color-balanced pairwise games against named opponents.
 
-1. Add more varied games, including human games only after their privacy and
-   consent policy is settled.
-2. Add canonicalization or feature buckets so related positions can share
-   evidence without collapsing tactically different states.
-3. Use the replay archive for offline evaluation and dataset versioning before
-   attempting policy-gradient, value-network, or self-play reinforcement
-   learning.
-4. Promote a candidate only after it passes disjoint replay tests and repeated
-   arena gates; the browser engine remains unchanged until then.
+Held-out prediction metrics diagnose learning. Pairwise results determine
+whether a candidate is strong enough to enter the promotion conversation.
 
-## GNN AlphaZero direction
+## Browser boundary
 
-The next learner is under `learning/gnn/`. It follows the scale-invariant
-proposal with two Pathagon-specific changes: policy logits are defined over
-the legal action list so relocations have source/destination heads, and the
-value path receives explicit reserves, capture, turn, repetition-adjacent,
-and virtual-goal features alongside pooled node embeddings.
-
-The implementation currently supports dynamic 5x5 and 7x7 graph construction,
-replay warm-start training, PUCT search, and a compact neural self-play loop.
-The 7x7 archived games are used only to initialize and exercise the pipeline;
-they are not enough to establish AlphaZero strength. Curriculum learning starts
-after variable-size parity is expanded beyond the current unit cases.
-
-## 7x7 CNN comparison
-
-The canonical experiment is now 7x7 with 14 reserves per player. The learner
-also includes a compact fixed-size residual CNN with the same dynamic
-placement/relocation action heads and PUCT interface as the GNN. Train it with
-`--architecture cnn --size 7`; do not mix the 4x4, 5x5, or 6x6 curriculum
-archives into the primary 7x7 replay buffer when comparing model strength.
+The GNN and CNN remain research candidates until they pass the evaluation gates
+and their runtime/export path passes parity checks. A browser model must carry a
+stable agent ID, model hash, board configuration, and search budget.

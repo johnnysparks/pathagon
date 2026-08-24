@@ -1,25 +1,33 @@
-# Checkpoint league archives
+# Learning evaluation archives
 
-These JSON archives contain the exact games used to produce the provisional Elo standings in the learning lab. Every record includes the board size, reserve size, agent IDs, winner/draw reason, and move list.
+This directory contains JSON/JSONL records from offline learner evaluations,
+pairwise matches, and historical leagues. It is not the source code for the
+league runner; see [`learning/gnn/league.py`](../../../learning/gnn/league.py)
+and [`docs/WORKFLOWS.md`](../../../docs/WORKFLOWS.md).
 
-The roster combines versioned GNN checkpoints with four fixed opponents:
+## Record requirements
 
-- `pathfinder-v0.3.0`: tactical depth search with a wider connection-aware evaluation.
-- `surveyor-v0.2.0`: shallower strategic search with a broader candidate beam.
-- `lunatic-v0.1.0`: the browser-matched one-ply local-pattern heuristic.
-- `coin-flip-v0.0.1`: uniform random legal action.
+Every archive should include or be accompanied by:
 
-Each pair plays with both color assignments. Ratings start at 1000 and use online Elo updates with `K=24`; they are useful as a promotion signal, not yet a statistically stable strength estimate. The 5×5 pool uses four games per matchup and four MCTS simulations. The 7×7 pool uses two games per matchup and one MCTS simulation to keep the local CPU benchmark bounded.
+- board size and reserve configuration;
+- versioned agent IDs and checkpoint hashes;
+- search/PUCT budgets;
+- seed and color-assignment policy;
+- winner, draw reason, and complete move list;
+- whether the games were used for training or held out for evaluation.
 
-`league-5x5-r8-generation-10.json` is the latest candidate evaluation. Generation 10 won its direct four-game matchup against Generation 9 (2 wins, 2 draws), but finished below the incumbent in the broader league and was not promoted.
+Ratings start at 1000 and use online Elo updates with `K=24` in the existing
+league tools. They are provisional comparison signals, not human Elo.
 
-The transfer diagnostics cover `league-4x4-r6-transfer.json` and `league-6x6-r10-transfer.json`. They reuse 5×5 checkpoints without fine-tuning to test whether the dynamic graph and rules remain tractable at those sizes.
+## Archive families
 
-The Lunatic-inclusive curriculum snapshots are `league-4x4-r6-lunatic.json`,
-`league-5x5-r8-lunatic.json`, `league-6x6-r10-lunatic.json`, and
-`league-7x7-r14-lunatic.json`. They add the browser Lunatic opponent to every
-board-size competition with paired color assignments.
+- `league-*` files are historical board-size or checkpoint league snapshots.
+- `scout-policy-*` files are focused pairwise experiments for learned players.
+- `rust-*.jsonl` and machine-labelled JSONL files are offline replay archives
+  suitable for validation and dataset construction.
+- The 7x7 records are the canonical strength evidence; smaller-board records
+  are curriculum or regression material.
 
-The Rust fast-path archive `rust-lunatic-7x7.jsonl` contains 100 Pathfinder vs
-Lunatic games. Its matching compact, indexed corpus lives at
-`training/rust-v1/lunatic-100-7x7/`.
+Large archives should eventually move to the external/ignored data path with a
+tracked manifest and hash. The public copies under `public/lab/` are currently
+static mirrors and should be generated rather than hand-edited.

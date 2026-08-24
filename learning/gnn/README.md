@@ -1,8 +1,13 @@
 # 7x7 GNN/CNN AlphaZero lab
 
-This is a research pipeline, not the browser opponent. The GNN remains the
-scale-compatible baseline; the CNN path is intentionally fixed to the target
-7x7 board so it can be compared under the same PUCT and replay workflow.
+This is the Python research and model-tooling layer, not the automatic browser
+promotion path. The canonical comparison target is 7x7 with 14 reserves. See
+[`docs/LEARNING.md`](../../docs/LEARNING.md) for model status and
+[`docs/WORKFLOWS.md`](../../docs/WORKFLOWS.md) for the end-to-end workflow.
+
+The GNN remains the scale-compatible research baseline; the CNN path is
+intentionally fixed to 7x7 so it can be compared under the same PUCT and replay
+workflow.
 
 ## What is implemented
 
@@ -55,7 +60,7 @@ Run a small neural self-play generation:
 ```bash
 .venv-pathagon-gnn/bin/python -m learning.gnn.train alphazero \
   --resume training/gnn/pathagon-warmstart.pt \
-  --out training/gnn/pathagon-generation-0.pt \
+  --out training/gnn/pathagon-generation-next.pt \
   --games 8 --workers 4 --selfplay-device cpu \
   --simulations 64 --updates 10000 --max-plies 196 \
   --replay-limit 100000
@@ -130,6 +135,6 @@ batches before any promotion.
 
 The Python rules adapter is tested against the shared move semantics during
 development. Rust is the production rules/search authority; TypeScript remains
-the reference/coaching implementation for regression tests. The next hardening
-step is a generated parity corpus across both board sizes before using 5x5
-games as curriculum data.
+the browser reference/coaching implementation for regression tests. The
+Rust/WASM and CNN inference boundaries require the same contract and parity
+checks before browser promotion.
