@@ -173,6 +173,7 @@ export default function LearningLab() {
   const strengthLeader = MODELS.find((model) => model.id === (crossPlay?.standings[0]?.id ?? "pathfinder-v0.3.0")) ?? MODELS[0];
   const strengthLeaderLive = liveStandingById.get(strengthLeader.id)?.games ? liveStandingById.get(strengthLeader.id) : undefined;
   const learnerLive = liveStandingById.get("gnn-warmstart-7x7");
+  const cnnLive = liveStandingById.get("cnn-baseline-7x7");
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("pathagon-lab-theme");
@@ -335,9 +336,9 @@ export default function LearningLab() {
       <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
         <div className="leaderboard-panel-heading">
           <div><span className="portal-kicker">Standings · strength anchors + candidates</span><h2 id="standings-title">Every playable opponent is here.</h2></div>
-          <span className="leaderboard-status"><span /> {learnerLive?.games ? "4 anchors · GNN live" : "4 anchors · 1 fresh · 2 queued"}</span>
+          <span className="leaderboard-status"><span /> {learnerLive?.games || cnnLive?.games ? "4 anchors · neural live" : "4 anchors · 2 fresh · 1 queued"}</span>
         </div>
-        <p className="leaderboard-intro">The four opponents available in the game are the strength anchors: Pathfinder, Surveyor, Lunatic, and Coin Flip. The new GNN Learner result is a fresh two-color head-to-head against Surveyor; the remaining neural candidates stay queued. NLL remains a separate training signal.</p>
+        <p className="leaderboard-intro">The four opponents available in the game are the strength anchors: Pathfinder, Surveyor, Lunatic, and Coin Flip. The cumulative ladder now includes neural-vs-neural evidence from the GNN Learner and CNN baseline; NLL remains a separate training signal.</p>
 
         <div className="leaderboard-grid">
           <div className="leaderboard-table" role="table" aria-label="Current model standings">

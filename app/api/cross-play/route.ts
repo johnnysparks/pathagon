@@ -20,6 +20,7 @@ const PLAYABLE_AGENTS = [
 const AGENTS = [
   ...PLAYABLE_AGENTS,
   { id: "gnn-warmstart-7x7", label: "GNN Learner", kind: "gnn" as const, tone: "green" },
+  { id: "cnn-baseline-7x7", label: "CNN baseline", kind: "cnn" as const, tone: "gold" },
 ] as const;
 
 const BASELINE_RATINGS: Record<string, number> = {
@@ -28,6 +29,7 @@ const BASELINE_RATINGS: Record<string, number> = {
   "lunatic-v0.1.0": 1_059,
   "coin-flip-v0.0.1": 935,
   "gnn-warmstart-7x7": 957,
+  "cnn-baseline-7x7": 950,
 };
 
 export async function POST(request: Request) {
