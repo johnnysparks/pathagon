@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import heapq
 import json
+import math
 import random
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,7 +14,7 @@ from typing import Dict, Iterable, List, Sequence, Set, Tuple
 
 import torch
 
-from .game import Action, BoardConfig, GameState, Player
+from .game import Action, BoardConfig, GameState, Player, repetition_key
 from .contract import agent_manifest, agent_specification, engine_metadata, game_config
 from .mcts import PUCTSearch
 from .selfplay import avoid_repeated_successors, run_match
@@ -137,6 +138,109 @@ class GNNAgent:
             return None
         _, filtered = avoid_repeated_successors(state, actions, probabilities, history)
         return actions[max(range(len(actions)), key=lambda index: (filtered[index], -action_sort_key(actions[index])))]
+
+
+class PolicyBeamAgent:
+    """Iterative beam search with a learned policy and value at each node.
+
+    This is a breadth-limited search rather than a full minimax tree. Keeping
+    only the best frontier states makes the Scout variants useful for bulk
+    cross-play while retaining an explicit per-move expansion budget.
+    """
+
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        depth: int,
+        beam_width: int,
+        max_nodes: int,
+        heuristic_blend: float = 0.0,
+    ) -> None:
+        self.model = model
+        self.depth = depth
+        self.beam_width = beam_width
+        self.max_nodes = max_nodes
+        self.heuristic_blend = heuristic_blend
+        self.nodes = 0
+        self.completed_depth = 0
+
+    def choose_action(self, state: GameState, _rng: random.Random, history: Set[tuple]) -> Action | None:
+        actions = tuple(state.legal_actions())
+        if not actions:
+            return None
+        self.nodes = 0
+        self.completed_depth = 0
+        best_action = actions[0]
+        previous_positions = set(history)
+        for depth in range(1, self.depth + 1):
+            try:
+                action, _ = self._search_depth(state, depth, previous_positions)
+            except _SearchBudgetExhausted:
+                break
+            best_action = action
+            self.completed_depth = depth
+        return best_action
+
+    def _search_depth(self, root_state: GameState, depth: int, history: Set[tuple]) -> Tuple[Action, float]:
+        root = root_state.turn
+        frontier: List[Tuple[GameState, Action, float, Set[tuple]]] = []
+        current: List[Tuple[GameState, Action | None, float, Set[tuple]]] = [(root_state, None, 0.0, set(history))]
+        for _ in range(depth):
+            expanded: List[Tuple[GameState, Action, float, Set[tuple]]] = []
+            for state, first_action, path_score, path_history in current:
+                if state.winner is not None:
+                    if first_action is not None:
+                        expanded.append((state, first_action, path_score, path_history))
+                    continue
+                actions = list(state.legal_actions())
+                if not actions:
+                    continue
+                logits, value = self._evaluate(state, actions)
+                state_value = float(value) if state.turn is root else -float(value)
+                heuristic_value = normalize_heuristic(evaluate_position(state, root))
+                state_signal = (1.0 - self.heuristic_blend) * state_value + self.heuristic_blend * heuristic_value
+                direction = 1.0 if state.turn is root else -1.0
+                safe = [
+                    (action, logit) for action, logit in zip(actions, logits)
+                    if repetition_key(state.apply_legal(action)) not in path_history
+                ] or list(zip(actions, logits))
+                ranked = sorted(
+                    safe,
+                    key=lambda item: (direction * (float(item[1]) + state_signal), -action_sort_key(item[0])),
+                    reverse=True,
+                )
+                for action, logit in ranked[: self.beam_width]:
+                    next_state = state.apply_legal(action)
+                    next_first = first_action or action
+                    next_history = path_history | {repetition_key(next_state)}
+                    terminal_bonus = 1_000_000.0 if next_state.winner is root else -1_000_000.0 if next_state.winner is not None else 0.0
+                    expanded.append((next_state, next_first, path_score + direction * float(logit) + direction * state_signal + terminal_bonus, next_history))
+            if not expanded:
+                break
+            expanded.sort(key=lambda item: (item[2], -action_sort_key(item[1])), reverse=True)
+            current = expanded[: self.beam_width]
+            frontier = [(state, first_action, score, path_history) for state, first_action, score, path_history in current if first_action is not None]
+        if not frontier:
+            return root_state.legal_actions()[0], 0.0
+        best_state, best_action, best_score, _ = max(frontier, key=lambda item: (item[2], -action_sort_key(item[1])))
+        _ = best_state
+        return best_action, best_score
+
+    def _evaluate(self, state: GameState, actions: List[Action]) -> Tuple[List[float], float]:
+        if self.nodes >= self.max_nodes:
+            raise _SearchBudgetExhausted
+        with torch.no_grad():
+            logits, value = self.model.policy_value(state, actions)
+        self.nodes += 1
+        return logits.detach().cpu().tolist(), float(value.detach().cpu())
+
+
+class _SearchBudgetExhausted(Exception):
+    pass
+
+
+def normalize_heuristic(score: float) -> float:
+    return math.tanh(score / 3_500.0)
 
 
 def evaluate_position(state: GameState, player: Player) -> float:

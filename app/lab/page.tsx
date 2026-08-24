@@ -192,7 +192,8 @@ export default function LearningLab() {
 
   const strengthLeaderLive = crossPlay?.standings[0];
   const strengthLeader = MODELS.find((model) => model.id === strengthLeaderLive?.id) ?? MODELS[0];
-  const candidateCount = MODELS.filter((model) => model.planned).length;
+  const ratedAgentCount = crossPlay?.standings.filter((standing) => standing.games > 0).length ?? MODELS.filter((model) => !model.planned).length;
+  const queuedCandidateCount = MODELS.filter((model) => model.planned && !liveStandingById.get(model.id)?.games).length;
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("pathagon-lab-theme");
@@ -274,7 +275,7 @@ export default function LearningLab() {
       </header>
 
       <section className="leaderboard-stat-grid" aria-label="Model league summary">
-        <LeaderboardStat label="Agents tracked" value={String(MODELS.length)} detail={`7 rated · ${candidateCount} search candidates`} accent="green" />
+        <LeaderboardStat label="Agents tracked" value={String(MODELS.length)} detail={`${ratedAgentCount} rated · ${queuedCandidateCount} queued candidates`} accent="green" />
         <LeaderboardStat label="7×7 benchmark" value="3,251" detail="2,037 unique · 416 held out" accent="gold" />
         <LeaderboardStat label="Imported cross-play" value={crossPlay ? String(crossPlay.games) : "—"} detail={crossPlay ? "cumulative archive records" : "waiting for first poll"} accent="gold" />
         <LeaderboardStat label="Held-out policy NLL" value="2.112" detail="GNN · 416 held-out records" accent="ink" />
@@ -297,7 +298,7 @@ export default function LearningLab() {
       <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
         <div className="leaderboard-panel-heading">
           <div><span className="portal-kicker">Standings · imported archive</span><h2 id="standings-title">Every model in the ladder.</h2></div>
-          <span className="leaderboard-status"><span /> {crossPlay ? `${crossPlay.standings.length} rated · archive polling` : "Polling archive"}</span>
+          <span className="leaderboard-status"><span /> {crossPlay ? `${ratedAgentCount} rated · archive polling` : "Polling archive"}</span>
         </div>
         <p className="leaderboard-intro">Rankings and records are cumulative across all imported and offline 7×7 cross-play games. Search candidates are shown with their planned budgets until they have games; benchmark metrics remain separate from ladder evidence.</p>
 
@@ -349,7 +350,7 @@ function ModelStanding({ model, live, liveRank, snapshotLoaded }: { model: (type
   const record = liveActive ? formatRecord(live!) : disabled || planned ? "not rated" : "—";
   const signal = liveActive ? `${live!.games} games` : disabled ? "offline only" : planned ? model.budget ?? "candidate spec" : snapshotLoaded ? "no live games" : "waiting for poll";
   const signalDetail = liveActive ? `${live!.points.toFixed(1)} points · cumulative` : disabled ? "not rated" : planned ? "planned · awaiting evaluation" : "no ladder evidence";
-  const stateClass = disabled ? "disabled" : planned ? "candidate" : waiting ? "disabled" : "";
+  const stateClass = disabled ? "disabled" : liveActive ? "" : planned ? "candidate" : waiting ? "disabled" : "";
   return <div className={`leaderboard-table-row model-standing ${rank === "01" ? "leader" : ""} ${stateClass}`} role="row"><span className="model-rank">{rank}</span><div className="standing-model"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><strong>{model.name}</strong><span>{model.family}</span></div></div><div className="standing-role"><strong>{disabled ? "Disabled" : liveActive ? "Live ladder" : planned ? "Candidate" : "Waiting"}</strong><span>{model.role}</span></div><span className="standing-elo">{liveActive ? live!.rating.toLocaleString() : "—"}</span><div className="standing-record"><strong>{record}</strong><span>{liveActive ? "cumulative" : disabled || planned ? "not rated" : "no games"}</span></div><div className="standing-signal"><strong>{signal}</strong><span>{signalDetail}</span></div></div>;
 }
 
