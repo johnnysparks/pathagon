@@ -12,52 +12,104 @@ const BATCH_COMMAND = `./.venv-pathagon-gnn/bin/python scripts/generate-7x7-self
 const MODELS = [
   {
     rank: "01",
-    name: "GNN Learner",
-    family: "Residual message passing",
-    role: "current candidate",
-    params: "100.2k",
-    nll: "2.112",
-    delta: "−0.103 vs Scout",
-    games: "1,000",
-    positions: "129,790",
+    name: "The Pathfinder",
+    family: "4-ply iterative search",
+    role: "playable anchor",
+    elo: "1,142",
+    record: "14–0–0",
+    signal: "archive leader",
+    signalDetail: "14 balanced games",
     tone: "green",
-    glyph: "G",
-    status: "Promote next",
+    glyph: "P",
+    status: "Strength leader",
   },
   {
     rank: "02",
-    name: "GNN Scout",
-    family: "Compact message passing",
-    role: "bulk data generator",
-    params: "17.5k",
-    nll: "2.215",
-    delta: "fastest search",
-    games: "1,000",
-    positions: "142,760",
+    name: "The Surveyor",
+    family: "2-ply broad-beam search",
+    role: "playable anchor",
+    elo: "1,085",
+    record: "11–2–1",
+    signal: "second anchor",
+    signalDetail: "14 balanced games",
     tone: "violet",
     glyph: "S",
-    status: "Generating",
+    status: "Provisional #2",
   },
   {
     rank: "03",
+    name: "Lunatic",
+    family: "1-ply pattern heuristic",
+    role: "playable breadth",
+    elo: "1,059",
+    record: "10–3–1",
+    signal: "third anchor",
+    signalDetail: "14 balanced games",
+    tone: "gold",
+    glyph: "L",
+    status: "Playable",
+  },
+  {
+    rank: "04",
+    name: "Coin Flip",
+    family: "Random legal action",
+    role: "playable floor",
+    elo: "935",
+    record: "2–8–4",
+    signal: "control floor",
+    signalDetail: "14 balanced games",
+    tone: "muted",
+    glyph: "C",
+    status: "Playable",
+  },
+  {
+    rank: "—",
+    name: "GNN Learner",
+    family: "64 channels · 8 message layers",
+    role: "promotion candidate",
+    elo: "—",
+    record: "not played",
+    signal: "2.112 NLL",
+    signalDetail: "best policy signal",
+    tone: "green",
+    glyph: "G",
+    status: "Cross-play queued",
+  },
+  {
+    rank: "—",
+    name: "GNN Scout",
+    family: "Compact message passing · 17.5k params",
+    role: "bulk data generator",
+    elo: "—",
+    record: "not played",
+    signal: "2.215 NLL",
+    signalDetail: "fastest search",
+    tone: "violet",
+    glyph: "S",
+    status: "Cross-play queued",
+  },
+  {
+    rank: "—",
     name: "CNN baseline",
-    family: "7×7 residual CNN",
+    family: "7×7 residual CNN · 87.4k params",
     role: "parallel reference",
-    params: "87.4k",
-    nll: "2.291",
-    delta: "−0.079 vs Scout",
-    games: "1,000",
-    positions: "147,920",
+    elo: "—",
+    record: "not played",
+    signal: "2.291 NLL",
+    signalDetail: "architecture reference",
     tone: "gold",
     glyph: "C",
-    status: "Reference",
+    status: "Cross-play queued",
   },
 ];
 
 const MATCHUPS = [
-  { left: "GNN Learner", right: "GNN Scout", detail: "100 games · alternating colors" },
-  { left: "GNN Learner", right: "CNN baseline", detail: "100 games · alternating colors" },
-  { left: "GNN Scout", right: "CNN baseline", detail: "100 games · alternating colors" },
+  { left: "The Pathfinder", right: "GNN Learner", detail: "priority lane · alternating colors" },
+  { left: "The Surveyor", right: "GNN Learner", detail: "priority lane · alternating colors" },
+  { left: "Lunatic", right: "GNN Learner", detail: "anchor check · alternating colors" },
+  { left: "Coin Flip", right: "GNN Learner", detail: "floor check · alternating colors" },
+  { left: "GNN Learner", right: "GNN Scout", detail: "candidate check · alternating colors" },
+  { left: "GNN Learner", right: "CNN baseline", detail: "reference check · alternating colors" },
 ];
 
 const FLOW = [
@@ -134,46 +186,46 @@ export default function LearningLab() {
         </div>
 
         <div className="leaderboard-leader-card" aria-label="Current model leader">
-          <div className="leaderboard-card-topline"><span>Current leader</span><span className="leaderboard-provisional">Policy signal</span></div>
+          <div className="leaderboard-card-topline"><span>Strength leader</span><span className="leaderboard-provisional">Archived Elo</span></div>
           <div className="leaderboard-leader-main">
-            <ModelGlyph tone="green" glyph="G" />
-            <div className="leaderboard-leader-name"><strong>GNN Learner</strong><span>64 channels · 8 message layers</span></div>
-            <div className="leaderboard-leader-score"><strong>2.112</strong><small>held-out NLL</small></div>
+            <ModelGlyph tone="green" glyph="P" />
+            <div className="leaderboard-leader-name"><strong>The Pathfinder</strong><span>4-ply iterative · playable opponent</span></div>
+            <div className="leaderboard-leader-score"><strong>1,142</strong><small>provisional Elo</small></div>
           </div>
-          <div className="leaderboard-signal-row"><span>−0.103 vs compact Scout</span><span>lower is better</span></div>
+          <div className="leaderboard-signal-row"><span>14–0–0 in the 7×7 archive</span><span>higher is better</span></div>
           <div className="leaderboard-signal-bar"><span /></div>
-          <div className="leaderboard-card-footer"><span><i className="live-dot" /> candidate for promotion</span><small>Elo pending cross-play</small></div>
+          <div className="leaderboard-card-footer"><span><i className="live-dot" /> playable strength anchor</span><small>candidates queue below</small></div>
         </div>
       </header>
 
       <section className="leaderboard-stat-grid" aria-label="Model league summary">
-        <LeaderboardStat label="Models in league" value="3" detail="two GNNs · one CNN" accent="green" />
+        <LeaderboardStat label="Agents tracked" value="7" detail="4 playable · 3 candidates" accent="green" />
+        <LeaderboardStat label="Archived league" value="56" detail="7×7 · color-balanced games" accent="gold" />
         <LeaderboardStat label="Fresh games" value="3,000" detail="1,000 from each player" accent="gold" />
-        <LeaderboardStat label="Positions generated" value="420,470" detail="seed-clean 7×7 replay" accent="violet" />
-        <LeaderboardStat label="Best held-out NLL" value="2.112" detail="GNN Learner · current signal" accent="ink" />
+        <LeaderboardStat label="Best held-out NLL" value="2.112" detail="GNN Learner · policy signal" accent="ink" />
       </section>
 
       <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
         <div className="leaderboard-panel-heading">
-          <div><span className="portal-kicker">Standings · signal quality</span><h2 id="standings-title">Models first. Elo next.</h2></div>
-          <span className="leaderboard-status"><span /> provisional ranking</span>
+          <div><span className="portal-kicker">Standings · strength anchors + candidates</span><h2 id="standings-title">Every playable opponent is here.</h2></div>
+          <span className="leaderboard-status"><span /> 4 rated · 3 queued</span>
         </div>
-        <p className="leaderboard-intro">The current order is based on held-out policy quality, not a claimed strength rating. Once the league has balanced cross-play, this table can promote a model because it is both better on paper and better across the board.</p>
+        <p className="leaderboard-intro">The four opponents available in the game are the strength anchors: Pathfinder, Surveyor, Lunatic, and Coin Flip. Their order comes from the latest Lunatic-inclusive 7×7 archive. New neural candidates stay off the Elo ladder until they face the same field; NLL is a separate training signal.</p>
 
         <div className="leaderboard-grid">
           <div className="leaderboard-table" role="table" aria-label="Current model standings">
             <div className="leaderboard-table-row leaderboard-table-header" role="row">
-              <span>#</span><span>Model</span><span>Role</span><span>Params</span><span>NLL</span><span>New games</span>
+              <span>#</span><span>Agent</span><span>Role</span><span>Elo</span><span>Record</span><span>Signal</span>
             </div>
             {MODELS.map((model) => <ModelStanding key={model.name} model={model} />)}
           </div>
 
           <aside className="elo-card" aria-labelledby="elo-title">
-            <div className="elo-card-heading"><div><span className="portal-kicker">Strength evidence</span><h3 id="elo-title">Elo ladder</h3></div><span className="portal-chip gold">not locked</span></div>
-            <div className="elo-score"><strong>—</strong><span>provisional until cross-play</span></div>
-            <div className="elo-track"><span style={{ width: "0%" }} /></div>
-            <div className="elo-meta"><strong>0 / 3</strong><span>pairings complete</span></div>
-            <p>Self-play makes data. Head-to-head matches make a ranking. Run every pairing with alternating colors, then update ratings after each accepted generation.</p>
+            <div className="elo-card-heading"><div><span className="portal-kicker">Strength evidence</span><h3 id="elo-title">Elo ladder</h3></div><span className="portal-chip gold">provisional archive</span></div>
+            <div className="elo-score"><strong>1,142</strong><span>Pathfinder · current high</span></div>
+            <div className="elo-track"><span style={{ width: "100%" }} /></div>
+            <div className="elo-meta"><strong>4 / 4</strong><span>playable opponents rated</span></div>
+            <p>Self-play makes data. Head-to-head matches make a ranking. The archive confirms the selectable opponents’ current order; the neural candidates join the ladder only after balanced cross-play.</p>
             <a className="elo-link" href="#cross-play">View the cross-play gate <span>↓</span></a>
           </aside>
         </div>
@@ -199,8 +251,8 @@ export default function LearningLab() {
 
       <section className="leaderboard-evidence-grid" aria-label="Current model evidence">
         <div className="leaderboard-panel signal-panel">
-          <div className="leaderboard-panel-heading"><div><span className="portal-kicker">Best current signal</span><h2>GNN Learner</h2></div><span className="portal-chip green">2.112 NLL</span></div>
-          <p className="leaderboard-intro">The larger GNN is the current learner to beat. Its advantage is clearest in placement, while relocation remains a useful second gate.</p>
+          <div className="leaderboard-panel-heading"><div><span className="portal-kicker">Best current policy signal</span><h2>GNN Learner</h2></div><span className="portal-chip green">2.112 NLL</span></div>
+          <p className="leaderboard-intro">The larger GNN is the current learner to test, not yet the league leader. Its advantage is clearest in placement, while relocation remains a useful second gate against the playable anchors.</p>
           <div className="signal-metrics"><SignalMetric label="Placement NLL" value="2.024" note="best of the three" /><SignalMetric label="Relocation NLL" value="2.248" note="phase to improve" /><SignalMetric label="Value MSE" value="0.609" note="effectively tied" /></div>
         </div>
 
@@ -213,8 +265,8 @@ export default function LearningLab() {
       </section>
 
       <section className="leaderboard-panel cross-play-panel" id="cross-play" aria-labelledby="cross-play-title">
-        <div className="cross-play-heading"><div><span className="portal-kicker">Next gate · cross-play</span><h2 id="cross-play-title">Let the models settle the order.</h2><p>Self-play archives stay separate. The next league run lets every model face every other model, swaps colors, and turns those results into a real Elo baseline.</p></div><span className="portal-chip gold">6 color-balanced legs</span></div>
-        <div className="matchup-list">{MATCHUPS.map((matchup) => <div className="matchup-card" key={`${matchup.left}-${matchup.right}`}><div className="matchup-model"><ModelGlyph tone={matchup.left.includes("Learner") ? "green" : matchup.left.includes("Scout") ? "violet" : "gold"} glyph={matchup.left.charAt(4)} /><strong>{matchup.left}</strong></div><span className="matchup-versus">vs</span><div className="matchup-model"><ModelGlyph tone={matchup.right.includes("Learner") ? "green" : matchup.right.includes("Scout") ? "violet" : "gold"} glyph={matchup.right.charAt(0)} /><strong>{matchup.right}</strong></div><small>{matchup.detail}</small><span className="matchup-queued">queued</span></div>)}</div>
+        <div className="cross-play-heading"><div><span className="portal-kicker">Next gate · cross-play</span><h2 id="cross-play-title">Let the full field settle the order.</h2><p>Self-play archives stay separate. The next league run keeps all four playable opponents in the pool, swaps colors, and lets every candidate face every anchor before promotion.</p></div><span className="portal-chip gold">7 agents · 21 pairings</span></div>
+        <div className="matchup-list">{MATCHUPS.map((matchup) => <div className="matchup-card" key={`${matchup.left}-${matchup.right}`}><div className="matchup-model"><ModelGlyph tone={glyphTone(matchup.left)} glyph={glyphFor(matchup.left)} /><strong>{matchup.left}</strong></div><span className="matchup-versus">vs</span><div className="matchup-model"><ModelGlyph tone={glyphTone(matchup.right)} glyph={glyphFor(matchup.right)} /><strong>{matchup.right}</strong></div><small>{matchup.detail}</small><span className="matchup-queued">queued</span></div>)}</div>
       </section>
 
       <footer className="portal-footer"><span>7×7 model leaderboard</span><span>Train a little. Play a lot. Promote slowly.</span></footer>
@@ -231,7 +283,24 @@ function LeaderboardStat({ label, value, detail, accent }: { label: string; valu
 }
 
 function ModelStanding({ model }: { model: (typeof MODELS)[number] }) {
-  return <div className={`leaderboard-table-row model-standing ${model.rank === "01" ? "leader" : ""}`} role="row"><span className="model-rank">{model.rank}</span><div className="standing-model"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><strong>{model.name}</strong><span>{model.family}</span></div></div><div className="standing-role"><strong>{model.status}</strong><span>{model.role}</span></div><span className="standing-value">{model.params}</span><div className="standing-nll"><strong>{model.nll}</strong><span>{model.delta}</span></div><div className="standing-games"><strong>{model.games}</strong><span>{model.positions} pos.</span></div></div>;
+  return <div className={`leaderboard-table-row model-standing ${model.rank === "01" ? "leader" : ""}`} role="row"><span className="model-rank">{model.rank}</span><div className="standing-model"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><strong>{model.name}</strong><span>{model.family}</span></div></div><div className="standing-role"><strong>{model.status}</strong><span>{model.role}</span></div><span className="standing-elo">{model.elo}</span><div className="standing-record"><strong>{model.record}</strong><span>{model.rank === "—" ? "awaiting games" : "archive record"}</span></div><div className="standing-signal"><strong>{model.signal}</strong><span>{model.signalDetail}</span></div></div>;
+}
+
+function glyphTone(name: string) {
+  if (name.includes("Pathfinder") || name.includes("Learner")) return "green";
+  if (name.includes("Surveyor") || name.includes("Scout")) return "violet";
+  if (name.includes("Coin")) return "muted";
+  return "gold";
+}
+
+function glyphFor(name: string) {
+  if (name.includes("Pathfinder")) return "P";
+  if (name.includes("Surveyor")) return "S";
+  if (name.includes("Learner")) return "G";
+  if (name.includes("Scout")) return "S";
+  if (name.includes("CNN")) return "C";
+  if (name.includes("Coin")) return "C";
+  return "L";
 }
 
 function LineageNode({ label, detail, status, tone }: { label: string; detail: string; status: string; tone: string }) {

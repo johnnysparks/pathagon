@@ -668,7 +668,7 @@ body:has(.portal-app.dark) { background: #121a15; }
 .leaderboard-intro { max-width: 720px; margin: 12px 0 0; color: var(--portal-muted); font-size: 12px; line-height: 1.55; }
 .leaderboard-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(270px, .6fr); gap: 14px; margin-top: 20px; }
 .leaderboard-table, .elo-card { overflow: hidden; border: 1px solid var(--portal-line); border-radius: 11px; background: rgba(255,255,255,.46); }
-.leaderboard-table-row { display: grid; grid-template-columns: 27px minmax(160px, 1.3fr) minmax(116px, .92fr) 58px 76px 92px; gap: 9px; align-items: center; min-height: 74px; padding: 8px 11px; border-top: 1px solid rgba(174,194,171,.5); color: var(--portal-muted); font-size: 10px; }
+.leaderboard-table-row { display: grid; grid-template-columns: 27px minmax(170px, 1.35fr) minmax(120px, .92fr) 64px 92px 104px; gap: 9px; align-items: center; min-height: 74px; padding: 8px 11px; border-top: 1px solid rgba(174,194,171,.5); color: var(--portal-muted); font-size: 10px; }
 .leaderboard-table-row:first-child { border-top: 0; }
 .leaderboard-table-header { min-height: 32px; color: var(--portal-muted); font-size: 9px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
 .model-standing.leader { background: rgba(224,241,226,.58); }
@@ -678,7 +678,11 @@ body:has(.portal-app.dark) { background: #121a15; }
 .standing-model strong { overflow: hidden; color: var(--portal-ink); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .standing-model span, .standing-role span, .standing-nll span, .standing-games span { overflow: hidden; color: var(--portal-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .standing-role strong { color: var(--portal-green); font-size: 10px; }
-.standing-value { color: var(--portal-ink); font-weight: 800; }
+.standing-elo { color: var(--portal-ink); font-family: Georgia, serif; font-size: 16px; font-weight: 500; }
+.standing-record, .standing-signal { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.standing-record strong, .standing-signal strong { color: var(--portal-ink); font-size: 11px; }
+.standing-record span, .standing-signal span { overflow: hidden; color: var(--portal-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.standing-signal strong { color: var(--portal-green); }
 .standing-nll strong { color: var(--portal-ink); font-family: Georgia, serif; font-size: 17px; font-weight: 500; }
 .standing-nll span { color: var(--portal-green); }
 .standing-games strong { color: var(--portal-ink); font-size: 11px; }
@@ -793,13 +797,13 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
   .leaderboard-panel { padding: 15px; }
   .leaderboard-panel-heading, .cross-play-heading { flex-direction: column; gap: 10px; }
   .leaderboard-table-header { display: none; }
-  .leaderboard-table-row.model-standing { grid-template-columns: 24px minmax(0, 1fr) auto; grid-template-areas: "rank model nll" "rank role games"; gap: 4px 8px; min-height: 76px; }
+  .leaderboard-table-row.model-standing { grid-template-columns: 24px minmax(0, 1fr) auto; grid-template-areas: "rank model signal" "rank role record"; gap: 4px 8px; min-height: 76px; }
   .model-rank { grid-area: rank; }
   .standing-model { grid-area: model; }
   .standing-role { grid-area: role; }
-  .standing-nll { grid-area: nll; align-items: flex-end; }
-  .standing-games { grid-area: games; align-items: flex-end; }
-  .standing-value { display: none; }
+  .standing-signal { grid-area: signal; align-items: flex-end; }
+  .standing-record { grid-area: record; align-items: flex-end; }
+  .standing-elo { display: none; }
   .leaderboard-flow-steps { grid-template-columns: repeat(2, 1fr); }
   .signal-metrics { grid-template-columns: 1fr; }
   .batch-summary strong { font-size: 18px; }
