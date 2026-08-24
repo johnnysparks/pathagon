@@ -42,3 +42,7 @@ earlier matched benchmark is documented in
 Large replay files should remain ignored or external unless they are promoted
 to a curated dataset with a manifest and hash. Selected checkpoints and compact
 reports may remain in Git when they are small enough to review.
+
+Generated 7x7 batch JSONL archives and self-play logs are ignored by default;
+their durable Git record is the adjacent manifest, report, and any explicitly
+selected checkpoint artifacts.
