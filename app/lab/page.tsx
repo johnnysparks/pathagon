@@ -11,8 +11,10 @@ const MODELS = [
     name: "The Pathfinder",
     family: "4-ply iterative search",
     role: "playable opponent",
+    budget: "",
     tone: "green",
     glyph: "P",
+    planned: false,
     disabled: false,
   },
   {
@@ -20,8 +22,10 @@ const MODELS = [
     name: "The Surveyor",
     family: "2-ply broad-beam search",
     role: "playable opponent",
+    budget: "",
     tone: "violet",
     glyph: "S",
+    planned: false,
     disabled: false,
   },
   {
@@ -29,8 +33,10 @@ const MODELS = [
     name: "Lunatic",
     family: "1-ply pattern heuristic",
     role: "playable opponent",
+    budget: "",
     tone: "gold",
     glyph: "L",
+    planned: false,
     disabled: false,
   },
   {
@@ -38,8 +44,10 @@ const MODELS = [
     name: "Coin Flip",
     family: "Random legal action",
     role: "playable opponent",
+    budget: "",
     tone: "muted",
     glyph: "C",
+    planned: false,
     disabled: false,
   },
   {
@@ -47,8 +55,10 @@ const MODELS = [
     name: "GNN Learner",
     family: "64 channels · 8 message layers",
     role: "neural candidate",
+    budget: "",
     tone: "green",
     glyph: "G",
+    planned: false,
     disabled: false,
   },
   {
@@ -56,8 +66,10 @@ const MODELS = [
     name: "CNN baseline",
     family: "7×7 residual CNN · 87.4k params",
     role: "neural candidate",
+    budget: "",
     tone: "gold",
     glyph: "C",
+    planned: false,
     disabled: false,
   },
   {
@@ -65,8 +77,43 @@ const MODELS = [
     name: "GNN Scout",
     family: "Compact message passing · 17.5k params",
     role: "neural data generator",
+    budget: "",
     tone: "violet",
     glyph: "S",
+    planned: false,
+    disabled: false,
+  },
+  {
+    id: "gnn-scout-puct32-7x7",
+    name: "Scout + PUCT",
+    family: "GNN Scout policy/value · neural tree search",
+    role: "search candidate",
+    budget: "32 PUCT simulations / move",
+    tone: "violet",
+    glyph: "P",
+    planned: true,
+    disabled: false,
+  },
+  {
+    id: "gnn-scout-beam-7x7",
+    name: "Scout + Neural Beam",
+    family: "GNN Scout policy · 8-move iterative beam",
+    role: "search candidate",
+    budget: "1,000 node budget / move",
+    tone: "green",
+    glyph: "B",
+    planned: true,
+    disabled: false,
+  },
+  {
+    id: "gnn-scout-hybrid-beam-7x7",
+    name: "Scout + Hybrid Beam",
+    family: "Scout policy + Pathfinder value · 8-move beam",
+    role: "hybrid candidate",
+    budget: "1,000 node budget / move",
+    tone: "gold",
+    glyph: "H",
+    planned: true,
     disabled: false,
   },
 ] as const;
@@ -145,6 +192,7 @@ export default function LearningLab() {
 
   const strengthLeaderLive = crossPlay?.standings[0];
   const strengthLeader = MODELS.find((model) => model.id === strengthLeaderLive?.id) ?? MODELS[0];
+  const candidateCount = MODELS.filter((model) => model.planned).length;
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("pathagon-lab-theme");
@@ -226,7 +274,7 @@ export default function LearningLab() {
       </header>
 
       <section className="leaderboard-stat-grid" aria-label="Model league summary">
-        <LeaderboardStat label="Agents tracked" value={crossPlay ? String(crossPlay.standings.length) : "—"} detail="4 playable · 3 neural" accent="green" />
+        <LeaderboardStat label="Agents tracked" value={String(MODELS.length)} detail={`7 rated · ${candidateCount} search candidates`} accent="green" />
         <LeaderboardStat label="7×7 benchmark" value="3,251" detail="2,037 unique · 416 held out" accent="gold" />
         <LeaderboardStat label="Imported cross-play" value={crossPlay ? String(crossPlay.games) : "—"} detail={crossPlay ? "cumulative archive records" : "waiting for first poll"} accent="gold" />
         <LeaderboardStat label="Held-out policy NLL" value="2.112" detail="GNN · 416 held-out records" accent="ink" />
@@ -249,9 +297,9 @@ export default function LearningLab() {
       <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
         <div className="leaderboard-panel-heading">
           <div><span className="portal-kicker">Standings · imported archive</span><h2 id="standings-title">Every model in the ladder.</h2></div>
-          <span className="leaderboard-status"><span /> {crossPlay ? `${crossPlay.standings.length} agents · archive polling` : "Polling archive"}</span>
+          <span className="leaderboard-status"><span /> {crossPlay ? `${crossPlay.standings.length} rated · archive polling` : "Polling archive"}</span>
         </div>
-        <p className="leaderboard-intro">Rankings and records are cumulative across all imported and offline 7×7 cross-play games. Benchmark metrics remain separate from ladder evidence.</p>
+        <p className="leaderboard-intro">Rankings and records are cumulative across all imported and offline 7×7 cross-play games. Search candidates are shown with their planned budgets until they have games; benchmark metrics remain separate from ladder evidence.</p>
 
         <div className="leaderboard-table" role="table" aria-label="Current model standings">
           <div className="leaderboard-table-row leaderboard-table-header" role="row">
@@ -294,13 +342,15 @@ function HeadToHeadRow({ pairing }: { pairing: HeadToHead }) {
 
 function ModelStanding({ model, live, liveRank, snapshotLoaded }: { model: (typeof MODELS)[number]; live?: LiveStanding; liveRank?: string; snapshotLoaded: boolean }) {
   const liveActive = Boolean(live?.games);
+  const planned = Boolean(model.planned);
   const disabled = Boolean(model.disabled);
-  const waiting = !liveActive && !disabled;
+  const waiting = !liveActive && !disabled && !planned;
   const rank = liveActive ? liveRank ?? "—" : "—";
-  const record = liveActive ? formatRecord(live!) : disabled ? "disabled" : "—";
-  const signal = liveActive ? `${live!.games} games` : disabled ? "offline only" : snapshotLoaded ? "no live games" : "waiting for poll";
-  const signalDetail = liveActive ? `${live!.points.toFixed(1)} points · cumulative` : disabled ? "not rated" : "no ladder evidence";
-  return <div className={`leaderboard-table-row model-standing ${rank === "01" ? "leader" : ""} ${disabled || waiting ? "disabled" : ""}`} role="row"><span className="model-rank">{rank}</span><div className="standing-model"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><strong>{model.name}</strong><span>{model.family}</span></div></div><div className="standing-role"><strong>{disabled ? "Disabled" : liveActive ? "Live ladder" : "Waiting"}</strong><span>{model.role}</span></div><span className="standing-elo">{liveActive ? live!.rating.toLocaleString() : "—"}</span><div className="standing-record"><strong>{record}</strong><span>{liveActive ? "cumulative" : disabled ? "not rated" : "no games"}</span></div><div className="standing-signal"><strong>{signal}</strong><span>{signalDetail}</span></div></div>;
+  const record = liveActive ? formatRecord(live!) : disabled || planned ? "not rated" : "—";
+  const signal = liveActive ? `${live!.games} games` : disabled ? "offline only" : planned ? model.budget ?? "candidate spec" : snapshotLoaded ? "no live games" : "waiting for poll";
+  const signalDetail = liveActive ? `${live!.points.toFixed(1)} points · cumulative` : disabled ? "not rated" : planned ? "planned · awaiting evaluation" : "no ladder evidence";
+  const stateClass = disabled ? "disabled" : planned ? "candidate" : waiting ? "disabled" : "";
+  return <div className={`leaderboard-table-row model-standing ${rank === "01" ? "leader" : ""} ${stateClass}`} role="row"><span className="model-rank">{rank}</span><div className="standing-model"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><strong>{model.name}</strong><span>{model.family}</span></div></div><div className="standing-role"><strong>{disabled ? "Disabled" : liveActive ? "Live ladder" : planned ? "Candidate" : "Waiting"}</strong><span>{model.role}</span></div><span className="standing-elo">{liveActive ? live!.rating.toLocaleString() : "—"}</span><div className="standing-record"><strong>{record}</strong><span>{liveActive ? "cumulative" : disabled || planned ? "not rated" : "no games"}</span></div><div className="standing-signal"><strong>{signal}</strong><span>{signalDetail}</span></div></div>;
 }
 
 function formatRecord(standing: Pick<LiveStanding, "wins" | "losses" | "draws">) {
