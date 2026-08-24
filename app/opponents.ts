@@ -1,6 +1,7 @@
 import { connectionDistance, PATHFINDER_SEARCH, searchBestAction, SURVEYOR_SEARCH } from "./ai.ts";
 import { applyLegalAction, legalActions, otherPlayer } from "./pathagon.ts";
 import type { Action, GameState } from "./pathagon.ts";
+import type { RustEngine } from "./rust-engine.ts";
 
 export type Opponent = {
   id: string;
@@ -74,6 +75,19 @@ export const OPPONENTS = [PATHFINDER_OPPONENT, LUNATIC_OPPONENT, SURVEYOR_OPPONE
 
 export function getOpponent(id: string): Opponent {
   return OPPONENTS.find((opponent) => opponent.id === id) ?? SURVEYOR_OPPONENT;
+}
+
+/** Choose the browser opponent move through the Rust/WASM engine boundary. */
+export function chooseOpponentAction(engine: RustEngine, opponent: Opponent, state: GameState): Action | null {
+  if (opponent.id === RANDOM_OPPONENT.id) {
+    const actions = engine.legalActions(state);
+    return actions.length ? actions[Math.floor(Math.random() * actions.length)] : null;
+  }
+  if (opponent.id === LUNATIC_OPPONENT.id) return engine.lunaticAction(state).action;
+  const config = opponent.id === PATHFINDER_OPPONENT.id
+    ? PATHFINDER_SEARCH
+    : SURVEYOR_SEARCH;
+  return engine.searchBestAction(state, config).action;
 }
 
 export function chooseLunaticAction(state: GameState): Action | null {

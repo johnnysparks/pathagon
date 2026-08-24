@@ -5,19 +5,19 @@
 //! engine's boundary typed and checks the same invariants before a record is
 //! accepted.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub const CONTRACT_VERSION: u8 = 1;
 pub const RULES_VERSION: &str = "pathagon-rules-v1";
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ContractPlayer {
     Light,
     Dark,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct GameConfig {
     #[serde(rename = "rulesVersion")]
     pub rules_version: String,
@@ -31,7 +31,7 @@ pub struct GameConfig {
     pub repetition_limit: u8,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "kind")]
 pub enum ContractAction {
     #[serde(rename = "place")]
@@ -40,7 +40,7 @@ pub enum ContractAction {
     Relocate { from: u8, to: u8 },
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Position {
     #[serde(rename = "contractVersion")]
     pub contract_version: u8,
@@ -55,19 +55,19 @@ pub struct Position {
     pub ply: u16,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct PlayerNumbers {
     pub light: u16,
     pub dark: u16,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct PlayerSquares {
     pub light: Option<u8>,
     pub dark: Option<u8>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct EngineMetadata {
     pub id: String,
     pub runtime: String,
@@ -76,7 +76,7 @@ pub struct EngineMetadata {
     pub rules_version: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct EvaluatorWeights {
     pub path: i32,
     pub material: i32,
@@ -86,7 +86,7 @@ pub struct EvaluatorWeights {
     pub edge: i32,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AgentManifest {
     #[serde(rename = "manifestVersion")]
     pub manifest_version: u8,
@@ -103,7 +103,7 @@ pub struct AgentManifest {
     pub model_hash: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AgentSpecification {
     pub id: String,
     pub name: String,
@@ -115,7 +115,7 @@ pub struct AgentSpecification {
     pub parameters: Option<serde_json::Value>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ContractMove {
     pub ply: u16,
     pub player: ContractPlayer,
@@ -131,13 +131,13 @@ pub struct ContractMove {
     pub book_hit: Option<bool>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct PlayerAgents {
     pub light: String,
     pub dark: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AgentSpecifications {
     pub light: AgentSpecification,
     pub dark: AgentSpecification,

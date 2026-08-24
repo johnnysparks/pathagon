@@ -6,16 +6,15 @@ import {
   Action,
   GameState,
   Player,
-  applyAction,
   createGame,
   createNearWinFixture,
   describeAction,
-  legalActions,
   playerLabel,
 } from "./pathagon";
 import { createGameId } from "./game-record";
-import { OPPONENTS, SURVEYOR_OPPONENT, getOpponent } from "./opponents";
-import { COACHING_SEARCH, analyzeAction, analyzeActions, type MoveEvaluation } from "./ai";
+import { chooseOpponentAction, OPPONENTS, SURVEYOR_OPPONENT, getOpponent } from "./opponents";
+import { COACHING_SEARCH, type MoveEvaluation } from "./ai";
+import { loadRustEngine, type RustEngine } from "./rust-engine";
 
 const HUMAN: Player = "light";
 const AI: Player = "dark";
@@ -35,6 +34,8 @@ export default function Home() {
   const [coachingEvaluation, setCoachingEvaluation] = useState<MoveEvaluation | null>(null);
   const [coachingStatus, setCoachingStatus] = useState<"idle" | "searching" | "ready">("idle");
   const [opponentId, setOpponentId] = useState(SURVEYOR_OPPONENT.id);
+  const [rustEngine, setRustEngine] = useState<RustEngine | null>(null);
+  const [engineError, setEngineError] = useState<string | null>(null);
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resultRef = useRef<HTMLDivElement | null>(null);
   const coachingRequest = useRef(0);
@@ -43,11 +44,11 @@ export default function Home() {
   const recordable = useRef(true);
   const recordedGame = useRef<string | null>(null);
 
-  const actions = useMemo(() => legalActions(game), [game]);
+  const actions = useMemo(() => rustEngine?.legalActions(game) ?? [], [game, rustEngine]);
   const actionKeys = useMemo(() => new Set(actions.map(actionKey)), [actions]);
   const humanPlacementTurn = game.turn === HUMAN && game.reserve[HUMAN] > 0;
   const humanMovementTurn = game.turn === HUMAN && game.reserve[HUMAN] === 0;
-  const thinking = game.turn === AI && !game.winner;
+  const thinking = !rustEngine || (game.turn === AI && !game.winner);
   const opponent = getOpponent(opponentId);
   const resultOpen = Boolean(game.winner) && !resultDismissed;
   const captureCount = game.lastAction?.captured.length ?? 0;
@@ -57,6 +58,16 @@ export default function Home() {
       : `Trap! ${opponent.name} returned ${captureCount} ${captureCount === 1 ? "piece" : "pieces"} to your hand.`
     : null;
   const bestCoachingMove = coachingMoves[0] ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadRustEngine().then((engine) => {
+      if (!cancelled) setRustEngine(engine);
+    }).catch((error: unknown) => {
+      if (!cancelled) setEngineError(error instanceof Error ? error.message : String(error));
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (fixtureLoaded.current) return;
@@ -73,47 +84,47 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (game.winner || game.turn !== AI) return;
+    if (!rustEngine || game.winner || game.turn !== AI) return;
     aiTimer.current = setTimeout(() => {
       setGame((current) => {
         if (current.turn !== AI || current.winner) return current;
-        const decision = opponent.chooseAction(current);
+        const decision = chooseOpponentAction(rustEngine, opponent, current);
         if (!decision) return current;
         setHistory((items) => [...items, current]);
         setMoveHistory((items) => [...items, decision]);
-        return applyAction(current, decision);
+        return rustEngine.applyAction(current, decision);
       });
     }, 420);
     return () => {
       if (aiTimer.current) clearTimeout(aiTimer.current);
     };
-  }, [game, opponent]);
+  }, [game, opponent, rustEngine]);
 
   useEffect(() => {
     coachingRequest.current += 1;
-    if (game.winner || game.turn !== HUMAN || thinking) return;
+    if (!rustEngine || game.winner || game.turn !== HUMAN || thinking) return;
     const request = coachingRequest.current;
     const analysisTimer = setTimeout(() => {
-      const moves = analyzeActions(game, COACHING_SEARCH, game.reserve[HUMAN] > 0 ? 49 : 42);
+      const moves = rustEngine.analyzeActions(game, COACHING_SEARCH, game.reserve[HUMAN] > 0 ? 49 : 42);
       if (coachingRequest.current !== request) return;
       setCoachingMoves(moves);
     }, 120);
     return () => clearTimeout(analysisTimer);
-  }, [game, thinking]);
+  }, [game, rustEngine, thinking]);
 
   useEffect(() => {
-    if (!coachingAction || game.winner || game.turn !== HUMAN || thinking) return;
+    if (!rustEngine || !coachingAction || game.winner || game.turn !== HUMAN || thinking) return;
     const request = coachingRequest.current + 1;
     coachingRequest.current = request;
     const analysisTimer = setTimeout(() => {
       if (coachingRequest.current !== request) return;
-      const evaluation = analyzeAction(game, coachingAction, COACHING_SEARCH);
+      const evaluation = rustEngine.analyzeAction(game, coachingAction, COACHING_SEARCH);
       if (coachingRequest.current !== request) return;
       setCoachingEvaluation(evaluation);
       setCoachingStatus("ready");
     }, 80);
     return () => clearTimeout(analysisTimer);
-  }, [coachingAction, game, thinking]);
+  }, [coachingAction, game, rustEngine, thinking]);
 
   useEffect(() => {
     if (!game.winner) return;
@@ -146,11 +157,11 @@ export default function Home() {
   }, [captureCount, game.ply]);
 
   function play(action: Action) {
-    if (game.turn !== HUMAN || game.winner || thinking) return;
+    if (!rustEngine || game.turn !== HUMAN || game.winner || thinking) return;
     if (recordable.current && !gameId) setGameId(createGameId());
     setHistory((items) => [...items, game]);
     setMoveHistory((items) => [...items, action]);
-    setGame(applyAction(game, action));
+    setGame(rustEngine.applyAction(game, action));
     setSelected(null);
     clearCoaching();
   }
@@ -386,7 +397,7 @@ export default function Home() {
                     onTouchCancel={clearLongPress}
                     role="gridcell"
                     aria-label={cellLabel(index, piece, forbidden, movable)}
-                    disabled={game.turn !== HUMAN || thinking || Boolean(game.winner) || forbidden}
+                    disabled={!rustEngine || game.turn !== HUMAN || thinking || Boolean(game.winner) || forbidden}
                   >
                     <span className="socket" />
                     {piece && <span className={`piece ${piece}`} />}
@@ -442,7 +453,7 @@ export default function Home() {
             <div><dt>Search depth</dt><dd>{opponent.searchDepth} ply</dd></div>
           </dl>
           <div className="event-log"><span className="stat-label">Latest event</span><p>{game.lastAction ? describeAction(game.lastAction) : "The board is empty. You have the first move."}</p></div>
-          <div className="rules-note"><strong>v0 engine rules</strong><p>Light connects near-to-far; dark connects side-to-side. Orthogonal paths. Automatic A–B–A captures.</p></div>
+          <div className="rules-note"><strong>{engineError ? "Engine unavailable" : rustEngine ? "Rust/WASM engine" : "Loading Rust engine…"}</strong><p>{engineError ?? "Light connects near-to-far; dark connects side-to-side. Orthogonal paths. Automatic A–B–A captures."}</p></div>
         </aside>
       </section>
 

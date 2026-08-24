@@ -4,12 +4,20 @@
 //! connects the left column to the right column. Boards from 3x3 through 8x8
 //! fit in the bitboard representation and share the same rule implementation.
 
+use std::collections::VecDeque;
+
 pub mod corpus;
 pub mod contract;
 pub mod learned;
+pub mod model;
+pub mod runtime;
 pub mod search;
 pub mod selfplay;
 pub mod training;
+#[cfg(feature = "inference")]
+pub mod inference;
+#[cfg(feature = "wasm")]
+pub mod wasm_api;
 
 use std::fmt;
 
@@ -266,23 +274,35 @@ pub struct Transition {
 }
 
 pub fn has_winning_path(state: GameState, player: Player) -> bool {
+    !winning_path(state, player).is_empty()
+}
+
+pub fn winning_path(state: GameState, player: Player) -> Vec<u8> {
     let pieces = state.pieces(player);
     let near_edge = if player == Player::Light { row_mask(state.config.board_size, state.config.board_size - 1) } else { column_mask(state.config.board_size, 0) };
     let far_edge = if player == Player::Light { row_mask(state.config.board_size, 0) } else { column_mask(state.config.board_size, state.config.board_size - 1) };
-    let mut frontier = pieces & near_edge;
-    let mut visited = frontier;
-    while frontier != 0 {
-        if frontier & far_edge != 0 {
-            return true;
+    let starts: Vec<u8> = squares(pieces & near_edge).collect();
+    let mut queue = VecDeque::from(starts.clone());
+    let mut visited = pieces & near_edge;
+    let mut parent = [None; MAX_CELL_COUNT as usize];
+    while let Some(square) = queue.pop_front() {
+        if bit(square) & far_edge != 0 {
+            let mut path = vec![square];
+            let mut cursor = square;
+            while let Some(previous) = parent[cursor as usize] {
+                path.push(previous);
+                cursor = previous;
+            }
+            path.reverse();
+            return path;
         }
-        let mut adjacent = 0;
-        for square in squares(frontier) {
-            adjacent |= neighbor_mask_for(state.config.board_size, square);
+        for next in squares(neighbor_mask_for(state.config.board_size, square) & pieces & !visited) {
+            visited |= bit(next);
+            parent[next as usize] = Some(square);
+            queue.push_back(next);
         }
-        frontier = adjacent & pieces & !visited;
-        visited |= frontier;
     }
-    false
+    Vec::new()
 }
 
 pub fn parse_action(text: &str) -> Result<Action, String> {

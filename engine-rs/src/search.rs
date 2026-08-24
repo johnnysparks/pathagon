@@ -1,4 +1,5 @@
 use std::collections::{HashMap, VecDeque};
+use serde::{Deserialize, Serialize};
 
 use crate::{bit, neighbor_mask_for, squares, Action, GameState, Player};
 
@@ -6,7 +7,7 @@ const WIN_SCORE: i32 = 1_000_000_000;
 const NEG_INF: i32 = i32::MIN / 4;
 const POS_INF: i32 = i32::MAX / 4;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct EvaluationWeights {
     pub path: i32,
     pub material: i32,
@@ -52,6 +53,18 @@ impl Default for SearchConfig {
 pub struct SearchResult {
     pub action: Option<Action>,
     pub score: i32,
+    pub nodes: u64,
+    pub exhausted: bool,
+    pub completed_depth: u8,
+    pub table_hits: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MoveEvaluation {
+    pub action: Action,
+    pub before_score: i32,
+    pub score: i32,
+    pub delta: i32,
     pub nodes: u64,
     pub exhausted: bool,
     pub completed_depth: u8,
@@ -156,6 +169,89 @@ pub fn search_best_action(state: GameState, config: SearchConfig) -> SearchResul
         completed_depth,
         table_hits: budget.table_hits,
     }
+}
+
+pub fn analyze_action(state: GameState, action: Action, config: SearchConfig) -> Result<MoveEvaluation, String> {
+    if !state.legal_actions().contains(&action) {
+        return Err("cannot analyze an illegal Pathagon action".to_owned());
+    }
+    let root_player = state.turn;
+    let before_score = evaluate(state, root_player, config.weights);
+    let mut budget = Budget::default();
+    let mut table = HashMap::new();
+    let next = state.apply_legal(action).state;
+    budget.nodes += 1;
+    let score = if next.winner.is_some() {
+        evaluate(next, root_player, config.weights)
+    } else {
+        minimax(
+            next,
+            root_player,
+            config.depth.saturating_sub(1),
+            NEG_INF,
+            POS_INF,
+            config,
+            &mut budget,
+            &mut table,
+        )
+    };
+    Ok(MoveEvaluation {
+        action,
+        before_score,
+        score,
+        delta: score - before_score,
+        nodes: budget.nodes,
+        exhausted: budget.exhausted,
+        completed_depth: config.depth,
+        table_hits: budget.table_hits,
+    })
+}
+
+pub fn analyze_actions(state: GameState, config: SearchConfig, max_actions: usize) -> Vec<MoveEvaluation> {
+    let root_player = state.turn;
+    let before_score = evaluate(state, root_player, config.weights);
+    let mut budget = Budget::default();
+    let mut table = HashMap::new();
+    let mut alpha = NEG_INF;
+    let mut results = Vec::new();
+    for action in ordered_actions(state, root_player, config.weights).into_iter().take(max_actions) {
+        if budget.nodes >= config.max_nodes {
+            budget.exhausted = true;
+            break;
+        }
+        let next = state.apply_legal(action).state;
+        budget.nodes += 1;
+        let score = if next.winner.is_some() {
+            evaluate(next, root_player, config.weights)
+        } else {
+            minimax(
+                next,
+                root_player,
+                config.depth.saturating_sub(1),
+                alpha,
+                POS_INF,
+                config,
+                &mut budget,
+                &mut table,
+            )
+        };
+        results.push(MoveEvaluation {
+            action,
+            before_score,
+            score,
+            delta: score - before_score,
+            nodes: budget.nodes,
+            exhausted: budget.exhausted,
+            completed_depth: config.depth,
+            table_hits: budget.table_hits,
+        });
+        alpha = alpha.max(score);
+        if budget.exhausted {
+            break;
+        }
+    }
+    results.sort_by_key(|result| (-result.score, result.action.order()));
+    results
 }
 
 /// Choose the same shallow local-pattern move as the browser Lunatic baseline.

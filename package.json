@@ -15,6 +15,7 @@
     "selfplay:archive": "node --experimental-strip-types scripts/archive-selfplay.ts",
     "selfplay:league": "node --experimental-strip-types selfplay/cli.ts --mode league",
     "test:python": "bash scripts/test-python.sh",
+    "build:engine": "bash scripts/build-rust-wasm.sh",
     "test:parity": "bash scripts/test-parity.sh",
     "rust:test": "cargo test --manifest-path engine-rs/Cargo.toml --all-targets --release",
     "rust:selfplay": "cargo run --release --manifest-path engine-rs/Cargo.toml --bin pathagon-selfplay --",

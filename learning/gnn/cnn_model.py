@@ -94,6 +94,51 @@ class PathagonCNN(nn.Module):
         context = self.context(pooled)
         return nodes, context
 
+    def encode_tensors(
+        self,
+        board_features: torch.Tensor,
+        global_features: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Encode the stable tensor ABI used by the Rust inference backend.
+
+        The training-facing ``encode`` method accepts a Python ``GameState``.
+        Keeping this tensor-only sibling makes the model exportable without
+        putting Python rules or legal-action objects into the ONNX graph.
+        """
+
+        features = F.gelu(self.input_normalization(self.input(board_features)))
+        for block in self.blocks:
+            features = block(features)
+        nodes = features.permute(0, 2, 3, 1).reshape(features.shape[0], self.board_size * self.board_size, self.hidden_size)
+        pooled = torch.cat((nodes.mean(dim=1), nodes.amax(dim=1), global_features), dim=1)
+        context = self.context(pooled)
+        return nodes, context
+
+    def policy_value_tensors(
+        self,
+        board_features: torch.Tensor,
+        global_features: torch.Tensor,
+        action_specs: torch.Tensor,
+        action_mask: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Score padded legal-action slots for export and Rust inference."""
+
+        nodes, context = self.encode_tensors(board_features, global_features)
+        action_indices = action_specs.to(dtype=torch.long)
+        from_square = action_indices[..., 1].unsqueeze(-1).expand(-1, -1, self.hidden_size)
+        to_square = action_indices[..., 2].unsqueeze(-1).expand(-1, -1, self.hidden_size)
+        from_nodes = torch.gather(nodes, 1, from_square)
+        to_nodes = torch.gather(nodes, 1, to_square)
+        context_per_action = context.unsqueeze(1).expand(-1, action_specs.shape[1], -1)
+        place_features = torch.cat((to_nodes, context_per_action), dim=-1)
+        relocate_features = torch.cat((from_nodes, to_nodes, context_per_action), dim=-1)
+        place_logits = self.place_head(place_features).squeeze(-1)
+        relocate_logits = self.relocate_head(relocate_features).squeeze(-1)
+        logits = torch.where(action_indices[..., 0] == 0, place_logits, relocate_logits)
+        logits = logits.masked_fill(action_mask <= 0, -1.0e9)
+        value = torch.tanh(self.value_head(context).squeeze(-1))
+        return logits, value
+
     def policy_value(
         self,
         state: GameState,
@@ -129,4 +174,3 @@ class PathagonCNN(nn.Module):
             "global_features": GLOBAL_FEATURES,
             "action_head": "dynamic-place-and-relocate-pair",
         }
-
