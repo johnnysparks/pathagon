@@ -170,7 +170,7 @@ export default function LearningLab() {
           setCrossPlayError(null);
         })
         .catch((error: unknown) => {
-          if (active) setCrossPlayError(error instanceof Error ? error.message : "Live archive unavailable");
+          if (active) setCrossPlayError(error instanceof Error ? error.message : "Imported archive unavailable");
         });
     };
     refresh();
@@ -210,7 +210,7 @@ export default function LearningLab() {
         <div className="leaderboard-hero-copy">
           <span className="portal-kicker">7×7 model league</span>
           <h1>Leaderboard</h1>
-          <p>Live model rankings backed by every archived cross-play result.</p>
+          <p>Model rankings backed by every imported and offline cross-play result.</p>
         </div>
 
         <div className="leaderboard-leader-card" aria-label="Current strength leader">
@@ -226,32 +226,32 @@ export default function LearningLab() {
       </header>
 
       <section className="leaderboard-stat-grid" aria-label="Model league summary">
-        <LeaderboardStat label="Live agents" value={crossPlay ? String(crossPlay.standings.length) : "—"} detail="4 playable · 3 neural" accent="green" />
+        <LeaderboardStat label="Agents tracked" value={crossPlay ? String(crossPlay.standings.length) : "—"} detail="4 playable · 3 neural" accent="green" />
         <LeaderboardStat label="7×7 benchmark" value="3,251" detail="2,037 unique · 416 held out" accent="gold" />
-        <LeaderboardStat label="Live cross-play" value={crossPlay ? String(crossPlay.games) : "—"} detail={crossPlay ? "cumulative database records" : "waiting for first poll"} accent="gold" />
+        <LeaderboardStat label="Imported cross-play" value={crossPlay ? String(crossPlay.games) : "—"} detail={crossPlay ? "cumulative archive records" : "waiting for first poll"} accent="gold" />
         <LeaderboardStat label="Held-out policy NLL" value="2.112" detail="GNN · 416 held-out records" accent="ink" />
       </section>
 
       <section className="leaderboard-panel cross-play-live-panel" aria-labelledby="live-run-title">
         <div className="cross-play-live-heading">
-          <div><span className="portal-kicker">Live archive · read-only</span><h2 id="live-run-title">Cumulative cross-play</h2><p>The browser polls the database every 0.9 seconds. Add games from chat or the terminal and this view will pick up the new result automatically.</p></div>
+          <div><span className="portal-kicker">Imported archive · read-only</span><h2 id="live-run-title">Cumulative cross-play archive</h2><p>The browser polls the database every 0.9 seconds. Imported offline results from chat or the terminal appear here automatically.</p></div>
           <span className="leaderboard-status polling-status"><span /> {crossPlay ? "Polling" : "Connecting"}</span>
         </div>
         <div className="live-run-summary">
           <div><strong>{crossPlay?.games ?? "—"}<small>{crossPlay ? ` / ${crossPlay.targetGames}` : ""}</small></strong><span>games counted</span></div>
-          <div><strong>{crossPlay ? "Polling" : "Connecting"}</strong><span>browser status</span></div>
+          <div><strong>{crossPlay ? "Archive polling" : "Connecting"}</strong><span>browser status</span></div>
           <div><strong>{crossPlay?.latest[0]?.winner ?? (crossPlay?.latest[0] ? "draw" : "—")}</strong><span>latest stored result</span></div>
         </div>
         {crossPlayError ? <p className="live-run-error" role="status">{crossPlayError} · retrying automatically</p> : null}
-        {crossPlay?.latest.length ? <div className="live-game-list" aria-label="Latest cross-play games">{crossPlay.latest.map((game) => <div className="live-game-row" key={game.id}><span className="live-game-number">{shortGameId(game.id)}</span><strong>{game.light}</strong><span>vs</span><strong>{game.dark}</strong><span className="live-game-result">{game.winner ? `${game.winner} · ${game.plies} plies` : `draw · ${game.plies} plies`}</span></div>)}</div> : <p className="live-run-empty">Waiting for an archived cross-play result.</p>}
+        {crossPlay?.latest.length ? <div className="live-game-list" aria-label="Latest cross-play games">{crossPlay.latest.map((game) => <div className="live-game-row" key={game.id}><span className="live-game-number">{shortGameId(game.id)}</span><strong>{game.light}</strong><span>vs</span><strong>{game.dark}</strong><span className="live-game-result">{game.winner ? `${game.winner} · ${game.plies} plies` : `draw · ${game.plies} plies`}</span></div>)}</div> : <p className="live-run-empty">Waiting for an imported offline cross-play result.</p>}
       </section>
 
       <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
         <div className="leaderboard-panel-heading">
-          <div><span className="portal-kicker">Standings · live database</span><h2 id="standings-title">Every model in the ladder.</h2></div>
-          <span className="leaderboard-status"><span /> {crossPlay ? `${crossPlay.standings.length} agents · polling` : "Polling database"}</span>
+          <div><span className="portal-kicker">Standings · imported archive</span><h2 id="standings-title">Every model in the ladder.</h2></div>
+          <span className="leaderboard-status"><span /> {crossPlay ? `${crossPlay.standings.length} agents · archive polling` : "Polling archive"}</span>
         </div>
-        <p className="leaderboard-intro">Rankings and records are cumulative across all archived 7×7 cross-play games. Offline benchmark metrics remain separate from live ladder evidence.</p>
+        <p className="leaderboard-intro">Rankings and records are cumulative across all imported and offline 7×7 cross-play games. Benchmark metrics remain separate from ladder evidence.</p>
 
         <div className="leaderboard-table" role="table" aria-label="Current model standings">
           <div className="leaderboard-table-row leaderboard-table-header" role="row">
@@ -263,7 +263,7 @@ export default function LearningLab() {
 
       <section className="leaderboard-panel head-to-head-panel" id="head-to-head" aria-labelledby="head-to-head-title">
         <div className="leaderboard-panel-heading">
-          <div><span className="portal-kicker">Head-to-head · cross-play only</span><h2 id="head-to-head-title">Pairwise results.</h2></div>
+          <div><span className="portal-kicker">Head-to-head · imported archive</span><h2 id="head-to-head-title">Pairwise results.</h2></div>
           <span className="leaderboard-status"><span /> {crossPlay ? `${crossPlay.headToHead.filter((pairing) => pairing.games > 0).length} active pairings` : "Waiting for poll"}</span>
         </div>
         <p className="leaderboard-intro">Each row is recomputed from the same cumulative archive as the Elo ladder. W–L–D and points are shown from the left model&apos;s perspective; Light starts shows color coverage. Human games stay in their separate archive.</p>
@@ -271,10 +271,10 @@ export default function LearningLab() {
         {crossPlay?.headToHead.length ? <div className="head-to-head-table" role="table" aria-label="Head-to-head model results">
           <div className="head-to-head-row head-to-head-header" role="row"><span>Pairing</span><span>Games</span><span>W–L–D</span><span>Points</span><span>Light starts</span></div>
           {crossPlay.headToHead.map((pairing) => <HeadToHeadRow key={`${pairing.leftId}-${pairing.rightId}`} pairing={pairing} />)}
-        </div> : <p className="live-run-empty">Waiting for live pairwise results.</p>}
+        </div> : <p className="live-run-empty">Waiting for imported pairwise results.</p>}
       </section>
 
-      <footer className="portal-footer"><span>7×7 model leaderboard</span><span>Read-only view · polling the live archive</span></footer>
+      <footer className="portal-footer"><span>7×7 model leaderboard</span><span>Read-only view · polling the imported archive</span></footer>
     </main>
   );
 }
@@ -315,6 +315,6 @@ function shortGameId(id: string) {
 async function readLatestCrossPlay(): Promise<CrossPlayState> {
   const response = await fetch(`/api/cross-play?runId=${ALL_CROSS_PLAY_RUN_ID}`, { cache: "no-store" });
   const payload = await response.json() as CrossPlayState & { error?: string };
-  if (!response.ok) throw new Error(payload.error ?? "No live archive available");
+  if (!response.ok) throw new Error(payload.error ?? "No imported cross-play archive available");
   return payload;
 }

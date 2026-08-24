@@ -1,24 +1,14 @@
-import { PATHFINDER_SEARCH, SURVEYOR_SEARCH } from "../../ai";
-import { defaultAgentSpecification, TYPESCRIPT_ENGINE } from "../../contract";
-import { chooseLunaticAction } from "../../opponents";
-import { querySelfPlayGames, storeSelfPlayGames } from "../../../db/selfplay-games";
-import { createRandomAgent, createSearchAgent, mulberry32, playGame } from "../../../selfplay/core";
-import type { SelfPlayAgent } from "../../../selfplay/core";
+import { querySelfPlayGames } from "../../../db/selfplay-games";
 
-const TARGET_GAMES = 10;
-const BRIDGED_GAMES = 4;
 const MAX_QUERY_GAMES = 500;
-const MAX_SEQUENCE = TARGET_GAMES - 1;
 const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
 const RUN_ID_PATTERN = /^[a-zA-Z0-9._:-]{1,120}$/;
-const PLAYABLE_AGENTS = [
+const WEB_GENERATED_ENGINE = "typescript-live-cross-play";
+const AGENTS = [
   { id: "pathfinder-v0.3.0", label: "The Pathfinder", kind: "heuristic" as const, tone: "green" },
   { id: "surveyor-v0.2.0", label: "The Surveyor", kind: "heuristic" as const, tone: "violet" },
   { id: "lunatic-v0.1.0", label: "Lunatic", kind: "heuristic" as const, tone: "gold" },
   { id: "coin-flip-v0.0.1", label: "Coin Flip", kind: "random" as const, tone: "muted" },
-] as const;
-const AGENTS = [
-  ...PLAYABLE_AGENTS,
   { id: "gnn-warmstart-7x7", label: "GNN Learner", kind: "gnn" as const, tone: "green" },
   { id: "cnn-baseline-7x7", label: "CNN baseline", kind: "cnn" as const, tone: "gold" },
   { id: "gnn-scout-7x7", label: "GNN Scout", kind: "gnn" as const, tone: "violet" },
@@ -34,47 +24,6 @@ const BASELINE_RATINGS: Record<string, number> = {
   "gnn-scout-7x7": 940,
 };
 
-export async function POST(request: Request) {
-  try {
-    const payload = await request.json() as Record<string, unknown>;
-    const runId = validateRunId(payload.runId);
-    const sequence = validateInteger(payload.sequence, "sequence", 0, MAX_SEQUENCE);
-    const seed = validateInteger(payload.seed, "seed", 0, 4_294_967_295);
-    const existing = await queryRun(runId);
-    if (existing.length >= TARGET_GAMES) {
-      return Response.json({ accepted: false, error: "This cross-play run already has 10 games", games: existing.length }, { status: 409 });
-    }
-
-    const agents = choosePair(seed);
-    const leftIsLight = sequence % 2 === 0;
-    const light = leftIsLight ? agents.left : agents.right;
-    const dark = leftIsLight ? agents.right : agents.left;
-    const record = playGame(light.agent, dark.agent, {
-      seed,
-      maxPlies: 180,
-      openingRandomPlies: 4,
-    });
-    const id = `cross-play-${runId}-${sequence}`;
-    const result = await storeSelfPlayGames([{
-      id,
-      engine: "typescript-live-cross-play",
-      mode: "cross-play",
-      runId,
-      record,
-    }]);
-    return Response.json({
-      accepted: true,
-      inserted: result.inserted,
-      runId,
-      sequence,
-      game: summarizeGame(id, record),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to play cross-play game";
-    return Response.json({ accepted: false, error: message }, { status: 400 });
-  }
-}
-
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -82,15 +31,14 @@ export async function GET(request: Request) {
     const aggregate = requestedRunId === ALL_CROSS_PLAY_RUN_ID || (!requestedRunId && url.searchParams.get("latest") === "1");
     const runId = aggregate ? ALL_CROSS_PLAY_RUN_ID : requestedRunId ? validateRunId(requestedRunId) : (() => { throw new Error("A cross-play run ID is required"); })();
     const records = aggregate ? await queryAllCrossPlayGames() : await queryRun(runId);
-    if (!records.length) return Response.json({ found: false, error: "No cross-play runs yet" }, { status: 404 });
+    if (!records.length) return Response.json({ found: false, error: "No imported cross-play games yet" }, { status: 404 });
     const standings = buildStandings(records);
     const headToHead = buildHeadToHead(records);
-    const targetGames = aggregate ? records.length : targetGamesForRun(runId);
     return Response.json({
       runId,
-      targetGames,
+      targetGames: records.length,
       games: records.length,
-      status: records.length >= targetGames ? "complete" : records.length ? "running" : "ready",
+      status: "complete",
       standings,
       headToHead,
       latest: records.slice(-5).reverse().map(({ id, record }) => summarizeGame(id, record)),
@@ -103,7 +51,7 @@ export async function GET(request: Request) {
 
 async function queryRun(runId: string) {
   const exactGames = await querySelfPlayGames({ runId, limit: MAX_QUERY_GAMES, offset: 0 });
-  const exactRecords = exactGames.filter((game) => game.mode === "cross-play");
+  const exactRecords = exactGames.filter(isImportedCrossPlay);
   return sortRecords(exactRecords);
 }
 
@@ -111,45 +59,18 @@ async function queryAllCrossPlayGames() {
   const records = [];
   for (let offset = 0; ; offset += MAX_QUERY_GAMES) {
     const games = await querySelfPlayGames({ mode: "cross-play", limit: MAX_QUERY_GAMES, offset });
-    records.push(...games.filter((game) => game.mode === "cross-play"));
+    records.push(...games.filter(isImportedCrossPlay));
     if (games.length < MAX_QUERY_GAMES) break;
   }
   return sortRecords(records);
 }
 
-function targetGamesForRun(runId: string) {
-  return runId.startsWith("gnn-surveyor-") ? BRIDGED_GAMES : TARGET_GAMES;
+function isImportedCrossPlay(game: { mode: string; engine: string }) {
+  return game.mode === "cross-play" && game.engine !== WEB_GENERATED_ENGINE;
 }
 
 function sortRecords<T extends { recordedAt: string; id: string; record: { seed: number } }>(records: T[]) {
   return records.sort((left, right) => left.recordedAt.localeCompare(right.recordedAt) || left.record.seed - right.record.seed || left.id.localeCompare(right.id));
-}
-
-function choosePair(seed: number) {
-  const random = mulberry32(seed);
-  const leftIndex = Math.floor(random() * PLAYABLE_AGENTS.length);
-  let rightIndex = Math.floor(random() * (PLAYABLE_AGENTS.length - 1));
-  if (rightIndex >= leftIndex) rightIndex += 1;
-  const left = PLAYABLE_AGENTS[leftIndex];
-  const right = PLAYABLE_AGENTS[rightIndex];
-  return { left: { ...left, agent: createAgent(left.id) }, right: { ...right, agent: createAgent(right.id) } };
-}
-
-function createAgent(id: string): SelfPlayAgent {
-  if (id === "pathfinder-v0.3.0") {
-    return createSearchAgent(id, { ...PATHFINDER_SEARCH, depth: 2, maxNodes: 1_000, beamWidth: 8 });
-  }
-  if (id === "surveyor-v0.2.0") {
-    return createSearchAgent(id, { ...SURVEYOR_SEARCH, depth: 1, maxNodes: 500, beamWidth: 12 });
-  }
-  if (id === "coin-flip-v0.0.1") return createRandomAgent(id);
-  return {
-    id,
-    spec: defaultAgentSpecification(id, "search", TYPESCRIPT_ENGINE, { depth: 1, nodeBudget: 1 }),
-    chooseAction(state) {
-      return { action: chooseLunaticAction(state), nodes: 1, completedDepth: 1 };
-    },
-  };
 }
 
 function buildStandings(records: Awaited<ReturnType<typeof queryRun>>) {
@@ -275,9 +196,4 @@ function labelFor(id: string) {
 function validateRunId(value: unknown): string {
   if (typeof value !== "string" || !RUN_ID_PATTERN.test(value)) throw new Error("Invalid cross-play run ID");
   return value;
-}
-
-function validateInteger(value: unknown, label: string, minimum: number, maximum: number): number {
-  if (!Number.isSafeInteger(value) || Number(value) < minimum || Number(value) > maximum) throw new Error(`Invalid cross-play ${label}`);
-  return Number(value);
 }
