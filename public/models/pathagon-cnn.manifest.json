@@ -1,0 +1,26 @@
+{
+  "actionFeatures": 3,
+  "architecture": {
+    "action_head": "dynamic-place-and-relocate-pair",
+    "architecture": "residual-cnn-7x7",
+    "board_size": 7,
+    "global_features": 8,
+    "hidden_size": 32,
+    "input_features": 16,
+    "residual_blocks": 4
+  },
+  "artifactHash": "sha256:a335484bd0d2ab99bc09860f5513f86336eed33d60095c97974247657fce6ea4",
+  "boardFeatures": 16,
+  "boardSize": 7,
+  "format": "onnx",
+  "globalFeatures": 8,
+  "maxActions": 2401,
+  "maxPlies": 180,
+  "outputs": {
+    "policy": "masked logits in action_specs order",
+    "value": "side-to-move scalar in [-1,1]"
+  },
+  "schema": "pathagon-policy-value-v1",
+  "schemaVersion": 1,
+  "sourceModelHash": "sha256:7845e9b7687beee165dc36b8d21833b7a8b5a83e31b58b49bd05c277ba26e642"
+}

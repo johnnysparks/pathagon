@@ -100,6 +100,26 @@ The GNN can still use `--size 5` with a fresh model to exercise the dynamic
 graph path. Smaller boards remain curriculum and regression environments, not
 part of the canonical 7x7 training distribution.
 
+## Browser CNN deployment
+
+Export a fixed 7x7 CNN checkpoint as a single-file ONNX artifact for the
+Rust/WASM inference session:
+
+```bash
+./.venv-pathagon-gnn/bin/python -m learning.gnn.export \
+  --checkpoint training/gnn/benchmark-7x7/cnn-warmstart.pt \
+  --output public/models/pathagon-cnn.onnx
+npm run build:engine
+```
+
+The build expects the pinned `wasm-bindgen` CLI to be available on `PATH`.
+
+The small rules/search module is emitted to `public/engine`. The learned CNN
+runtime is emitted separately to `public/engine-inference` and is loaded only
+when the CNN opponent is selected. Its PUCT API uses Rust-generated legal
+actions, the exported policy logits as priors, and the exported value head at
+leaf nodes.
+
 ## Important boundaries
 
 The 100/120 archived games are a warm-start signal and a replay-validation
@@ -109,6 +129,7 @@ against search and random with disjoint seeds and multiple color-balanced
 batches before any promotion.
 
 The Python rules adapter is tested against the shared move semantics during
-development. The Rust/TypeScript engines remain the production authorities;
-the next hardening step is a generated parity corpus across both board sizes
-before using 5x5 games as curriculum data.
+development. Rust is the production rules/search authority; TypeScript remains
+the reference/coaching implementation for regression tests. The next hardening
+step is a generated parity corpus across both board sizes before using 5x5
+games as curriculum data.

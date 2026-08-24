@@ -16,6 +16,8 @@ pub mod selfplay;
 pub mod training;
 #[cfg(feature = "inference")]
 pub mod inference;
+#[cfg(feature = "inference")]
+pub mod puct;
 #[cfg(feature = "wasm")]
 pub mod wasm_api;
 

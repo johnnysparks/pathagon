@@ -1,6 +1,7 @@
 import { connectionDistance, PATHFINDER_SEARCH, searchBestAction, SURVEYOR_SEARCH } from "./ai.ts";
 import { applyLegalAction, legalActions, otherPlayer } from "./pathagon.ts";
 import type { Action, GameState } from "./pathagon.ts";
+import type { CnnEngine } from "./cnn-engine.ts";
 import type { RustEngine } from "./rust-engine.ts";
 
 export type Opponent = {
@@ -10,7 +11,7 @@ export type Opponent = {
   engine: string;
   elo: string;
   personality: string;
-  searchDepth: number;
+  searchDepth: number | null;
   chooseAction(state: GameState): Action | null;
 };
 
@@ -71,17 +72,35 @@ export const PATHFINDER_OPPONENT: Opponent = {
   },
 };
 
-export const OPPONENTS = [PATHFINDER_OPPONENT, LUNATIC_OPPONENT, SURVEYOR_OPPONENT, RANDOM_OPPONENT] as const;
+export const CNN_OPPONENT: Opponent = {
+  id: "cnn-puct-v0",
+  name: "The Convolutionist",
+  version: "0.1.0",
+  engine: "CNN policy/value · 64 PUCT",
+  elo: "Unrated · learned",
+  personality: "Reads the whole board, then trusts the branches it has visited.",
+  searchDepth: null,
+  chooseAction(state) {
+    return legalActions(state)[0] ?? null;
+  },
+};
+
+export const CNN_SEARCH = { simulations: 64, cpuct: 1.5 } as const;
+
+export const OPPONENTS = [CNN_OPPONENT, PATHFINDER_OPPONENT, LUNATIC_OPPONENT, SURVEYOR_OPPONENT, RANDOM_OPPONENT] as const;
 
 export function getOpponent(id: string): Opponent {
   return OPPONENTS.find((opponent) => opponent.id === id) ?? SURVEYOR_OPPONENT;
 }
 
 /** Choose the browser opponent move through the Rust/WASM engine boundary. */
-export function chooseOpponentAction(engine: RustEngine, opponent: Opponent, state: GameState): Action | null {
+export function chooseOpponentAction(engine: RustEngine, opponent: Opponent, state: GameState, cnnEngine?: CnnEngine): Action | null {
   if (opponent.id === RANDOM_OPPONENT.id) {
     const actions = engine.legalActions(state);
     return actions.length ? actions[Math.floor(Math.random() * actions.length)] : null;
+  }
+  if (opponent.id === CNN_OPPONENT.id) {
+    return cnnEngine?.selectAction(state, CNN_SEARCH).action ?? null;
   }
   if (opponent.id === LUNATIC_OPPONENT.id) return engine.lunaticAction(state).action;
   const config = opponent.id === PATHFINDER_OPPONENT.id

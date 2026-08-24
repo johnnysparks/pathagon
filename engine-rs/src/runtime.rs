@@ -308,11 +308,10 @@ pub fn analyze_actions_json(
     let state = parse_position(state_json)?;
     let config: RuntimeSearchConfig =
         serde_json::from_str(config_json).map_err(|error| error.to_string())?;
-    let results: Vec<RuntimeMoveEvaluation> =
-        analyze_actions(state, config.into(), max_actions)
-            .into_iter()
-            .map(Into::into)
-            .collect();
+    let results: Vec<RuntimeMoveEvaluation> = analyze_actions(state, config.into(), max_actions)
+        .into_iter()
+        .map(Into::into)
+        .collect();
     serde_json::to_string(&results).map_err(|error| error.to_string())
 }
 
@@ -368,7 +367,8 @@ mod tests {
         assert_eq!(one.action, actions[0]);
 
         let many = analyze_actions_json(&state_json, &config, 7).expect("analyze actions");
-        let many: Vec<RuntimeMoveEvaluation> = serde_json::from_str(&many).expect("decode evaluations");
+        let many: Vec<RuntimeMoveEvaluation> =
+            serde_json::from_str(&many).expect("decode evaluations");
         assert_eq!(many.len(), 7);
         assert!(many.windows(2).all(|pair| pair[0].score >= pair[1].score));
     }

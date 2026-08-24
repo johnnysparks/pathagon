@@ -13,6 +13,17 @@ use crate::runtime::{
 };
 use crate::{BoardConfig, GameState};
 
+#[cfg(feature = "inference")]
+use crate::contract::ContractAction;
+#[cfg(feature = "inference")]
+use crate::inference::{OnnxPolicyValueModel, PolicyValueModel};
+#[cfg(feature = "inference")]
+use crate::puct::{search as puct_search, PuctConfig};
+#[cfg(feature = "inference")]
+use crate::runtime::parse_position;
+#[cfg(feature = "inference")]
+use serde::Serialize;
+
 fn js_error(error: String) -> JsValue {
     JsValue::from_str(&error)
 }
@@ -67,4 +78,93 @@ pub fn pathagon_analyze_actions(
     max_actions: u32,
 ) -> Result<String, JsValue> {
     analyze_actions_json(position, config, max_actions as usize).map_err(js_error)
+}
+
+#[cfg(feature = "inference")]
+#[wasm_bindgen]
+pub struct PathagonCnnModel {
+    model: OnnxPolicyValueModel,
+}
+
+#[cfg(feature = "inference")]
+#[derive(Serialize)]
+struct RuntimePolicyValue {
+    actions: Vec<ContractAction>,
+    #[serde(rename = "policyLogits")]
+    policy_logits: Vec<f32>,
+    value: f32,
+}
+
+#[cfg(feature = "inference")]
+#[derive(Serialize)]
+struct RuntimePuctActionEvaluation {
+    action: ContractAction,
+    prior: f32,
+    visits: u32,
+    value: f32,
+}
+
+#[cfg(feature = "inference")]
+#[derive(Serialize)]
+struct RuntimePuctResult {
+    action: Option<ContractAction>,
+    value: f32,
+    simulations: u32,
+    evaluations: Vec<RuntimePuctActionEvaluation>,
+}
+
+#[cfg(feature = "inference")]
+#[wasm_bindgen]
+impl PathagonCnnModel {
+    #[wasm_bindgen(constructor)]
+    pub fn new(bytes: &[u8]) -> Result<PathagonCnnModel, JsValue> {
+        let model = OnnxPolicyValueModel::from_bytes(bytes).map_err(js_error)?;
+        Ok(Self { model })
+    }
+
+    #[wasm_bindgen(js_name = evaluate)]
+    pub fn evaluate_position(&self, position: &str) -> Result<String, JsValue> {
+        let state = parse_position(position).map_err(js_error)?;
+        let actions = state.legal_actions();
+        let output = self.model.evaluate(state).map_err(js_error)?;
+        let policy_logits = output
+            .policy_logits
+            .into_iter()
+            .take(actions.len())
+            .collect();
+        let response = RuntimePolicyValue {
+            actions: actions.into_iter().map(Into::into).collect(),
+            policy_logits,
+            value: output.value,
+        };
+        serde_json::to_string(&response).map_err(|error| js_error(error.to_string()))
+    }
+
+    #[wasm_bindgen(js_name = selectAction)]
+    pub fn select_action(
+        &self,
+        position: &str,
+        simulations: u32,
+        cpuct: f32,
+    ) -> Result<String, JsValue> {
+        let state = parse_position(position).map_err(js_error)?;
+        let result =
+            puct_search(&self.model, state, PuctConfig { simulations, cpuct }).map_err(js_error)?;
+        let response = RuntimePuctResult {
+            action: result.action.map(Into::into),
+            value: result.value,
+            simulations: result.simulations,
+            evaluations: result
+                .evaluations
+                .into_iter()
+                .map(|evaluation| RuntimePuctActionEvaluation {
+                    action: evaluation.action.into(),
+                    prior: evaluation.prior,
+                    visits: evaluation.visits,
+                    value: evaluation.value,
+                })
+                .collect(),
+        };
+        serde_json::to_string(&response).map_err(|error| js_error(error.to_string()))
+    }
 }

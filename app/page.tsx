@@ -12,9 +12,10 @@ import {
   playerLabel,
 } from "./pathagon";
 import { createGameId } from "./game-record";
-import { chooseOpponentAction, OPPONENTS, SURVEYOR_OPPONENT, getOpponent } from "./opponents";
+import { chooseOpponentAction, CNN_OPPONENT, CNN_SEARCH, OPPONENTS, SURVEYOR_OPPONENT, getOpponent } from "./opponents";
 import { COACHING_SEARCH, type MoveEvaluation } from "./ai";
 import { loadRustEngine, type RustEngine } from "./rust-engine";
+import { loadCnnEngine, type CnnEngine } from "./cnn-engine";
 
 const HUMAN: Player = "light";
 const AI: Player = "dark";
@@ -36,6 +37,8 @@ export default function Home() {
   const [opponentId, setOpponentId] = useState(SURVEYOR_OPPONENT.id);
   const [rustEngine, setRustEngine] = useState<RustEngine | null>(null);
   const [engineError, setEngineError] = useState<string | null>(null);
+  const [cnnEngine, setCnnEngine] = useState<CnnEngine | null>(null);
+  const [cnnError, setCnnError] = useState<string | null>(null);
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resultRef = useRef<HTMLDivElement | null>(null);
   const coachingRequest = useRef(0);
@@ -48,8 +51,9 @@ export default function Home() {
   const actionKeys = useMemo(() => new Set(actions.map(actionKey)), [actions]);
   const humanPlacementTurn = game.turn === HUMAN && game.reserve[HUMAN] > 0;
   const humanMovementTurn = game.turn === HUMAN && game.reserve[HUMAN] === 0;
-  const thinking = !rustEngine || (game.turn === AI && !game.winner);
   const opponent = getOpponent(opponentId);
+  const cnnReady = opponent.id !== CNN_OPPONENT.id || Boolean(cnnEngine);
+  const thinking = !rustEngine || !cnnReady || (game.turn === AI && !game.winner);
   const resultOpen = Boolean(game.winner) && !resultDismissed;
   const captureCount = game.lastAction?.captured.length ?? 0;
   const captureNotice = captureCount > 0 && captureNoticeDismissedPly !== game.ply
@@ -70,6 +74,17 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (opponent.id !== CNN_OPPONENT.id) return;
+    let cancelled = false;
+    void loadCnnEngine().then((engine) => {
+      if (!cancelled) setCnnEngine(engine);
+    }).catch((error: unknown) => {
+      if (!cancelled) setCnnError(error instanceof Error ? error.message : String(error));
+    });
+    return () => { cancelled = true; };
+  }, [opponent.id]);
+
+  useEffect(() => {
     if (fixtureLoaded.current) return;
     fixtureLoaded.current = true;
     if (new URLSearchParams(window.location.search).get("fixture") === "near-win") {
@@ -84,11 +99,11 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!rustEngine || game.winner || game.turn !== AI) return;
+    if (!rustEngine || !cnnReady || game.winner || game.turn !== AI) return;
     aiTimer.current = setTimeout(() => {
       setGame((current) => {
         if (current.turn !== AI || current.winner) return current;
-        const decision = chooseOpponentAction(rustEngine, opponent, current);
+        const decision = chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined);
         if (!decision) return current;
         setHistory((items) => [...items, current]);
         setMoveHistory((items) => [...items, decision]);
@@ -98,7 +113,7 @@ export default function Home() {
     return () => {
       if (aiTimer.current) clearTimeout(aiTimer.current);
     };
-  }, [game, opponent, rustEngine]);
+  }, [cnnEngine, cnnReady, game, opponent, rustEngine]);
 
   useEffect(() => {
     coachingRequest.current += 1;
@@ -450,10 +465,10 @@ export default function Home() {
             <div><dt>Legal actions</dt><dd>{actions.length}</dd></div>
             <div><dt>Phase</dt><dd>{game.winner ? "Complete" : game.reserve[game.turn] ? "Placement" : "Movement"}</dd></div>
             <div><dt>Captured last turn</dt><dd>{game.lastAction?.captured.length ?? 0}</dd></div>
-            <div><dt>Search depth</dt><dd>{opponent.searchDepth} ply</dd></div>
+            <div><dt>{opponent.searchDepth === null ? "Search budget" : "Search depth"}</dt><dd>{opponent.searchDepth === null ? `${CNN_SEARCH.simulations} PUCT simulations` : `${opponent.searchDepth} ply`}</dd></div>
           </dl>
           <div className="event-log"><span className="stat-label">Latest event</span><p>{game.lastAction ? describeAction(game.lastAction) : "The board is empty. You have the first move."}</p></div>
-          <div className="rules-note"><strong>{engineError ? "Engine unavailable" : rustEngine ? "Rust/WASM engine" : "Loading Rust engine…"}</strong><p>{engineError ?? "Light connects near-to-far; dark connects side-to-side. Orthogonal paths. Automatic A–B–A captures."}</p></div>
+          <div className="rules-note"><strong>{engineError || cnnError ? "Engine unavailable" : !rustEngine ? "Loading Rust engine…" : opponent.id === CNN_OPPONENT.id && !cnnEngine ? "Loading CNN model…" : "Rust/WASM engine"}</strong><p>{engineError ?? cnnError ?? "Light connects near-to-far; dark connects side-to-side. Orthogonal paths. Automatic A–B–A captures."}</p></div>
         </aside>
       </section>
 

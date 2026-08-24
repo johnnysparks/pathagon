@@ -83,7 +83,7 @@ export function loadRustEngine(): Promise<RustEngine> {
   }));
 }
 
-function toRuntimePosition(state: GameState): RuntimePosition {
+export function toRuntimePosition(state: GameState): RuntimePosition {
   return {
     contractVersion: 1,
     config: state.config,

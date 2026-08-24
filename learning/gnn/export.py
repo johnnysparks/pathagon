@@ -77,6 +77,10 @@ def export_checkpoint(checkpoint: Path, output: Path, device: torch.device) -> D
         "output_names": ["policy_logits", "value"],
         "opset_version": 18,
         "do_constant_folding": True,
+        # The browser loads the model as one byte array for the Rust/WASM
+        # session. Keep weights inline instead of requiring ONNX external-data
+        # path resolution inside WASM.
+        "external_data": False,
     }
     if "dynamo" in inspect.signature(torch.onnx.export).parameters:
         export_kwargs["dynamo"] = True

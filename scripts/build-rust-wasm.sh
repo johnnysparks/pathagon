@@ -3,6 +3,7 @@ set -euo pipefail
 
 project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 output_dir="${project_dir}/public/engine"
+inference_output_dir="${project_dir}/public/engine-inference"
 
 if ! command -v rustup >/dev/null 2>&1; then
   echo "rustup is required to build the browser engine" >&2
@@ -20,6 +21,7 @@ fi
 
 rustup target add wasm32-unknown-unknown >/dev/null
 mkdir -p "${output_dir}"
+mkdir -p "${inference_output_dir}"
 
 # rust-lld on macOS needs the Rust toolchain's LLVM dylib discoverable at link time.
 export DYLD_LIBRARY_PATH="${toolchain_root}/lib${DYLD_LIBRARY_PATH:+:${DYLD_LIBRARY_PATH}}"
@@ -38,4 +40,18 @@ wasm-bindgen \
   --out-dir "${output_dir}" \
   --no-typescript
 
+"${cargo_bin}" build \
+  --manifest-path "${project_dir}/engine-rs/Cargo.toml" \
+  --target wasm32-unknown-unknown \
+  --features wasm-inference \
+  --lib \
+  --release
+
+wasm-bindgen \
+  "${project_dir}/engine-rs/target/wasm32-unknown-unknown/release/pathagon_engine.wasm" \
+  --target web \
+  --out-dir "${inference_output_dir}" \
+  --no-typescript
+
 echo "Built Rust/WASM engine in ${output_dir}"
+echo "Built CNN inference WASM in ${inference_output_dir}"
