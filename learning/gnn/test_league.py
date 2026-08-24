@@ -23,6 +23,13 @@ class LeagueTest(unittest.TestCase):
         action = HeuristicAgent(depth=1, beam_width=4, max_nodes=20).choose_action(state, random.Random(0), set())
         self.assertIn(action, list(state.legal_actions()))
 
+    def test_small_and_medium_curriculum_openings_are_legal(self) -> None:
+        for size, reserve in ((4, 6), (6, 10)):
+            state = GameState.initial(BoardConfig(size, reserve))
+            action = HeuristicAgent(depth=1, beam_width=4, max_nodes=20).choose_action(state, random.Random(size), set())
+            self.assertIn(action, list(state.legal_actions()))
+            self.assertEqual(state.config.max_plies, size * size * 4)
+
 
 if __name__ == "__main__":
     unittest.main()

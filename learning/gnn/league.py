@@ -241,6 +241,12 @@ def build_roster(size: int, reserve: int, simulations: int, device: torch.device
             ("gnn-generation-7-5x5", "Generation 7 · 5x5 reserve 10", "training/gnn/pathagon-generation-7-5x5.pt"),
             ("gnn-generation-6-5x5", "Generation 6 · 5x5 reserve 10", "training/gnn/pathagon-generation-6-5x5.pt"),
         ]
+    elif size in (4, 6):
+        checkpoints = [
+            ("gnn-generation-10-transfer-5x5", "Generation 10 · transfer from 5x5", "training/gnn/pathagon-generation-10-5x5-r8.pt"),
+            ("gnn-generation-9-transfer-5x5", "Generation 9 · transfer from 5x5", "training/gnn/pathagon-generation-9-5x5-r8.pt"),
+            ("gnn-generation-6-transfer-5x5", "Generation 6 · transfer from 5x5", "training/gnn/pathagon-generation-6-5x5.pt"),
+        ]
     elif size == 7:
         checkpoints = [
             ("gnn-generation-8-7x7", "Generation 8 · 7x7", "training/gnn/pathagon-generation-8-7x7.pt"),
@@ -249,15 +255,20 @@ def build_roster(size: int, reserve: int, simulations: int, device: torch.device
             ("gnn-warmstart-7x7", "Warm start · 7x7", "training/gnn/pathagon-warmstart.pt"),
         ]
     else:
-        raise ValueError("league supports only 5x5 and 7x7 boards")
+        raise ValueError("league supports only 4x4, 5x5, 6x6, and 7x7 boards")
     for agent_id, label, checkpoint in checkpoints:
         model = load_model(Path(checkpoint), device)
         model.eval()
         roster.append(AgentSpec(agent_id, label, "gnn", GNNAgent(model, simulations)))
-    pathfinder = (HeuristicAgent(depth=3, beam_width=12, max_nodes=3_000)
-                  if size == 5 else HeuristicAgent(depth=2, beam_width=8, max_nodes=1_000))
-    surveyor = (HeuristicAgent(depth=2, beam_width=16, max_nodes=1_800)
-                if size == 5 else HeuristicAgent(depth=1, beam_width=12, max_nodes=500))
+    if size == 4:
+        pathfinder = HeuristicAgent(depth=3, beam_width=12, max_nodes=1_200)
+        surveyor = HeuristicAgent(depth=2, beam_width=16, max_nodes=800)
+    elif size == 5:
+        pathfinder = HeuristicAgent(depth=3, beam_width=12, max_nodes=3_000)
+        surveyor = HeuristicAgent(depth=2, beam_width=16, max_nodes=1_800)
+    else:
+        pathfinder = HeuristicAgent(depth=2, beam_width=8, max_nodes=1_000)
+        surveyor = HeuristicAgent(depth=1, beam_width=12, max_nodes=500)
     roster.extend([
         AgentSpec("pathfinder-v0.3.0", "The Pathfinder", "heuristic", pathfinder),
         AgentSpec("surveyor-v0.2.0", "The Surveyor", "heuristic", surveyor),
@@ -390,7 +401,7 @@ def records_for_agent(records: Sequence[dict], agent_id: str) -> List[dict]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--size", type=int, choices=(5, 7), required=True)
+    parser.add_argument("--size", type=int, choices=(4, 5, 6, 7), required=True)
     parser.add_argument("--reserve", type=int, default=0)
     parser.add_argument("--games-per-match", type=int, default=4)
     parser.add_argument("--simulations", type=int, default=4)

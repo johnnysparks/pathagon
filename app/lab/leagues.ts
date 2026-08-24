@@ -43,6 +43,16 @@ export type LeagueArchive = {
 
 export const LEAGUES: LeagueManifest[] = [
   {
+    id: "league-4x4-r6-transfer",
+    label: "4×4 · 6-piece transfer",
+    boardSize: 4,
+    reservePerPlayer: 6,
+    gamesPerMatch: 2,
+    simulations: 2,
+    archive: "league-4x4-r6-transfer.json",
+    note: "A compact solvability diagnostic: 29 of 30 transfer-league games reached a path, with no repetition draws.",
+  },
+  {
     id: "league-5x5-r8-generation-10",
     label: "5×5 · Gen 10 evaluation",
     boardSize: 5,
@@ -61,6 +71,16 @@ export const LEAGUES: LeagueManifest[] = [
     simulations: 4,
     archive: "league-5x5-r8.json",
     note: "The compact-board promotion pool: every agent met every other agent four times, twice in each color.",
+  },
+  {
+    id: "league-6x6-r10-transfer",
+    label: "6×6 · 10-piece transfer",
+    boardSize: 6,
+    reservePerPlayer: 10,
+    gamesPerMatch: 2,
+    simulations: 2,
+    archive: "league-6x6-r10-transfer.json",
+    note: "A medium-board transfer diagnostic: 22 of 30 games reached a path; the rest hit the bounded move cap.",
   },
   {
     id: "league-7x7-r14",

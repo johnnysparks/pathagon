@@ -5,7 +5,7 @@ research pipeline, not the browser opponent.
 
 ## What is implemented
 
-- Variable-size orthogonal Pathagon graphs for 5x5, 7x7, and larger boards.
+- Variable-size orthogonal Pathagon graphs for 4x4, 5x5, 6x6, 7x7, and larger boards.
 - Four typed virtual goal nodes for the two connection objectives.
 - Residual mean-message-passing layers with LayerNorm.
 - A dynamic policy head: node logits for placement and source/destination
@@ -18,7 +18,7 @@ research pipeline, not the browser opponent.
 The model is scale-compatible, but scale-compatible weights are not proof of
 zero-shot playing strength. The learner receives normalized coordinates,
 reserves, turn state, capture state, and boundary roles; board size is still
-provided as a feature so it can adapt rather than confuse 5x5 and 7x7.
+provided as a feature so it can adapt rather than confuse 4x4, 5x5, 6x6, and 7x7.
 
 ## Local setup
 
