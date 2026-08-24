@@ -11,8 +11,17 @@ from pathlib import Path
 from typing import Iterable
 
 
+EXCLUDED_ENGINES = {"typescript-live-cross-play"}
+
+
 def records_from_value(value: object) -> Iterable[dict]:
     if not isinstance(value, dict):
+        return
+    nested_record = value.get("record")
+    if isinstance(nested_record, dict):
+        if value.get("engine") in EXCLUDED_ENGINES:
+            return
+        yield from records_from_value(nested_record)
         return
     if isinstance(value.get("moves"), list):
         yield value
@@ -111,7 +120,8 @@ def main() -> None:
     raw_counts: Counter[str] = Counter()
     raw_positions = 0
     skipped = []
-    for path in sorted(args.root.rglob("*.jsonl")):
+    input_paths = sorted({path for pattern in ("*.jsonl", "*.json") for path in args.root.rglob(pattern)})
+    for path in input_paths:
         for record in read_records(path):
             size, reserve = record_config(record, path)
             if size != 7 or reserve != 14:

@@ -41,6 +41,11 @@ next-env.d.ts
 /.sites-runtime/
 /outputs/
 /work/
+training/gnn/archive/cross-play-db-*.jsonl
+training/gnn/archive/human-games-web-*.jsonl
+training/gnn/benchmark-7x7-full-*/all.jsonl
+training/gnn/benchmark-7x7-full-*/train.jsonl
+training/gnn/benchmark-7x7-full-*/heldout.jsonl
 /.venv-pathagon-gnn/
 __pycache__/
 *.py[cod]
