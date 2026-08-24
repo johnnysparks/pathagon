@@ -644,8 +644,6 @@ body:has(.portal-app.dark) { background: #121a15; }
 .leaderboard-leader-score small { color: #a9c5af; font-size: 9px; text-transform: uppercase; }
 .leaderboard-signal-row { color: #b8d8bd; font-size: 10px; }
 .leaderboard-signal-row span:last-child { color: #8fb398; }
-.leaderboard-signal-bar { height: 8px; overflow: hidden; margin-top: 9px; border-radius: 99px; background: #1a2a20; }
-.leaderboard-signal-bar span { display: block; width: 78%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #67b27e, #9bd19d); }
 .leaderboard-card-footer { margin-top: 18px; color: #bdd8c1; font-size: 10px; }
 .leaderboard-card-footer small { color: #8ca993; }
 .live-dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #7bc495; box-shadow: 0 0 0 4px rgba(123,196,149,.13); vertical-align: 1px; }
@@ -687,6 +685,7 @@ body:has(.portal-app.dark) { background: #121a15; }
 .live-game-result { color: var(--portal-green); font-size: 9px; font-weight: 800; text-align: right; }
 .leaderboard-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(270px, .6fr); gap: 14px; margin-top: 20px; }
 .leaderboard-table, .elo-card { overflow: hidden; border: 1px solid var(--portal-line); border-radius: 11px; background: rgba(255,255,255,.46); }
+.leaderboard-table { margin-top: 20px; }
 .leaderboard-table-row { display: grid; grid-template-columns: 27px minmax(170px, 1.35fr) minmax(120px, .92fr) 64px 92px 104px; gap: 9px; align-items: center; min-height: 74px; padding: 8px 11px; border-top: 1px solid rgba(174,194,171,.5); color: var(--portal-muted); font-size: 10px; }
 .leaderboard-table-row:first-child { border-top: 0; }
 .leaderboard-table-header { min-height: 32px; color: var(--portal-muted); font-size: 9px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
@@ -702,6 +701,9 @@ body:has(.portal-app.dark) { background: #121a15; }
 .standing-record strong, .standing-signal strong { color: var(--portal-ink); font-size: 11px; }
 .standing-record span, .standing-signal span { overflow: hidden; color: var(--portal-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .standing-signal strong { color: var(--portal-green); }
+.model-standing.disabled { opacity: .56; background: rgba(155,166,158,.08); }
+.model-standing.disabled .model-glyph { filter: grayscale(.55); opacity: .72; }
+.model-standing.disabled .standing-role strong, .model-standing.disabled .standing-signal strong { color: var(--portal-muted); }
 .standing-nll strong { color: var(--portal-ink); font-family: Georgia, serif; font-size: 17px; font-weight: 500; }
 .standing-nll span { color: var(--portal-green); }
 .standing-games strong { color: var(--portal-ink); font-size: 11px; }
