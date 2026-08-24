@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, List, Optional
+from typing import Any, Callable, Iterable, List, Optional
 
 from .game import Action, BoardConfig, GameState, Player, action_from_record
 
@@ -34,8 +34,13 @@ def iter_records(path: Path) -> Iterable[dict]:
                     yield nested
 
 
-def load_replay_examples(path: Path, config: Optional[BoardConfig] = None) -> List[ReplayExample]:
+def load_replay_examples(
+    path: Path,
+    config: Optional[BoardConfig] = None,
+    progress: Optional[Callable[[int, int], None]] = None,
+) -> List[ReplayExample]:
     examples: List[ReplayExample] = []
+    records = 0
     for record in iter_records(path):
         board = config or BoardConfig(
             size=int(record.get("boardSize", 7)),
@@ -54,6 +59,9 @@ def load_replay_examples(path: Path, config: Optional[BoardConfig] = None) -> Li
         actual = None if state.winner is None else ("light" if state.winner is Player.LIGHT else "dark")
         if actual != expected:
             raise ValueError(f"seed {seed}: replay winner mismatch ({actual!r} != {expected!r})")
+        records += 1
+        if progress is not None:
+            progress(records, len(examples))
     return examples
 
 

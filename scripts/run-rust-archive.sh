@@ -15,6 +15,9 @@ if ! command -v cargo >/dev/null 2>&1; then
 fi
 
 mkdir -p "${ROOT_DIR}/training/gnn/league" "${ROOT_DIR}/training/rust-v1"
+echo "pathagon-archive: games=${GAMES} opponent=${OPPONENT} seed=${SEED}"
+echo "pathagon-archive: replay=${ROOT_DIR}/${JSONL_PATH}"
+echo "pathagon-archive: corpus=${ROOT_DIR}/${CORPUS_PATH}"
 (
   cd "${ROOT_DIR}"
   cargo run --release --manifest-path engine-rs/Cargo.toml --bin pathagon-selfplay -- \

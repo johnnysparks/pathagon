@@ -42,8 +42,12 @@ Run a small neural self-play generation:
 .venv-pathagon-gnn/bin/python -m learning.gnn.train alphazero \
   --resume training/gnn/pathagon-warmstart.pt \
   --out training/gnn/pathagon-generation-0.pt \
-  --games 8 --simulations 64 --updates 200
+  --games 8 --workers 4 --selfplay-device cpu \
+  --simulations 64 --updates 200 --max-plies 100
 ```
+
+The small graph operations used during search are typically faster on CPU;
+checkpoint updates can still use MPS through the default `--device auto`.
 
 Use `--size 5` with a fresh model to exercise the dynamic graph path. The
 5x5 rules adapter uses a scaled reserve of `2 * size` by default; it is a

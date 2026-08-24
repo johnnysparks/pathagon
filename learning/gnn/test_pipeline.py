@@ -47,6 +47,12 @@ class PipelineTest(unittest.TestCase):
         )
         self.assertEqual(repetition_key(first), repetition_key(later))
 
+    def test_selfplay_ply_limit_can_override_the_size_default(self) -> None:
+        self.assertEqual(BoardConfig(7, 14).max_plies, 196)
+        self.assertEqual(BoardConfig(7, 14, 100).max_plies, 100)
+        with self.assertRaisesRegex(ValueError, "ply_limit"):
+            BoardConfig(7, 14, -1)
+
 
 if __name__ == "__main__":
     unittest.main()

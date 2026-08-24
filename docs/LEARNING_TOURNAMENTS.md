@@ -34,7 +34,9 @@ engine, with deterministic seeds and color-balanced games:
 ```
 
 That writes a replay archive to `training/gnn/league/` and a compact indexed
-corpus to `training/rust-v1/`. Commit and push those files from the generating
+corpus to `training/rust-v1/`. The runner prints progress to stderr at roughly
+5% intervals; pass `--progress-every 0` directly to `pathagon-selfplay` to
+disable those updates. Commit and push those files from the generating
 machine; another machine can merge them without hand-editing JSON:
 
 ```bash
@@ -61,8 +63,15 @@ python -m learning.gnn.train warmstart \
   --out training/gnn/pathagon-rust-7x7-warmstart.pt
 ```
 
+Replay validation and 1% training milestones are written to stderr, while the
+final machine-readable training summary remains the only JSON written to
+stdout.
+
 Then continue with GNN self-play, using the resulting checkpoint as
-`--resume`. The archive format is intentionally independent of the runner:
+`--resume`. Neural self-play defaults to a 100-ply cap; use `--max-plies` to
+override it for a particular experiment. Independent games can run in CPU
+worker processes with `--workers`; model updates still use the device selected
+by `--device`. The archive format is intentionally independent of the runner:
 the same Rust binary can later run inside a cloud job, and the resulting JSONL
 can be merged into the same local training set.
 

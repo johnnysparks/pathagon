@@ -21,6 +21,7 @@ fn main() {
     let beam_width = number(&args, "beam", 40_usize);
     let opponent_name = args.get("opponent").map(String::as_str).unwrap_or("random");
     let jsonl = args.contains_key("jsonl");
+    let progress_every = number(&args, "progress-every", (games / 20).max(1));
     let corpus_directory = args.get("corpus").map(PathBuf::from);
     let learned_book = args.get("learned").map(PathBuf::from)
         .map(|path| LearnedBook::load(&path))
@@ -89,6 +90,15 @@ fn main() {
             println!("{}", record.to_json());
         }
         records.push(record);
+        let completed = game + 1;
+        if progress_every > 0 && (completed % progress_every == 0 || completed == games) {
+            let elapsed = started.elapsed().as_secs_f64();
+            eprintln!(
+                "pathagon-selfplay: {completed}/{games} games ({:.0}%) wins={wins} losses={losses} draws={draws} elapsed={elapsed:.1}s games_per_second={:.3}",
+                completed as f64 / games as f64 * 100.0,
+                if elapsed > 0.0 { completed as f64 / elapsed } else { 0.0 },
+            );
+        }
     }
     let corpus = corpus_directory.as_ref().map(|directory| {
         write_corpus(directory, &records).unwrap_or_else(|error| fail(&format!("cannot write corpus: {error}")))

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Set, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 from .game import Action, BoardConfig, GameState, Player, bits, repetition_key
 from .mcts import PUCTSearch
@@ -63,6 +63,7 @@ def generate_game(
     temperature_moves: int = 8,
     seed: int = 0,
     add_root_noise: bool = True,
+    progress: Optional[Callable[[GameState], None]] = None,
 ) -> Tuple[List[SearchExample], GameState]:
     random.seed(seed)
     search = PUCTSearch(model, simulations=simulations)
@@ -91,6 +92,8 @@ def generate_game(
             action = actions[max(range(len(actions)), key=lambda index: (probabilities[index], -actions[index].to))]
         examples.append((state, tuple(actions), tuple(probabilities), action))
         state = state.apply_legal(action)
+        if progress is not None:
+            progress(state)
 
     final_winner = state.winner
     labeled = []

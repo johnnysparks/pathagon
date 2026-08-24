@@ -25,6 +25,7 @@ class Player(IntEnum):
 class BoardConfig:
     size: int = 7
     reserve_per_player: int = 0
+    ply_limit: int = 0
 
     def __post_init__(self) -> None:
         if self.size < 3:
@@ -32,6 +33,8 @@ class BoardConfig:
         reserve = self.reserve_per_player or 2 * self.size
         if reserve < 1:
             raise ValueError("reserve_per_player must be positive")
+        if self.ply_limit < 0:
+            raise ValueError("ply_limit cannot be negative")
         object.__setattr__(self, "reserve_per_player", reserve)
 
     @property
@@ -40,7 +43,7 @@ class BoardConfig:
 
     @property
     def max_plies(self) -> int:
-        return self.cell_count * 4
+        return self.ply_limit or self.cell_count * 4
 
 
 @dataclass(frozen=True, order=True)
