@@ -11,6 +11,7 @@ import torch
 from .game import Action, GameState, repetition_key, winner_value
 from .evaluation import evaluate_position, normalize_heuristic
 from .model import PathagonGNN
+from .tactics import tactical_priority_actions
 
 
 class MCTSNode:
@@ -47,12 +48,14 @@ class PUCTSearch:
         cpuct: float = 1.5,
         dirichlet_epsilon: float = 0.25,
         dirichlet_alpha: float = 0.30,
+        tactical_guard: bool = False,
     ) -> None:
         self.model = model
         self.simulations = simulations
         self.cpuct = cpuct
         self.dirichlet_epsilon = dirichlet_epsilon
         self.dirichlet_alpha = dirichlet_alpha
+        self.tactical_guard = tactical_guard
 
     @staticmethod
     def _root_afterstate_value(state: GameState, action: Action) -> float:
@@ -116,6 +119,14 @@ class PUCTSearch:
             self._simulate(root, set(previous_positions))
         actions = list(state.legal_actions())
         probabilities = self.visit_policy(root, actions, temperature=1.0)
+        if self.tactical_guard and state.config.size <= 4:
+            tactical_actions = set(tactical_priority_actions(state))
+            if tactical_actions:
+                tactical_probability = 1.0 / len(tactical_actions)
+                probabilities = [
+                    tactical_probability if action in tactical_actions else 0.0
+                    for action in actions
+                ]
         return root, actions, probabilities
 
     def _simulate(self, node: MCTSNode, path_positions: Set[tuple]) -> float:

@@ -56,6 +56,9 @@ documented in
 [`SEPARATED-VALUE-ACTION-POLICY.md`](SEPARATED-VALUE-ACTION-POLICY.md). It is
 currently a design experiment, not an active model contract.
 
+The first exact transition-focused regression suite is documented in
+[`4X4-ENDGAME-TACTICAL-AUDIT.md`](4X4-ENDGAME-TACTICAL-AUDIT.md).
+
 ## Browser boundary
 
 The GNN and CNN remain research candidates until they pass the evaluation gates
