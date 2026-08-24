@@ -93,12 +93,28 @@ type LiveGame = {
   plies: number;
 };
 
+type HeadToHead = {
+  leftId: string;
+  rightId: string;
+  leftLabel: string;
+  rightLabel: string;
+  games: number;
+  leftWins: number;
+  rightWins: number;
+  draws: number;
+  leftPoints: number;
+  rightPoints: number;
+  leftLightGames: number;
+  rightLightGames: number;
+};
+
 type CrossPlayState = {
   runId: string;
   targetGames: number;
   games: number;
   status: "ready" | "running" | "complete";
   standings: LiveStanding[];
+  headToHead: HeadToHead[];
   latest: LiveGame[];
 };
 
@@ -245,6 +261,19 @@ export default function LearningLab() {
         </div>
       </section>
 
+      <section className="leaderboard-panel head-to-head-panel" id="head-to-head" aria-labelledby="head-to-head-title">
+        <div className="leaderboard-panel-heading">
+          <div><span className="portal-kicker">Head-to-head · cross-play only</span><h2 id="head-to-head-title">Pairwise results.</h2></div>
+          <span className="leaderboard-status"><span /> {crossPlay ? `${crossPlay.headToHead.filter((pairing) => pairing.games > 0).length} active pairings` : "Waiting for poll"}</span>
+        </div>
+        <p className="leaderboard-intro">Each row is recomputed from the same cumulative archive as the Elo ladder. W–L–D and points are shown from the left model&apos;s perspective; Light starts shows color coverage. Human games stay in their separate archive.</p>
+
+        {crossPlay?.headToHead.length ? <div className="head-to-head-table" role="table" aria-label="Head-to-head model results">
+          <div className="head-to-head-row head-to-head-header" role="row"><span>Pairing</span><span>Games</span><span>W–L–D</span><span>Points</span><span>Light starts</span></div>
+          {crossPlay.headToHead.map((pairing) => <HeadToHeadRow key={`${pairing.leftId}-${pairing.rightId}`} pairing={pairing} />)}
+        </div> : <p className="live-run-empty">Waiting for live pairwise results.</p>}
+      </section>
+
       <footer className="portal-footer"><span>7×7 model leaderboard</span><span>Read-only view · polling the live archive</span></footer>
     </main>
   );
@@ -256,6 +285,11 @@ function ModelGlyph({ tone, glyph }: { tone: string; glyph: string }) {
 
 function LeaderboardStat({ label, value, detail, accent }: { label: string; value: string; detail: string; accent: string }) {
   return <div className={`leaderboard-stat ${accent}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></div>;
+}
+
+function HeadToHeadRow({ pairing }: { pairing: HeadToHead }) {
+  const active = pairing.games > 0;
+  return <div className={`head-to-head-row ${active ? "" : "disabled"}`} role="row"><div className="head-to-head-match"><strong>{pairing.leftLabel}</strong><span>vs</span><strong>{pairing.rightLabel}</strong></div><span className="head-to-head-games">{active ? pairing.games : "—"}</span><span className="head-to-head-record">{active ? `${pairing.leftWins}–${pairing.rightWins}–${pairing.draws}` : "no games"}</span><span className="head-to-head-points">{active ? `${pairing.leftPoints.toFixed(1)}–${pairing.rightPoints.toFixed(1)}` : "—"}</span><span className="head-to-head-colors">{active ? `${pairing.leftLightGames}–${pairing.rightLightGames}` : "disabled"}</span></div>;
 }
 
 function ModelStanding({ model, live, liveRank, snapshotLoaded }: { model: (typeof MODELS)[number]; live?: LiveStanding; liveRank?: string; snapshotLoaded: boolean }) {

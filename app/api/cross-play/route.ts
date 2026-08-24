@@ -84,6 +84,7 @@ export async function GET(request: Request) {
     const records = aggregate ? await queryAllCrossPlayGames() : await queryRun(runId);
     if (!records.length) return Response.json({ found: false, error: "No cross-play runs yet" }, { status: 404 });
     const standings = buildStandings(records);
+    const headToHead = buildHeadToHead(records);
     const targetGames = aggregate ? records.length : targetGamesForRun(runId);
     return Response.json({
       runId,
@@ -91,6 +92,7 @@ export async function GET(request: Request) {
       games: records.length,
       status: records.length >= targetGames ? "complete" : records.length ? "running" : "ready",
       standings,
+      headToHead,
       latest: records.slice(-5).reverse().map(({ id, record }) => summarizeGame(id, record)),
     }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
@@ -172,6 +174,76 @@ function buildStandings(records: Awaited<ReturnType<typeof queryRun>>) {
     rating: Math.round(ratings.get(agent.id) ?? BASELINE_RATINGS[agent.id]),
     ...(summaries.get(agent.id) ?? { games: 0, wins: 0, losses: 0, draws: 0, points: 0 }),
   })).sort((left, right) => right.rating - left.rating || right.points - left.points);
+}
+
+function buildHeadToHead(records: Awaited<ReturnType<typeof queryRun>>) {
+  const agentIndex = new Map(AGENTS.map((agent, index) => [agent.id, index]));
+  const pairings = new Map<string, {
+    leftId: string;
+    rightId: string;
+    leftLabel: string;
+    rightLabel: string;
+    games: number;
+    leftWins: number;
+    rightWins: number;
+    draws: number;
+    leftPoints: number;
+    rightPoints: number;
+    leftLightGames: number;
+    rightLightGames: number;
+  }>();
+
+  for (let leftIndex = 0; leftIndex < AGENTS.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < AGENTS.length; rightIndex += 1) {
+      const left = AGENTS[leftIndex];
+      const right = AGENTS[rightIndex];
+      pairings.set(`${left.id}|${right.id}`, {
+        leftId: left.id,
+        rightId: right.id,
+        leftLabel: left.label,
+        rightLabel: right.label,
+        games: 0,
+        leftWins: 0,
+        rightWins: 0,
+        draws: 0,
+        leftPoints: 0,
+        rightPoints: 0,
+        leftLightGames: 0,
+        rightLightGames: 0,
+      });
+    }
+  }
+
+  for (const { record } of records) {
+    const lightIndex = agentIndex.get(record.agents.light);
+    const darkIndex = agentIndex.get(record.agents.dark);
+    if (lightIndex === undefined || darkIndex === undefined || lightIndex === darkIndex) continue;
+    const leftIndex = Math.min(lightIndex, darkIndex);
+    const rightIndex = Math.max(lightIndex, darkIndex);
+    const left = AGENTS[leftIndex];
+    const right = AGENTS[rightIndex];
+    const pairing = pairings.get(`${left.id}|${right.id}`);
+    if (!pairing) continue;
+    pairing.games += 1;
+    if (record.agents.light === left.id) pairing.leftLightGames += 1;
+    else pairing.rightLightGames += 1;
+    if (!record.winner) {
+      pairing.draws += 1;
+      pairing.leftPoints += 0.5;
+      pairing.rightPoints += 0.5;
+      continue;
+    }
+    const winner = record.agents[record.winner];
+    if (winner === left.id) {
+      pairing.leftWins += 1;
+      pairing.leftPoints += 1;
+    } else if (winner === right.id) {
+      pairing.rightWins += 1;
+      pairing.rightPoints += 1;
+    }
+  }
+
+  return [...pairings.values()].sort((left, right) => right.games - left.games || left.leftLabel.localeCompare(right.leftLabel) || left.rightLabel.localeCompare(right.rightLabel));
 }
 
 function updateElo(ratings: Map<string, number>, light: string, dark: string, winner: "light" | "dark" | null) {
