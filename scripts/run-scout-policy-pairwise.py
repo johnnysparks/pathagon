@@ -35,6 +35,7 @@ from learning.gnn.train import choose_device
 
 NEW_AGENT_NAMES = ("puct", "beam", "hybrid", "pathfinder10k", "scout10k")
 DEFAULT_OPPONENTS = ("pathfinder", "surveyor", "lunatic", "learner", "cnn", "scout")
+OPPONENT_NAMES = DEFAULT_OPPONENTS + ("coin-flip", "puct", "beam", "hybrid", "pathfinder10k", "scout10k")
 CHECKPOINTS = {
     "scout": REPO_ROOT / "training/gnn/benchmark-7x7/small-gnn-warmstart.pt",
     "learner": REPO_ROOT / "training/gnn/benchmark-7x7/gnn-warmstart.pt",
@@ -188,7 +189,7 @@ def upload_record(endpoint: str, bearer_token: str, run_id: str, sequence: int, 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--new-agents", type=lambda value: parse_csv(value, NEW_AGENT_NAMES, "new agents"), default=list(NEW_AGENT_NAMES))
-    parser.add_argument("--opponents", type=lambda value: parse_csv(value, DEFAULT_OPPONENTS + ("coin-flip",), "opponents"), default=list(DEFAULT_OPPONENTS))
+    parser.add_argument("--opponents", type=lambda value: parse_csv(value, OPPONENT_NAMES, "opponents"), default=list(DEFAULT_OPPONENTS))
     parser.add_argument("--games-per-match", type=int, default=2, help="games per pairing; 2 gives one Light and one Dark start")
     parser.add_argument("--seed", type=int, default=2026082400)
     parser.add_argument("--max-plies", type=int, default=160)
