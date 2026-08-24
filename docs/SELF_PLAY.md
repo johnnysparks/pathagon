@@ -38,7 +38,7 @@ npm run selfplay:league -- --games 8 --seed 20260823
 
 This runs a paired-color round robin over tracked champions and produces provisional within-pool ratings. These numbers compare agents in this league only; they are not human Elo ratings.
 
-The browser now exposes three compute levels: random Coin Flip, the novice two-ply Surveyor, and the four-ply Pathfinder. Search uses iterative deepening, alpha-beta pruning, a transposition table, tactical move ordering, and a strict node budget. That makes strength tunable without making mobile response time unbounded.
+The browser now exposes four compute levels: random Coin Flip, the intentionally naive one-ply Lunatic pattern heuristic, the novice two-ply Surveyor, and the four-ply Pathfinder. Search uses iterative deepening, alpha-beta pruning, a transposition table, tactical move ordering, and a strict node budget. That makes strength tunable without making mobile response time unbounded.
 
 ## Reproducibility contract
 

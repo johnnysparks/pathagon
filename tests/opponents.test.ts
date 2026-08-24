@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { COACHING_SEARCH, analyzeAction, analyzeActions } from "../app/ai.ts";
-import { SURVEYOR_OPPONENT } from "../app/opponents.ts";
-import { applyAction, createGame } from "../app/pathagon.ts";
+import { LUNATIC_OPPONENT, SURVEYOR_OPPONENT } from "../app/opponents.ts";
+import { applyAction, createGame, legalActions } from "../app/pathagon.ts";
 import type { GameState, Player } from "../app/pathagon.ts";
 
 function position(pieces: Partial<Record<number, Player>>, options: Partial<GameState> = {}) {
@@ -46,6 +46,36 @@ test("The Surveyor sees the right-edge rush and blocks before the capture ladder
   );
   const action = SURVEYOR_OPPONENT.chooseAction(state);
   assert.deepEqual(action, { kind: "place", to: 20 });
+});
+
+test("Lunatic takes an obvious automatic capture", () => {
+  const state = position(
+    { 21: "dark", 22: "light" },
+    { turn: "dark", reserve: { light: 13, dark: 13 } },
+  );
+  const action = LUNATIC_OPPONENT.chooseAction(state);
+  assert.deepEqual(action, { kind: "place", to: 23 });
+  assert.deepEqual(applyAction(state, action!).lastAction?.captured, [22]);
+});
+
+test("Lunatic takes an immediate win before chasing local patterns", () => {
+  const state = position(
+    { 21: "dark", 22: "dark", 23: "dark", 24: "dark", 25: "dark", 26: "dark" },
+    { turn: "dark", reserve: { light: 14, dark: 8 } },
+  );
+  const action = LUNATIC_OPPONENT.chooseAction(state);
+  assert.deepEqual(action, { kind: "place", to: 27 });
+  assert.equal(applyAction(state, action!).winner, "dark");
+});
+
+test("Lunatic always returns a legal move in movement phase", () => {
+  const state = position(
+    { 0: "dark", 2: "dark", 4: "dark", 6: "dark", 42: "light", 44: "light", 46: "light", 48: "light" },
+    { turn: "dark", reserve: { light: 0, dark: 0 } },
+  );
+  const action = LUNATIC_OPPONENT.chooseAction(state);
+  assert.ok(action);
+  assert.ok(legalActions(state).some((candidate) => JSON.stringify(candidate) === JSON.stringify(action)));
 });
 
 test("move coaching evaluates a legal preview and reports its balance shift", () => {

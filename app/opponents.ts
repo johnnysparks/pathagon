@@ -1,5 +1,5 @@
-import { PATHFINDER_SEARCH, searchBestAction, SURVEYOR_SEARCH } from "./ai.ts";
-import { legalActions } from "./pathagon.ts";
+import { connectionDistance, PATHFINDER_SEARCH, searchBestAction, SURVEYOR_SEARCH } from "./ai.ts";
+import { applyLegalAction, legalActions, otherPlayer } from "./pathagon.ts";
 import type { Action, GameState } from "./pathagon.ts";
 
 export type Opponent = {
@@ -40,6 +40,23 @@ export const SURVEYOR_OPPONENT: Opponent = {
   },
 };
 
+// Lunatic is intentionally a shallow, explainable baseline. It notices the
+// same local patterns a human might spot first, then commits to them without
+// checking the opponent's reply. That makes it useful as a breadth opponent
+// and as a control when evaluating whether deeper search is earning its cost.
+export const LUNATIC_OPPONENT: Opponent = {
+  id: "lunatic-v0",
+  name: "Lunatic",
+  version: "0.1.0",
+  engine: "1-ply pattern heuristic",
+  elo: "Unrated · heuristic",
+  personality: "Sees traps everywhere. Sometimes it is right.",
+  searchDepth: 1,
+  chooseAction(state) {
+    return chooseLunaticAction(state);
+  },
+};
+
 export const PATHFINDER_OPPONENT: Opponent = {
   id: "pathfinder-v0",
   name: "The Pathfinder",
@@ -53,8 +70,35 @@ export const PATHFINDER_OPPONENT: Opponent = {
   },
 };
 
-export const OPPONENTS = [PATHFINDER_OPPONENT, SURVEYOR_OPPONENT, RANDOM_OPPONENT] as const;
+export const OPPONENTS = [PATHFINDER_OPPONENT, LUNATIC_OPPONENT, SURVEYOR_OPPONENT, RANDOM_OPPONENT] as const;
 
 export function getOpponent(id: string): Opponent {
   return OPPONENTS.find((opponent) => opponent.id === id) ?? SURVEYOR_OPPONENT;
+}
+
+export function chooseLunaticAction(state: GameState): Action | null {
+  const actions = legalActions(state);
+  if (!actions.length) return null;
+  const player = state.turn;
+  const beforeOwnDistance = connectionDistance(state.board, player);
+  const beforeOpponentDistance = connectionDistance(state.board, otherPlayer(player));
+  return actions
+    .map((action) => {
+      const next = applyLegalAction(state, action);
+      const captured = next.lastAction?.captured.length ?? 0;
+      const ownDistance = connectionDistance(next.board, player);
+      const opponentDistance = connectionDistance(next.board, otherPlayer(player));
+      const score = next.winner === player
+        ? 1_000_000_000
+        : captured * 10_000
+          + (beforeOwnDistance - ownDistance) * 500
+          + (opponentDistance - beforeOpponentDistance) * 350
+          + (action.kind === "relocate" ? 10 : 0);
+      return { action, score };
+    })
+    .sort((left, right) => right.score - left.score || actionOrder(left.action) - actionOrder(right.action))[0].action;
+}
+
+function actionOrder(action: Action) {
+  return action.kind === "place" ? action.to : action.from * 49 + action.to;
 }

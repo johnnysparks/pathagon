@@ -20,7 +20,7 @@ The experimental scale-invariant GNN/PUCT learner lives under
 construction, replay warm-starts, and compact neural self-play; it is not yet
 the browser opponent.
 
-The playable opponent ladder is deliberately compute-based: Coin Flip is random, The Surveyor searches two plies, and The Pathfinder uses iterative deepening up to four plies. "Expert" currently describes its search budget, not a solved-game or unbeatable claim.
+The playable opponent ladder mixes search and heuristic baselines: Coin Flip is random, Lunatic is a deliberately naive one-ply pattern heuristic, The Surveyor searches two plies, and The Pathfinder uses iterative deepening up to four plies. "Expert" currently describes its search budget, not a solved-game or unbeatable claim.
 
 ## Anonymous human game archive
 
