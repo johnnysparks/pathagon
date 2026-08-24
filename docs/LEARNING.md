@@ -51,6 +51,11 @@ run should retain:
 Held-out prediction metrics diagnose learning. Pairwise results determine
 whether a candidate is strong enough to enter the promotion conversation.
 
+The proposed transition-focused alternative to a scalar board value is
+documented in
+[`SEPARATED-VALUE-ACTION-POLICY.md`](SEPARATED-VALUE-ACTION-POLICY.md). It is
+currently a design experiment, not an active model contract.
+
 ## Browser boundary
 
 The GNN and CNN remain research candidates until they pass the evaluation gates
