@@ -94,7 +94,7 @@ def upload_record(endpoint: str, bearer_token: str, run_id: str, sequence: int, 
     request = urllib.request.Request(
         endpoint,
         data=json.dumps({"games": [entry]}).encode("utf-8"),
-        headers={"Authorization": f"Bearer {bearer_token}", "Content-Type": "application/json"},
+        headers={"OAI-Sites-Authorization": f"Bearer {bearer_token}", "Content-Type": "application/json"},
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=60) as response:
