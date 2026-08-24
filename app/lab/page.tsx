@@ -282,9 +282,9 @@ export default function LearningLab() {
 
       <header className="leaderboard-hero">
         <div className="leaderboard-hero-copy">
-          <span className="portal-kicker">Model progression · 7×7 league</span>
-          <h1>A quiet ratchet<br /><em>for stronger play.</em></h1>
-          <p>Every new checkpoint should be a little better than the one before it. The winner makes the next games; the games teach the next model; cross-play keeps the ranking honest.</p>
+          <span className="portal-kicker">7×7 model league</span>
+          <h1>Leaderboard</h1>
+          <p>Compare model strength, live cross-play results, and promotion candidates.</p>
           <div className="portal-actions">
             <button className="portal-primary" type="button" onClick={copyBatchCommand}>
               {copied ? "Batch command copied" : "Copy next batch recipe"}<span>{copied ? "✓" : "↗"}</span>
