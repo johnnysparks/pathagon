@@ -47,3 +47,19 @@ The compact checkpoints are small enough to keep in Git:
 | `compact-gnn-seed20260825.pt` | `b33bceea9e6959437f992fac7e43b1f4bb2807012a39dbf8a9956de438387758` |
 | `compact-gnn-seed20260826.pt` | `785dc7eb6c5a5b8ed0697287597a8176f44984e7873e64e08dab7258ad346b17` |
 | `compact-gnn-seed20260827.pt` | `b3cc114a8fae0874b6a47cb5accb1566c3a1365f87b038b8f490e97619502a9a` |
+
+## Full-model warm starts
+
+The larger comparison models were trained from the same 4,911-game training
+split for 2,000 symmetry-augmented updates on MPS. The held-out split was not
+used during training.
+
+| model | architecture | policy loss | value loss | checkpoint |
+| --- | --- | ---: | ---: | --- |
+| CNN | 32 channels × 4 residual blocks | 2.4928 | 0.3025 | `cnn-full-seed20260828.pt` |
+| Full GNN | 64 channels × 8 message layers | 2.2681 | 0.3220 | `full-gnn-seed20260829.pt` |
+
+| checkpoint | SHA-256 |
+| --- | --- |
+| `cnn-full-seed20260828.pt` | `c5dca2e7e69c01469169ba4e428e8b27c616a08e529f7ebee93d9cbb9d767056` |
+| `full-gnn-seed20260829.pt` | `c399a4cbaf07777ffb2ec50b7caa03f90299fc65c9a86c3ac5cc782441ef50f6` |
