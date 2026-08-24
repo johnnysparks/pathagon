@@ -43,6 +43,16 @@ export type LeagueArchive = {
 
 export const LEAGUES: LeagueManifest[] = [
   {
+    id: "league-5x5-r8-generation-10",
+    label: "5×5 · Gen 10 evaluation",
+    boardSize: 5,
+    reservePerPlayer: 8,
+    gamesPerMatch: 4,
+    simulations: 4,
+    archive: "league-5x5-r8-generation-10.json",
+    note: "Generation 10 candidate evaluation: expanded to seven agents, with four color-balanced games per matchup.",
+  },
+  {
     id: "league-5x5-r8",
     label: "5×5 · 8-piece reserve",
     boardSize: 5,

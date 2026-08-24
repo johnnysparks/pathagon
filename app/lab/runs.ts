@@ -21,6 +21,21 @@ export type RunRecord = {
 
 export const RUNS: RunRecord[] = [
   {
+    id: "generation-10-5x5-r8",
+    label: "Generation 10",
+    stage: "5x5 · 8-piece reserve · candidate",
+    kind: "alphazero",
+    boardSize: 5,
+    reservePerPlayer: 8,
+    parent: "Generation 9 · 5x5 reserve 8",
+    summary: "A 100-game reserve-8 retraining candidate. It beat Generation 9 head-to-head, but the broader league Elo did not justify promotion.",
+    checkpoint: { name: "pathagon-generation-10-5x5-r8.pt", bytes: 419549 },
+    replay: { name: "selfplay-generation-10-5x5-r8.jsonl", bytes: 675669, games: 100, positions: 3828 },
+    metrics: { examples: 3828, averagePlies: 38.28, policyLoss: 2.2262, valueLoss: 0.7742 },
+    outcomes: { wins: 94, draws: 6, losses: 0 },
+    arena: null,
+  },
+  {
     id: "generation-9-5x5-r8",
     label: "Generation 9",
     stage: "5x5 · 8-piece reserve",

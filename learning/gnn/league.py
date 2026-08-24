@@ -236,6 +236,7 @@ def build_roster(size: int, reserve: int, simulations: int, device: torch.device
     roster: List[AgentSpec] = []
     if size == 5:
         checkpoints = [
+            ("gnn-generation-10-5x5-r8", "Generation 10 · 5x5 reserve 8", "training/gnn/pathagon-generation-10-5x5-r8.pt"),
             ("gnn-generation-9-5x5-r8", "Generation 9 · 5x5 reserve 8", "training/gnn/pathagon-generation-9-5x5-r8.pt"),
             ("gnn-generation-7-5x5", "Generation 7 · 5x5 reserve 10", "training/gnn/pathagon-generation-7-5x5.pt"),
             ("gnn-generation-6-5x5", "Generation 6 · 5x5 reserve 10", "training/gnn/pathagon-generation-6-5x5.pt"),
