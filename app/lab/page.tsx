@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { LEAGUES, type LeagueArchive, type LeagueMatch, type LeagueStanding } from "./leagues";
 import { RUNS, type RunRecord } from "./runs";
 import { buildReplayPositions, coordinate, formatReplayAction, parseReplayArchive, type ReplayGame } from "./replay";
 
@@ -34,6 +35,8 @@ export default function LearningLab() {
         />
       </section>
 
+      <LeagueBrowser />
+
       <section className="lab-browser" aria-label="Checkpoint browser">
         <div className="run-list-panel">
           <div className="lab-panel-heading">
@@ -57,6 +60,78 @@ export default function LearningLab() {
       </footer>
     </main>
   );
+}
+
+function LeagueBrowser() {
+  const [selectedId, setSelectedId] = useState(LEAGUES[0].id);
+  const [archive, setArchive] = useState<LeagueArchive | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const selected = LEAGUES.find((league) => league.id === selectedId) ?? LEAGUES[0];
+
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("loading");
+    fetch(`/lab/leagues/${selected.archive}`)
+      .then((response) => {
+        if (!response.ok) throw new Error("League archive unavailable");
+        return response.json() as Promise<LeagueArchive>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setArchive(data);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setArchive(null);
+        setStatus("error");
+      });
+    return () => { cancelled = true; };
+  }, [selected.archive]);
+
+  return (
+    <section className="league-card" aria-label="Agent league standings">
+      <div className="league-heading">
+        <div><span className="lab-kicker">Agent league</span><h2>Head-to-head standings</h2><p>{selected.note}</p></div>
+        <a className="league-download" href={`/lab/leagues/${selected.archive}`} download>Download JSON</a>
+      </div>
+      <div className="league-tabs" role="tablist" aria-label="League board sizes">
+        {LEAGUES.map((league) => <button key={league.id} className={`league-tab ${league.id === selected.id ? "selected" : ""}`} onClick={() => setSelectedId(league.id)} type="button" role="tab" aria-selected={league.id === selected.id}>{league.label}</button>)}
+      </div>
+      {status === "loading" && <p className="empty-state">Loading league archive…</p>}
+      {status === "error" && <p className="empty-state">This league archive has not been published yet.</p>}
+      {status === "ready" && archive && <LeagueResults archive={archive} />}
+    </section>
+  );
+}
+
+function LeagueResults({ archive }: { archive: LeagueArchive }) {
+  const labels = new Map(archive.standings.map((standing) => [standing.id, standing.label]));
+  return (
+    <div className="league-results">
+      <div className="league-meta"><span>{archive.boardSize}×{archive.boardSize} · {archive.reservePerPlayer} pieces/player</span><span>{archive.gamesPerMatch} games/match · {archive.simulations} MCTS sims</span><span>{archive.standings.reduce((total, standing) => total + standing.games, 0) / 2} games total</span></div>
+      <div className="league-grid">
+        <div className="standings-table" role="table" aria-label="League Elo standings">
+          <div className="standings-row standings-header" role="row"><span>#</span><span>Agent</span><span>Elo</span><span>W–D–L</span><span>Pts</span></div>
+          {archive.standings.map((standing, index) => <StandingRow key={standing.id} standing={standing} rank={index + 1} />)}
+        </div>
+        <div className="matchup-table" role="table" aria-label="Head-to-head results">
+          <div className="matchup-heading"><span className="lab-kicker">Matchups</span><span>{archive.headToHead.length}</span></div>
+          {archive.headToHead.map((match) => <MatchupRow key={`${match.left}-${match.right}`} match={match} labels={labels} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StandingRow({ standing, rank }: { standing: LeagueStanding; rank: number }) {
+  return <div className="standings-row" role="row"><span className="standing-rank">{rank}</span><span className="standing-agent"><strong>{standing.label}</strong><small>{standing.kind}</small></span><strong className="standing-rating">{standing.rating}</strong><span>{standing.wins}–{standing.draws}–{standing.losses}</span><span>{standing.points.toFixed(1)}</span></div>;
+}
+
+function MatchupRow({ match, labels }: { match: LeagueMatch; labels: Map<string, string> }) {
+  const left = match.leftSummary;
+  const right = match.rightSummary;
+  return <div className="matchup-row"><div><strong>{labels.get(match.left) ?? match.left}</strong><span>{labels.get(match.right) ?? match.right}</span></div><strong className="matchup-score">{left.wins}–{left.draws}–{left.losses}</strong><span className="matchup-vs">vs</span><strong className="matchup-score">{right.wins}–{right.draws}–{right.losses}</strong></div>;
 }
 
 function SummaryCard({ label, value, detail }: { label: string; value: number | string; detail: string }) {

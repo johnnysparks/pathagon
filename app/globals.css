@@ -231,6 +231,33 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .lab-summary-card > span, .lab-summary-card > small { color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
 .lab-summary-card strong { margin: 8px 0 0; color: var(--green); font-family: Georgia, serif; font-size: 29px; font-weight: 500; letter-spacing: -.03em; }
 .lab-summary-card small { letter-spacing: 0; text-transform: none; }
+.league-card { margin-bottom: 14px; padding: 17px; border: 1px solid #cbd9ca; border-radius: 14px; background: #edf4eb; }
+.league-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.league-heading h2 { margin: 4px 0 0; font-family: Georgia, serif; font-size: 27px; font-weight: 500; }
+.league-heading p { max-width: 650px; margin: 7px 0 0; color: #69806d; font-size: 12px; line-height: 1.45; }
+.league-download { flex: 0 0 auto; border: 1px solid #b9cdb8; border-radius: 8px; padding: 8px 10px; color: #396347; background: rgba(255,255,255,.58); font-size: 11px; font-weight: 850; text-decoration: none; }
+.league-tabs { display: flex; gap: 6px; margin-top: 15px; overflow-x: auto; }
+.league-tab { border: 1px solid transparent; border-radius: 999px; padding: 7px 10px; color: #69806d; background: transparent; cursor: pointer; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.league-tab:hover, .league-tab.selected { border-color: #b9cdb8; color: #2e6244; background: rgba(255,255,255,.6); }
+.league-results { margin-top: 14px; }
+.league-meta { display: flex; flex-wrap: wrap; gap: 7px 18px; color: #69806d; font-size: 10px; font-weight: 750; }
+.league-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(300px, .9fr); gap: 14px; margin-top: 12px; }
+.standings-table, .matchup-table { overflow: hidden; border: 1px solid #cbd9ca; border-radius: 10px; background: rgba(255,255,255,.46); }
+.standings-row { display: grid; grid-template-columns: 26px minmax(150px, 1fr) 52px 68px 42px; align-items: center; gap: 7px; min-height: 43px; padding: 6px 10px; border-top: 1px solid rgba(174,194,171,.5); color: #45624d; font-size: 11px; }
+.standings-row:first-child { border-top: 0; }
+.standings-header { min-height: 30px; border-top: 0; color: #69806d; font-size: 9px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.standing-rank { color: #8b9d8c; font-weight: 800; }
+.standing-agent { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.standing-agent strong { overflow: hidden; color: #294735; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.standing-agent small { color: #809281; font-size: 9px; text-transform: uppercase; }
+.standing-rating { color: #2e6244; font-family: Georgia, serif; font-size: 18px; font-weight: 500; }
+.matchup-heading { display: flex; justify-content: space-between; padding: 10px 10px 7px; color: #69806d; }
+.matchup-row { display: grid; grid-template-columns: minmax(0, 1fr) 48px 20px 48px; align-items: center; gap: 6px; min-height: 42px; padding: 6px 10px; border-top: 1px solid rgba(174,194,171,.5); color: #45624d; font-size: 10px; }
+.matchup-row > div { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.matchup-row > div strong { overflow: hidden; color: #294735; text-overflow: ellipsis; white-space: nowrap; }
+.matchup-row > div span { overflow: hidden; color: #809281; text-overflow: ellipsis; white-space: nowrap; }
+.matchup-score { color: #2e6244; font-size: 11px; text-align: center; }
+.matchup-vs { color: #9aab9c; font-size: 9px; text-align: center; }
 .lab-browser { display: grid; grid-template-columns: minmax(270px, 350px) minmax(0, 1fr); gap: 14px; align-items: start; }
 .run-list-panel, .run-detail-panel { border: 1px solid var(--line); border-radius: 16px; background: rgba(251,248,241,.9); box-shadow: 0 12px 40px rgba(66,48,28,.06); }
 .run-list-panel { padding: 12px; }
@@ -352,10 +379,12 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
   .lab-app { padding: 24px 16px 38px; }
   .lab-summary { grid-template-columns: repeat(2, 1fr); }
   .lab-browser { grid-template-columns: 1fr; }
+  .league-grid { grid-template-columns: 1fr; }
   .run-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
   .lab-header { align-items: flex-start; flex-direction: column; gap: 15px; }
+  .league-heading { flex-direction: column; gap: 12px; }
   .lab-summary { gap: 7px; }
   .lab-summary-card { min-height: 105px; padding: 12px; }
   .lab-summary-card strong { font-size: 23px; }
