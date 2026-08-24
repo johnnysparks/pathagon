@@ -80,3 +80,28 @@ These are 300-update measurements on the same full 7×7 training split, not a
 claim about all Apple Silicon workloads. Use `--device cpu` for these small
 unbatched replay warm starts; re-benchmark before switching to MPS for larger
 models, batched training, or self-play search.
+
+## Held-out scoring snapshot
+
+These scores use the same seeded 10,000-example sample from the 119,776-example
+held-out split (`--seed 20260825`, 873 games), evaluated on CPU. The sample
+contains 6,935 draw, 1,469 loss, and 1,596 win targets. NLL is lower; top-1
+and top-5 are higher; value MSE is lower. This is a progress snapshot, not a
+replacement for a complete held-out pass or an arena strength test.
+
+| model | policy NLL | top-1 | top-5 | value MSE |
+| --- | ---: | ---: | ---: | ---: |
+| CNN full | 2.0564 | 55.8% | 82.0% | 0.3066 |
+| Full GNN | 1.6868 | 62.5% | 86.8% | 0.3199 |
+| Compact GNN seed 20260825 | 1.9360 | 51.9% | 81.5% | 0.3071 |
+| Compact GNN seed 20260826 | 1.9456 | 52.5% | 83.2% | 0.3062 |
+| Compact GNN seed 20260827 | 1.9830 | 52.4% | 81.6% | 0.3072 |
+
+The full-model phase split is:
+
+| model / phase | policy NLL | top-1 | top-5 | value MSE |
+| --- | ---: | ---: | ---: | ---: |
+| CNN / placement | 2.0016 | 55.6% | 80.7% | 0.4830 |
+| CNN / relocation | 2.1064 | 55.9% | 83.2% | 0.1454 |
+| Full GNN / placement | 1.6346 | 63.5% | 84.5% | 0.5062 |
+| Full GNN / relocation | 1.7345 | 61.7% | 88.8% | 0.1497 |
