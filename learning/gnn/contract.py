@@ -18,6 +18,7 @@ DEFAULT_EVALUATOR_WEIGHTS = {
     "threat": 130,
     "edge": 80,
 }
+ROOT_Q_SOURCE = "mcts-root-q-v1"
 
 
 def game_config(size: int = 7, reserve: int = 14, max_plies: int = 180, repetition_limit: int = 3) -> dict:
@@ -200,6 +201,12 @@ def validate_replay_record(value: Any) -> dict:
         _squares(move.get("captured"), cells, "captured")
         if "policy" in move:
             _policy(move.get("policy"), f"move {index} policy")
+        if "actionValues" in move or "actionVisits" in move:
+            if move.get("actionValueSource") != ROOT_Q_SOURCE:
+                raise ValueError(f"invalid move {index} action value source")
+            _action_values(move.get("actionValues"), move.get("actionVisits"), f"move {index} action values")
+        elif "actionValueSource" in move:
+            raise ValueError(f"invalid move {index} action value source")
         for field in ("nodes", "completedDepth", "tableHits"):
             if not isinstance(move.get(field), int) or move[field] < 0:
                 raise ValueError(f"invalid move {field}")
@@ -236,5 +243,17 @@ def _policy(value: Any, label: str) -> None:
         or not value
         or any(not isinstance(probability, (int, float)) or isinstance(probability, bool) or not math.isfinite(probability) or probability < 0 or probability > 1 for probability in value)
         or sum(value) <= 0
+    ):
+        raise ValueError(f"invalid {label}")
+
+
+def _action_values(values: Any, visits: Any, label: str) -> None:
+    if (
+        not isinstance(values, list)
+        or not values
+        or not isinstance(visits, list)
+        or len(values) != len(visits)
+        or any(not isinstance(item, (int, float)) or isinstance(item, bool) or not math.isfinite(item) or item < -1 or item > 1 for item in values)
+        or any(not isinstance(item, int) or isinstance(item, bool) or item < 0 for item in visits)
     ):
         raise ValueError(f"invalid {label}")

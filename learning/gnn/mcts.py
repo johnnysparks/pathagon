@@ -170,6 +170,28 @@ class PUCTSearch:
         total = sum(powered)
         return [value / total for value in powered]
 
+    @staticmethod
+    def root_action_values(root: MCTSNode, actions: List[Action]) -> Tuple[List[float], List[int]]:
+        """Return root-perspective Q estimates and visits aligned to ``actions``.
+
+        Child node values are stored from the child side-to-move perspective,
+        so the sign is inverted here. An unvisited child contributes its
+        seeded afterstate estimate and a zero visit count; consumers can use
+        the counts to distinguish search-backed Q from heuristic fallback.
+        """
+
+        values = []
+        visits = []
+        for action in actions:
+            child = root.children.get(action)
+            if child is None:
+                values.append(0.0)
+                visits.append(0)
+            else:
+                values.append(float(-child.estimated_value))
+                visits.append(int(child.visit_count))
+        return values, visits
+
     def _add_root_noise(self, root: MCTSNode, rng: Optional[random.Random] = None) -> None:
         actions = list(root.priors)
         source = rng or random

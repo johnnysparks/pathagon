@@ -78,15 +78,23 @@ class PipelineTest(unittest.TestCase):
         state = GameState.initial(config)
         actions = tuple(state.legal_actions())
         policy = tuple(0.2 if index == 0 else 0.1 for index in range(len(actions)))
-        example = SearchExample(state, actions, policy, actions[0], 0.0)
+        action_values = tuple((index - 4) / 10 for index in range(len(actions)))
+        action_visits = tuple(index for index in range(len(actions)))
+        example = SearchExample(state, actions, policy, actions[0], 0.0, action_values, action_visits)
         record = game_record([example], state.apply_legal(actions[0]), seed=7, simulations=8)
         self.assertEqual(record["moves"][0]["policy"], list(policy))
+        self.assertEqual(record["moves"][0]["actionValues"], list(action_values))
+        self.assertEqual(record["moves"][0]["actionVisits"], list(action_visits))
+        self.assertEqual(record["moves"][0]["actionValueSource"], "mcts-root-q-v1")
         with TemporaryDirectory() as directory:
             path = Path(directory) / "policy.jsonl"
             path.write_text(json.dumps(record) + "\n", encoding="utf-8")
             examples = load_replay_examples(path)
         self.assertEqual(examples[0].policy, policy)
         self.assertEqual(examples[0].policy_actions, actions)
+        self.assertEqual(examples[0].action_values, action_values)
+        self.assertEqual(examples[0].action_visits, action_visits)
+        self.assertEqual(examples[0].action_value_actions, actions)
 
 
 if __name__ == "__main__":

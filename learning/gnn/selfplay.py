@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 from .game import Action, BoardConfig, GameState, Player, bits, repetition_key
-from .contract import agent_manifest, agent_specification, engine_metadata, game_config
+from .contract import ROOT_Q_SOURCE, agent_manifest, agent_specification, engine_metadata, game_config
 from .mcts import PUCTSearch
 from .model import PathagonGNN
 
@@ -19,6 +19,8 @@ class SearchExample:
     policy: Tuple[float, ...]
     selected_action: Action
     value: float
+    action_values: Tuple[float, ...] = ()
+    action_visits: Tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -111,10 +113,10 @@ def generate_game(
     progress: Optional[Callable[[GameState], None]] = None,
 ) -> Tuple[List[SearchExample], GameState]:
     search = PUCTSearch(model, simulations=simulations)
-    examples: List[Tuple[GameState, Tuple[Action, ...], Tuple[float, ...], Action]] = []
+    examples: List[Tuple[GameState, Tuple[Action, ...], Tuple[float, ...], Action, Tuple[float, ...], Tuple[int, ...]]] = []
 
     def choose_action(state: GameState, actions: Tuple[Action, ...], rng: random.Random, history: Set[tuple]) -> Action:
-        _, search_actions, probabilities = search.run(
+        root, search_actions, probabilities = search.run(
             state,
             add_root_noise=add_root_noise,
             history=history,
@@ -122,23 +124,24 @@ def generate_game(
         )
         if actions != tuple(search_actions):
             raise AssertionError("MCTS action order diverged from the state action list")
+        action_values, action_visits = search.root_action_values(root, list(actions))
         _, probabilities = avoid_repeated_successors(state, actions, probabilities, history)
         if state.ply < temperature_moves:
             action = rng.choices(actions, weights=probabilities, k=1)[0]
         else:
             action = actions[max(range(len(actions)), key=lambda index: (probabilities[index], -actions[index].to))]
-        examples.append((state, tuple(actions), tuple(probabilities), action))
+        examples.append((state, tuple(actions), tuple(probabilities), action, tuple(action_values), tuple(action_visits)))
         return action
 
     result = run_match(config, seed, choose_action, progress=progress)
     final_winner = result.state.winner
     labeled = []
-    for sample_state, sample_actions, sample_policy, selected_action in examples:
+    for sample_state, sample_actions, sample_policy, selected_action, action_values, action_visits in examples:
         if final_winner is None:
             value = 0.0
         else:
             value = 1.0 if final_winner is sample_state.turn else -1.0
-        labeled.append(SearchExample(sample_state, sample_actions, sample_policy, selected_action, value))
+        labeled.append(SearchExample(sample_state, sample_actions, sample_policy, selected_action, value, action_values, action_visits))
     return labeled, result.state
 
 
@@ -177,6 +180,14 @@ def game_record(
             "score": 0,
             "bookHit": False,
         })
+        if bool(example.action_values) != bool(example.action_visits):
+            raise ValueError("action values and visits must be provided together")
+        if example.action_values:
+            if len(example.action_values) != len(example.actions) or len(example.action_visits) != len(example.actions):
+                raise ValueError("action values and visits must align with legal actions")
+            moves[-1]["actionValues"] = list(example.action_values)
+            moves[-1]["actionVisits"] = list(example.action_visits)
+            moves[-1]["actionValueSource"] = ROOT_Q_SOURCE
     winner = None if final_state.winner is None else ("light" if final_state.winner is Player.LIGHT else "dark")
     if winner is not None:
         reason = "path"

@@ -74,6 +74,9 @@ class ContractTest(unittest.TestCase):
                 "completedDepth": 0,
                 "tableHits": 0,
                 "policy": [0.75, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                "actionValues": [0.1, -0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                "actionVisits": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+                "actionValueSource": "mcts-root-q-v1",
             }],
         }
         self.assertEqual(validate_replay_record(record)["moves"][0]["policy"][0], 0.75)

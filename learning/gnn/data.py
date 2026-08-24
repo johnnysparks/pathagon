@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, List, Optional
 
 from .game import Action, BoardConfig, GameState, Player, action_from_record
+from .contract import ROOT_Q_SOURCE
 
 
 @dataclass(frozen=True)
@@ -19,6 +20,9 @@ class ReplayExample:
     seed: int
     policy: Optional[tuple[float, ...]] = None
     policy_actions: Optional[tuple[Action, ...]] = None
+    action_values: Optional[tuple[float, ...]] = None
+    action_visits: Optional[tuple[int, ...]] = None
+    action_value_actions: Optional[tuple[Action, ...]] = None
 
 
 def iter_records(path: Path) -> Iterable[dict]:
@@ -59,6 +63,13 @@ def load_replay_examples(
             if action not in legal:
                 raise ValueError(f"seed {seed}: illegal action {action.short()} at ply {state.ply}")
             policy = parse_policy(move.get("policy"), legal, seed, state.ply)
+            action_values, action_visits = parse_action_values(
+                move.get("actionValues"), move.get("actionVisits"), legal, seed, state.ply
+            )
+            if action_values is not None and move.get("actionValueSource") != ROOT_Q_SOURCE:
+                raise ValueError(f"seed {seed}: unsupported action value source at ply {state.ply}")
+            if action_values is None and "actionValueSource" in move:
+                raise ValueError(f"seed {seed}: action value source has no Q target at ply {state.ply}")
             examples.append(
                 ReplayExample(
                     state,
@@ -67,6 +78,9 @@ def load_replay_examples(
                     seed,
                     policy,
                     tuple(legal) if policy is not None else None,
+                    action_values,
+                    action_visits,
+                    tuple(legal) if action_values is not None else None,
                 )
             )
             state = state.apply_legal(action)
@@ -93,6 +107,29 @@ def parse_policy(raw: Any, legal: tuple[Action, ...], seed: int, ply: int) -> Op
     if sum(policy) <= 0.0:
         raise ValueError(f"seed {seed}: policy has no positive probability at ply {ply}")
     return policy
+
+
+def parse_action_values(
+    raw_values: Any,
+    raw_visits: Any,
+    legal: tuple[Action, ...],
+    seed: int,
+    ply: int,
+) -> tuple[Optional[tuple[float, ...]], Optional[tuple[int, ...]]]:
+    """Validate root Q targets and their confidence counts."""
+
+    if raw_values is None and raw_visits is None:
+        return None, None
+    if not isinstance(raw_values, list) or not isinstance(raw_visits, list):
+        raise ValueError(f"seed {seed}: action values and visits must be lists at ply {ply}")
+    if len(raw_values) != len(legal) or len(raw_visits) != len(legal):
+        raise ValueError(f"seed {seed}: action value length mismatch at ply {ply}")
+    values = tuple(float(value) for value in raw_values)
+    if any(not math.isfinite(value) or value < -1.0 or value > 1.0 for value in values):
+        raise ValueError(f"seed {seed}: action values contain an invalid Q estimate at ply {ply}")
+    if any(not isinstance(value, int) or isinstance(value, bool) or value < 0 for value in raw_visits):
+        raise ValueError(f"seed {seed}: action visits contain an invalid count at ply {ply}")
+    return values, tuple(raw_visits)
 
 
 def winner_value_for_record(record: dict, state: GameState) -> float:

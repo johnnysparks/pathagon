@@ -61,6 +61,11 @@ def transform_replay_example(example: ReplayExample, symmetry: Symmetry) -> Repl
         policy_actions=None
         if example.policy_actions is None
         else tuple(transform_action(action, example.state.config, symmetry) for action in example.policy_actions),
+        action_values=example.action_values,
+        action_visits=example.action_visits,
+        action_value_actions=None
+        if example.action_value_actions is None
+        else tuple(transform_action(action, example.state.config, symmetry) for action in example.action_value_actions),
     )
 
 
@@ -73,6 +78,8 @@ def transform_search_example(example: SearchExample, symmetry: Symmetry) -> Sear
         policy=example.policy,
         selected_action=transform_action(example.selected_action, example.state.config, symmetry),
         value=example.value,
+        action_values=example.action_values,
+        action_visits=example.action_visits,
     )
 
 

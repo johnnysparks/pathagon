@@ -42,6 +42,22 @@ PLAYERS = {
         "agent_name": "Python CNN PUCT",
         "agent_engine": "python-cnn",
     },
+    "reval-gnn": {
+        "label": "Re-evaluated GNN 30k",
+        "checkpoint": Path("training/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-gnn-30k.pt"),
+        "architecture": "gnn",
+        "agent_id": "python-gnn-puct-reval30k-v0.1.0",
+        "agent_name": "Python GNN PUCT Re-evaluated 30k",
+        "agent_engine": "python-gnn",
+    },
+    "reval-cnn": {
+        "label": "Re-evaluated CNN 30k",
+        "checkpoint": Path("training/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-cnn-30k.pt"),
+        "architecture": "cnn",
+        "agent_id": "python-cnn-puct-reval30k-v0.1.0",
+        "agent_name": "Python CNN PUCT Re-evaluated 30k",
+        "agent_engine": "python-cnn",
+    },
 }
 
 

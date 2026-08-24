@@ -26,6 +26,16 @@ class MctsTest(unittest.TestCase):
             self.assertIsNotNone(child.seeded_value)
             self.assertEqual(child.visit_count, 0)
 
+    def test_root_action_values_are_flipped_into_root_perspective(self) -> None:
+        state = GameState.initial(BoardConfig(3, 3, 12))
+        root, actions, _ = PUCTSearch(ZeroModel(), simulations=0).run(state)
+        values, visits = PUCTSearch.root_action_values(root, actions)
+
+        self.assertEqual(len(values), len(actions))
+        self.assertEqual(visits, [0] * len(actions))
+        for action, value in zip(actions, values):
+            self.assertAlmostEqual(value, -root.children[action].seeded_value)
+
     def test_search_treats_the_ply_cap_as_a_draw_terminal(self) -> None:
         config = BoardConfig(3, 3, 12)
         state = GameState(
