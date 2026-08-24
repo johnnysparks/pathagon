@@ -284,6 +284,7 @@ def build_roster(size: int, reserve: int, simulations: int, device: torch.device
         ]
     elif size == 7:
         checkpoints = [
+            ("gnn-rust-generation-2-7x7", "Rust AlphaZero generation 2 · 7x7", "training/gnn/pathagon-rust-7x7-generation-2.pt"),
             ("gnn-rust-generation-1-7x7", "Rust warm-start generation 1 · 7x7", "training/gnn/pathagon-rust-7x7-generation-1.pt"),
             ("gnn-generation-8-7x7", "Generation 8 · 7x7", "training/gnn/pathagon-generation-8-7x7.pt"),
             ("gnn-generation-5-7x7", "Generation 5 · 7x7", "training/gnn/pathagon-generation-5.pt"),
