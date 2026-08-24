@@ -10,6 +10,7 @@ const BATCH_COMMAND = `./.venv-pathagon-gnn/bin/python scripts/generate-7x7-self
   --output-dir training/gnn/benchmark-7x7/generated/<batch-id>`;
 
 const TARGET_CROSS_PLAY_GAMES = 10;
+const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
 
 const MODELS = [
   {
@@ -194,6 +195,7 @@ export default function LearningLab() {
         .then((snapshot) => {
           setCrossPlayRunId(snapshot.runId);
           setCrossPlay(snapshot);
+          setCrossPlayError(null);
         })
         .catch(() => {
           if (savedRun) setCrossPlayRunId(savedRun);
@@ -207,7 +209,7 @@ export default function LearningLab() {
     let active = true;
     const refresh = () => {
       void readCrossPlay(crossPlayRunId)
-        .then((snapshot) => { if (active) setCrossPlay(snapshot); })
+        .then((snapshot) => { if (active) { setCrossPlay(snapshot); setCrossPlayError(null); } })
         .catch((error: unknown) => { if (active) setCrossPlayError(error instanceof Error ? error.message : "Live run unavailable"); });
     };
     refresh();
@@ -254,6 +256,9 @@ export default function LearningLab() {
         if (!response.ok || !payload.accepted) throw new Error(payload.error ?? "Cross-play game rejected");
         setCrossPlay(await readCrossPlay(runId));
       }
+      const aggregate = await readLatestCrossPlay();
+      setCrossPlayRunId(aggregate.runId);
+      setCrossPlay(aggregate);
     } catch (error) {
       setCrossPlayError(error instanceof Error ? error.message : "Cross-play run stopped");
     } finally {
@@ -315,11 +320,11 @@ export default function LearningLab() {
 
       <section className="leaderboard-panel cross-play-live-panel" aria-labelledby="live-run-title">
         <div className="cross-play-live-heading">
-          <div><span className="portal-kicker">Live arena · random cross-play</span><h2 id="live-run-title">Make the ladder move.</h2><p>{isGnnBridgeRun(crossPlay?.runId) ? "The Python bridge streams each GNN Learner vs Surveyor result into the same live ladder." : "Ten seeded games are drawn from the four playable opponents. Each result is archived immediately and the standings below refresh while the run is playing."}</p></div>
+          <div><span className="portal-kicker">Live arena · random cross-play</span><h2 id="live-run-title">Make the ladder move.</h2><p>{crossPlay?.runId === ALL_CROSS_PLAY_RUN_ID ? "All archived cross-play games roll into this ladder. Each new result updates the cumulative standings." : isGnnBridgeRun(crossPlay?.runId) ? "The Python bridge streams each GNN Learner vs Surveyor result into the same live ladder." : "Ten seeded games are drawn from the four playable opponents. Each result is archived immediately and the standings below refresh while the run is playing."}</p></div>
           <button className="portal-primary live-run-button" type="button" onClick={startCrossPlay} disabled={crossPlayBusy}>{crossPlayBusy ? `Playing ${Math.min((crossPlay?.games ?? 0) + 1, TARGET_CROSS_PLAY_GAMES)} / ${TARGET_CROSS_PLAY_GAMES}…` : crossPlay?.status === "complete" ? "Play another 10" : "Play 10 random games"}<span>{crossPlayBusy ? "◌" : "↗"}</span></button>
         </div>
         <div className="live-run-summary">
-          <div><strong>{crossPlay?.games ?? 0}<small> / {TARGET_CROSS_PLAY_GAMES}</small></strong><span>games complete</span></div>
+          <div><strong>{crossPlay?.games ?? 0}<small> / {crossPlay?.targetGames ?? TARGET_CROSS_PLAY_GAMES}</small></strong><span>games complete</span></div>
           <div><strong>{crossPlay?.status === "complete" ? "Ready" : crossPlayBusy ? "Playing" : "Idle"}</strong><span>run status</span></div>
           <div><strong>{crossPlay?.latest[0]?.winner ?? "—"}</strong><span>latest winner</span></div>
         </div>

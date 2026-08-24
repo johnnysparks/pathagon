@@ -7,7 +7,9 @@ import type { SelfPlayAgent } from "../../../selfplay/core";
 
 const TARGET_GAMES = 10;
 const BRIDGED_GAMES = 4;
+const MAX_QUERY_GAMES = 500;
 const MAX_SEQUENCE = TARGET_GAMES - 1;
+const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
 const RUN_ID_PATTERN = /^[a-zA-Z0-9._:-]{1,120}$/;
 const PLAYABLE_AGENTS = [
   { id: "pathfinder-v0.3.0", label: "The Pathfinder", kind: "heuristic" as const, tone: "green" },
@@ -73,13 +75,12 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const requestedRunId = url.searchParams.get("runId");
-    const records = requestedRunId
-      ? await queryRun(validateRunId(requestedRunId))
-      : url.searchParams.get("latest") === "1" ? await queryLatestRun() : (() => { throw new Error("A cross-play run ID is required"); })();
-    const runId = records[0]?.runId;
-    if (!runId) return Response.json({ found: false, error: "No cross-play runs yet" }, { status: 404 });
+    const aggregate = requestedRunId === ALL_CROSS_PLAY_RUN_ID || (!requestedRunId && url.searchParams.get("latest") === "1");
+    const runId = aggregate ? ALL_CROSS_PLAY_RUN_ID : requestedRunId ? validateRunId(requestedRunId) : (() => { throw new Error("A cross-play run ID is required"); })();
+    const records = aggregate ? await queryAllCrossPlayGames() : await queryRun(runId);
+    if (!records.length) return Response.json({ found: false, error: "No cross-play runs yet" }, { status: 404 });
     const standings = buildStandings(records);
-    const targetGames = targetGamesForRun(runId);
+    const targetGames = aggregate ? records.length : targetGamesForRun(runId);
     return Response.json({
       runId,
       targetGames,
@@ -95,20 +96,27 @@ export async function GET(request: Request) {
 }
 
 async function queryRun(runId: string) {
-  const games = await querySelfPlayGames({ runId, limit: TARGET_GAMES, offset: 0 });
-  return games
-    .filter((game) => game.mode === "cross-play")
-    .sort((left, right) => left.record.seed - right.record.seed || left.id.localeCompare(right.id));
+  const exactGames = await querySelfPlayGames({ runId, limit: MAX_QUERY_GAMES, offset: 0 });
+  const exactRecords = exactGames.filter((game) => game.mode === "cross-play");
+  return sortRecords(exactRecords);
 }
 
-async function queryLatestRun() {
-  const games = await querySelfPlayGames({ engine: undefined, mode: "cross-play", limit: 100, offset: 0 });
-  const latestRunId = games.find((game) => game.runId)?.runId;
-  return latestRunId ? queryRun(latestRunId) : [];
+async function queryAllCrossPlayGames() {
+  const records = [];
+  for (let offset = 0; ; offset += MAX_QUERY_GAMES) {
+    const games = await querySelfPlayGames({ mode: "cross-play", limit: MAX_QUERY_GAMES, offset });
+    records.push(...games.filter((game) => game.mode === "cross-play"));
+    if (games.length < MAX_QUERY_GAMES) break;
+  }
+  return sortRecords(records);
 }
 
 function targetGamesForRun(runId: string) {
   return runId.startsWith("gnn-surveyor-") ? BRIDGED_GAMES : TARGET_GAMES;
+}
+
+function sortRecords<T extends { recordedAt: string; id: string; record: { seed: number } }>(records: T[]) {
+  return records.sort((left, right) => left.recordedAt.localeCompare(right.recordedAt) || left.record.seed - right.record.seed || left.id.localeCompare(right.id));
 }
 
 function choosePair(seed: number) {
