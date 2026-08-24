@@ -50,6 +50,34 @@ class ContractTest(unittest.TestCase):
             "moves": [],
         })["agentSpecifications"]["light"]["manifest"]["nodeBudget"], 64)
 
+    def test_optional_search_policy_is_validated(self) -> None:
+        record = {
+            "contractVersion": 1,
+            "seed": 1,
+            "config": {"rulesVersion": "pathagon-rules-v1", "boardSize": 3, "reservePerPlayer": 6, "maxPlies": 36, "repetitionLimit": 3},
+            "engine": {"id": "python-gnn", "runtime": "python", "version": "1.0.0", "rulesVersion": "pathagon-rules-v1"},
+            "agents": {"light": "gnn-v1", "dark": "gnn-v1"},
+            "agentSpecifications": {
+                "light": agent_specification("gnn-v1", "GNN", "1.0.0", "puct", "python-gnn"),
+                "dark": agent_specification("gnn-v1", "GNN", "1.0.0", "puct", "python-gnn"),
+            },
+            "winner": None,
+            "result": "draw",
+            "reason": "max-plies",
+            "plies": 1,
+            "moves": [{
+                "ply": 1,
+                "player": "light",
+                "action": {"kind": "place", "to": 0},
+                "captured": [],
+                "nodes": 4,
+                "completedDepth": 0,
+                "tableHits": 0,
+                "policy": [0.75, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            }],
+        }
+        self.assertEqual(validate_replay_record(record)["moves"][0]["policy"][0], 0.75)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -116,7 +116,7 @@ impl From<GameState> for RuntimePosition {
                 rules_version: crate::contract::RULES_VERSION.to_owned(),
                 board_size: state.config.board_size,
                 reserve_per_player: state.config.reserve_per_player,
-                max_plies: 180,
+                max_plies: state.config.max_plies,
                 repetition_limit: 3,
             },
             board,

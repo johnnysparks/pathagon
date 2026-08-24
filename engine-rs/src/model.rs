@@ -135,7 +135,7 @@ impl PolicyValueInputs {
             f32::from(state.last_capture) / 4.0,
             f32::from(state.last_player == Some(Player::Light)),
             f32::from(state.last_player == Some(Player::Dark)),
-            f32::from(state.ply) / 180.0,
+            f32::from(state.ply) / f32::from(state.config.max_plies),
         ];
 
         let legal_actions = state.legal_actions();
@@ -175,6 +175,7 @@ fn set_feature(features: &mut [f32], channel: usize, square: u8, value: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::BoardConfig;
 
     #[test]
     fn initial_position_matches_python_tensor_dimensions() {
@@ -225,5 +226,17 @@ mod tests {
                 .count(),
             14 * 21
         );
+    }
+
+    #[test]
+    fn ply_feature_uses_the_configured_game_limit() {
+        let config = BoardConfig::new(7, 14)
+            .expect("valid board config")
+            .with_max_plies(196)
+            .expect("valid maximum plies");
+        let mut state = GameState::with_config(config);
+        state.ply = 98;
+        let inputs = PolicyValueInputs::from_state(state).expect("encode configured position");
+        assert!((inputs.global_features[7] - 0.5).abs() < f32::EPSILON);
     }
 }

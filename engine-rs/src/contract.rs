@@ -115,7 +115,7 @@ pub struct AgentSpecification {
     pub parameters: Option<serde_json::Value>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ContractMove {
     pub ply: u16,
     pub player: ContractPlayer,
@@ -126,6 +126,8 @@ pub struct ContractMove {
     pub completed_depth: u8,
     #[serde(rename = "tableHits")]
     pub table_hits: u64,
+    #[serde(default)]
+    pub policy: Option<Vec<f32>>,
     pub score: Option<i32>,
     #[serde(rename = "bookHit")]
     pub book_hit: Option<bool>,
@@ -143,7 +145,7 @@ pub struct AgentSpecifications {
     pub dark: AgentSpecification,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct ReplayRecord {
     #[serde(rename = "contractVersion")]
     pub contract_version: u8,
@@ -245,6 +247,11 @@ impl ReplayRecord {
             if movement.ply != index as u16 + 1 { return Err("move ply is not sequential".to_owned()); }
             movement.action.validate(self.config.cells())?;
             validate_squares(&movement.captured, self.config.cells(), "captured")?;
+            if let Some(policy) = &movement.policy {
+                if policy.is_empty() || policy.iter().any(|probability| !probability.is_finite() || *probability < 0.0 || *probability > 1.0) || policy.iter().sum::<f32>() <= 0.0 {
+                    return Err("invalid move policy".to_owned());
+                }
+            }
         }
         Ok(())
     }

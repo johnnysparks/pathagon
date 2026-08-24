@@ -169,6 +169,7 @@ def game_record(
             "ply": example.state.ply + 1,
             "player": "light" if example.state.turn is Player.LIGHT else "dark",
             "action": action_json,
+            "policy": list(example.policy),
             "captured": list(bits(transition.forbidden)),
             "nodes": 0,
             "completedDepth": 0,

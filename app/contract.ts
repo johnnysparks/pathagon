@@ -76,6 +76,7 @@ export type ContractMove = {
   nodes: number;
   completedDepth: number;
   tableHits: number;
+  policy?: number[];
   score?: number;
   bookHit?: boolean;
 };
@@ -233,9 +234,17 @@ function validateContractMove(value: unknown, index: number, boardSize: number):
   if (!isRecord(value) || value.ply !== index + 1 || (value.player !== "light" && value.player !== "dark")) throw new Error(`Invalid contract move at ply ${index + 1}`);
   const captured = validateSquares(value.captured, boardSize * boardSize, "captured");
   const move: ContractMove = { ply: index + 1, player: value.player, action: validateContractAction(value.action, boardSize), captured, nodes: nonNegativeInteger(value.nodes, "nodes"), completedDepth: nonNegativeInteger(value.completedDepth, "completed depth"), tableHits: nonNegativeInteger(value.tableHits, "table hits") };
+  if (value.policy !== undefined) move.policy = validatePolicy(value.policy, index);
   if (value.score !== undefined) move.score = integer(value.score, "score");
   if (value.bookHit !== undefined) { if (typeof value.bookHit !== "boolean") throw new Error("Invalid book hit"); move.bookHit = value.bookHit; }
   return move;
+}
+
+function validatePolicy(value: unknown, index: number): number[] {
+  if (!Array.isArray(value) || value.length === 0 || value.some((probability) => typeof probability !== "number" || !Number.isFinite(probability) || probability < 0 || probability > 1) || value.reduce((total, probability) => total + Number(probability), 0) <= 0) {
+    throw new Error(`Invalid contract policy at ply ${index + 1}`);
+  }
+  return value.map(Number);
 }
 
 function validateReserve(value: unknown): Record<Player, number> {

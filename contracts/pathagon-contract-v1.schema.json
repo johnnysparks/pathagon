@@ -148,7 +148,12 @@
         "completedDepth": { "type": "integer", "minimum": 0, "maximum": 255 },
         "tableHits": { "type": "integer", "minimum": 0 },
         "score": { "type": "integer" },
-        "bookHit": { "type": "boolean" }
+        "bookHit": { "type": "boolean" },
+        "policy": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
       }
     },
     "replayRecord": {

@@ -9,6 +9,7 @@ export type ReplayMove = {
   player: ReplayPlayer;
   action: ReplayAction;
   captured: number[];
+  policy?: number[];
 };
 
 export type ReplayGame = {
@@ -119,12 +120,14 @@ function normalizeMove(raw: unknown): ReplayMove {
   const normalizedAction: ReplayAction = action.kind === "relocate"
     ? { kind: "relocate", from: Number(action.from), to: Number(action.to) }
     : { kind: "place", to: Number(action.to) };
-  return {
+  const move: ReplayMove = {
     ply: Number(value.ply),
     player: value.player === "dark" ? "dark" : "light",
     action: normalizedAction,
     captured: Array.isArray(value.captured) ? value.captured.map(Number) : [],
   };
+  if (Array.isArray(value.policy)) move.policy = value.policy.map(Number);
+  return move;
 }
 
 function otherPlayer(player: ReplayPlayer): ReplayPlayer {

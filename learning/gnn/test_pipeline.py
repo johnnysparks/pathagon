@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import json
 
 from .game import Action, BoardConfig, GameState, Player, repetition_key
 from .graph import build_graph
 from .cnn_model import PathagonCNN
+from .data import load_replay_examples
 from .model import PathagonGNN
+from .selfplay import SearchExample, game_record
 
 
 class PipelineTest(unittest.TestCase):
@@ -67,6 +72,21 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(BoardConfig(7, 14, 100).max_plies, 100)
         with self.assertRaisesRegex(ValueError, "ply_limit"):
             BoardConfig(7, 14, -1)
+
+    def test_search_policy_survives_game_archive_and_replay_loading(self) -> None:
+        config = BoardConfig(3, 3, 12)
+        state = GameState.initial(config)
+        actions = tuple(state.legal_actions())
+        policy = tuple(0.2 if index == 0 else 0.1 for index in range(len(actions)))
+        example = SearchExample(state, actions, policy, actions[0], 0.0)
+        record = game_record([example], state.apply_legal(actions[0]), seed=7, simulations=8)
+        self.assertEqual(record["moves"][0]["policy"], list(policy))
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "policy.jsonl"
+            path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+            examples = load_replay_examples(path)
+        self.assertEqual(examples[0].policy, policy)
+        self.assertEqual(examples[0].policy_actions, actions)
 
 
 if __name__ == "__main__":

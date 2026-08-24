@@ -63,7 +63,8 @@
       "captured": [],
       "nodes": 1,
       "completedDepth": 0,
-      "tableHits": 0
+      "tableHits": 0,
+      "policy": [0.5, 0.5, 0, 0, 0, 0, 0, 0, 0]
     }
   ]
 }

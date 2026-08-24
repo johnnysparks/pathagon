@@ -28,15 +28,17 @@ pub const MAX_BOARD_SIZE: u8 = 8;
 pub const BOARD_SIZE: u8 = 7;
 pub const CELL_COUNT: u8 = BOARD_SIZE * BOARD_SIZE;
 pub const MAX_CELL_COUNT: u8 = MAX_BOARD_SIZE * MAX_BOARD_SIZE;
+pub const DEFAULT_MAX_PLIES: u16 = 180;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct BoardConfig {
     pub board_size: u8,
     pub reserve_per_player: u8,
+    pub max_plies: u16,
 }
 
 impl BoardConfig {
-    pub const DEFAULT: Self = Self { board_size: BOARD_SIZE, reserve_per_player: 14 };
+    pub const DEFAULT: Self = Self { board_size: BOARD_SIZE, reserve_per_player: 14, max_plies: DEFAULT_MAX_PLIES };
 
     pub fn new(board_size: u8, reserve_per_player: u8) -> Result<Self, String> {
         if !(MIN_BOARD_SIZE..=MAX_BOARD_SIZE).contains(&board_size) {
@@ -45,12 +47,20 @@ impl BoardConfig {
         if reserve_per_player == 0 || reserve_per_player > 64 {
             return Err("reserve outside 1..64".to_owned());
         }
-        Ok(Self { board_size, reserve_per_player })
+        Ok(Self { board_size, reserve_per_player, max_plies: DEFAULT_MAX_PLIES })
+    }
+
+    pub fn with_max_plies(mut self, max_plies: u16) -> Result<Self, String> {
+        if max_plies == 0 || max_plies > 4096 {
+            return Err("maximum plies outside 1..4096".to_owned());
+        }
+        self.max_plies = max_plies;
+        Ok(self)
     }
 
     pub fn from_contract(config: &crate::contract::GameConfig) -> Result<Self, String> {
         config.validate()?;
-        Self::new(config.board_size, config.reserve_per_player)
+        Self::new(config.board_size, config.reserve_per_player)?.with_max_plies(config.max_plies)
     }
 
     pub const fn cells(self) -> u8 {

@@ -171,6 +171,12 @@ function validateMove(value: unknown, index: number, expectedPlayer: Player, cel
     if (typeof input.bookHit !== "boolean") throw new Error(`Invalid self-play book hit at ply ${index + 1}`);
     move.bookHit = input.bookHit;
   }
+  if (input.policy !== undefined) {
+    if (!Array.isArray(input.policy) || input.policy.length === 0 || input.policy.some((probability) => typeof probability !== "number" || !Number.isFinite(probability) || probability < 0 || probability > 1) || input.policy.reduce((total, probability) => total + Number(probability), 0) <= 0) {
+      throw new Error(`Invalid self-play policy at ply ${index + 1}`);
+    }
+    move.policy = input.policy.map(Number);
+  }
   return move;
 }
 

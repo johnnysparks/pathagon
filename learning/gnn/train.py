@@ -57,6 +57,10 @@ def transform_replay_example(example: ReplayExample, symmetry: Symmetry) -> Repl
         action=transform_action(example.action, example.state.config, symmetry),
         value=example.value,
         seed=example.seed,
+        policy=example.policy,
+        policy_actions=None
+        if example.policy_actions is None
+        else tuple(transform_action(action, example.state.config, symmetry) for action in example.policy_actions),
     )
 
 
@@ -131,9 +135,21 @@ def train_replay(
             example = transform_replay_example(example, sample_symmetry(rng))
         actions = list(example.state.legal_actions())
         logits, value = model.policy_value(example.state, actions)
-        target = torch.tensor([action_index(example.state, example.action)], dtype=torch.long, device=logits.device)
         expected_value = torch.tensor(example.value, dtype=value.dtype, device=value.device)
-        policy_loss = F.cross_entropy(logits.unsqueeze(0), target)
+        if example.policy is None:
+            target = torch.tensor([action_index(example.state, example.action)], dtype=torch.long, device=logits.device)
+            policy_loss = F.cross_entropy(logits.unsqueeze(0), target)
+        else:
+            if example.policy_actions is None:
+                raise ValueError("replay policy is missing its action alignment")
+            policy_by_action = dict(zip(example.policy_actions, example.policy))
+            target_policy = torch.tensor(
+                [policy_by_action[action] for action in actions],
+                dtype=logits.dtype,
+                device=logits.device,
+            )
+            target_policy = target_policy / target_policy.sum()
+            policy_loss = -(target_policy * F.log_softmax(logits, dim=0)).sum()
         value_loss = F.mse_loss(value, expected_value)
         loss = policy_loss + value_loss
         optimizer.zero_grad(set_to_none=True)

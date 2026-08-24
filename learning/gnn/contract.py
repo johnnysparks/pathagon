@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any, Dict, Mapping
 
@@ -197,6 +198,8 @@ def validate_replay_record(value: Any) -> dict:
             raise ValueError(f"invalid move {index}")
         validate_action(move.get("action"), config["boardSize"])
         _squares(move.get("captured"), cells, "captured")
+        if "policy" in move:
+            _policy(move.get("policy"), f"move {index} policy")
         for field in ("nodes", "completedDepth", "tableHits"):
             if not isinstance(move.get(field), int) or move[field] < 0:
                 raise ValueError(f"invalid move {field}")
@@ -225,3 +228,13 @@ def _integer_range(value: Any, minimum: int, maximum: int, label: str) -> None:
 def _squares(value: Any, cells: int, label: str) -> None:
     if not isinstance(value, list) or len(set(value)) != len(value) or any(not _in_range(square, 0, cells - 1) for square in value):
         raise ValueError(f"invalid {label} squares")
+
+
+def _policy(value: Any, label: str) -> None:
+    if (
+        not isinstance(value, list)
+        or not value
+        or any(not isinstance(probability, (int, float)) or isinstance(probability, bool) or not math.isfinite(probability) or probability < 0 or probability > 1 for probability in value)
+        or sum(value) <= 0
+    ):
+        raise ValueError(f"invalid {label}")

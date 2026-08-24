@@ -6,6 +6,7 @@
 //! the inference-enabled WASM build.
 
 use crate::inference::PolicyValueModel;
+use crate::search::{evaluate, EvaluationWeights};
 use crate::{Action, GameState};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -44,6 +45,7 @@ struct Node {
     actions: Vec<Action>,
     priors: Vec<f32>,
     children: Vec<Option<Box<Node>>>,
+    seeded_value: Option<f32>,
     visits: u32,
     value_sum: f32,
     expanded: bool,
@@ -56,6 +58,7 @@ impl Node {
             actions: Vec::new(),
             priors: Vec::new(),
             children: Vec::new(),
+            seeded_value: None,
             visits: 0,
             value_sum: 0.0,
             expanded: false,
@@ -70,8 +73,16 @@ impl Node {
         }
     }
 
+    fn estimated_value(self: &Self) -> f32 {
+        if self.visits == 0 {
+            self.seeded_value.unwrap_or(0.0)
+        } else {
+            self.mean_value()
+        }
+    }
+
     fn expand<M: PolicyValueModel>(&mut self, model: &M) -> Result<f32, String> {
-        if self.state.winner.is_some() {
+        if self.state.winner.is_some() || self.state.ply >= self.state.config.max_plies {
             self.expanded = true;
             return Ok(terminal_value(self.state));
         }
@@ -101,7 +112,7 @@ impl Node {
         for index in 0..self.actions.len() {
             let (child_visits, child_value) = self.children[index]
                 .as_deref()
-                .map_or((0, 0.0), |child| (child.visits, -child.mean_value()));
+                .map_or((0, 0.0), |child| (child.visits, -child.estimated_value()));
             let score = child_value
                 + cpuct * self.priors[index] * parent_scale / (1.0 + child_visits as f32);
             if score > best_score
@@ -131,6 +142,7 @@ pub fn search<M: PolicyValueModel>(
             evaluations: Vec::new(),
         });
     }
+    seed_root_afterstates(&mut root);
 
     for _ in 0..config.simulations {
         simulate(&mut root, model, config.cpuct)?;
@@ -146,7 +158,7 @@ pub fn search<M: PolicyValueModel>(
                 action: *action,
                 prior: root.priors[index],
                 visits: child.map_or(0, |node| node.visits),
-                value: child.map_or(0.0, |node| -node.mean_value()),
+                value: child.map_or(0.0, |node| -node.estimated_value()),
             }
         })
         .collect::<Vec<_>>();
@@ -166,6 +178,26 @@ pub fn search<M: PolicyValueModel>(
     })
 }
 
+fn seed_root_afterstates(root: &mut Node) {
+    let root_player = root.state.turn;
+    for (index, action) in root.actions.iter().copied().enumerate() {
+        let next_state = root.state.apply_legal(action).state;
+        let root_value = if next_state.winner.is_some() {
+            -terminal_value(next_state)
+        } else if next_state.ply >= next_state.config.max_plies {
+            0.0
+        } else {
+            let score = evaluate(next_state, root_player, EvaluationWeights::default()) as f32;
+            (score / 3_500.0).tanh()
+        };
+        let mut child = Node::new(next_state);
+        // Node values are stored for the child side to move; the root scan is
+        // evaluated from the parent's perspective.
+        child.seeded_value = Some(-root_value);
+        root.children[index] = Some(Box::new(child));
+    }
+}
+
 fn simulate<M: PolicyValueModel>(node: &mut Node, model: &M, cpuct: f32) -> Result<f32, String> {
     if !node.expanded {
         let value = node.expand(model)?;
@@ -173,7 +205,10 @@ fn simulate<M: PolicyValueModel>(node: &mut Node, model: &M, cpuct: f32) -> Resu
         node.value_sum += value;
         return Ok(value);
     }
-    if node.state.winner.is_some() || node.actions.is_empty() {
+    if node.state.winner.is_some()
+        || node.state.ply >= node.state.config.max_plies
+        || node.actions.is_empty()
+    {
         let value = terminal_value(node.state);
         node.visits += 1;
         node.value_sum += value;
@@ -271,5 +306,40 @@ mod tests {
         assert!(GameState::new()
             .legal_actions()
             .contains(&result.action.unwrap()));
+    }
+
+    #[test]
+    fn root_afterstate_scan_seeds_every_legal_child() {
+        let mut root = Node::new(GameState::new());
+        root.expand(&TestModel).expect("expand root");
+        let action_count = root.actions.len();
+
+        seed_root_afterstates(&mut root);
+
+        assert_eq!(root.children.len(), action_count);
+        assert!(root
+            .children
+            .iter()
+            .all(|child| child.as_ref().is_some_and(|node| node.seeded_value.is_some())));
+        assert!(root.children.iter().all(|child| child.as_ref().unwrap().visits == 0));
+    }
+
+    #[test]
+    fn puct_treats_the_configured_ply_cap_as_a_draw_terminal() {
+        let mut state = GameState::new();
+        state.ply = state.config.max_plies;
+        let result = search(
+            &TestModel,
+            state,
+            PuctConfig {
+                simulations: 12,
+                cpuct: 1.5,
+            },
+        )
+        .expect("run capped PUCT");
+        assert_eq!(result.action, None);
+        assert_eq!(result.value, 0.0);
+        assert_eq!(result.simulations, 0);
+        assert!(result.evaluations.is_empty());
     }
 }

@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Set, Tuple
 import torch
 
 from .game import Action, GameState, repetition_key, winner_value
+from .evaluation import evaluate_position, normalize_heuristic
 from .model import PathagonGNN
 
 
@@ -19,6 +20,10 @@ class MCTSNode:
         self.action = action
         self.children: Dict[Action, MCTSNode] = {}
         self.priors: Dict[Action, float] = {}
+        # A root afterstate scan can provide a cheap value before this child
+        # receives an actual neural visit. Once visited, the neural value
+        # replaces this seed through mean_value.
+        self.seeded_value: Optional[float] = None
         self.visit_count = 0
         self.value_sum = 0.0
         self.expanded = False
@@ -26,6 +31,12 @@ class MCTSNode:
     @property
     def mean_value(self) -> float:
         return self.value_sum / self.visit_count if self.visit_count else 0.0
+
+    @property
+    def estimated_value(self) -> float:
+        if self.visit_count:
+            return self.mean_value
+        return self.seeded_value if self.seeded_value is not None else 0.0
 
 
 class PUCTSearch:
@@ -43,9 +54,36 @@ class PUCTSearch:
         self.dirichlet_epsilon = dirichlet_epsilon
         self.dirichlet_alpha = dirichlet_alpha
 
+    @staticmethod
+    def _root_afterstate_value(state: GameState, action: Action) -> float:
+        """Score a root action from its resulting state, in root perspective.
+
+        This deliberately uses the cheap handcrafted evaluator for the root
+        sweep. The learned value head remains the authoritative value once a
+        child is actually expanded, so this improves breadth without adding
+        one neural inference per legal relocation pair.
+        """
+
+        next_state = state.apply_legal(action)
+        if next_state.winner is not None:
+            return winner_value(next_state, state.turn)
+        if next_state.ply >= next_state.config.max_plies:
+            return 0.0
+        return normalize_heuristic(evaluate_position(next_state, state.turn))
+
+    def seed_root_afterstates(self, root: MCTSNode) -> None:
+        """Create and seed every root child before PUCT simulations begin."""
+
+        for action in root.state.legal_actions():
+            child = MCTSNode(root.state.apply_legal(action), root, action)
+            # Node values are stored for the side to move at that node. The
+            # afterstate score is in the parent's perspective, hence the sign.
+            child.seeded_value = -self._root_afterstate_value(root.state, action)
+            root.children[action] = child
+
     @torch.no_grad()
     def expand(self, node: MCTSNode) -> float:
-        if node.state.winner is not None:
+        if node.state.winner is not None or node.state.ply >= node.state.config.max_plies:
             node.expanded = True
             return winner_value(node.state, node.state.turn)
         actions = list(node.state.legal_actions())
@@ -67,6 +105,9 @@ class PUCTSearch:
     ) -> Tuple[MCTSNode, List[Action], List[float]]:
         root = MCTSNode(state)
         self.expand(root)
+        if state.ply >= state.config.max_plies:
+            return root, [], []
+        self.seed_root_afterstates(root)
         if add_root_noise and root.priors:
             self._add_root_noise(root, rng)
         previous_positions = set(history or ())
@@ -86,7 +127,7 @@ class PUCTSearch:
         try:
             if not node.expanded:
                 value = self.expand(node)
-            elif node.state.winner is not None or not node.priors:
+            elif node.state.winner is not None or node.state.ply >= node.state.config.max_plies or not node.priors:
                 value = winner_value(node.state, node.state.turn)
             else:
                 action = self._select_action(node)
@@ -108,7 +149,7 @@ class PUCTSearch:
         for action in node.state.legal_actions():
             child = node.children.get(action)
             child_visits = 0 if child is None else child.visit_count
-            child_value = 0.0 if child is None else -child.mean_value
+            child_value = 0.0 if child is None else -child.estimated_value
             prior = node.priors.get(action, 0.0)
             score = child_value + self.cpuct * prior * parent_scale / (1.0 + child_visits)
             if best_action is None or score > best_score or (score == best_score and action < best_action):
