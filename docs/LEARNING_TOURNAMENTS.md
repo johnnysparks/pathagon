@@ -68,10 +68,10 @@ final machine-readable training summary remains the only JSON written to
 stdout.
 
 Then continue with GNN self-play, using the resulting checkpoint as
-`--resume`. Neural self-play defaults to a 100-ply cap; use `--max-plies` to
-override it for a particular experiment. Independent games can run in CPU
-worker processes with `--workers`; model updates still use the device selected
-by `--device`. The archive format is intentionally independent of the runner:
+`--resume`. Neural self-play defaults to the board-sized ply cap (196 on 7x7),
+64 PUCT simulations, 10,000 optimizer updates, and a 100,000-position replay
+buffer. Independent games can run in CPU worker processes with `--workers`;
+model updates still use the device selected by `--device`. The archive format is intentionally independent of the runner:
 the same Rust binary can later run inside a cloud job, and the resulting JSONL
 can be merged into the same local training set.
 

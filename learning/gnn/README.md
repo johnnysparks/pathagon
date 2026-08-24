@@ -43,8 +43,15 @@ Run a small neural self-play generation:
   --resume training/gnn/pathagon-warmstart.pt \
   --out training/gnn/pathagon-generation-0.pt \
   --games 8 --workers 4 --selfplay-device cpu \
-  --simulations 64 --updates 200 --max-plies 100
+  --simulations 64 --updates 10000 --max-plies 196 \
+  --replay-limit 100000
 ```
+
+For a 7x7 run, use the full 196-ply board cap so move-cap draws are not
+introduced by the learner. Training targets should use 32-64 PUCT simulations;
+the defaults retain 64 simulations, 10,000 optimizer updates, and 100,000
+replay positions. A 1,000-game pilot is the first meaningful data milestone;
+scale toward 10,000 games only after its held-out league results improve.
 
 The small graph operations used during search are typically faster on CPU;
 checkpoint updates can still use MPS through the default `--device auto`.

@@ -364,6 +364,10 @@ def run_alphazero(args: argparse.Namespace) -> None:
             "games": args.games,
             "workers": workers,
             "selfplay_device": str(selfplay_device),
+            "simulations": args.simulations,
+            "temperature_moves": args.temperature_moves,
+            "updates": args.updates,
+            "replay_limit": args.replay_limit,
             "examples": len(generated),
             "replay_buffer": len(history),
             "average_plies": sum(lengths) / len(lengths) if lengths else 0.0,
@@ -384,7 +388,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--resume")
     result.add_argument("--size", type=int, default=7)
     result.add_argument("--reserve", type=int, default=0)
-    result.add_argument("--max-plies", type=int, default=100, help="ply cap for AlphaZero self-play games")
+    result.add_argument("--max-plies", type=int, default=0, help="ply cap for AlphaZero self-play games (0 uses the board default: 196 on 7x7)")
     result.add_argument("--hidden", type=int, default=64)
     result.add_argument("--layers", type=int, default=8)
     result.add_argument("--steps", type=int, default=200)
@@ -394,9 +398,9 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--games", type=int, default=8)
     result.add_argument("--workers", type=int, default=1, help="parallel self-play worker processes")
     result.add_argument("--selfplay-device", default="cpu", help="device used by self-play workers")
-    result.add_argument("--simulations", type=int, default=64)
-    result.add_argument("--updates", type=int, default=200)
-    result.add_argument("--replay-limit", type=int, default=10000)
+    result.add_argument("--simulations", type=int, default=64, help="PUCT simulations per move (32-64 recommended for training)")
+    result.add_argument("--updates", type=int, default=10_000, help="optimizer updates per generation")
+    result.add_argument("--replay-limit", type=int, default=100_000, help="maximum positions retained in the replay buffer")
     result.add_argument("--temperature-moves", type=int, default=8)
     result.add_argument("--seed", type=int, default=20260823)
     result.add_argument("--device", default="auto")
