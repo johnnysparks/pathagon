@@ -69,18 +69,18 @@ const MODELS = [
     status: "Playable",
   },
   {
-    id: "gnn-learner-7x7",
-    rank: "—",
+    id: "gnn-warmstart-7x7",
+    rank: "05",
     name: "GNN Learner",
     family: "64 channels · 8 message layers",
     role: "promotion candidate",
-    elo: "—",
-    record: "not played",
-    signal: "2.112 NLL",
-    signalDetail: "best policy signal",
+    elo: "929",
+    record: "0–4–0",
+    signal: "fresh result",
+    signalDetail: "Surveyor sweep · 4 games",
     tone: "green",
     glyph: "G",
-    status: "Cross-play queued",
+    status: "Fresh match",
   },
   {
     id: "gnn-scout-7x7",
@@ -170,7 +170,8 @@ export default function LearningLab() {
   const liveStandingById = useMemo(() => new Map((crossPlay?.standings ?? []).map((standing) => [standing.id, standing])), [crossPlay]);
   const liveRankById = useMemo(() => new Map((crossPlay?.standings ?? []).map((standing, index) => [standing.id, String(index + 1).padStart(2, "0")])), [crossPlay]);
   const strengthLeader = MODELS.find((model) => model.id === (crossPlay?.standings[0]?.id ?? "pathfinder-v0.3.0")) ?? MODELS[0];
-  const strengthLeaderLive = liveStandingById.get(strengthLeader.id);
+  const strengthLeaderLive = liveStandingById.get(strengthLeader.id)?.games ? liveStandingById.get(strengthLeader.id) : undefined;
+  const learnerLive = liveStandingById.get("gnn-warmstart-7x7");
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("pathagon-lab-theme");
@@ -188,8 +189,16 @@ export default function LearningLab() {
 
   useEffect(() => {
     const savedRun = window.localStorage.getItem("pathagon-cross-play-run");
-    if (!savedRun) return;
-    const timer = window.setTimeout(() => setCrossPlayRunId(savedRun), 0);
+    const timer = window.setTimeout(() => {
+      void readLatestCrossPlay()
+        .then((snapshot) => {
+          setCrossPlayRunId(snapshot.runId);
+          setCrossPlay(snapshot);
+        })
+        .catch(() => {
+          if (savedRun) setCrossPlayRunId(savedRun);
+        });
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -306,7 +315,7 @@ export default function LearningLab() {
 
       <section className="leaderboard-panel cross-play-live-panel" aria-labelledby="live-run-title">
         <div className="cross-play-live-heading">
-          <div><span className="portal-kicker">Live arena · random cross-play</span><h2 id="live-run-title">Make the ladder move.</h2><p>Ten seeded games are drawn from the four playable opponents. Each result is archived immediately and the standings below refresh while the run is playing.</p></div>
+          <div><span className="portal-kicker">Live arena · random cross-play</span><h2 id="live-run-title">Make the ladder move.</h2><p>{isGnnBridgeRun(crossPlay?.runId) ? "The Python bridge streams each GNN Learner vs Surveyor result into the same live ladder." : "Ten seeded games are drawn from the four playable opponents. Each result is archived immediately and the standings below refresh while the run is playing."}</p></div>
           <button className="portal-primary live-run-button" type="button" onClick={startCrossPlay} disabled={crossPlayBusy}>{crossPlayBusy ? `Playing ${Math.min((crossPlay?.games ?? 0) + 1, TARGET_CROSS_PLAY_GAMES)} / ${TARGET_CROSS_PLAY_GAMES}…` : crossPlay?.status === "complete" ? "Play another 10" : "Play 10 random games"}<span>{crossPlayBusy ? "◌" : "↗"}</span></button>
         </div>
         <div className="live-run-summary">
@@ -321,9 +330,9 @@ export default function LearningLab() {
       <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
         <div className="leaderboard-panel-heading">
           <div><span className="portal-kicker">Standings · strength anchors + candidates</span><h2 id="standings-title">Every playable opponent is here.</h2></div>
-          <span className="leaderboard-status"><span /> 4 rated · 3 queued</span>
+          <span className="leaderboard-status"><span /> {learnerLive?.games ? "4 anchors · GNN live" : "4 anchors · 1 fresh · 2 queued"}</span>
         </div>
-        <p className="leaderboard-intro">The four opponents available in the game are the strength anchors: Pathfinder, Surveyor, Lunatic, and Coin Flip. Their order comes from the latest Lunatic-inclusive 7×7 archive. New neural candidates stay off the Elo ladder until they face the same field; NLL is a separate training signal.</p>
+        <p className="leaderboard-intro">The four opponents available in the game are the strength anchors: Pathfinder, Surveyor, Lunatic, and Coin Flip. The new GNN Learner result is a fresh two-color head-to-head against Surveyor; the remaining neural candidates stay queued. NLL remains a separate training signal.</p>
 
         <div className="leaderboard-grid">
           <div className="leaderboard-table" role="table" aria-label="Current model standings">
@@ -365,8 +374,9 @@ export default function LearningLab() {
       <section className="leaderboard-evidence-grid" aria-label="Current model evidence">
         <div className="leaderboard-panel signal-panel">
           <div className="leaderboard-panel-heading"><div><span className="portal-kicker">Best current policy signal</span><h2>GNN Learner</h2></div><span className="portal-chip green">2.112 NLL</span></div>
-          <p className="leaderboard-intro">The larger GNN is the current learner to test, not yet the league leader. Its advantage is clearest in placement, while relocation remains a useful second gate against the playable anchors.</p>
+          <p className="leaderboard-intro">The larger GNN is the current learner to test, not yet the league leader. Its first fresh head-to-head is now recorded below; placement remains its strongest policy signal, while relocation is the next gate.</p>
           <div className="signal-metrics"><SignalMetric label="Placement NLL" value="2.024" note="best of the three" /><SignalMetric label="Relocation NLL" value="2.248" note="phase to improve" /><SignalMetric label="Value MSE" value="0.609" note="effectively tied" /></div>
+          <div className="fresh-match-callout"><span>Fresh offline match · 7×7 · 4 games</span><strong>Surveyor swept GNN Learner 4–0</strong><small>2 games per color · 12k-node Surveyor budget · 4 PUCT simulations</small></div>
         </div>
 
         <div className="leaderboard-panel batch-panel">
@@ -396,11 +406,12 @@ function LeaderboardStat({ label, value, detail, accent }: { label: string; valu
 }
 
 function ModelStanding({ model, live, liveRank }: { model: (typeof MODELS)[number]; live?: LiveStanding; liveRank?: string }) {
-  const rank = liveRank ?? model.rank;
-  const record = live?.games ? formatRecord(live) : model.record;
-  const signal = live?.games ? `${live.games} live games` : model.signal;
-  const signalDetail = live?.games ? `${live.points.toFixed(1)} points · updates live` : model.signalDetail;
-  return <div className={`leaderboard-table-row model-standing ${rank === "01" ? "leader" : ""}`} role="row"><span className="model-rank">{rank}</span><div className="standing-model"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><strong>{model.name}</strong><span>{model.family}</span></div></div><div className="standing-role"><strong>{live?.games ? "Live ladder" : model.status}</strong><span>{model.role}</span></div><span className="standing-elo">{live?.rating.toLocaleString() ?? model.elo}</span><div className="standing-record"><strong>{record}</strong><span>{live?.games ? "this run" : model.rank === "—" ? "awaiting games" : "archive record"}</span></div><div className="standing-signal"><strong>{signal}</strong><span>{signalDetail}</span></div></div>;
+  const liveActive = Boolean(live?.games);
+  const rank = liveActive ? liveRank ?? model.rank : model.rank;
+  const record = liveActive ? formatRecord(live!) : model.record;
+  const signal = liveActive ? `${live!.games} live games` : model.signal;
+  const signalDetail = liveActive ? `${live!.points.toFixed(1)} points · updates live` : model.signalDetail;
+  return <div className={`leaderboard-table-row model-standing ${rank === "01" ? "leader" : ""}`} role="row"><span className="model-rank">{rank}</span><div className="standing-model"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><strong>{model.name}</strong><span>{model.family}</span></div></div><div className="standing-role"><strong>{liveActive ? "Live ladder" : model.status}</strong><span>{model.role}</span></div><span className="standing-elo">{liveActive ? live!.rating.toLocaleString() : model.elo}</span><div className="standing-record"><strong>{record}</strong><span>{liveActive ? "this run" : model.rank === "—" ? "awaiting games" : "archive record"}</span></div><div className="standing-signal"><strong>{signal}</strong><span>{signalDetail}</span></div></div>;
 }
 
 function glyphTone(name: string) {
@@ -429,6 +440,17 @@ async function readCrossPlay(runId: string): Promise<CrossPlayState> {
   const payload = await response.json() as CrossPlayState & { error?: string };
   if (!response.ok) throw new Error(payload.error ?? "Live run unavailable");
   return payload;
+}
+
+async function readLatestCrossPlay(): Promise<CrossPlayState> {
+  const response = await fetch("/api/cross-play?latest=1", { cache: "no-store" });
+  const payload = await response.json() as CrossPlayState & { error?: string };
+  if (!response.ok) throw new Error(payload.error ?? "No live run available");
+  return payload;
+}
+
+function isGnnBridgeRun(runId?: string | null) {
+  return Boolean(runId?.startsWith("gnn-surveyor-"));
 }
 
 function LineageNode({ label, detail, status, tone }: { label: string; detail: string; status: string; tone: string }) {

@@ -6,13 +6,18 @@ import { createRandomAgent, createSearchAgent, mulberry32, playGame } from "../.
 import type { SelfPlayAgent } from "../../../selfplay/core";
 
 const TARGET_GAMES = 10;
+const BRIDGED_GAMES = 4;
 const MAX_SEQUENCE = TARGET_GAMES - 1;
 const RUN_ID_PATTERN = /^[a-zA-Z0-9._:-]{1,120}$/;
-const AGENTS = [
+const PLAYABLE_AGENTS = [
   { id: "pathfinder-v0.3.0", label: "The Pathfinder", kind: "heuristic" as const, tone: "green" },
   { id: "surveyor-v0.2.0", label: "The Surveyor", kind: "heuristic" as const, tone: "violet" },
   { id: "lunatic-v0.1.0", label: "Lunatic", kind: "heuristic" as const, tone: "gold" },
   { id: "coin-flip-v0.0.1", label: "Coin Flip", kind: "random" as const, tone: "muted" },
+] as const;
+const AGENTS = [
+  ...PLAYABLE_AGENTS,
+  { id: "gnn-warmstart-7x7", label: "GNN Learner", kind: "gnn" as const, tone: "green" },
 ] as const;
 
 const BASELINE_RATINGS: Record<string, number> = {
@@ -20,6 +25,7 @@ const BASELINE_RATINGS: Record<string, number> = {
   "surveyor-v0.2.0": 1_085,
   "lunatic-v0.1.0": 1_059,
   "coin-flip-v0.0.1": 935,
+  "gnn-warmstart-7x7": 957,
 };
 
 export async function POST(request: Request) {
@@ -66,14 +72,19 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
-    const runId = validateRunId(url.searchParams.get("runId"));
-    const records = await queryRun(runId);
+    const requestedRunId = url.searchParams.get("runId");
+    const records = requestedRunId
+      ? await queryRun(validateRunId(requestedRunId))
+      : url.searchParams.get("latest") === "1" ? await queryLatestRun() : (() => { throw new Error("A cross-play run ID is required"); })();
+    const runId = records[0]?.runId;
+    if (!runId) return Response.json({ found: false, error: "No cross-play runs yet" }, { status: 404 });
     const standings = buildStandings(records);
+    const targetGames = targetGamesForRun(runId);
     return Response.json({
       runId,
-      targetGames: TARGET_GAMES,
+      targetGames,
       games: records.length,
-      status: records.length >= TARGET_GAMES ? "complete" : records.length ? "running" : "ready",
+      status: records.length >= targetGames ? "complete" : records.length ? "running" : "ready",
       standings,
       latest: records.slice(-5).reverse().map(({ id, record }) => summarizeGame(id, record)),
     }, { headers: { "cache-control": "private, no-store" } });
@@ -90,13 +101,23 @@ async function queryRun(runId: string) {
     .sort((left, right) => left.record.seed - right.record.seed || left.id.localeCompare(right.id));
 }
 
+async function queryLatestRun() {
+  const games = await querySelfPlayGames({ engine: undefined, mode: "cross-play", limit: 100, offset: 0 });
+  const latestRunId = games.find((game) => game.runId)?.runId;
+  return latestRunId ? queryRun(latestRunId) : [];
+}
+
+function targetGamesForRun(runId: string) {
+  return runId.startsWith("gnn-surveyor-") ? BRIDGED_GAMES : TARGET_GAMES;
+}
+
 function choosePair(seed: number) {
   const random = mulberry32(seed);
-  const leftIndex = Math.floor(random() * AGENTS.length);
-  let rightIndex = Math.floor(random() * (AGENTS.length - 1));
+  const leftIndex = Math.floor(random() * PLAYABLE_AGENTS.length);
+  let rightIndex = Math.floor(random() * (PLAYABLE_AGENTS.length - 1));
   if (rightIndex >= leftIndex) rightIndex += 1;
-  const left = AGENTS[leftIndex];
-  const right = AGENTS[rightIndex];
+  const left = PLAYABLE_AGENTS[leftIndex];
+  const right = PLAYABLE_AGENTS[rightIndex];
   return { left: { ...left, agent: createAgent(left.id) }, right: { ...right, agent: createAgent(right.id) } };
 }
 
