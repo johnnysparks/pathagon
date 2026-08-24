@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run color-balanced pairwise games for the three Scout search candidates."""
+"""Run color-balanced pairwise games for Scout and high-budget search candidates."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ from learning.gnn.league import (
 from learning.gnn.train import choose_device
 
 
-NEW_AGENT_NAMES = ("puct", "beam", "hybrid")
+NEW_AGENT_NAMES = ("puct", "beam", "hybrid", "pathfinder10k", "scout10k")
 DEFAULT_OPPONENTS = ("pathfinder", "surveyor", "lunatic", "learner", "cnn", "scout")
 CHECKPOINTS = {
     "scout": REPO_ROOT / "training/gnn/benchmark-7x7/small-gnn-warmstart.pt",
@@ -92,6 +92,20 @@ def build_agents(device_name: str) -> dict[str, AgentSpec]:
             "search",
             PolicyBeamAgent(scout_model, depth=4, beam_width=8, max_nodes=1_000, heuristic_blend=0.35),
             agent_manifest(runtime="python", depth=4, node_budget=1_000, beam=8, model_hash=scout_hash),
+        ),
+        "pathfinder10k": AgentSpec(
+            "pathfinder-deep-10k-7x7",
+            "Pathfinder + Deep Search",
+            "heuristic",
+            HeuristicAgent(depth=4, beam_width=16, max_nodes=10_000),
+            agent_manifest(runtime="python", depth=4, node_budget=10_000, beam=16),
+        ),
+        "scout10k": AgentSpec(
+            "gnn-scout-beam10k-7x7",
+            "Scout + 10k Beam",
+            "search",
+            PolicyBeamAgent(scout_model, depth=5, beam_width=16, max_nodes=10_000),
+            agent_manifest(runtime="python", depth=5, node_budget=10_000, beam=16, model_hash=scout_hash),
         ),
         "pathfinder": AgentSpec(
             "pathfinder-v0.3.0",

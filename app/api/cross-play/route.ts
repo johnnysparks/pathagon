@@ -15,6 +15,8 @@ const AGENTS = [
   { id: "gnn-scout-puct32-7x7", label: "Scout + PUCT", kind: "gnn" as const, tone: "violet" },
   { id: "gnn-scout-beam-7x7", label: "Scout + Neural Beam", kind: "gnn" as const, tone: "green" },
   { id: "gnn-scout-hybrid-beam-7x7", label: "Scout + Hybrid Beam", kind: "gnn" as const, tone: "gold" },
+  { id: "pathfinder-deep-10k-7x7", label: "Pathfinder + Deep Search", kind: "heuristic" as const, tone: "green" },
+  { id: "gnn-scout-beam10k-7x7", label: "Scout + 10k Beam", kind: "gnn" as const, tone: "violet" },
 ] as const;
 
 const BASELINE_RATINGS: Record<string, number> = {
@@ -28,6 +30,8 @@ const BASELINE_RATINGS: Record<string, number> = {
   "gnn-scout-puct32-7x7": 940,
   "gnn-scout-beam-7x7": 940,
   "gnn-scout-hybrid-beam-7x7": 940,
+  "pathfinder-deep-10k-7x7": 940,
+  "gnn-scout-beam10k-7x7": 940,
 };
 
 export async function GET(request: Request) {

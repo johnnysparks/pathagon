@@ -116,6 +116,28 @@ const MODELS = [
     planned: true,
     disabled: false,
   },
+  {
+    id: "pathfinder-deep-10k-7x7",
+    name: "Pathfinder + Deep Search",
+    family: "Pathfinder heuristic · 4-ply iterative search",
+    role: "high-budget heuristic",
+    budget: "10,000 node budget / move",
+    tone: "green",
+    glyph: "P",
+    planned: true,
+    disabled: false,
+  },
+  {
+    id: "gnn-scout-beam10k-7x7",
+    name: "Scout + 10k Beam",
+    family: "GNN Scout policy · 5-ply neural beam",
+    role: "high-budget learned",
+    budget: "10,000 node budget / move",
+    tone: "violet",
+    glyph: "B",
+    planned: true,
+    disabled: false,
+  },
 ] as const;
 
 type LiveStanding = {
