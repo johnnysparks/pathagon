@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import gzip
 import hashlib
 import json
 from collections import Counter, defaultdict
@@ -36,7 +37,11 @@ def records_from_value(value: object) -> Iterable[dict]:
 
 
 def read_records(path: Path) -> Iterable[dict]:
-    text = path.read_text(encoding="utf-8")
+    if path.suffix == ".gz":
+        with gzip.open(path, "rt", encoding="utf-8") as handle:
+            text = handle.read()
+    else:
+        text = path.read_text(encoding="utf-8")
     try:
         value = json.loads(text)
     except json.JSONDecodeError:
@@ -168,7 +173,7 @@ def main() -> None:
     input_paths = sorted(
         {
             path
-            for pattern in ("*.jsonl", "*.json")
+            for pattern in ("*.jsonl", "*.jsonl.gz", "*.json")
             for path in args.root.rglob(pattern)
             if not is_excluded(path)
         }

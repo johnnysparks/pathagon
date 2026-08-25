@@ -1,0 +1,52 @@
+{
+  "actionValueSource": "mcts-root-q-v1",
+  "boardSize": 7,
+  "device": "cpu",
+  "files": [
+    {
+      "elapsedSeconds": 1553.61,
+      "games": 1000,
+      "input": "training/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/cnn-1000games-seed-2026089000.jsonl",
+      "modelHashes": {
+        "sha256:7845e9b7687beee165dc36b8d21833b7a8b5a83e31b58b49bd05c277ba26e642": 1000
+      },
+      "output": "research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-qadv-backfill-20260825/cnn-1000games-seed-2026089000.jsonl.gz",
+      "positions": 53397,
+      "qPositionsAdded": 53397,
+      "qPositionsAlreadyPresent": 0
+    },
+    {
+      "elapsedSeconds": 3425.81,
+      "games": 1000,
+      "input": "training/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/learner-1000games-seed-2026088000.jsonl",
+      "modelHashes": {
+        "sha256:ab0f739cd33d66781faf60e27797c5ccba3c04ba684f8d9e32e9c2754f4e8956": 1000
+      },
+      "output": "research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-qadv-backfill-20260825/learner-1000games-seed-2026088000.jsonl.gz",
+      "positions": 60837,
+      "qPositionsAdded": 60837,
+      "qPositionsAlreadyPresent": 0
+    },
+    {
+      "elapsedSeconds": 2150.99,
+      "games": 1000,
+      "input": "training/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/scout-1000games-seed-2026087000.jsonl",
+      "modelHashes": {
+        "sha256:b9f80706cc1f29076ee06fe06483697c749148a808c599579045d00a52573938": 1000
+      },
+      "output": "research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-qadv-backfill-20260825/scout-1000games-seed-2026087000.jsonl.gz",
+      "positions": 56165,
+      "qPositionsAdded": 56165,
+      "qPositionsAlreadyPresent": 0
+    }
+  ],
+  "games": 3000,
+  "positions": 170399,
+  "qPositionsAdded": 170399,
+  "qPositionsAlreadyPresent": 0,
+  "reservePerPlayer": 14,
+  "rootNoise": false,
+  "schemaVersion": 1,
+  "simulations": 32,
+  "status": "complete"
+}
