@@ -36,6 +36,69 @@ DEFAULT_GNN = REPO_ROOT / "research/runs/gnn/benchmark-7x7/generated/batch-20260
 DEFAULT_CNN = REPO_ROOT / "research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-cnn-30k.pt"
 
 
+def coordinate(index: int, board_size: int) -> str:
+    row, column = divmod(index, board_size)
+    return f"{chr(65 + column)}{row + 1}"
+
+
+def format_move(move: dict, board_size: int) -> str:
+    action = move["action"]
+    destination = coordinate(action["to"], board_size)
+    if action["kind"] == "place":
+        return f"P{destination}"
+    return f"R{coordinate(action['from'], board_size)}→{destination}"
+
+
+def interesting_move_digest(record: dict) -> str:
+    """Extract a few concrete move stories from a completed game record."""
+    moves = record.get("moves", [])
+    if not moves:
+        return "no moves"
+    labels = {
+        side: record.get("agentSpecifications", {}).get(side, {}).get("name", record["agents"][side])
+        for side in ("light", "dark")
+    }
+    board_size = record["config"]["boardSize"]
+    highlights: list[str] = []
+    captures = [move for move in moves if move.get("captured")]
+    if captures:
+        move = max(captures, key=lambda item: len(item["captured"]))
+        count = len(move["captured"])
+        plural = "piece" if count == 1 else "pieces"
+        highlights.append(
+            f"capture burst on ply {move['ply']}: {labels[move['player']]} {format_move(move, board_size)} removed {count} {plural}"
+        )
+
+    relocations = [move for move in moves if move["action"]["kind"] == "relocate"]
+    if relocations:
+        first = relocations[0]
+        highlights.append(
+            f"reserve-to-relocation turn on ply {first['ply']}: {labels[first['player']]} {format_move(first, board_size)}"
+        )
+        def distance(item: dict) -> int:
+            action = item["action"]
+            from_row, from_column = divmod(action["from"], board_size)
+            to_row, to_column = divmod(action["to"], board_size)
+            return abs(from_row - to_row) + abs(from_column - to_column)
+
+        longest = max(relocations, key=distance)
+        if distance(longest) >= 4:
+            highlights.append(
+                f"long relocation Δ{distance(longest)} on ply {longest['ply']}: {labels[longest['player']]} {format_move(longest, board_size)}"
+            )
+
+    winner = record.get("winner")
+    if winner and len(highlights) < 3:
+        final = moves[-1]
+        highlights.append(
+            f"closing path on ply {final['ply']}: {labels[final['player']]} {format_move(final, board_size)}"
+        )
+    if not highlights:
+        opening = " / ".join(format_move(move, board_size) for move in moves[:3])
+        highlights.append(f"quiet opening {opening}")
+    return "; ".join(highlights[:3])
+
+
 def build_roster(args: argparse.Namespace) -> dict[str, AgentSpec]:
     device = choose_device(args.device)
     qadv_path = Path(args.checkpoint)
@@ -108,6 +171,7 @@ def main() -> None:
     parser.add_argument("--max-plies", type=int, default=196)
     parser.add_argument("--seed", type=int, default=2026082500)
     parser.add_argument("--device", default="auto")
+    parser.add_argument("--verbose-progress", action="store_true", help="print one concrete result and move digest per game")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
     if args.games_per_match < 2 or args.games_per_match % 2:
@@ -122,6 +186,9 @@ def main() -> None:
     ratings = {agent.id: 1_000.0 for agent in roster.values()}
     records: list[dict] = []
     head_to_head = []
+    total_games = args.games_per_match * len(opponent_keys)
+    if args.verbose_progress:
+        print(f"[arena] starting {total_games} games: {qadv.label} guided search vs {', '.join(opponent_keys)}", file=sys.stderr, flush=True)
     for opponent_key in opponent_keys:
         opponent = roster[opponent_key]
         matchup = []
@@ -131,6 +198,14 @@ def main() -> None:
             records.append(record)
             matchup.append(record)
             update_elo(ratings, record)
+            if args.verbose_progress:
+                winner = record.get("winner")
+                winner_label = "draw" if winner is None else record["agentSpecifications"][winner]["name"]
+                print(
+                    f"[arena] game {len(records):03d}/{total_games}: {winner_label} · {record['plies']} plies | {interesting_move_digest(record)}",
+                    file=sys.stderr,
+                    flush=True,
+                )
         head_to_head.append({
             "qadv": qadv.id,
             "opponent": opponent.id,
