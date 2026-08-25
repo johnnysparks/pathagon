@@ -73,6 +73,17 @@ const MODELS = [
     disabled: false,
   },
   {
+    id: "qadv-arbiter-guided-7x7-v0.2.0",
+    name: "The Q-Arbiter · Guided Search",
+    family: "QAdv top-k ranking · shallow reply verification",
+    role: "learned search candidate",
+    budget: "",
+    tone: "green",
+    glyph: "Q",
+    planned: false,
+    disabled: false,
+  },
+  {
     id: "gnn-reval30k-7x7",
     name: "Re-evaluated GNN 30k",
     family: "Re-evaluated GNN · 4 PUCT simulations",

@@ -165,6 +165,107 @@ class QAdvAgent:
         return actions[chosen_index]
 
 
+class QAdvGuidedAgent:
+    """Use QAdv to narrow actions, then verify them against the best reply.
+
+    The Q/advantage head is a broad action-ranking prior. It is not trusted as
+    a complete player: every root candidate is screened for immediate losses,
+    and the surviving top-Q/top-heuristic candidates are evaluated against a
+    shallow adversarial reply search.
+    """
+
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        top_k: int = 12,
+        reply_k: int = 8,
+        q_weight: float = 0.50,
+        reply_weight: float = 0.35,
+        heuristic_weight: float = 0.15,
+    ) -> None:
+        if not getattr(model, "qadv", False):
+            raise ValueError("QAdvGuidedAgent requires a qadv-enabled model")
+        if top_k < 1 or reply_k < 1:
+            raise ValueError("top_k and reply_k must be positive")
+        total = q_weight + reply_weight + heuristic_weight
+        if total <= 0.0:
+            raise ValueError("guided-search weights must have a positive sum")
+        self.model = model
+        self.top_k = top_k
+        self.reply_k = reply_k
+        self.q_weight = q_weight / total
+        self.reply_weight = reply_weight / total
+        self.heuristic_weight = heuristic_weight / total
+
+    def choose_action(self, state: GameState, _rng: random.Random, history: Set[tuple]) -> Action | None:
+        actions = list(state.legal_actions())
+        if not actions:
+            return None
+        safe_actions = [
+            action for action in actions
+            if repetition_key(state.apply_legal(action)) not in history
+        ] or actions
+        with torch.no_grad():
+            _logits, _value, q_values, _advantages = self.model.policy_value_q(state, safe_actions)
+        root_q = {action: float(value) for action, value in zip(safe_actions, q_values.detach().cpu().tolist())}
+
+        immediate_wins = [
+            action for action in safe_actions
+            if state.apply_legal(action).winner is state.turn
+        ]
+        if immediate_wins:
+            return min(immediate_wins, key=action_sort_key)
+
+        entries = []
+        for action in safe_actions:
+            afterstate = state.apply_legal(action)
+            heuristic = normalize_heuristic(evaluate_position(afterstate, state.turn))
+            entries.append((action, afterstate, heuristic))
+
+        candidate_pool = entries
+        by_q = sorted(candidate_pool, key=lambda entry: (root_q[entry[0]], -action_sort_key(entry[0])), reverse=True)
+        by_heuristic = sorted(candidate_pool, key=lambda entry: (entry[2], -action_sort_key(entry[0])), reverse=True)
+        candidates = {entry[0]: entry for entry in by_q[: self.top_k]}
+        for entry in by_heuristic[: max(1, self.top_k // 2)]:
+            candidates[entry[0]] = entry
+
+        scored = []
+        for action, afterstate, heuristic in candidates.values():
+            replies = list(afterstate.legal_actions())
+            safe_replies = [
+                reply for reply in replies
+                if repetition_key(afterstate.apply_legal(reply)) not in (history | {repetition_key(afterstate)})
+            ] or replies
+            if not safe_replies:
+                scored.append((root_q[action], action))
+                continue
+            with torch.no_grad():
+                _reply_logits, _reply_value, reply_q_values, _reply_advantages = self.model.policy_value_q(afterstate, safe_replies)
+            reply_q = reply_q_values.detach().cpu().tolist()
+            reply_order = sorted(range(len(safe_replies)), key=lambda index: (reply_q[index], -action_sort_key(safe_replies[index])), reverse=True)
+            tactical_reply_indices = [
+                index for index, reply in enumerate(safe_replies)
+                if afterstate.apply_legal(reply).winner is afterstate.turn
+            ]
+            if tactical_reply_indices:
+                scored.append((-1.0, action))
+                continue
+            reply_indices = reply_order[: self.reply_k]
+            worst_reply_q = max(float(reply_q[index]) for index in reply_indices)
+            worst_reply_heuristic = min(
+                normalize_heuristic(evaluate_position(afterstate.apply_legal(safe_replies[index]), state.turn))
+                for index in reply_indices
+            )
+            reply_score = -worst_reply_q
+            score = (
+                self.q_weight * root_q[action]
+                + self.reply_weight * reply_score
+                + self.heuristic_weight * min(heuristic, worst_reply_heuristic)
+            )
+            scored.append((score, action))
+        return max(scored, key=lambda item: (item[0], -action_sort_key(item[1])))[1]
+
+
 class PolicyBeamAgent:
     """Iterative beam search with a learned policy and value at each node.
 

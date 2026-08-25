@@ -18,6 +18,7 @@ from research.gnn.league import (
     HeuristicAgent,
     LunaticAgent,
     QAdvAgent,
+    QAdvGuidedAgent,
     RandomAgent,
     checkpoint_hash,
     play_game,
@@ -29,6 +30,8 @@ from research.gnn.train import choose_device, load_model
 
 DEFAULT_QADV_ID = "qadv-arbiter-7x7-v0.1.0"
 DEFAULT_QADV_LABEL = "The Q-Arbiter"
+GUIDED_QADV_ID = "qadv-arbiter-guided-7x7-v0.2.0"
+GUIDED_QADV_LABEL = "The Q-Arbiter · Guided Search"
 DEFAULT_GNN = REPO_ROOT / "research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-gnn-30k.pt"
 DEFAULT_CNN = REPO_ROOT / "research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-cnn-30k.pt"
 
@@ -38,12 +41,13 @@ def build_roster(args: argparse.Namespace) -> dict[str, AgentSpec]:
     qadv_path = Path(args.checkpoint)
     qadv_model = load_model(qadv_path, device, qadv=True)
     qadv_model.eval()
+    guided = args.selector == "guided"
     roster: dict[str, AgentSpec] = {
         "qadv": AgentSpec(
-            DEFAULT_QADV_ID,
-            DEFAULT_QADV_LABEL,
+            GUIDED_QADV_ID if guided else DEFAULT_QADV_ID,
+            GUIDED_QADV_LABEL if guided else DEFAULT_QADV_LABEL,
             "learned",
-            QAdvAgent(qadv_model),
+            QAdvGuidedAgent(qadv_model, top_k=args.qadv_top_k, reply_k=args.qadv_reply_k) if guided else QAdvAgent(qadv_model),
             agent_manifest(runtime="python", model_hash=checkpoint_hash(qadv_path)),
         ),
         "pathfinder": AgentSpec(
@@ -96,6 +100,9 @@ def main() -> None:
     parser.add_argument("--gnn-checkpoint", default=str(DEFAULT_GNN))
     parser.add_argument("--cnn-checkpoint", default=str(DEFAULT_CNN))
     parser.add_argument("--opponents", default="pathfinder,surveyor,gnn,cnn", help="comma-separated roster keys")
+    parser.add_argument("--selector", choices=("direct", "guided"), default="direct", help="direct Q-max or QAdv-guided shallow adversarial search")
+    parser.add_argument("--qadv-top-k", type=int, default=12)
+    parser.add_argument("--qadv-reply-k", type=int, default=8)
     parser.add_argument("--games-per-match", type=int, default=4, help="even count alternates Light/Dark assignments")
     parser.add_argument("--baseline-simulations", type=int, default=4)
     parser.add_argument("--max-plies", type=int, default=196)
@@ -141,6 +148,9 @@ def main() -> None:
         "mode": "qadv-arena",
         "agentId": qadv.id,
         "agentLabel": qadv.label,
+        "selector": args.selector,
+        "qadvTopK": args.qadv_top_k,
+        "qadvReplyK": args.qadv_reply_k,
         "checkpoint": str(Path(args.checkpoint)),
         "boardSize": 7,
         "reservePerPlayer": 14,

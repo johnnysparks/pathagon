@@ -12,6 +12,7 @@ player.
 | Compact GNN | Fast neural data generator and learner candidate | Active research |
 | Full GNN | Higher-capacity graph policy/value model | Active research |
 | CNN | Fixed 7x7 comparison and browser export candidate | Active research |
+| QAdv-guided search | Q/advantage action prior plus shallow adversarial reply search | Active research |
 
 The graph implementation can exercise smaller boards for curriculum and
 regression, but strength comparisons should use the canonical 7x7 distribution.
@@ -54,7 +55,10 @@ whether a candidate is strong enough to enter the promotion conversation.
 The proposed transition-focused alternative to a scalar board value is
 documented in
 [`SEPARATED-VALUE-ACTION-POLICY.md`](SEPARATED-VALUE-ACTION-POLICY.md). It is
-currently a design experiment, not an active model contract.
+implemented as an isolated pilot. The direct Q-max selector is retained for
+diagnosis; the current playing path uses QAdv to narrow candidates and then
+checks the best replies before selecting a move. The guided selector is an
+evaluation wrapper, not yet a browser opponent or promotion claim.
 
 The first exact transition-focused regression suite is documented in
 [`4X4-ENDGAME-TACTICAL-AUDIT.md`](4X4-ENDGAME-TACTICAL-AUDIT.md).

@@ -7,7 +7,7 @@ import torch
 
 from .data import ReplayExample
 from .game import BoardConfig, GameState
-from .league import QAdvAgent
+from .league import QAdvAgent, QAdvGuidedAgent
 from .model import PathagonGNN
 from .train import train_qadv_replay
 from .transition import TRANSITION_FEATURES, transition_features
@@ -54,6 +54,12 @@ class QAdvTest(unittest.TestCase):
         self.assertGreater(metrics["q_loss"], 0.0)
         action = QAdvAgent(model).choose_action(state, random.Random(0), set())
         self.assertIn(action, actions)
+
+    def test_qadv_guided_agent_selects_legal_move_with_reply_filter(self) -> None:
+        state = GameState.initial(BoardConfig(5, 8))
+        model = PathagonGNN(hidden_size=8, message_layers=1, qadv=True)
+        action = QAdvGuidedAgent(model, top_k=4, reply_k=3).choose_action(state, random.Random(0), set())
+        self.assertIn(action, state.legal_actions())
 
 
 if __name__ == "__main__":
