@@ -31,8 +31,8 @@ if (!args.apply) {
 }
 
 let deleted = 0;
-for (let start = 0; start < duplicateIds.length; start += 500) {
-  const ids = duplicateIds.slice(start, start + 500);
+for (let start = 0; start < duplicateIds.length; start += 80) {
+  const ids = duplicateIds.slice(start, start + 80);
   const response = await fetch(endpoint, {
     method: "DELETE",
     headers: {
