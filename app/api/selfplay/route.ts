@@ -1,8 +1,9 @@
 import { validateSelfPlayRecord } from "../../selfplay-record";
-import { querySelfPlayGames, storeSelfPlayGames } from "../../../db/selfplay-games";
+import { deleteSelfPlayGames, querySelfPlayGames, storeSelfPlayGames } from "../../../db/selfplay-games";
 import type { SelfPlayArchiveEntry } from "../../../db/selfplay-games";
 
 const MAX_BATCH_SIZE = 100;
+const MAX_DELETE_BATCH_SIZE = 500;
 const ID_PATTERN = /^[a-zA-Z0-9._:-]{1,160}$/;
 const FIELD_PATTERN = /^[a-zA-Z0-9._:-]{1,128}$/;
 
@@ -62,6 +63,25 @@ export async function GET(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to read self-play records";
     return Response.json({ found: false, error: message }, { status: 400 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || !Array.isArray((payload as Record<string, unknown>).ids)) {
+      throw new Error("Self-play deletion must contain an ids array");
+    }
+    const rawIds = (payload as Record<string, unknown>).ids;
+    if (rawIds.length < 1 || rawIds.length > MAX_DELETE_BATCH_SIZE) {
+      throw new Error(`Deletion must contain 1-${MAX_DELETE_BATCH_SIZE} IDs`);
+    }
+    const ids = [...new Set(rawIds.map((value) => validateId(value)))];
+    const result = await deleteSelfPlayGames(ids);
+    return Response.json({ deleted: result.deleted, requested: ids.length });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to delete self-play records";
+    return Response.json({ deleted: 0, error: message }, { status: 400 });
   }
 }
 

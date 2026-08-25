@@ -40,6 +40,14 @@ export async function storeSelfPlayGames(entries: SelfPlayArchiveEntry[]) {
   return { inserted: results.reduce((count, result) => count + (result.meta.changes ?? 0), 0) };
 }
 
+export async function deleteSelfPlayGames(ids: string[]) {
+  if (!ids.length) return { deleted: 0 };
+  const d1 = await database();
+  const placeholders = ids.map(() => "?").join(", ");
+  const result = await d1.prepare(`DELETE FROM selfplay_games WHERE id IN (${placeholders})`).bind(...ids).run();
+  return { deleted: result.meta.changes ?? 0 };
+}
+
 export type SelfPlayQuery = {
   engine?: string;
   mode?: string;
