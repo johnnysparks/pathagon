@@ -62,6 +62,17 @@ const MODELS = [
     disabled: false,
   },
   {
+    id: "qadv-arbiter-7x7-v0.1.0",
+    name: "The Q-Arbiter",
+    family: "Transition-aware Q / Advantage action ranking",
+    role: "learned action selector",
+    budget: "",
+    tone: "violet",
+    glyph: "Q",
+    planned: false,
+    disabled: false,
+  },
+  {
     id: "cnn-baseline-7x7",
     name: "CNN baseline",
     family: "7×7 residual CNN · 87.4k params",
