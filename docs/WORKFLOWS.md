@@ -83,6 +83,29 @@ Use disjoint seeds, alternate colors, record the exact agent configuration,
 and retain the complete match output. Held-out policy metrics are useful for
 diagnosis; promotion requires pairwise strength evidence as well.
 
+## Hourly learning-lab loop
+
+Run one bounded incremental round manually with:
+
+```bash
+./.venv-pathagon-gnn/bin/python scripts/run-hourly-experiment.py
+```
+
+The runner writes an isolated report under `research/runs/gnn/hourly/` and
+does not overwrite or promote existing checkpoints. Each round generates a
+fresh 7x7 self-play slice, rebuilds the deduplicated corpus with held-out
+seeds, clean-trains full and compact GNNs plus full and compact CNNs, scores
+the candidates, and runs them against the active league roster. Hourly
+reports and league games are excluded from later training inputs; only the
+self-play archives are added to the corpus.
+
+The macOS LaunchAgent installed for this workspace invokes the same command
+once per hour. The runner uses a directory lock so an overlong round causes
+the next trigger to skip rather than launch a competing training job. New
+architecture lanes can be added to the `ARCHITECTURES` table in
+`scripts/run-hourly-experiment.py`; the report also records proposed
+transition/Q-ranking, uncertainty, adapter, and learned-filter experiments.
+
 The dated reports under `research/runs/gnn/benchmark-7x7/` and
 `research/runs/gnn/round-full-20260824/` are the current examples of this format.
 

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 from collections import Counter, defaultdict
@@ -112,6 +113,18 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=Path("research/runs/gnn/benchmark-7x7"))
     parser.add_argument("--heldout-fraction", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=20260824)
+    parser.add_argument(
+        "--exclude-dir",
+        action="append",
+        default=[],
+        help="directory name to exclude while discovering source archives; may be repeated",
+    )
+    parser.add_argument(
+        "--exclude-path",
+        action="append",
+        default=[],
+        help="relative glob pattern to exclude while discovering source archives; may be repeated",
+    )
     args = parser.parse_args()
     if not 0.0 < args.heldout_fraction < 1.0:
         raise SystemExit("--heldout-fraction must be between 0 and 1")
@@ -120,7 +133,23 @@ def main() -> None:
     raw_counts: Counter[str] = Counter()
     raw_positions = 0
     skipped = []
-    input_paths = sorted({path for pattern in ("*.jsonl", "*.json") for path in args.root.rglob(pattern)})
+    excluded_dirs = set(args.exclude_dir)
+    excluded_paths = tuple(args.exclude_path)
+
+    def is_excluded(path: Path) -> bool:
+        relative = path.relative_to(args.root).as_posix()
+        return any(part in excluded_dirs for part in path.relative_to(args.root).parts) or any(
+            fnmatch.fnmatch(relative, pattern) for pattern in excluded_paths
+        )
+
+    input_paths = sorted(
+        {
+            path
+            for pattern in ("*.jsonl", "*.json")
+            for path in args.root.rglob(pattern)
+            if not is_excluded(path)
+        }
+    )
     for path in input_paths:
         for record in read_records(path):
             size, reserve = record_config(record, path)

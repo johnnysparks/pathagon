@@ -1,0 +1,101 @@
+{
+  "boardSize": 7,
+  "completedGames": 3,
+  "completedPositions": 307,
+  "createdAtUtc": "2026-08-25T08:38:04.320534+00:00",
+  "gamesPerPlayer": 1,
+  "generation": {
+    "maxPlies": 196,
+    "selfplayDevice": "cpu",
+    "simulations": 4,
+    "temperatureMoves": 16,
+    "trainingUpdates": 0,
+    "workers": 1
+  },
+  "players": [
+    {
+      "agentId": "python-gnn-puct-scout-v0.1.0",
+      "checkpoint": "research/runs/gnn/benchmark-7x7/small-gnn-warmstart.pt",
+      "configuration": {
+        "maxPlies": 196,
+        "simulations": 4,
+        "temperatureMoves": 16,
+        "workers": 1
+      },
+      "games": 1,
+      "label": "GNN Scout",
+      "modelHash": "sha256:b9f80706cc1f29076ee06fe06483697c749148a808c599579045d00a52573938",
+      "name": "scout",
+      "output": "research/runs/gnn/hourly/round-000003-20260825T083804Z/data/scout-1games-seed-2026030000.jsonl",
+      "positions": 57,
+      "reasons": {
+        "path": 1
+      },
+      "results": {
+        "win": 1
+      },
+      "seedEnd": 2026030000,
+      "seedStart": 2026030000
+    },
+    {
+      "agentId": "python-gnn-puct-learner-v0.1.0",
+      "checkpoint": "research/runs/gnn/benchmark-7x7/gnn-warmstart.pt",
+      "configuration": {
+        "maxPlies": 196,
+        "simulations": 4,
+        "temperatureMoves": 16,
+        "workers": 1
+      },
+      "games": 1,
+      "label": "GNN Learner",
+      "modelHash": "sha256:ab0f739cd33d66781faf60e27797c5ccba3c04ba684f8d9e32e9c2754f4e8956",
+      "name": "learner",
+      "output": "research/runs/gnn/hourly/round-000003-20260825T083804Z/data/learner-1games-seed-2026030001.jsonl",
+      "positions": 54,
+      "reasons": {
+        "path": 1
+      },
+      "results": {
+        "win": 1
+      },
+      "seedEnd": 2026030001,
+      "seedStart": 2026030001
+    },
+    {
+      "agentId": "python-cnn-puct-v0.1.0",
+      "checkpoint": "research/runs/gnn/benchmark-7x7/cnn-warmstart.pt",
+      "configuration": {
+        "maxPlies": 196,
+        "simulations": 4,
+        "temperatureMoves": 16,
+        "workers": 1
+      },
+      "games": 1,
+      "label": "CNN Learner",
+      "modelHash": "sha256:7845e9b7687beee165dc36b8d21833b7a8b5a83e31b58b49bd05c277ba26e642",
+      "name": "cnn",
+      "output": "research/runs/gnn/hourly/round-000003-20260825T083804Z/data/cnn-1games-seed-2026030002.jsonl",
+      "positions": 196,
+      "reasons": {
+        "max-plies": 1
+      },
+      "results": {
+        "draw": 1
+      },
+      "seedEnd": 2026030002,
+      "seedStart": 2026030002
+    }
+  ],
+  "playersRequested": [
+    "scout",
+    "learner",
+    "cnn"
+  ],
+  "reservePerPlayer": 14,
+  "schemaVersion": 1,
+  "seedEnd": 2026030002,
+  "seedStart": 2026030000,
+  "status": "complete",
+  "totalGames": 3,
+  "totalPositions": 307
+}

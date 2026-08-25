@@ -1,0 +1,261 @@
+{
+  "architectureIdeas": [
+    "separated transition/Q-ranking head using action-value targets",
+    "policy/value uncertainty head for search calibration",
+    "shared trunk with board-size-specific adapters",
+    "learned move filters plus a calibrated heuristic residual"
+  ],
+  "boardSize": 7,
+  "cleanRetraining": {
+    "architectures": [
+      {
+        "architecture": "gnn",
+        "cnn_blocks": null,
+        "description": "compact GNN capacity ablation",
+        "hidden": 32,
+        "layers": 4,
+        "name": "compact-gnn"
+      }
+    ],
+    "candidates": [
+      {
+        "architecture": "residual-mean-message-passing",
+        "board_size": 7,
+        "checkpoint": "research/runs/gnn/hourly/round-000004-20260825T084226Z/models/compact-gnn.pt",
+        "data": "/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000004-20260825T084226Z/benchmark-7x7/train.jsonl",
+        "description": "compact GNN capacity ablation",
+        "device": "mps",
+        "examples": 454420,
+        "mode": "replay-warmstart",
+        "modelHash": "sha256:cb3537d679b387d9c9b65be40f3785c6befbe053cba2618b98c80a072aafffb7",
+        "name": "compact-gnn",
+        "out": "/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000004-20260825T084226Z/models/compact-gnn.pt",
+        "policy_loss": 3.3129767179489136,
+        "reserve_per_player": 14,
+        "symmetry_augmentation": true,
+        "value_loss": 0.34621416311711073
+      }
+    ],
+    "evaluations": [
+      {
+        "boardSize": 7,
+        "candidate": "compact-gnn",
+        "checkpoint": "/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000004-20260825T084226Z/models/compact-gnn.pt",
+        "data": "/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000004-20260825T084226Z/benchmark-7x7/heldout.jsonl",
+        "device": "mps",
+        "examples": 256,
+        "games": 213,
+        "maxExamples": 256,
+        "metrics": {
+          "all": {
+            "examples": 256,
+            "nonDrawValueExamples": 70,
+            "policyNll": 4.562350993044674,
+            "policyTop1": 0.0234375,
+            "policyTop5": 0.0703125,
+            "valueMae": 0.3955579037719872,
+            "valueMse": 0.29285207118870615,
+            "valueSignAccuracy": 0.5714285714285714
+          },
+          "placement": {
+            "examples": 121,
+            "nonDrawValueExamples": 55,
+            "policyNll": 3.3462779718982287,
+            "policyTop1": 0.03305785123966942,
+            "policyTop5": 0.12396694214876033,
+            "valueMae": 0.5405375611437254,
+            "valueMse": 0.4740506651726627,
+            "valueSignAccuracy": 0.5454545454545454
+          },
+          "relocation": {
+            "examples": 135,
+            "nonDrawValueExamples": 15,
+            "policyNll": 5.652312737924081,
+            "policyTop1": 0.014814814814814815,
+            "policyTop5": 0.022222222222222223,
+            "valueMae": 0.2656131738313922,
+            "valueMse": 0.1304444425067893,
+            "valueSignAccuracy": 0.6666666666666666
+          }
+        },
+        "reservePerPlayer": 14,
+        "seed": 2026040500,
+        "targetCounts": {
+          "draw": 186,
+          "loss": 30,
+          "win": 40
+        }
+      }
+    ],
+    "failed": [],
+    "steps": 2
+  },
+  "dataExpansion": {
+    "benchmark": {
+      "duplicateGamesRemoved": 5580,
+      "heldoutGames": 1066,
+      "heldoutPositions": 112456,
+      "rawGames": 10881,
+      "rawPositions": 867288,
+      "trainGames": 4235,
+      "trainPositions": 454420,
+      "uniqueGames": 5301,
+      "uniquePositions": 566876
+    },
+    "gamesPerPlayer": 1,
+    "outputDir": "research/runs/gnn/hourly/round-000004-20260825T084226Z/data",
+    "players": [
+      "scout",
+      "learner",
+      "cnn"
+    ]
+  },
+  "finishedAtUtc": "2026-08-25T08:43:55.824472+00:00",
+  "kind": "pathagon-hourly-ai-experiment",
+  "league": {
+    "pairings": 3,
+    "path": "research/runs/gnn/hourly/round-000004-20260825T084226Z/league.json",
+    "rosterSize": 12,
+    "standings": [
+      {
+        "draws": 0,
+        "games": 1,
+        "id": "gnn-rust-generation-1-7x7",
+        "kind": "gnn",
+        "label": "Rust warm-start generation 1 \u00b7 7x7",
+        "losses": 0,
+        "points": 1.0,
+        "rating": 1012,
+        "wins": 1
+      },
+      {
+        "draws": 0,
+        "games": 1,
+        "id": "gnn-rust-generation-2-7x7",
+        "kind": "gnn",
+        "label": "Rust AlphaZero generation 2 \u00b7 7x7",
+        "losses": 0,
+        "points": 1.0,
+        "rating": 1012,
+        "wins": 1
+      },
+      {
+        "draws": 0,
+        "games": 1,
+        "id": "gnn-generation-8-7x7",
+        "kind": "gnn",
+        "label": "Generation 8 \u00b7 7x7",
+        "losses": 0,
+        "points": 1.0,
+        "rating": 1011,
+        "wins": 1
+      },
+      {
+        "draws": 0,
+        "games": 0,
+        "id": "coin-flip-v0.0.1",
+        "kind": "random",
+        "label": "Coin Flip",
+        "losses": 0,
+        "points": 0.0,
+        "rating": 1000,
+        "wins": 0
+      },
+      {
+        "draws": 0,
+        "games": 0,
+        "id": "gnn-generation-4-7x7",
+        "kind": "gnn",
+        "label": "Generation 4 \u00b7 7x7",
+        "losses": 0,
+        "points": 0.0,
+        "rating": 1000,
+        "wins": 0
+      },
+      {
+        "draws": 0,
+        "games": 0,
+        "id": "gnn-warmstart-7x7",
+        "kind": "gnn",
+        "label": "Warm start \u00b7 7x7",
+        "losses": 0,
+        "points": 0.0,
+        "rating": 1000,
+        "wins": 0
+      },
+      {
+        "draws": 0,
+        "games": 0,
+        "id": "hourly-compact-gnn",
+        "kind": "gnn",
+        "label": "Hourly candidate \u00b7 compact-gnn",
+        "losses": 0,
+        "points": 0.0,
+        "rating": 1000,
+        "wins": 0
+      },
+      {
+        "draws": 0,
+        "games": 0,
+        "id": "lunatic-v0.1.0",
+        "kind": "heuristic",
+        "label": "Lunatic",
+        "losses": 0,
+        "points": 0.0,
+        "rating": 1000,
+        "wins": 0
+      },
+      {
+        "draws": 0,
+        "games": 0,
+        "id": "pathfinder-v0.3.0",
+        "kind": "heuristic",
+        "label": "The Pathfinder",
+        "losses": 0,
+        "points": 0.0,
+        "rating": 1000,
+        "wins": 0
+      },
+      {
+        "draws": 0,
+        "games": 0,
+        "id": "surveyor-v0.2.0",
+        "kind": "heuristic",
+        "label": "The Surveyor",
+        "losses": 0,
+        "points": 0.0,
+        "rating": 1000,
+        "wins": 0
+      },
+      {
+        "draws": 0,
+        "games": 1,
+        "id": "gnn-generation-5-7x7",
+        "kind": "gnn",
+        "label": "Generation 5 \u00b7 7x7",
+        "losses": 1,
+        "points": 0.0,
+        "rating": 987,
+        "wins": 0
+      },
+      {
+        "draws": 0,
+        "games": 4,
+        "id": "cnn-warmstart-7x7",
+        "kind": "gnn",
+        "label": "CNN warm start \u00b7 7x7",
+        "losses": 3,
+        "points": 1.0,
+        "rating": 978,
+        "wins": 1
+      }
+    ]
+  },
+  "promotion": "diagnostic only; no browser promotion or checkpoint overwrite",
+  "reservePerPlayer": 14,
+  "round": 4,
+  "schemaVersion": 1,
+  "seed": 2026040000,
+  "startedAtUtc": "2026-08-25T08:42:26.562919+00:00",
+  "status": "complete"
+}

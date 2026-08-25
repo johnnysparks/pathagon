@@ -1,0 +1,7 @@
+{
+  "error": "No module named 'research'",
+  "failedAtUtc": "2026-08-25T08:37:23.454914+00:00",
+  "round": 2,
+  "run": "research/runs/gnn/hourly/round-000002-20260825T083612Z",
+  "status": "failed"
+}

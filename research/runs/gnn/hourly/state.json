@@ -1,0 +1,8 @@
+{
+  "currentRun": "research/runs/gnn/hourly/round-000006-20260825T145138Z",
+  "lastFinishedAtUtc": "2026-08-25T13:51:36.721291+00:00",
+  "lastReport": "research/runs/gnn/hourly/round-000005-20260825T094430Z/report.json",
+  "lastRound": 6,
+  "lastStartedAtUtc": "2026-08-25T14:51:38.351441+00:00",
+  "status": "running"
+}

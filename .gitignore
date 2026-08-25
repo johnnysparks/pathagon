@@ -48,6 +48,12 @@ research/runs/gnn/benchmark-7x7-full-*/train.jsonl
 research/runs/gnn/benchmark-7x7-full-*/heldout.jsonl
 research/runs/gnn/benchmark-7x7/generated/*/*.jsonl
 research/runs/gnn/benchmark-7x7/generated/*/run.log
+research/runs/gnn/hourly/*/data/*.jsonl
+research/runs/gnn/hourly/*/benchmark-7x7/*.jsonl
+research/runs/gnn/hourly/*/models/*.pt
+research/runs/gnn/hourly/*/league.json
+research/runs/gnn/hourly/*/run.log
+research/runs/gnn/hourly/launchd.log
 /.venv-pathagon-gnn/
 __pycache__/
 *.py[cod]

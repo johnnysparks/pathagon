@@ -1,0 +1,336 @@
+{
+  "architectureIdeas": [
+    "separated transition/Q-ranking head using action-value targets",
+    "policy/value uncertainty head for search calibration",
+    "shared trunk with board-size-specific adapters",
+    "learned move filters plus a calibrated heuristic residual"
+  ],
+  "boardSize": 7,
+  "cleanRetraining": {
+    "architectures": [
+      {
+        "architecture": "gnn",
+        "cnn_blocks": null,
+        "description": "full residual mean-message-passing GNN",
+        "hidden": 64,
+        "layers": 8,
+        "name": "full-gnn"
+      },
+      {
+        "architecture": "gnn",
+        "cnn_blocks": null,
+        "description": "compact GNN capacity ablation",
+        "hidden": 32,
+        "layers": 4,
+        "name": "compact-gnn"
+      },
+      {
+        "architecture": "cnn",
+        "cnn_blocks": 4,
+        "description": "fixed-7x7 residual CNN",
+        "hidden": 64,
+        "layers": null,
+        "name": "cnn"
+      },
+      {
+        "architecture": "cnn",
+        "cnn_blocks": 2,
+        "description": "compact CNN capacity ablation",
+        "hidden": 32,
+        "layers": null,
+        "name": "compact-cnn"
+      }
+    ],
+    "candidates": [
+      {
+        "architecture": "residual-mean-message-passing",
+        "board_size": 7,
+        "checkpoint": "research/runs/gnn/hourly/round-000005-20260825T094430Z/models/full-gnn.pt",
+        "data": "/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/benchmark-7x7/train.jsonl",
+        "description": "full residual mean-message-passing GNN",
+        "device": "mps",
+        "examples": 454668,
+        "mode": "replay-warmstart",
+        "modelHash": "sha256:f82e240edd1defddd181acc48c3c57cfa9c6bcde4ecf0cea4ae836616c87af01",
+        "name": "full-gnn",
+        "out": "/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/models/full-gnn.pt",
+        "policy_loss": 3.43874976170063,
+        "reserve_per_player": 14,
+        "symmetry_augmentation": true,
+        "value_loss": 0.30574006107591806
+      },
+      {
+        "architecture": "residual-mean-message-passing",
+        "board_size": 7,
+        "checkpoint": "research/runs/gnn/hourly/round-000005-20260825T094430Z/models/compact-gnn.pt",
+        "data": "/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/benchmark-7x7/train.jsonl",
+        "description": "compact GNN capacity ablation",
+        "device": "mps",
+        "examples": 454668,
+        "mode": "replay-warmstart",
+        "modelHash": "sha256:995f03239113b2683886a8b9104019456b30513ed94479ae6e8d10692d5e89a2",
+        "name": "compact-gnn",
+        "out": "/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/models/compact-gnn.pt",
+        "policy_loss": 4.105775789260864,
+        "reserve_per_player": 14,
+        "symmetry_augmentation": true,
+        "value_loss": 0.2802621213436425
+      },
+      {
+        "architecture": "residual-cnn-7x7",
+        "board_size": 7,
+        "checkpoint": "research/runs/gnn/hourly/round-000005-20260825T094430Z/models/cnn.pt",
+        "data": "/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/benchmark-7x7/train.jsonl",
+        "description": "fixed-7x7 residual CNN",
+        "device": "mps",
+        "examples": 454668,
+        "mode": "replay-warmstart",
+        "modelHash": "sha256:63273203ee0ff02cbb11cfc261534b6c866678eb8779673319477cedc26619c5",
+        "name": "cnn",
+        "out": "/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/models/cnn.pt",
+        "policy_loss": 3.5262410559654236,
+        "reserve_per_player": 14,
+        "symmetry_augmentation": true,
+        "value_loss": 0.30556807176571094
+      },
+      {
+        "architecture": "residual-cnn-7x7",
+        "board_size": 7,
+        "checkpoint": "research/runs/gnn/hourly/round-000005-20260825T094430Z/models/compact-cnn.pt",
+        "data": "/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/benchmark-7x7/train.jsonl",
+        "description": "compact CNN capacity ablation",
+        "device": "mps",
+        "examples": 454668,
+        "mode": "replay-warmstart",
+        "modelHash": "sha256:7e59d7d7d1e3259d0a3e1c1cbb438906b7a7a5ca742c7a2de389eb5e77ec74b6",
+        "name": "compact-cnn",
+        "out": "/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/models/compact-cnn.pt",
+        "policy_loss": 4.018589276790619,
+        "reserve_per_player": 14,
+        "symmetry_augmentation": true,
+        "value_loss": 0.3051761826326678
+      }
+    ],
+    "evaluations": [],
+    "failed": [
+      {
+        "error": "Command '['/Users/johnny/projects/pathagon/.venv-pathagon-gnn/bin/python', 'scripts/evaluate-7x7-checkpoint.py', '--checkpoint', '/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/models/full-gnn.pt', '--data', '/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/benchmark-7x7/heldout.jsonl', '--size', '7', '--reserve', '14', '--seed', '2026050500', '--device', 'auto']' timed out after 3000 seconds",
+        "name": "full-gnn"
+      },
+      {
+        "error": "Command '['/Users/johnny/projects/pathagon/.venv-pathagon-gnn/bin/python', 'scripts/evaluate-7x7-checkpoint.py', '--checkpoint', '/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/models/compact-gnn.pt', '--data', '/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/benchmark-7x7/heldout.jsonl', '--size', '7', '--reserve', '14', '--seed', '2026050501', '--device', 'auto']' timed out after 3000 seconds",
+        "name": "compact-gnn"
+      },
+      {
+        "error": "Command '['/Users/johnny/projects/pathagon/.venv-pathagon-gnn/bin/python', 'scripts/evaluate-7x7-checkpoint.py', '--checkpoint', '/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/models/cnn.pt', '--data', '/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/benchmark-7x7/heldout.jsonl', '--size', '7', '--reserve', '14', '--seed', '2026050502', '--device', 'auto']' timed out after 3000 seconds",
+        "name": "cnn"
+      },
+      {
+        "error": "Command '['/Users/johnny/projects/pathagon/.venv-pathagon-gnn/bin/python', 'scripts/evaluate-7x7-checkpoint.py', '--checkpoint', '/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/models/compact-cnn.pt', '--data', '/Users/johnny/projects/pathagon/research/runs/gnn/hourly/round-000005-20260825T094430Z/benchmark-7x7/heldout.jsonl', '--size', '7', '--reserve', '14', '--seed', '2026050503', '--device', 'auto']' timed out after 3000 seconds",
+        "name": "compact-cnn"
+      }
+    ],
+    "steps": 250
+  },
+  "dataExpansion": {
+    "benchmark": {
+      "duplicateGamesRemoved": 5580,
+      "heldoutGames": 1036,
+      "heldoutPositions": 113922,
+      "rawGames": 10917,
+      "rawPositions": 869002,
+      "trainGames": 4301,
+      "trainPositions": 454668,
+      "uniqueGames": 5337,
+      "uniquePositions": 568590
+    },
+    "gamesPerPlayer": 12,
+    "outputDir": "research/runs/gnn/hourly/round-000005-20260825T094430Z/data",
+    "players": [
+      "scout",
+      "learner",
+      "cnn"
+    ]
+  },
+  "finishedAtUtc": "2026-08-25T13:51:36.721291+00:00",
+  "kind": "pathagon-hourly-ai-experiment",
+  "league": {
+    "pairings": 105,
+    "path": "research/runs/gnn/hourly/round-000005-20260825T094430Z/league.json",
+    "rosterSize": 15,
+    "standings": [
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "pathfinder-v0.3.0",
+        "kind": "heuristic",
+        "label": "The Pathfinder",
+        "losses": 1,
+        "points": 13.0,
+        "rating": 1115,
+        "wins": 13
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "gnn-rust-generation-1-7x7",
+        "kind": "gnn",
+        "label": "Rust warm-start generation 1 \u00b7 7x7",
+        "losses": 2,
+        "points": 12.0,
+        "rating": 1097,
+        "wins": 12
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "hourly-cnn",
+        "kind": "gnn",
+        "label": "Hourly candidate \u00b7 cnn",
+        "losses": 3,
+        "points": 11.0,
+        "rating": 1078,
+        "wins": 11
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "surveyor-v0.2.0",
+        "kind": "heuristic",
+        "label": "The Surveyor",
+        "losses": 3,
+        "points": 11.0,
+        "rating": 1076,
+        "wins": 11
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "lunatic-v0.1.0",
+        "kind": "heuristic",
+        "label": "Lunatic",
+        "losses": 5,
+        "points": 9.0,
+        "rating": 1037,
+        "wins": 9
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "gnn-rust-generation-2-7x7",
+        "kind": "gnn",
+        "label": "Rust AlphaZero generation 2 \u00b7 7x7",
+        "losses": 6,
+        "points": 8.0,
+        "rating": 1021,
+        "wins": 8
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "hourly-compact-gnn",
+        "kind": "gnn",
+        "label": "Hourly candidate \u00b7 compact-gnn",
+        "losses": 6,
+        "points": 8.0,
+        "rating": 1021,
+        "wins": 8
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "hourly-full-gnn",
+        "kind": "gnn",
+        "label": "Hourly candidate \u00b7 full-gnn",
+        "losses": 7,
+        "points": 7.0,
+        "rating": 1002,
+        "wins": 7
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "gnn-warmstart-7x7",
+        "kind": "gnn",
+        "label": "Warm start \u00b7 7x7",
+        "losses": 8,
+        "points": 6.0,
+        "rating": 985,
+        "wins": 6
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "hourly-compact-cnn",
+        "kind": "gnn",
+        "label": "Hourly candidate \u00b7 compact-cnn",
+        "losses": 8,
+        "points": 6.0,
+        "rating": 976,
+        "wins": 6
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "cnn-warmstart-7x7",
+        "kind": "gnn",
+        "label": "CNN warm start \u00b7 7x7",
+        "losses": 9,
+        "points": 5.0,
+        "rating": 955,
+        "wins": 5
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "gnn-generation-8-7x7",
+        "kind": "gnn",
+        "label": "Generation 8 \u00b7 7x7",
+        "losses": 10,
+        "points": 4.0,
+        "rating": 937,
+        "wins": 4
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "gnn-generation-5-7x7",
+        "kind": "gnn",
+        "label": "Generation 5 \u00b7 7x7",
+        "losses": 11,
+        "points": 3.0,
+        "rating": 926,
+        "wins": 3
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "gnn-generation-4-7x7",
+        "kind": "gnn",
+        "label": "Generation 4 \u00b7 7x7",
+        "losses": 12,
+        "points": 2.0,
+        "rating": 909,
+        "wins": 2
+      },
+      {
+        "draws": 0,
+        "games": 14,
+        "id": "coin-flip-v0.0.1",
+        "kind": "random",
+        "label": "Coin Flip",
+        "losses": 14,
+        "points": 0.0,
+        "rating": 865,
+        "wins": 0
+      }
+    ]
+  },
+  "promotion": "diagnostic only; no browser promotion or checkpoint overwrite",
+  "reservePerPlayer": 14,
+  "round": 5,
+  "schemaVersion": 1,
+  "seed": 2026050000,
+  "startedAtUtc": "2026-08-25T09:44:30.287987+00:00",
+  "status": "partial"
+}
