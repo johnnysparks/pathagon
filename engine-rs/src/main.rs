@@ -21,6 +21,9 @@ fn main() {
     let depth = number(&args, "depth", 4_u8);
     let max_nodes = number(&args, "nodes", 90_000_u64);
     let beam_width = number(&args, "beam", 40_usize);
+    let tactical_proof_horizon = args
+        .get("tactical-proof-horizon")
+        .and_then(|value| value.parse().ok());
     let opponent_name = args.get("opponent").map(String::as_str).unwrap_or("random");
     let jsonl = args.contains_key("jsonl");
     let progress_every = number(&args, "progress-every", (games / 20).max(1));
@@ -42,6 +45,7 @@ fn main() {
         max_nodes,
         beam_width,
         weights: EvaluationWeights::default(),
+        tactical_proof_horizon,
     };
     let champion = learned_book.as_ref().map_or_else(
         || with_optional_book(Agent::search("rust-pathfinder-v0.1.0", config), &book),

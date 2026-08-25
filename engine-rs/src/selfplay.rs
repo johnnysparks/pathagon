@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::contract::RootQTargets;
 use crate::corpus::StrategyBook;
 use crate::learned::LearnedBook;
 use crate::search::{lunatic_action, search_best_action, SearchConfig};
@@ -55,6 +56,7 @@ impl Agent {
                     completed_depth: 0,
                     table_hits: 0,
                     book_hit: false,
+                    root_q: None,
                 }
             }
             Self::Lunatic { .. } => {
@@ -66,6 +68,7 @@ impl Agent {
                     completed_depth: result.completed_depth,
                     table_hits: result.table_hits,
                     book_hit: false,
+                    root_q: None,
                 }
             }
             Self::Search { id, config, book } => {
@@ -77,6 +80,7 @@ impl Agent {
                         completed_depth: choice.completed_depth,
                         table_hits: 0,
                         book_hit: true,
+                        root_q: None,
                     };
                 }
                 let result = search_best_action(state, *config);
@@ -87,6 +91,7 @@ impl Agent {
                     completed_depth: result.completed_depth,
                     table_hits: result.table_hits,
                     book_hit: false,
+                    root_q: None,
                 }
             }
             Self::Learned { config, book, minimum_visits, .. } => {
@@ -98,6 +103,7 @@ impl Agent {
                         completed_depth: 0,
                         table_hits: 0,
                         book_hit: true,
+                        root_q: None,
                     };
                 }
                 let result = search_best_action(state, *config);
@@ -108,6 +114,7 @@ impl Agent {
                     completed_depth: result.completed_depth,
                     table_hits: result.table_hits,
                     book_hit: false,
+                    root_q: None,
                 }
             }
         }
@@ -129,7 +136,7 @@ impl Default for MatchOptions {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MoveRecord {
     pub ply: u16,
     pub player: Player,
@@ -140,6 +147,7 @@ pub struct MoveRecord {
     pub completed_depth: u8,
     pub table_hits: u64,
     pub book_hit: bool,
+    pub root_q: Option<RootQTargets>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -161,7 +169,7 @@ impl TerminationReason {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct GameRecord {
     pub seed: u32,
     pub max_plies: u16,
@@ -185,8 +193,14 @@ impl GameRecord {
                 Action::Relocate { from, to } => format!("{{\"kind\":\"relocate\",\"from\":{from},\"to\":{to}}}"),
             };
             let captured = bit_squares(record.captured).iter().map(u8::to_string).collect::<Vec<_>>().join(",");
+            let root_q = record.root_q.as_ref().map_or_else(String::new, |targets| {
+                targets.validate().expect("generated root-Q targets are valid");
+                let values = serde_json::to_string(&targets.action_values).expect("serialize root-Q action values");
+                let visits = serde_json::to_string(&targets.action_visits).expect("serialize root-Q action visits");
+                format!(",\"actionValues\":{values},\"actionVisits\":{visits},\"actionValueSource\":\"{}\"", crate::contract::ROOT_Q_SOURCE)
+            });
             format!(
-                "{{\"ply\":{},\"player\":\"{}\",\"action\":{},\"captured\":[{}],\"score\":{},\"nodes\":{},\"completedDepth\":{},\"tableHits\":{},\"bookHit\":{}}}",
+                "{{\"ply\":{},\"player\":\"{}\",\"action\":{},\"captured\":[{}],\"score\":{},\"nodes\":{},\"completedDepth\":{},\"tableHits\":{},\"bookHit\":{}{} }}",
                 record.ply,
                 record.player.as_str(),
                 action,
@@ -196,6 +210,7 @@ impl GameRecord {
                 record.completed_depth,
                 record.table_hits,
                 record.book_hit,
+                root_q,
             )
         }).collect::<Vec<_>>().join(",");
         format!(
@@ -218,16 +233,74 @@ impl GameRecord {
 }
 
 fn agent_spec_json(agent: &Agent) -> String {
-    let (kind, name, depth, node_budget, beam, weights) = match agent {
-        Agent::Random { .. } => ("random", "Coin Flip", 0, 0, 0, crate::search::EvaluationWeights::default()),
-        Agent::Lunatic { .. } => ("heuristic", "Lunatic", 1, 0, 0, crate::search::EvaluationWeights::default()),
-        Agent::Search { config, .. } => ("search", "Rust Search", u32::from(config.depth), config.max_nodes, config.beam_width as u32, config.weights),
-        Agent::Learned { config, .. } => ("learned", "Learned", u32::from(config.depth), config.max_nodes, config.beam_width as u32, config.weights),
+    let (kind, name, depth, node_budget, beam, weights, tactical_proof_horizon) = match agent {
+        Agent::Random { .. } => (
+            "random",
+            "Coin Flip",
+            0,
+            0,
+            0,
+            crate::search::EvaluationWeights::default(),
+            None,
+        ),
+        Agent::Lunatic { .. } => (
+            "heuristic",
+            "Lunatic",
+            1,
+            0,
+            0,
+            crate::search::EvaluationWeights::default(),
+            None,
+        ),
+        Agent::Search { config, .. } => (
+            "search",
+            "Rust Search",
+            u32::from(config.depth),
+            config.max_nodes,
+            config.beam_width as u32,
+            config.weights,
+            config.tactical_proof_horizon,
+        ),
+        Agent::Learned { config, .. } => (
+            "learned",
+            "Learned",
+            u32::from(config.depth),
+            config.max_nodes,
+            config.beam_width as u32,
+            config.weights,
+            config.tactical_proof_horizon,
+        ),
     };
-    format!(
-        "{{\"id\":\"{}\",\"name\":\"{}\",\"version\":\"1.0.0\",\"kind\":\"{}\",\"engineId\":\"rust-bitboard\",\"manifest\":{{\"manifestVersion\":1,\"runtime\":\"rust\",\"rulesVersion\":\"pathagon-rules-v1\",\"evaluatorWeights\":{{\"path\":{},\"material\":{},\"capture\":{},\"structure\":{},\"threat\":{},\"edge\":{}}},\"depth\":{},\"nodeBudget\":{},\"beam\":{},\"modelHash\":null}}}}",
-        json_escape(agent.id()), name, kind, weights.path, weights.material, weights.capture, weights.structure, weights.threat, weights.edge, depth, node_budget, beam,
-    )
+    let mut specification = serde_json::json!({
+        "id": agent.id(),
+        "name": name,
+        "version": "1.0.0",
+        "kind": kind,
+        "engineId": "rust-bitboard",
+        "manifest": {
+            "manifestVersion": 1,
+            "runtime": "rust",
+            "rulesVersion": "pathagon-rules-v1",
+            "evaluatorWeights": {
+                "path": weights.path,
+                "material": weights.material,
+                "capture": weights.capture,
+                "structure": weights.structure,
+                "threat": weights.threat,
+                "edge": weights.edge,
+            },
+            "depth": depth,
+            "nodeBudget": node_budget,
+            "beam": beam,
+            "modelHash": serde_json::Value::Null,
+        },
+    });
+    if let Some(horizon) = tactical_proof_horizon {
+        specification["parameters"] = serde_json::json!({
+            "tacticalProofHorizon": horizon,
+        });
+    }
+    serde_json::to_string(&specification).expect("serialize Rust agent specification")
 }
 
 pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameRecord {
@@ -256,6 +329,7 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
                 completed_depth: 0,
                 table_hits: 0,
                 book_hit: false,
+                root_q: None,
             }
         } else if player == Player::Light {
             light.choose(state, &mut random)
@@ -280,6 +354,7 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
             completed_depth: decision.completed_depth,
             table_hits: decision.table_hits,
             book_hit: decision.book_hit,
+            root_q: decision.root_q,
         });
     }
     if let Some(winner) = state.winner {
@@ -289,7 +364,7 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 struct Decision {
     action: Option<Action>,
     score: i32,
@@ -297,6 +372,7 @@ struct Decision {
     completed_depth: u8,
     table_hits: u64,
     book_hit: bool,
+    root_q: Option<RootQTargets>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -405,6 +481,19 @@ mod tests {
         let replay = crate::contract::ReplayRecord::from_json(&record.to_json()).expect("generated replay follows contract");
         assert_eq!(replay.agent_specifications.light.manifest.runtime, "rust");
         assert_eq!(replay.agent_specifications.light.manifest.node_budget, 90_000);
+    }
+
+    #[test]
+    fn root_q_targets_round_trip_through_archive_contract() {
+        let light = Agent::random("light-random");
+        let dark = Agent::random("dark-random");
+        let mut record = play_game(&light, &dark, MatchOptions { seed: 17, max_plies: 8, opening_random_plies: 0, board_size: 4, reserve_per_player: 8 });
+        record.moves[0].root_q = Some(RootQTargets::new(vec![-0.25, 0.75], vec![2, 10]).expect("valid root-Q targets"));
+
+        let replay = crate::contract::ReplayRecord::from_json(&record.to_json()).expect("root-Q archive follows contract");
+        assert_eq!(replay.moves[0].action_values, Some(vec![-0.25, 0.75]));
+        assert_eq!(replay.moves[0].action_visits, Some(vec![2, 10]));
+        assert_eq!(replay.moves[0].action_value_source.as_deref(), Some(crate::contract::ROOT_Q_SOURCE));
     }
 
     #[test]

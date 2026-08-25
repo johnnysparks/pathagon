@@ -40,6 +40,7 @@ impl Default for TrainingConfig {
                 max_nodes: 12_000,
                 beam_width: 49,
                 weights: EvaluationWeights::default(),
+                tactical_proof_horizon: None,
             },
         }
     }
@@ -90,7 +91,7 @@ pub struct CandidateTrial {
     pub promoted: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TrainingResult {
     pub config: TrainingConfig,
     pub initial: Champion,
@@ -285,9 +286,16 @@ fn weights_json(weights: EvaluationWeights) -> String {
 }
 
 fn search_json(search: SearchConfig) -> String {
+    let tactical_proof_horizon = search
+        .tactical_proof_horizon
+        .map_or_else(|| "null".to_owned(), |horizon| horizon.to_string());
     format!(
-        "{{\"depth\":{},\"maxNodes\":{},\"beamWidth\":{},\"weights\":{}}}",
-        search.depth, search.max_nodes, search.beam_width, weights_json(search.weights),
+        "{{\"depth\":{},\"maxNodes\":{},\"beamWidth\":{},\"weights\":{},\"tacticalProofHorizon\":{}}}",
+        search.depth,
+        search.max_nodes,
+        search.beam_width,
+        weights_json(search.weights),
+        tactical_proof_horizon,
     )
 }
 

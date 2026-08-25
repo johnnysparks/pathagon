@@ -10,6 +10,8 @@ export type SearchConfig = {
   maxNodes: number;
   beamWidth: number;
   weights: EvaluationWeights;
+  /** Rust-only opt-in proof search for 4x4-or-smaller tactical positions. */
+  tacticalProofHorizon?: number;
 };
 
 export type SearchResult = {

@@ -77,6 +77,7 @@ to:
 {
   "policy": [0.1, 0.9],
   "actionValues": [-0.2, 0.7],
+  "actionVisits": [4, 12],
   "actionValueSource": "mcts-root-q-v1"
 }
 ```

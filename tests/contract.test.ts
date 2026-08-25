@@ -15,6 +15,20 @@ test("canonical contract fixture validates in TypeScript", async () => {
   assert.equal(record.agentSpecifications.light.manifest.nodeBudget, 0);
 });
 
+test("root-Q targets round-trip and reject partial archives", async () => {
+  const fixture = JSON.parse(await readFile(new URL("../contracts/fixtures/replay-v1.json", import.meta.url), "utf8"));
+  fixture.moves[0].actionValues = [-0.25, 0.75];
+  fixture.moves[0].actionVisits = [2, 10];
+  fixture.moves[0].actionValueSource = "mcts-root-q-v1";
+  const record = validateContractReplay(fixture);
+  assert.deepEqual(record.moves[0].actionValues, [-0.25, 0.75]);
+  assert.deepEqual(record.moves[0].actionVisits, [2, 10]);
+  assert.deepEqual(validateSelfPlayRecord(fixture).moves[0], record.moves[0]);
+
+  const partial = { ...fixture, moves: fixture.moves.map((move: Record<string, unknown>) => ({ ...move, actionVisits: [2] })) };
+  assert.throws(() => validateContractReplay(partial), /root-Q alignment/);
+});
+
 test("contract positions carry the complete rule-relevant state", () => {
   const position = validatePosition({
     contractVersion: 1,

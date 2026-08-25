@@ -3,6 +3,7 @@
 
 export const PATHAGON_CONTRACT_VERSION = 1 as const;
 export const PATHAGON_RULES_VERSION = "pathagon-rules-v1" as const;
+export const ROOT_Q_SOURCE = "mcts-root-q-v1" as const;
 
 export type Player = "light" | "dark";
 export type TerminationReason = "path" | "threefold-repetition" | "max-plies" | "no-legal-action";
@@ -77,6 +78,9 @@ export type ContractMove = {
   completedDepth: number;
   tableHits: number;
   policy?: number[];
+  actionValues?: number[];
+  actionVisits?: number[];
+  actionValueSource?: typeof ROOT_Q_SOURCE;
   score?: number;
   bookHit?: boolean;
 };
@@ -235,9 +239,33 @@ function validateContractMove(value: unknown, index: number, boardSize: number):
   const captured = validateSquares(value.captured, boardSize * boardSize, "captured");
   const move: ContractMove = { ply: index + 1, player: value.player, action: validateContractAction(value.action, boardSize), captured, nodes: nonNegativeInteger(value.nodes, "nodes"), completedDepth: nonNegativeInteger(value.completedDepth, "completed depth"), tableHits: nonNegativeInteger(value.tableHits, "table hits") };
   if (value.policy !== undefined) move.policy = validatePolicy(value.policy, index);
+  const rootQ = validateRootQFields(value, index);
+  if (rootQ) Object.assign(move, rootQ);
   if (value.score !== undefined) move.score = integer(value.score, "score");
   if (value.bookHit !== undefined) { if (typeof value.bookHit !== "boolean") throw new Error("Invalid book hit"); move.bookHit = value.bookHit; }
   return move;
+}
+
+export function validateRootQFields(value: Record<string, unknown>, index: number): Pick<ContractMove, "actionValues" | "actionVisits" | "actionValueSource"> | undefined {
+  const present = value.actionValues !== undefined || value.actionVisits !== undefined || value.actionValueSource !== undefined;
+  if (!present) return undefined;
+  if (value.actionValueSource !== ROOT_Q_SOURCE || !Array.isArray(value.actionValues) || !Array.isArray(value.actionVisits)) {
+    throw new Error(`Invalid contract root-Q fields at ply ${index + 1}`);
+  }
+  if (value.actionValues.length === 0 || value.actionValues.length !== value.actionVisits.length) {
+    throw new Error(`Invalid contract root-Q alignment at ply ${index + 1}`);
+  }
+  if (value.actionValues.some((item) => typeof item !== "number" || !Number.isFinite(item) || item < -1 || item > 1)) {
+    throw new Error(`Invalid contract root-Q values at ply ${index + 1}`);
+  }
+  if (value.actionVisits.some((item) => !Number.isSafeInteger(item) || Number(item) < 0)) {
+    throw new Error(`Invalid contract root-Q visits at ply ${index + 1}`);
+  }
+  return {
+    actionValues: value.actionValues.map(Number),
+    actionVisits: value.actionVisits.map(Number),
+    actionValueSource: ROOT_Q_SOURCE,
+  };
 }
 
 function validatePolicy(value: unknown, index: number): number[] {

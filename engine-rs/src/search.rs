@@ -36,6 +36,7 @@ pub struct SearchConfig {
     pub max_nodes: u64,
     pub beam_width: usize,
     pub weights: EvaluationWeights,
+    pub tactical_proof_horizon: Option<u8>,
 }
 
 impl Default for SearchConfig {
@@ -45,6 +46,7 @@ impl Default for SearchConfig {
             max_nodes: 90_000,
             beam_width: 40,
             weights: EvaluationWeights::default(),
+            tactical_proof_horizon: None,
         }
     }
 }
@@ -93,6 +95,30 @@ struct TableEntry {
 }
 
 pub fn search_best_action(state: GameState, config: SearchConfig) -> SearchResult {
+    if state.config.board_size <= 4 {
+        if let Some(horizon) = config.tactical_proof_horizon {
+            let result = crate::endgame::search_best_action(
+                state,
+                crate::endgame::TacticalProofConfig {
+                    horizon,
+                    max_nodes: config.max_nodes,
+                },
+            );
+            let score = match result.outcome {
+                1 => WIN_SCORE - i32::from(state.ply),
+                -1 => -WIN_SCORE + i32::from(state.ply),
+                _ => 0,
+            };
+            return SearchResult {
+                action: result.action,
+                score,
+                nodes: result.nodes,
+                exhausted: result.exhausted,
+                completed_depth: result.completed_depth,
+                table_hits: result.table_hits,
+            };
+        }
+    }
     let root_player = state.turn;
     let initial_actions = ordered_actions(state, root_player, config.weights);
     if initial_actions.is_empty() {
@@ -567,5 +593,47 @@ mod tests {
             assert!(result.action.is_some(), "{size}x{size} search returned no action");
             assert!(state.legal_actions().contains(&result.action.unwrap()), "{size}x{size} search returned an illegal action");
         }
+    }
+
+    #[test]
+    fn optional_tactical_proof_mode_selects_a_forced_block() {
+        let config = crate::BoardConfig::new(4, 5)
+            .expect("valid board config")
+            .with_max_plies(64)
+            .expect("valid ply limit");
+        let state = GameState {
+            config,
+            light: [5_u8, 7, 9, 11, 15]
+                .into_iter()
+                .fold(0, |mask, square| mask | (1_u64 << square)),
+            dark: [1_u8, 2, 3, 6, 10]
+                .into_iter()
+                .fold(0, |mask, square| mask | (1_u64 << square)),
+            reserve: [0, 0],
+            turn: Player::Light,
+            forbidden: 0,
+            last_relocated_to: [None, None],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: 20,
+        };
+        let result = search_best_action(
+            state,
+            SearchConfig {
+                tactical_proof_horizon: Some(3),
+                max_nodes: 100_000,
+                ..SearchConfig::default()
+            },
+        );
+        assert!(
+            [5_u8, 7, 9, 11, 15]
+                .into_iter()
+                .map(|from| Action::Relocate { from, to: 0 })
+                .any(|action| result.action == Some(action))
+        );
+        assert_eq!(result.score, 0);
+        assert_eq!(result.completed_depth, 3);
+        assert!(!result.exhausted);
     }
 }

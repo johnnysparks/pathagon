@@ -40,6 +40,17 @@ pub struct PuctResult {
     pub evaluations: Vec<PuctActionEvaluation>,
 }
 
+impl PuctResult {
+    /// Export evaluations in the same legal-action order used by the archive
+    /// contract. Values are already from the root player's perspective.
+    pub fn root_q_targets(&self) -> Result<crate::contract::RootQTargets, String> {
+        crate::contract::RootQTargets::new(
+            self.evaluations.iter().map(|evaluation| evaluation.value).collect(),
+            self.evaluations.iter().map(|evaluation| evaluation.visits).collect(),
+        )
+    }
+}
+
 struct Node {
     state: GameState,
     actions: Vec<Action>,
@@ -303,6 +314,10 @@ mod tests {
                 .sum::<u32>(),
             12
         );
+        let targets = result.root_q_targets().expect("export root-Q targets");
+        assert_eq!(targets.action_values.len(), result.evaluations.len());
+        assert_eq!(targets.action_visits.iter().sum::<u32>(), 12);
+        assert_eq!(targets.action_values[0], result.evaluations[0].value);
         assert!(GameState::new()
             .legal_actions()
             .contains(&result.action.unwrap()));

@@ -8,6 +8,7 @@ use std::collections::VecDeque;
 
 pub mod corpus;
 pub mod contract;
+pub mod endgame;
 pub mod learned;
 pub mod model;
 pub mod runtime;
@@ -72,7 +73,7 @@ impl BoardConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Player {
     Light,
     Dark,

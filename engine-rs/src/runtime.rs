@@ -47,6 +47,8 @@ pub struct RuntimeSearchConfig {
     #[serde(rename = "beamWidth")]
     pub beam_width: usize,
     pub weights: crate::search::EvaluationWeights,
+    #[serde(rename = "tacticalProofHorizon", default)]
+    pub tactical_proof_horizon: Option<u8>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -89,6 +91,7 @@ impl From<MoveEvaluation> for RuntimeMoveEvaluation {
             table_hits: result.table_hits,
         }
     }
+
 }
 
 impl From<SearchResult> for RuntimeSearchResult {
@@ -243,6 +246,7 @@ impl From<RuntimeSearchConfig> for SearchConfig {
             max_nodes: config.max_nodes,
             beam_width: config.beam_width,
             weights: config.weights,
+            tactical_proof_horizon: config.tactical_proof_horizon,
         }
     }
 }
@@ -352,6 +356,7 @@ mod tests {
             max_nodes: 100,
             beam_width: 16,
             weights: crate::search::EvaluationWeights::default(),
+            tactical_proof_horizon: None,
         })
         .expect("encode search config");
         let actions: Vec<ContractAction> =
@@ -371,5 +376,14 @@ mod tests {
             serde_json::from_str(&many).expect("decode evaluations");
         assert_eq!(many.len(), 7);
         assert!(many.windows(2).all(|pair| pair[0].score >= pair[1].score));
+    }
+
+    #[test]
+    fn runtime_search_config_exposes_optional_tactical_proof_horizon() {
+        let config: RuntimeSearchConfig = serde_json::from_str(
+            r#"{"depth":4,"maxNodes":90000,"beamWidth":40,"weights":{"path":240,"material":110,"capture":700,"structure":55,"threat":130,"edge":80},"tacticalProofHorizon":3}"#,
+        )
+        .expect("decode tactical proof search config");
+        assert_eq!(SearchConfig::from(config).tactical_proof_horizon, Some(3));
     }
 }

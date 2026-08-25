@@ -25,6 +25,7 @@ fn main() {
             max_nodes: number(&args, "nodes", defaults.search.max_nodes),
             beam_width: number(&args, "beam", defaults.search.beam_width),
             weights,
+            tactical_proof_horizon: None,
         },
     };
     let output = PathBuf::from(args.get("out").map(String::as_str).unwrap_or("training/rust-v1"));

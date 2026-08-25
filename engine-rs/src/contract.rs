@@ -9,6 +9,31 @@ use serde::{Deserialize, Serialize};
 
 pub const CONTRACT_VERSION: u8 = 1;
 pub const RULES_VERSION: &str = "pathagon-rules-v1";
+pub const ROOT_Q_SOURCE: &str = "mcts-root-q-v1";
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RootQTargets {
+    pub action_values: Vec<f32>,
+    pub action_visits: Vec<u32>,
+}
+
+impl RootQTargets {
+    pub fn new(action_values: Vec<f32>, action_visits: Vec<u32>) -> Result<Self, String> {
+        let targets = Self { action_values, action_visits };
+        targets.validate()?;
+        Ok(targets)
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if self.action_values.is_empty() || self.action_values.len() != self.action_visits.len() {
+            return Err("root-Q values and visits must be non-empty and aligned".to_owned());
+        }
+        if self.action_values.iter().any(|value| !value.is_finite() || !(-1.0..=1.0).contains(value)) {
+            return Err("root-Q action value outside -1..1".to_owned());
+        }
+        Ok(())
+    }
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -128,6 +153,12 @@ pub struct ContractMove {
     pub table_hits: u64,
     #[serde(default)]
     pub policy: Option<Vec<f32>>,
+    #[serde(rename = "actionValues", default, skip_serializing_if = "Option::is_none")]
+    pub action_values: Option<Vec<f32>>,
+    #[serde(rename = "actionVisits", default, skip_serializing_if = "Option::is_none")]
+    pub action_visits: Option<Vec<u32>>,
+    #[serde(rename = "actionValueSource", default, skip_serializing_if = "Option::is_none")]
+    pub action_value_source: Option<String>,
     pub score: Option<i32>,
     #[serde(rename = "bookHit")]
     pub book_hit: Option<bool>,
@@ -252,6 +283,7 @@ impl ReplayRecord {
                     return Err("invalid move policy".to_owned());
                 }
             }
+            validate_root_q_fields(&movement.action_values, &movement.action_visits, &movement.action_value_source)?;
         }
         Ok(())
     }
@@ -260,6 +292,14 @@ impl ReplayRecord {
         let record: Self = serde_json::from_str(text).map_err(|error| error.to_string())?;
         record.validate()?;
         Ok(record)
+    }
+}
+
+fn validate_root_q_fields(values: &Option<Vec<f32>>, visits: &Option<Vec<u32>>, source: &Option<String>) -> Result<(), String> {
+    match (values, visits, source) {
+        (None, None, None) => Ok(()),
+        (Some(values), Some(visits), Some(source)) if source == ROOT_Q_SOURCE => RootQTargets::new(values.clone(), visits.clone()).map(|_| ()),
+        _ => Err("root-Q fields must include aligned values, visits, and the supported source".to_owned()),
     }
 }
 

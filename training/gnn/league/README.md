@@ -21,12 +21,12 @@ league tools. They are provisional comparison signals, not human Elo.
 
 ## Archive families
 
-- `league-*` files are historical board-size or checkpoint league snapshots.
+- `league-*` files are historical 7x7 checkpoint league snapshots.
 - `scout-policy-*` files are focused pairwise experiments for learned players.
 - `rust-*.jsonl` and machine-labelled JSONL files are offline replay archives
   suitable for validation and dataset construction.
-- The 7x7 records are the canonical strength evidence; smaller-board records
-  are curriculum or regression material.
+- The 7x7 records are the canonical strength evidence. Smaller-board curriculum
+  and regression material lives in the dedicated self-play and evaluation paths.
 
 Large archives should eventually move to the external/ignored data path with a
 tracked manifest and hash. The public copies under `public/lab/` are currently

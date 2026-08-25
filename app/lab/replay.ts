@@ -10,6 +10,9 @@ export type ReplayMove = {
   action: ReplayAction;
   captured: number[];
   policy?: number[];
+  actionValues?: number[];
+  actionVisits?: number[];
+  actionValueSource?: "mcts-root-q-v1";
 };
 
 export type ReplayGame = {
@@ -127,6 +130,9 @@ function normalizeMove(raw: unknown): ReplayMove {
     captured: Array.isArray(value.captured) ? value.captured.map(Number) : [],
   };
   if (Array.isArray(value.policy)) move.policy = value.policy.map(Number);
+  if (Array.isArray(value.actionValues)) move.actionValues = value.actionValues.map(Number);
+  if (Array.isArray(value.actionVisits)) move.actionVisits = value.actionVisits.map(Number);
+  if (value.actionValueSource === "mcts-root-q-v1") move.actionValueSource = value.actionValueSource;
   return move;
 }
 

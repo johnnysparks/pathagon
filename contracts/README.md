@@ -18,6 +18,9 @@ The contract intentionally uses portable square arrays in `Position` rather
 than Rust bitboards or Python masks. Runtime-specific search diagnostics are
 optional move fields; board, reserves, turn, forbidden squares, and relocation
 markers are mandatory because they affect replay and repetition.
+For PUCT archives, `actionValues`, `actionVisits`, and `actionValueSource` are
+an optional complete set; the arrays use the state's legal-action order and
+the source is `mcts-root-q-v1`.
 
 Contract changes require the cross-runtime parity suite. See
 [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) for runtime ownership and

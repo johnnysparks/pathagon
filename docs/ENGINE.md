@@ -27,6 +27,11 @@ Use `--jsonl` for complete machine-readable records and `--opponent search` for
 search-versus-search matches. For a provenance-stamped archive, use
 `scripts/run-rust-archive.sh` as described in [`WORKFLOWS.md`](WORKFLOWS.md).
 
+For the opt-in small-board tactical proof mode, add
+`--tactical-proof-horizon 3`. It applies only to boards up to 4x4, searches
+the full legal action set, and records the mode in the agent parameters. The
+default 7x7 heuristic search is unchanged.
+
 ## Curated corpus
 
 ```bash
