@@ -350,7 +350,7 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .replay-stage-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
 .replay-stage-heading h3 { margin: 4px 0 0; font-family: Georgia, serif; font-size: 25px; font-weight: 500; }
 .replay-board-frame { width: min(100%, 420px); margin: 0 auto; padding: 10px; border-radius: 9px; background: linear-gradient(135deg, #8c6034, #b0814c 48%, #7b512e); box-shadow: inset 0 0 0 2px rgba(58,36,17,.28), 0 5px 12px rgba(58,39,20,.15); }
-.replay-board { display: grid; aspect-ratio: 1; overflow: hidden; border: 2px solid rgba(62,39,20,.48); background: #b88c59; }
+.replay-board { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(7, minmax(0, 1fr)); aspect-ratio: 1; overflow: hidden; border: 2px solid rgba(62,39,20,.48); background: #b88c59; }
 .replay-cell { position: relative; display: grid; place-items: center; min-width: 0; border: 1px solid rgba(88,56,28,.28); background: rgba(220,185,137,.18); }
 .replay-socket { position: absolute; z-index: 1; width: 24%; aspect-ratio: 1; border-radius: 2px; background: #7b532f; box-shadow: 1px 1px 1px rgba(255,255,255,.22), inset 1px 1px 2px rgba(45,23,8,.45); transform: rotate(45deg); opacity: .72; }
 .replay-piece { position: absolute; z-index: 2; width: 76%; aspect-ratio: 1; clip-path: polygon(29% 0, 71% 0, 100% 29%, 100% 71%, 71% 100%, 29% 100%, 0 71%, 0 29%); }
