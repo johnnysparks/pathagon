@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { applyAction, createGame } from "../pathagon";
+import type { ContractMove, ContractReplayRecord } from "../contract";
 
 const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
 
@@ -206,6 +208,15 @@ type LiveGame = {
   plies: number;
 };
 
+type ArchivedReplayGame = {
+  id: string;
+  recordedAt: string;
+  engine: string;
+  mode: string;
+  runId: string | null;
+  record: ContractReplayRecord;
+};
+
 type HeadToHead = {
   leftId: string;
   rightId: string;
@@ -235,6 +246,14 @@ export default function LearningLab() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [crossPlay, setCrossPlay] = useState<CrossPlayState | null>(null);
   const [crossPlayError, setCrossPlayError] = useState<string | null>(null);
+  const [replaySummary, setReplaySummary] = useState<LiveGame | null>(null);
+  const [replayGame, setReplayGame] = useState<ArchivedReplayGame | null>(null);
+  const [replayPly, setReplayPly] = useState(0);
+  const [replayPlaying, setReplayPlaying] = useState(false);
+  const [replayLoadingId, setReplayLoadingId] = useState<string | null>(null);
+  const [replayError, setReplayError] = useState<string | null>(null);
+  const [replayModalOpen, setReplayModalOpen] = useState(false);
+  const replayRequest = useRef(0);
 
   const liveStandingById = useMemo(
     () => new Map((crossPlay?.standings ?? []).map((standing) => [standing.id, standing])),
@@ -271,6 +290,49 @@ export default function LearningLab() {
   }, []);
 
   useEffect(() => {
+    if (!replayModalOpen || !replayPlaying || !replayGame) return;
+    if (replayPly >= replayGame.record.moves.length) {
+      const finishTimer = window.setTimeout(() => setReplayPlaying(false), 0);
+      return () => window.clearTimeout(finishTimer);
+    }
+    const timer = window.setTimeout(() => setReplayPly((current) => current + 1), 650);
+    return () => window.clearTimeout(timer);
+  }, [replayGame, replayModalOpen, replayPlaying, replayPly]);
+
+  useEffect(() => {
+    if (!replayModalOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        replayRequest.current += 1;
+        setReplayPlaying(false);
+        setReplayModalOpen(false);
+        return;
+      }
+      if (!replayGame) return;
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setReplayPlaying(false);
+        setReplayPly((current) => Math.max(0, current - 1));
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        setReplayPly((current) => Math.min(replayGame.record.moves.length, current + 1));
+      } else if (event.key === " ") {
+        event.preventDefault();
+        setReplayPlaying((current) => !current);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [replayGame, replayModalOpen]);
+
+  useEffect(() => {
+    if (!replayModalOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [replayModalOpen]);
+
+  useEffect(() => {
     document.body.dataset.labTheme = theme;
     return () => { delete document.body.dataset.labTheme; };
   }, [theme]);
@@ -300,6 +362,41 @@ export default function LearningLab() {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
     window.localStorage.setItem("pathagon-lab-theme", nextTheme);
+  }
+
+  async function openReplay(game: LiveGame) {
+    const requestId = replayRequest.current + 1;
+    replayRequest.current = requestId;
+    setReplaySummary(game);
+    setReplayGame(null);
+    setReplayPly(0);
+    setReplayPlaying(false);
+    setReplayLoadingId(game.id);
+    setReplayError(null);
+    setReplayModalOpen(true);
+    try {
+      const response = await fetch(`/api/selfplay/${encodeURIComponent(game.id)}`, { cache: "no-store" });
+      const payload = await response.json() as { found?: boolean; game?: ArchivedReplayGame; error?: string };
+      if (requestId !== replayRequest.current) return;
+      if (!response.ok || !payload.game) throw new Error(payload.error ?? "Replay unavailable");
+      setReplayGame(payload.game);
+    } catch (error: unknown) {
+      if (requestId === replayRequest.current) setReplayError(error instanceof Error ? error.message : "Replay unavailable");
+    } finally {
+      if (requestId === replayRequest.current) setReplayLoadingId(null);
+    }
+  }
+
+  function closeReplay() {
+    replayRequest.current += 1;
+    setReplayPlaying(false);
+    setReplayModalOpen(false);
+  }
+
+  function changeReplayPly(nextPly: number) {
+    if (!replayGame) return;
+    setReplayPlaying(false);
+    setReplayPly(Math.max(0, Math.min(replayGame.record.moves.length, nextPly)));
   }
 
   return (
@@ -358,7 +455,7 @@ export default function LearningLab() {
           <div><strong>{crossPlay?.latest[0]?.winner ?? (crossPlay?.latest[0] ? "draw" : "—")}</strong><span>latest stored result</span></div>
         </div>
         {crossPlayError ? <p className="live-run-error" role="status">{crossPlayError} · retrying automatically</p> : null}
-        {crossPlay?.latest.length ? <div className="live-game-list" aria-label="Latest cross-play games">{crossPlay.latest.map((game) => <div className="live-game-row" key={game.id}><span className="live-game-number">{shortGameId(game.id)}</span><strong>{game.light}</strong><span>vs</span><strong>{game.dark}</strong><span className="live-game-result">{game.winner ? `${game.winner} · ${game.plies} plies` : `draw · ${game.plies} plies`}</span></div>)}</div> : <p className="live-run-empty">Waiting for an imported offline cross-play result.</p>}
+        {crossPlay?.latest.length ? <div className="live-game-list" aria-label="Latest cross-play games">{crossPlay.latest.map((game) => <button className="live-game-row" type="button" key={game.id} onClick={() => void openReplay(game)} aria-label={`Replay ${game.light} versus ${game.dark}`}><span className="live-game-number">{shortGameId(game.id)}</span><strong>{game.light}</strong><span>vs</span><strong>{game.dark}</strong><span className="live-game-result">{game.winner ? `${game.winner} · ${game.plies} plies` : `draw · ${game.plies} plies`} <em>Replay ↗</em></span></button>)}</div> : <p className="live-run-empty">Waiting for an imported offline cross-play result.</p>}
       </section>
 
       <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
@@ -390,6 +487,7 @@ export default function LearningLab() {
       </section>
 
       <footer className="portal-footer"><span>7×7 model leaderboard</span><span>Read-only view · polling the imported archive</span></footer>
+      {replayModalOpen ? <ReplayModal summary={replaySummary} game={replayGame} loading={Boolean(replayLoadingId)} error={replayError} ply={replayPly} playing={replayPlaying} onClose={closeReplay} onPlayPause={() => setReplayPlaying((current) => !current)} onPlyChange={changeReplayPly} /> : null}
     </main>
   );
 }
@@ -427,6 +525,95 @@ function formatRecord(standing: Pick<LiveStanding, "wins" | "losses" | "draws">)
 function shortGameId(id: string) {
   const suffix = id.split("-").pop();
   return suffix && /^\d+$/.test(suffix) ? `#${suffix}` : `…${id.slice(-8)}`;
+}
+
+function ReplayModal({ summary, game, loading, error, ply, playing, onClose, onPlayPause, onPlyChange }: {
+  summary: LiveGame | null;
+  game: ArchivedReplayGame | null;
+  loading: boolean;
+  error: string | null;
+  ply: number;
+  playing: boolean;
+  onClose: () => void;
+  onPlayPause: () => void;
+  onPlyChange: (ply: number) => void;
+}) {
+  return <div className="replay-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className="replay-modal" role="dialog" aria-modal="true" aria-labelledby="replay-modal-title">
+      <header className="replay-modal-header">
+        <div><span className="portal-kicker">Imported archive · read-only</span><h2 id="replay-modal-title">Game playback</h2><p>{summary ? `${summary.light} vs ${summary.dark}` : "Loading archived game"}</p></div>
+        <button className="replay-modal-close" type="button" onClick={onClose} aria-label="Close game playback">×</button>
+      </header>
+      {loading ? <div className="replay-modal-state"><strong>Loading the archived moves…</strong><span>Fetching the validated replay from the lab archive.</span></div> : error ? <div className="replay-modal-state error" role="alert"><strong>Couldn&apos;t load this replay.</strong><span>{error}</span></div> : game ? <ReplayViewer game={game} summary={summary} ply={ply} playing={playing} onPlayPause={onPlayPause} onPlyChange={onPlyChange} /> : <div className="replay-modal-state"><strong>Replay not selected.</strong></div>}
+    </section>
+  </div>;
+}
+
+function ReplayViewer({ game, summary, ply, playing, onPlayPause, onPlyChange }: {
+  game: ArchivedReplayGame;
+  summary: LiveGame | null;
+  ply: number;
+  playing: boolean;
+  onPlayPause: () => void;
+  onPlyChange: (ply: number) => void;
+}) {
+  const moves = game.record.moves;
+  const state = useMemo(() => {
+    let current = createGame(game.record.config);
+    for (const move of moves.slice(0, ply)) current = applyAction(current, move.action);
+    return current;
+  }, [game.record.config, moves, ply]);
+  const move = ply > 0 ? moves[ply - 1] : null;
+  const winnerLabel = summary?.winner ?? (game.record.winner ? playerName(game.record.winner) : null);
+  const status = state.winner ? `${winnerLabel ?? playerName(state.winner)} wins · ${game.record.reason}` : ply === 0 ? "Starting position" : `${playerName(state.turn)} to move`;
+
+  return <div className="replay-viewer">
+    <div className="replay-viewer-topline"><span>{game.record.engine.runtime} engine · seed {game.record.seed}</span><strong>{ply} / {moves.length} plies</strong></div>
+    <div className="replay-board-frame">
+      <div className="replay-board" role="grid" aria-label={`Pathagon board at ply ${ply}`}>
+        {state.board.map((piece, index) => {
+          const forbidden = state.forbidden.includes(index);
+          const winning = state.winningPath.includes(index);
+          const last = state.lastAction?.to === index;
+          return <div className={`replay-cell ${last ? "last" : ""} ${winning ? "winning" : ""}`} key={index} role="gridcell" aria-label={replayCellLabel(index, piece, forbidden, winning, state.config.boardSize)}><span className="replay-socket" />{piece ? <span className={`replay-piece ${piece}`} /> : null}{forbidden ? <span className="replay-forbidden" aria-hidden="true">×</span> : null}</div>;
+        })}
+      </div>
+    </div>
+    <div className="replay-status-row"><span className={`replay-turn-dot ${state.turn}`} /><div><strong>{move ? describeReplayMove(move, state.config.boardSize) : status}</strong><small>{move ? status : `${game.record.config.boardSize}×${game.record.config.boardSize} board · ${game.record.agents.light} vs ${game.record.agents.dark}`}</small></div></div>
+    <div className="replay-controls" aria-label="Replay controls">
+      <button className="replay-control" type="button" onClick={() => onPlyChange(0)} disabled={ply === 0} aria-label="Go to start">|◀</button>
+      <button className="replay-control" type="button" onClick={() => onPlyChange(ply - 1)} disabled={ply === 0} aria-label="Previous move">←</button>
+      <button className="replay-control replay-play" type="button" onClick={onPlayPause} aria-label={playing ? "Pause replay" : "Play replay"}>{playing ? "Pause" : "Play"}</button>
+      <button className="replay-control" type="button" onClick={() => onPlyChange(ply + 1)} disabled={ply === moves.length} aria-label="Next move">→</button>
+      <button className="replay-control" type="button" onClick={() => onPlyChange(moves.length)} disabled={ply === moves.length} aria-label="Go to final position">▶|</button>
+    </div>
+    <input className="replay-scrubber" type="range" min="0" max={moves.length} value={ply} onChange={(event) => onPlyChange(Number(event.target.value))} aria-label="Replay position" />
+    <div className="replay-scrubber-labels"><span>Start</span><span>{moves.length ? `Final · ${winnerLabel ?? "draw"}` : "No moves"}</span></div>
+    <p className="replay-key-hint">Space to play/pause · ← → to step · Esc to close</p>
+  </div>;
+}
+
+function describeReplayMove(move: ContractMove, boardSize: number) {
+  const action = move.action.kind === "place"
+    ? `placed at ${coordinate(move.action.to, boardSize)}`
+    : `moved ${coordinate(move.action.from, boardSize)} → ${coordinate(move.action.to, boardSize)}`;
+  const captures = move.captured.length ? ` · captured ${move.captured.length} ${move.captured.length === 1 ? "piece" : "pieces"}` : "";
+  return `${playerName(move.player)} ${action}${captures}`;
+}
+
+function replayCellLabel(index: number, piece: "light" | "dark" | null, forbidden: boolean, winning: boolean, boardSize: number) {
+  const location = coordinate(index, boardSize);
+  if (winning) return `${location}, ${piece ?? "empty"}, winning path`;
+  if (forbidden) return `${location}, captured and temporarily unavailable`;
+  return `${location}, ${piece ?? "empty"}`;
+}
+
+function coordinate(index: number, boardSize: number) {
+  return `${String.fromCharCode(65 + (index % boardSize))}${Math.floor(index / boardSize) + 1}`;
+}
+
+function playerName(player: "light" | "dark") {
+  return player === "light" ? "Light" : "Dark";
 }
 
 async function readLatestCrossPlay(): Promise<CrossPlayState> {
