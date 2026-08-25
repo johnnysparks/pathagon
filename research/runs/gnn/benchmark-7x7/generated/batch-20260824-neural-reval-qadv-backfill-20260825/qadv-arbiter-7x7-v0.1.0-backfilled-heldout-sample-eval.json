@@ -1,0 +1,59 @@
+{
+  "boardSize": 7,
+  "checkpoint": "research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-qadv-backfill-20260825/qadv-arbiter-7x7-v0.1.0-backfilled.pt",
+  "data": "work/qadv-backfill-verify.xE3NB1/benchmark-qadv/all.jsonl",
+  "examples": 4000,
+  "games": 78,
+  "heldoutFraction": 0.2,
+  "metrics": {
+    "all": {
+      "positions": 4000,
+      "predictedPairwiseAccuracy": 0.5113528551797718,
+      "predictedSelectedActionIsTargetQMax": 0.1865,
+      "predictedSelectedActionTargetQRank": 37.59225,
+      "qMae": 0.10412699896741455,
+      "qMse": 0.025699637048654606,
+      "qSpread": 0.3694885812032998,
+      "selectedActionIsQMax": 0.18075,
+      "selectedActionQPercentile": 0.5923698116043706,
+      "selectedActionQRank": 37.431,
+      "targetPolicyPairwiseAccuracy": 0.6461065667413061,
+      "visitedActions": 9.172,
+      "visitedPairs": 297772
+    },
+    "placement": {
+      "positions": 3225,
+      "predictedPairwiseAccuracy": 0.41072065470439084,
+      "predictedSelectedActionIsTargetQMax": 0.20186046511627906,
+      "predictedSelectedActionTargetQRank": 15.528372093023256,
+      "qMae": 0.0952999768530842,
+      "qMse": 0.019141629911288104,
+      "qSpread": 0.32075124854203363,
+      "selectedActionIsQMax": 0.19813953488372094,
+      "selectedActionQPercentile": 0.6045389826697342,
+      "selectedActionQRank": 14.413953488372092,
+      "targetPolicyPairwiseAccuracy": 0.7346587727018161,
+      "visitedActions": 7.346356589147287,
+      "visitedPairs": 154268
+    },
+    "relocation": {
+      "positions": 775,
+      "predictedPairwiseAccuracy": 0.6206558947412907,
+      "predictedSelectedActionIsTargetQMax": 0.12258064516129032,
+      "predictedSelectedActionTargetQRank": 129.40645161290323,
+      "qMae": 0.12624563106791734,
+      "qMse": 0.042132602244061595,
+      "qSpread": 0.5722987719550295,
+      "selectedActionIsQMax": 0.10838709677419354,
+      "selectedActionQPercentile": 0.5417303578162477,
+      "selectedActionQRank": 133.2116129032258,
+      "targetPolicyPairwiseAccuracy": 0.5281596334185849,
+      "visitedActions": 16.769032258064517,
+      "visitedPairs": 143504
+    }
+  },
+  "reservePerPlayer": 14,
+  "split": "heldout",
+  "splitSeed": 2026082500,
+  "totalExamples": 177221
+}
