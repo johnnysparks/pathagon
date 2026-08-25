@@ -36,7 +36,7 @@ export function validateSelfPlayRecord(value: unknown): SelfPlayGameRecord {
   }
   const agents = validateAgents(input.agents);
   const plies = input.plies;
-  const config = normalizeConfig(input.config, input.boardSize, input.reservePerPlayer, plies);
+  const config = normalizeConfig(input.config, input.boardSize, input.reservePerPlayer, plies, input.reason);
   const engine = normalizeEngine(input.engine);
   const agentSpecifications = normalizeAgentSpecifications(input.agentSpecifications, agents, engine);
   const winner = input.winner === null ? null : validatePlayer(input.winner, "winner");
@@ -53,7 +53,7 @@ export function validateSelfPlayRecord(value: unknown): SelfPlayGameRecord {
 
   let state = createGame(config);
   const moves = input.moves.map((candidate, index) => {
-    const move = validateMove(candidate, index, state.turn, config.boardSize * config.boardSize);
+    const move = validateMove(candidate, index, state.turn, config.boardSize * config.boardSize, legalActions(state).length);
     let next: ReturnType<typeof applyAction>;
     try {
       next = applyAction(state, move.action);
@@ -70,6 +70,9 @@ export function validateSelfPlayRecord(value: unknown): SelfPlayGameRecord {
   if (state.winner !== winner) throw new Error("Self-play winner does not match replay");
   if (input.reason === "path" && !winner) throw new Error("Path termination requires a winner");
   if (input.reason !== "path" && winner) throw new Error("Only path termination may have a winner");
+  if (input.reason === "max-plies" && Number(plies) !== config.maxPlies) {
+    throw new Error("Max-plies termination does not reach the configured limit");
+  }
   if (input.reason === "no-legal-action" && legalActions(state).length > 0) {
     throw new Error("No-legal-action termination is not proved by replay");
   }
@@ -90,11 +93,17 @@ export function validateSelfPlayRecord(value: unknown): SelfPlayGameRecord {
   return validateContractReplay(normalized);
 }
 
-function normalizeConfig(value: unknown, boardSize: unknown, reserve: unknown, plies: unknown): GameConfig {
+function normalizeConfig(value: unknown, boardSize: unknown, reserve: unknown, plies: unknown, reason: unknown): GameConfig {
   if (value !== undefined) return validateGameConfig(value);
   const size = Number.isInteger(boardSize) ? Number(boardSize) : DEFAULT_GAME_CONFIG.boardSize;
   const pieces = Number.isInteger(reserve) ? Number(reserve) : DEFAULT_GAME_CONFIG.reservePerPlayer;
-  const maxPlies = Math.max(DEFAULT_GAME_CONFIG.maxPlies, Number.isInteger(plies) ? Number(plies) : 0);
+  // Schema-v2 archives predate the nested config. Their size-aware generators
+  // used four board traversals as the default cap; a max-plies result carries
+  // the exact cap even when that producer used a custom value.
+  const inferredMaxPlies = reason === "max-plies" && Number.isInteger(plies)
+    ? Number(plies)
+    : size * size * 4;
+  const maxPlies = Math.max(1, inferredMaxPlies);
   return validateGameConfig({ ...DEFAULT_GAME_CONFIG, boardSize: size, reservePerPlayer: pieces, maxPlies });
 }
 
@@ -146,7 +155,7 @@ function validateAgentId(value: unknown) {
   return value;
 }
 
-function validateMove(value: unknown, index: number, expectedPlayer: Player, cellCount: number): SelfPlayMoveRecord {
+function validateMove(value: unknown, index: number, expectedPlayer: Player, cellCount: number, legalActionCount: number): SelfPlayMoveRecord {
   if (!value || typeof value !== "object") throw new Error(`Invalid self-play move at ply ${index + 1}`);
   const input = value as Record<string, unknown>;
   if (input.ply !== index + 1) throw new Error(`Invalid self-play move number at ply ${index + 1}`);
@@ -173,9 +182,14 @@ function validateMove(value: unknown, index: number, expectedPlayer: Player, cel
     move.bookHit = input.bookHit;
   }
   const rootQ = validateRootQFields(input, index);
-  if (rootQ) Object.assign(move, rootQ);
+  if (rootQ) {
+    if (rootQ.actionValues!.length !== legalActionCount) {
+      throw new Error(`Invalid self-play root-Q alignment at ply ${index + 1}`);
+    }
+    Object.assign(move, rootQ);
+  }
   if (input.policy !== undefined) {
-    if (!Array.isArray(input.policy) || input.policy.length === 0 || input.policy.some((probability) => typeof probability !== "number" || !Number.isFinite(probability) || probability < 0 || probability > 1) || input.policy.reduce((total, probability) => total + Number(probability), 0) <= 0) {
+    if (!Array.isArray(input.policy) || input.policy.length !== legalActionCount || input.policy.length === 0 || input.policy.some((probability) => typeof probability !== "number" || !Number.isFinite(probability) || probability < 0 || probability > 1) || input.policy.reduce((total, probability) => total + Number(probability), 0) <= 0) {
       throw new Error(`Invalid self-play policy at ply ${index + 1}`);
     }
     move.policy = input.policy.map(Number);

@@ -1,7 +1,10 @@
 # Separated value and action-policy experiment
 
-Status: proposed experiment. This document describes the next learning
-direction; it does not change the current production or research models.
+Status: pilot implementation. The Q/advantage path is isolated from the
+production and existing policy-value models. The implementation lives in
+`research/gnn/transition.py`, the `qadv` training mode in
+`research/gnn/train.py`, and the evaluation/arena harnesses in
+`scripts/evaluate-qadv-pilot.py` and `scripts/run-qadv-arena.py`.
 
 ## Motivation
 
@@ -83,8 +86,11 @@ to:
 ```
 
 Action values from four simulations are too noisy for a serious target. The
-first Q/A dataset should use at least 32 simulations, preferably 64, and keep
-the root visit counts so target quality can be audited.
+pilot corpus used for the first checkpoint uses 128 simulations, 64 games,
+and retains root visit counts so target quality can be audited. Even this
+remains a shallow corpus relative to the legal action space, especially for
+relocations, so its checkpoint is an evaluation instrument rather than a
+strength claim.
 
 ### Secondary targets
 

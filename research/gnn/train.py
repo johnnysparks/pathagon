@@ -41,11 +41,12 @@ def build_model(
     message_layers: int,
     residual_blocks: int,
     board_size: int,
+    qadv: bool = False,
 ) -> NeuralModel:
     if architecture == "cnn":
-        return PathagonCNN(hidden_size=hidden_size, residual_blocks=residual_blocks, board_size=board_size)
+        return PathagonCNN(hidden_size=hidden_size, residual_blocks=residual_blocks, board_size=board_size, qadv=qadv)
     if architecture == "gnn":
-        return PathagonGNN(hidden_size=hidden_size, message_layers=message_layers)
+        return PathagonGNN(hidden_size=hidden_size, message_layers=message_layers, qadv=qadv)
     raise ValueError(f"unsupported architecture: {architecture}")
 
 
@@ -104,19 +105,27 @@ def save_model(model: NeuralModel, path: Path, metadata: Dict) -> None:
     torch.save({"model_config": model.config_dict(), "state_dict": model.state_dict(), "metadata": metadata}, path)
 
 
-def load_model(path: Path, device: torch.device) -> NeuralModel:
+def load_model(path: Path, device: torch.device, qadv: Optional[bool] = None) -> NeuralModel:
     checkpoint = torch.load(path, map_location=device)
     config = checkpoint["model_config"]
     architecture = config.get("architecture", "residual-mean-message-passing")
+    checkpoint_qadv = bool(config.get("qadv") or config.get("action_value_head"))
+    use_qadv = checkpoint_qadv if qadv is None else qadv
     if architecture == "residual-cnn-7x7":
         model = PathagonCNN(
             hidden_size=config["hidden_size"],
             residual_blocks=config["residual_blocks"],
             board_size=config.get("board_size", 7),
+            qadv=use_qadv,
         ).to(device)
     else:
-        model = PathagonGNN(config["hidden_size"], config["message_layers"]).to(device)
-    model.load_state_dict(checkpoint["state_dict"])
+        model = PathagonGNN(config["hidden_size"], config["message_layers"], qadv=use_qadv).to(device)
+    if use_qadv != checkpoint_qadv:
+        # A Q/A run can warm-start its shared encoder and policy/value heads
+        # from a historical checkpoint whose new action heads are absent.
+        model.load_state_dict(checkpoint["state_dict"], strict=False)
+    else:
+        model.load_state_dict(checkpoint["state_dict"])
     return model
 
 
@@ -168,6 +177,115 @@ def train_replay(
         if progress is not None:
             progress(step, steps, policy_total / step, value_total / step)
     return policy_total / steps, value_total / steps
+
+
+def _aligned_q_targets(
+    example: ReplayExample,
+    actions: Sequence,
+    device: torch.device,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    if example.action_values is None or example.action_visits is None or example.action_value_actions is None:
+        raise ValueError("Q/A training requires action values, visits, and action alignment")
+    values_by_action = dict(zip(example.action_value_actions, example.action_values))
+    visits_by_action = dict(zip(example.action_value_actions, example.action_visits))
+    values = torch.tensor([values_by_action[action] for action in actions], dtype=torch.float32, device=device)
+    visits = torch.tensor([visits_by_action[action] for action in actions], dtype=torch.float32, device=device)
+    return values, visits
+
+
+def pairwise_rank_loss(predicted: torch.Tensor, target: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
+    """Bradley-Terry-style ranking loss over visited action pairs."""
+
+    visited = [int(index) for index in torch.nonzero(weights > 0, as_tuple=False).flatten().tolist()]
+    losses: list[torch.Tensor] = []
+    pair_weights: list[torch.Tensor] = []
+    for left_index, left in enumerate(visited):
+        for right in visited[left_index + 1 :]:
+            difference = target[left] - target[right]
+            if abs(float(difference.detach().cpu())) < 1.0e-6:
+                continue
+            direction = torch.sign(difference)
+            losses.append(F.softplus(-direction * (predicted[left] - predicted[right])))
+            pair_weights.append(torch.sqrt(weights[left] * weights[right]))
+    if not losses:
+        return predicted.sum() * 0.0
+    values = torch.stack(losses)
+    pair_weight_tensor = torch.stack(pair_weights)
+    return (values * pair_weight_tensor).sum() / pair_weight_tensor.sum().clamp_min(1.0e-8)
+
+
+def train_qadv_replay(
+    model: NeuralModel,
+    examples: Sequence[ReplayExample],
+    steps: int,
+    learning_rate: float,
+    seed: int,
+    q_weight: float = 1.0,
+    advantage_weight: float = 0.5,
+    rank_weight: float = 0.25,
+    progress: Optional[Callable[[int, int, Dict[str, float]], None]] = None,
+    symmetry_augmentation: bool = True,
+) -> Dict[str, float]:
+    """Train policy/value plus visit-weighted root-Q and action-ranking losses."""
+
+    if not examples:
+        raise ValueError("Q/A replay dataset is empty")
+    if not getattr(model, "qadv", False):
+        raise ValueError("Q/A training requires a qadv-enabled model")
+    if steps < 1:
+        raise ValueError("Q/A training steps must be positive")
+    rng = random.Random(seed)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-4)
+    model.train()
+    totals = {key: 0.0 for key in ("loss", "policy_loss", "value_loss", "q_loss", "advantage_loss", "rank_loss")}
+    for step in range(1, steps + 1):
+        example = examples[rng.randrange(len(examples))]
+        if symmetry_augmentation:
+            example = transform_replay_example(example, sample_symmetry(rng))
+        actions = list(example.state.legal_actions())
+        logits, value, q_values, advantages = model.policy_value_q(example.state, actions)
+        if example.policy is None:
+            target = torch.tensor([action_index(example.state, example.action)], dtype=torch.long, device=logits.device)
+            policy_loss = F.cross_entropy(logits.unsqueeze(0), target)
+        else:
+            if example.policy_actions is None:
+                raise ValueError("replay policy is missing its action alignment")
+            policy_by_action = dict(zip(example.policy_actions, example.policy))
+            target_policy = torch.tensor(
+                [policy_by_action[action] for action in actions], dtype=logits.dtype, device=logits.device
+            )
+            target_policy = target_policy / target_policy.sum().clamp_min(1.0e-8)
+            policy_loss = -(target_policy * F.log_softmax(logits, dim=0)).sum()
+
+        target_q, visits = _aligned_q_targets(example, actions, logits.device)
+        weights = torch.sqrt(visits / visits.sum().clamp_min(1.0))
+        q_loss_values = F.smooth_l1_loss(q_values, target_q, reduction="none")
+        q_loss = (q_loss_values * weights).sum() / weights.sum().clamp_min(1.0e-8)
+        q_baseline = (target_q * weights).sum() / weights.sum().clamp_min(1.0e-8)
+        target_advantage = target_q - q_baseline
+        advantage_loss_values = F.smooth_l1_loss(advantages, target_advantage, reduction="none")
+        advantage_loss = (advantage_loss_values * weights).sum() / weights.sum().clamp_min(1.0e-8)
+        rank_loss = pairwise_rank_loss(q_values, target_q, weights)
+        expected_value = torch.tensor(example.value, dtype=value.dtype, device=value.device)
+        value_loss = F.mse_loss(value, expected_value)
+        loss = policy_loss + value_loss + q_weight * q_loss + advantage_weight * advantage_loss + rank_weight * rank_loss
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+        values = {
+            "loss": float(loss.detach().cpu()),
+            "policy_loss": float(policy_loss.detach().cpu()),
+            "value_loss": float(value_loss.detach().cpu()),
+            "q_loss": float(q_loss.detach().cpu()),
+            "advantage_loss": float(advantage_loss.detach().cpu()),
+            "rank_loss": float(rank_loss.detach().cpu()),
+        }
+        for key, item in values.items():
+            totals[key] += item
+        if progress is not None:
+            progress(step, steps, {key: value / step for key, value in totals.items()})
+    return {key: value / steps for key, value in totals.items()}
 
 
 def train_search_examples(
@@ -352,6 +470,130 @@ def run_warmstart(args: argparse.Namespace) -> None:
     print(json.dumps(metadata | {"out": args.out, "device": str(device)}, sort_keys=True))
 
 
+def load_replay_source(source: Path, config: BoardConfig) -> List[ReplayExample]:
+    """Load one JSONL replay or all JSONL files in a generated batch directory."""
+
+    paths = sorted(source.glob("*.jsonl")) if source.is_dir() else [source]
+    if not paths:
+        raise FileNotFoundError(f"no JSONL replay files found under {source}")
+    examples: List[ReplayExample] = []
+    for path in paths:
+        examples.extend(load_replay_examples(path, config=config))
+    return examples
+
+
+def split_replay_examples(
+    examples: Sequence[ReplayExample],
+    heldout_fraction: float,
+    seed: int,
+) -> tuple[List[ReplayExample], List[ReplayExample]]:
+    """Split by complete game seed so positions from one game do not leak."""
+
+    if not 0.0 <= heldout_fraction < 1.0:
+        raise ValueError("heldout_fraction must be in [0, 1)")
+    seeds = sorted({example.seed for example in examples})
+    heldout_seeds = {
+        game_seed
+        for game_seed in seeds
+        if int.from_bytes(hashlib.sha256(f"{seed}:{game_seed}".encode()).digest()[:8], "big") / float(1 << 64)
+        < heldout_fraction
+    }
+    if heldout_fraction and not heldout_seeds and len(seeds) > 1:
+        heldout_seeds = {seeds[-1]}
+    if heldout_fraction and len(heldout_seeds) == len(seeds) and len(seeds) > 1:
+        heldout_seeds.remove(seeds[-1])
+    train = [example for example in examples if example.seed not in heldout_seeds]
+    heldout = [example for example in examples if example.seed in heldout_seeds]
+    if not train:
+        raise ValueError("game-grouped split produced an empty training partition")
+    return train, heldout
+
+
+def qadv_training_progress(label: str) -> Callable[[int, int, Dict[str, float]], None]:
+    started = time.perf_counter()
+
+    def report(step: int, total: int, metrics: Dict[str, float]) -> None:
+        interval = max(1, total // 100)
+        if step != 1 and step != total and step % interval != 0:
+            return
+        elapsed = time.perf_counter() - started
+        rate = step / elapsed if elapsed > 0 else 0.0
+        print(
+            f"{label}: step {step}/{total} ({step / total:.1%}) "
+            f"loss={metrics['loss']:.4f} q_loss={metrics['q_loss']:.4f} "
+            f"advantage_loss={metrics['advantage_loss']:.4f} rank_loss={metrics['rank_loss']:.4f} "
+            f"elapsed={elapsed:.1f}s steps_per_second={rate:.2f}",
+            file=sys.stderr,
+            flush=True,
+        )
+
+    return report
+
+
+def run_qadv(args: argparse.Namespace) -> None:
+    if args.size != 7:
+        raise SystemExit("qadv currently targets the canonical 7x7 board")
+    device = choose_device(args.device)
+    torch.manual_seed(args.seed)
+    config = BoardConfig(7, 14)
+    source = Path(args.data)
+    print(f"qadv: loading and validating replay from {source}", file=sys.stderr, flush=True)
+    examples = load_replay_source(source, config)
+    if args.max_examples:
+        examples = examples[: args.max_examples]
+    train_examples, heldout_examples = split_replay_examples(examples, args.heldout_fraction, args.seed)
+    if args.resume:
+        model = load_model(Path(args.resume), device, qadv=True)
+    else:
+        model = build_model(args.architecture, args.hidden, args.layers, args.cnn_blocks, 7, qadv=True).to(device)
+    model.train()
+    print(
+        f"qadv: training {len(train_examples)} positions ({len(heldout_examples)} held out) "
+        f"for {args.steps} steps on {device}",
+        file=sys.stderr,
+        flush=True,
+    )
+    metrics = train_qadv_replay(
+        model,
+        train_examples,
+        args.steps,
+        args.learning_rate,
+        args.seed,
+        q_weight=args.q_weight,
+        advantage_weight=args.advantage_weight,
+        rank_weight=args.rank_weight,
+        progress=qadv_training_progress("qadv"),
+        symmetry_augmentation=args.symmetry_augmentation,
+    )
+    model.eval()
+    metadata = {
+        "mode": "qadv-replay",
+        "agent_id": args.agent_id,
+        "agent_name": args.agent_name,
+        "agent_version": args.agent_version,
+        "data": str(source),
+        "examples": len(examples),
+        "train_examples": len(train_examples),
+        "heldout_examples": len(heldout_examples),
+        "train_games": len({example.seed for example in train_examples}),
+        "heldout_games": len({example.seed for example in heldout_examples}),
+        "architecture": model.config_dict()["architecture"],
+        "board_size": 7,
+        "reserve_per_player": config.reserve_per_player,
+        "action_value_head": model.config_dict()["action_value_head"],
+        "q_target_source": "mcts-root-q-v1",
+        "q_weight": args.q_weight,
+        "advantage_weight": args.advantage_weight,
+        "rank_weight": args.rank_weight,
+        "steps": args.steps,
+        "learning_rate": args.learning_rate,
+        "symmetry_augmentation": args.symmetry_augmentation,
+        **metrics,
+    }
+    save_model(model, Path(args.out), metadata)
+    print(json.dumps(metadata | {"out": args.out, "device": str(device)}, sort_keys=True))
+
+
 def run_alphazero(args: argparse.Namespace) -> None:
     device = choose_device(args.device)
     selfplay_device = choose_device(args.selfplay_device)
@@ -502,7 +744,7 @@ def run_alphazero(args: argparse.Namespace) -> None:
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
-    result.add_argument("mode", choices=("warmstart", "alphazero"))
+    result.add_argument("mode", choices=("warmstart", "alphazero", "qadv"))
     result.add_argument("--data", help="schema-v2 JSONL for replay warm-start")
     result.add_argument("--out", default="research/runs/gnn/pathagon.pt")
     result.add_argument("--games-out", help="append generated schema-v2 games to this JSONL file")
@@ -523,6 +765,10 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--selfplay-device", default="cpu", help="device used by self-play workers")
     result.add_argument("--simulations", type=int, default=64, help="PUCT simulations per move (32-64 recommended for training)")
     result.add_argument("--updates", type=int, default=10_000, help="optimizer updates per generation (0 generates data without training)")
+    result.add_argument("--q-weight", type=float, default=1.0, help="root-Q regression loss weight for qadv training")
+    result.add_argument("--advantage-weight", type=float, default=0.5, help="centered advantage loss weight for qadv training")
+    result.add_argument("--rank-weight", type=float, default=0.25, help="pairwise action-ranking loss weight for qadv training")
+    result.add_argument("--heldout-fraction", type=float, default=0.2, help="game-grouped held-out fraction for qadv training")
     result.add_argument("--replay-limit", type=int, default=100_000, help="maximum positions retained in the replay buffer")
     result.add_argument("--temperature-moves", type=int, default=8)
     result.add_argument("--agent-id", default="python-gnn-puct-v0.1.0")
@@ -548,6 +794,10 @@ def main() -> None:
         if not args.data:
             raise SystemExit("warmstart requires --data <schema-v2.jsonl>")
         run_warmstart(args)
+    elif args.mode == "qadv":
+        if not args.data:
+            raise SystemExit("qadv requires --data <JSONL or generated batch directory>")
+        run_qadv(args)
     else:
         run_alphazero(args)
 

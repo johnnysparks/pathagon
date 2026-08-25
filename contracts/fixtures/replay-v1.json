@@ -5,7 +5,7 @@
     "rulesVersion": "pathagon-rules-v1",
     "boardSize": 3,
     "reservePerPlayer": 6,
-    "maxPlies": 36,
+    "maxPlies": 1,
     "repetitionLimit": 3
   },
   "engine": {

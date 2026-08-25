@@ -139,6 +139,32 @@ class GNNAgent:
         return actions[max(range(len(actions)), key=lambda index: (filtered[index], -action_sort_key(actions[index])))]
 
 
+class QAdvAgent:
+    """Direct legal-action selector backed by a dueling Q/advantage head."""
+
+    def __init__(self, model: torch.nn.Module) -> None:
+        if not getattr(model, "qadv", False):
+            raise ValueError("QAdvAgent requires a qadv-enabled model")
+        self.model = model
+
+    def choose_action(self, state: GameState, _rng: random.Random, history: Set[tuple]) -> Action | None:
+        actions = list(state.legal_actions())
+        if not actions:
+            return None
+        with torch.no_grad():
+            _logits, _value, q_values, _advantages = self.model.policy_value_q(state, actions)
+        safe = [
+            index for index, action in enumerate(actions)
+            if repetition_key(state.apply_legal(action)) not in history
+        ]
+        candidate_indices = safe or list(range(len(actions)))
+        chosen_index = max(
+            candidate_indices,
+            key=lambda index: (float(q_values[index].detach().cpu()), -action_sort_key(actions[index])),
+        )
+        return actions[chosen_index]
+
+
 class PolicyBeamAgent:
     """Iterative beam search with a learned policy and value at each node.
 

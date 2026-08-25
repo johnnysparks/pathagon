@@ -10,6 +10,7 @@ from torch.nn import functional as F
 
 from .game import Action, GameState
 from .graph import GLOBAL_FEATURES, build_graph
+from .transition import TRANSITION_FEATURE_NAMES, TRANSITION_FEATURES, transition_features
 
 
 BOARD_SIZE = 7
@@ -40,7 +41,7 @@ class PathagonCNN(nn.Module):
     ``PathagonGNN``, this model intentionally rejects other board sizes.
     """
 
-    def __init__(self, hidden_size: int = 32, residual_blocks: int = 4, board_size: int = BOARD_SIZE) -> None:
+    def __init__(self, hidden_size: int = 32, residual_blocks: int = 4, board_size: int = BOARD_SIZE, qadv: bool = False) -> None:
         super().__init__()
         if board_size != BOARD_SIZE:
             raise ValueError("PathagonCNN is fixed to a 7x7 board")
@@ -51,6 +52,7 @@ class PathagonCNN(nn.Module):
         self.board_size = board_size
         self.hidden_size = hidden_size
         self.residual_block_count = residual_blocks
+        self.qadv = qadv
         self.input = nn.Conv2d(BOARD_FEATURES, hidden_size, kernel_size=3, padding=1)
         self.input_normalization = nn.GroupNorm(4, hidden_size)
         self.blocks = nn.ModuleList(ResidualConvBlock(hidden_size) for _ in range(residual_blocks))
@@ -74,6 +76,17 @@ class PathagonCNN(nn.Module):
             nn.GELU(),
             nn.Linear(hidden_size // 2, 1),
         )
+        if qadv:
+            self.advantage_place_head = nn.Sequential(
+                nn.Linear(hidden_size * 2 + TRANSITION_FEATURES, hidden_size),
+                nn.GELU(),
+                nn.Linear(hidden_size, 1),
+            )
+            self.advantage_relocate_head = nn.Sequential(
+                nn.Linear(hidden_size * 3 + TRANSITION_FEATURES, hidden_size),
+                nn.GELU(),
+                nn.Linear(hidden_size, 1),
+            )
 
     def encode(self, state: GameState) -> Tuple[torch.Tensor, torch.Tensor]:
         if state.config.size != self.board_size:
@@ -161,6 +174,40 @@ class PathagonCNN(nn.Module):
         value = torch.tanh(self.value_head(context).squeeze(-1))
         return policy_logits, value
 
+    def policy_value_q(
+        self,
+        state: GameState,
+        actions: Optional[List[Action]] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Return policy logits, V(s), per-action Q(s,a), and centered A(s,a)."""
+
+        if not self.qadv:
+            raise RuntimeError("Q/advantage scoring requires a qadv-enabled model")
+        legal = actions if actions is not None else list(state.legal_actions())
+        board_nodes, context = self.encode(state)
+        transition = transition_features(state, legal, device=context.device)
+        logits: List[torch.Tensor] = []
+        advantages: List[torch.Tensor] = []
+        for index, action in enumerate(legal):
+            if action.kind == 0:
+                action_features = torch.cat((board_nodes[action.to], context), dim=0)
+                logits.append(self.place_head(action_features).squeeze(-1))
+                q_features = torch.cat((action_features, transition[index]), dim=0)
+                advantages.append(self.advantage_place_head(q_features).squeeze(-1))
+            else:
+                action_features = torch.cat((board_nodes[action.from_square], board_nodes[action.to], context), dim=0)
+                logits.append(self.relocate_head(action_features).squeeze(-1))
+                q_features = torch.cat((action_features, transition[index]), dim=0)
+                advantages.append(self.advantage_relocate_head(q_features).squeeze(-1))
+        policy_logits = torch.stack(logits) if logits else torch.empty((0,), dtype=context.dtype, device=context.device)
+        value_logit = self.value_head(context).squeeze(-1)
+        value = torch.tanh(value_logit)
+        raw_advantages = torch.stack(advantages) if advantages else torch.empty((0,), dtype=context.dtype, device=context.device)
+        centered = raw_advantages - raw_advantages.mean() if len(raw_advantages) else raw_advantages
+        q_values = torch.tanh(value_logit + centered)
+        centered_q = q_values - q_values.mean() if len(q_values) else q_values
+        return policy_logits, value, q_values, centered_q
+
     def forward(self, state: GameState, actions: Optional[List[Action]] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         return self.policy_value(state, actions)
 
@@ -173,4 +220,7 @@ class PathagonCNN(nn.Module):
             "input_features": BOARD_FEATURES,
             "global_features": GLOBAL_FEATURES,
             "action_head": "dynamic-place-and-relocate-pair",
+            "qadv": self.qadv,
+            "action_value_head": "dueling-transition-qadv-v1" if self.qadv else None,
+            "transition_features": list(TRANSITION_FEATURE_NAMES) if self.qadv else None,
         }

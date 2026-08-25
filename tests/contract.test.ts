@@ -23,7 +23,11 @@ test("root-Q targets round-trip and reject partial archives", async () => {
   const record = validateContractReplay(fixture);
   assert.deepEqual(record.moves[0].actionValues, [-0.25, 0.75]);
   assert.deepEqual(record.moves[0].actionVisits, [2, 10]);
-  assert.deepEqual(validateSelfPlayRecord(fixture).moves[0], record.moves[0]);
+
+  const replayFixture = JSON.parse(JSON.stringify(fixture));
+  replayFixture.moves[0].actionValues = Array(9).fill(-0.25);
+  replayFixture.moves[0].actionVisits = Array(9).fill(2);
+  assert.equal(validateSelfPlayRecord(replayFixture).moves[0].actionValues?.length, 9);
 
   const partial = { ...fixture, moves: fixture.moves.map((move: Record<string, unknown>) => ({ ...move, actionVisits: [2] })) };
   assert.throws(() => validateContractReplay(partial), /root-Q alignment/);

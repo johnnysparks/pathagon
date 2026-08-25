@@ -17,6 +17,14 @@ mode, run ID, agents, result, termination reason, seed, and ply count. Git is
 for small curated corpora, manifests, selected checkpoints, and reports—not a
 log store.
 
+Archive validation has two layers. Contract validation checks the shape and
+bounds of a record; self-play validation additionally replays every action and
+checks captures, the winner, policy/Q-target alignment, and provable terminal
+conditions. A `max-plies` record must end exactly at `config.maxPlies`. A
+`threefold-repetition` reason is retained as producer metadata because the
+current contract does not include the full position-history sequence needed to
+prove it independently.
+
 The checked-in Drizzle migrations are the schema authority. Request handlers do
 not create or alter tables at request time.
 

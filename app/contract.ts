@@ -291,4 +291,4 @@ function integer(value: unknown, label: string) { if (!Number.isSafeInteger(valu
 function nonNegativeInteger(value: unknown, label: string) { const number = integer(value, label); if (number < 0) throw new Error(`Invalid ${label}`); return number; }
 function evaluatorWeight(value: unknown, label: string) { const number = integer(value, label); if (number < -2_147_483_648 || number > 2_147_483_647) throw new Error(`Invalid ${label}`); return number; }
 function integerInRange(value: unknown, minimum: number, maximum: number): value is number { return Number.isSafeInteger(value) && Number(value) >= minimum && Number(value) <= maximum; }
-function isRecord(value: unknown): value is Record<string, any> { return Boolean(value) && typeof value === "object" && !Array.isArray(value); }
+function isRecord(value: unknown): value is Record<string, unknown> { return Boolean(value) && typeof value === "object" && !Array.isArray(value); }
