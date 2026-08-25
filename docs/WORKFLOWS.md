@@ -93,11 +93,15 @@ Run one bounded incremental round manually with:
 
 The runner writes an isolated report under `research/runs/gnn/hourly/` and
 does not overwrite or promote existing checkpoints. Each round generates a
-fresh 7x7 self-play slice, rebuilds the deduplicated corpus with held-out
-seeds, clean-trains full and compact GNNs plus full and compact CNNs, scores
-the candidates, and runs them against the active league roster. Hourly
-reports and league games are excluded from later training inputs; only the
-self-play archives are added to the corpus.
+fresh policy/value self-play slice plus a separate higher-budget root-Q slice
+(32 simulations per move by default), rebuilds both deduplicated corpora with
+held-out seeds, clean-trains full and compact GNNs plus full and compact CNNs,
+and warm-starts a Q/Advantage checkpoint from the complete action-value pool.
+The ordinary benchmark excludes the Q-target files, so policy/value and Q/A
+examples do not silently change each other's weighting. Reports include the
+Q-target source, coverage, checkpoint hash, and ranking losses. Hourly reports
+and league games are excluded from later training inputs; only the self-play
+archives are added to the corpus.
 
 The macOS LaunchAgent installed for this workspace invokes the same command
 once per hour. The runner uses a directory lock so an overlong round causes

@@ -3,12 +3,14 @@
 
 Each round is deliberately isolated and append-only:
 
-1. generate a fresh, provenance-stamped 7x7 self-play slice;
-2. rebuild a deduplicated train/held-out corpus without consuming prior hourly
+1. generate a fresh, provenance-stamped 7x7 policy/value self-play slice;
+2. generate a separate higher-budget root-Q/action-value slice;
+3. rebuild a deduplicated train/held-out corpus without consuming prior hourly
    reports or league games as training data;
-3. clean-train several architecture lanes from the new corpus;
-4. score every candidate on the held-out split; and
-5. run the current league roster plus the new candidates through a
+4. clean-train several policy/value architecture lanes and a Q/Advantage
+   checkpoint from their separate corpora;
+5. score every candidate on the held-out split; and
+6. run the current league roster plus the new candidates through a
    color-rotated round-robin.
 
 The runner never overwrites a checkpoint or promotes a model to the browser.
@@ -37,6 +39,8 @@ sys.path.insert(0, str(REPO_ROOT))
 DEFAULT_RUN_ROOT = REPO_ROOT / "research/runs/gnn/hourly"
 DEFAULT_VENV_PYTHON = REPO_ROOT / ".venv-pathagon-gnn/bin/python"
 PLAYERS = ("scout", "learner", "cnn")
+ROOT_Q_SOURCE = "mcts-root-q-v1"
+DEFAULT_QADV_CHECKPOINT = REPO_ROOT / "research/runs/gnn/benchmark-7x7/generated/batch-20260824-qadv-128-pilot-20260824/qadv-arbiter-7x7-v0.1.0.pt"
 
 ARCHITECTURES = {
     "full-gnn": {
@@ -161,6 +165,48 @@ def last_json_line(output: str) -> dict:
     raise RuntimeError("command completed without a JSON result line")
 
 
+def inspect_qadv_batch(path: Path) -> dict:
+    """Require every generated game to carry complete root-Q targets."""
+    paths = sorted(path.glob("*.jsonl"))
+    if not paths:
+        raise RuntimeError(f"Q/Advantage generation produced no JSONL files under {path}")
+    games = positions = q_positions = 0
+    incomplete_games = 0
+    for source in paths:
+        with source.open(encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, start=1):
+                if not line.strip():
+                    continue
+                record = json.loads(line)
+                moves = record.get("moves", [])
+                games += 1
+                positions += len(moves)
+                complete = all(
+                    isinstance(move, dict)
+                    and isinstance(move.get("actionValues"), list)
+                    and isinstance(move.get("actionVisits"), list)
+                    and move.get("actionValueSource") == ROOT_Q_SOURCE
+                    and len(move["actionValues"]) == len(move["actionVisits"])
+                    and len(move["actionValues"]) > 0
+                    for move in moves
+                )
+                if complete:
+                    q_positions += len(moves)
+                else:
+                    incomplete_games += 1
+    if incomplete_games:
+        raise RuntimeError(
+            f"Q/Advantage generation produced {incomplete_games} games without complete {ROOT_Q_SOURCE} targets"
+        )
+    return {
+        "files": len(paths),
+        "games": games,
+        "positions": positions,
+        "qPositions": q_positions,
+        "actionValueSource": ROOT_Q_SOURCE,
+    }
+
+
 def parse_names(value: str, allowed: tuple[str, ...], label: str) -> list[str]:
     names = [item.strip() for item in value.split(",") if item.strip()]
     unknown = [item for item in names if item not in allowed]
@@ -184,6 +230,61 @@ def checkpoint_hash(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return f"sha256:{digest.hexdigest()}"
+
+
+def train_qadv_candidate(
+    *,
+    python: str,
+    data_path: Path,
+    resume_path: Path,
+    output_path: Path,
+    steps: int,
+    learning_rate: float,
+    seed: int,
+    heldout_fraction: float,
+    device: str,
+    log_path: Path,
+    timeout_seconds: int,
+) -> dict:
+    if not resume_path.is_file():
+        raise RuntimeError(f"missing Q/Advantage warm-start checkpoint: {resume_path}")
+    command = [
+        python,
+        "-m",
+        "research.gnn.train",
+        "qadv",
+        "--data",
+        str(data_path),
+        "--resume",
+        str(resume_path),
+        "--out",
+        str(output_path),
+        "--size",
+        "7",
+        "--steps",
+        str(steps),
+        "--learning-rate",
+        str(learning_rate),
+        "--heldout-fraction",
+        str(heldout_fraction),
+        "--seed",
+        str(seed),
+        "--device",
+        device,
+        "--agent-id",
+        "qadv-arbiter-7x7-hourly",
+        "--agent-name",
+        "The Q-Arbiter · Hourly Q/Advantage",
+    ]
+    result = last_json_line(run_command(command, REPO_ROOT, log_path, timeout_seconds))
+    result.update(
+        {
+            "checkpoint": str(output_path.relative_to(REPO_ROOT)),
+            "modelHash": checkpoint_hash(output_path),
+            "warmStart": str(resume_path.relative_to(REPO_ROOT)),
+        }
+    )
+    return result
 
 
 def train_candidate(
@@ -383,12 +484,15 @@ def run_round(args: argparse.Namespace, round_number: int, run_dir: Path, python
     seed = seed_for_round(round_number)
     log_path = run_dir / "run.log"
     data_dir = run_dir / "data"
+    policy_data_dir = data_dir / "policy"
+    qadv_data_dir = data_dir / "qadv"
     benchmark_dir = run_dir / "benchmark-7x7"
+    qadv_benchmark_dir = run_dir / "benchmark-qadv"
     models_dir = run_dir / "models"
     data_dir.mkdir(parents=True, exist_ok=True)
     models_dir.mkdir(parents=True, exist_ok=True)
 
-    generation_command = [
+    policy_generation_command = [
         python,
         "scripts/generate-7x7-selfplay.py",
         "--games-per-player",
@@ -410,9 +514,36 @@ def run_round(args: argparse.Namespace, round_number: int, run_dir: Path, python
         "--device",
         args.device,
         "--output-dir",
-        str(data_dir),
+        str(policy_data_dir),
     ]
-    run_command(generation_command, REPO_ROOT, log_path, args.command_timeout)
+    run_command(policy_generation_command, REPO_ROOT, log_path, args.command_timeout)
+
+    qadv_generation_command = [
+        python,
+        "scripts/generate-7x7-selfplay.py",
+        "--games-per-player",
+        str(args.qadv_games_per_player),
+        "--players",
+        ",".join(args.players),
+        "--seed",
+        str(seed + 5_000),
+        "--workers",
+        str(args.workers),
+        "--simulations",
+        str(args.qadv_simulations),
+        "--temperature-moves",
+        str(args.qadv_temperature_moves),
+        "--max-plies",
+        "196",
+        "--selfplay-device",
+        args.selfplay_device,
+        "--device",
+        args.device,
+        "--output-dir",
+        str(qadv_data_dir),
+    ]
+    run_command(qadv_generation_command, REPO_ROOT, log_path, args.command_timeout)
+    qadv_generation = inspect_qadv_batch(qadv_data_dir)
 
     benchmark_command = [
         python,
@@ -428,6 +559,8 @@ def run_round(args: argparse.Namespace, round_number: int, run_dir: Path, python
         "--exclude-path",
         "hourly/*/benchmark-7x7/*",
         "--exclude-path",
+        "hourly/*/data/qadv/*.jsonl",
+        "--exclude-path",
         "hourly/*/league.json",
         "--exclude-path",
         "hourly/*/report.json",
@@ -437,6 +570,51 @@ def run_round(args: argparse.Namespace, round_number: int, run_dir: Path, python
         "hourly/latest.json",
     ]
     benchmark_result = last_json_line(run_command(benchmark_command, REPO_ROOT, log_path, args.command_timeout))
+
+    qadv_benchmark_command = [
+        python,
+        "scripts/build-7x7-benchmark.py",
+        "--root",
+        "research/runs/gnn",
+        "--output",
+        str(qadv_benchmark_dir),
+        "--heldout-fraction",
+        str(args.heldout_fraction),
+        "--seed",
+        str(seed + 2),
+        "--require-action-values",
+        "--exclude-path",
+        "hourly/*/benchmark-7x7/*",
+        "--exclude-path",
+        "hourly/*/benchmark-qadv/*",
+        "--exclude-path",
+        "hourly/*/league.json",
+        "--exclude-path",
+        "hourly/*/report.json",
+        "--exclude-path",
+        "hourly/*/failure.json",
+        "--exclude-path",
+        "hourly/latest.json",
+    ]
+    qadv_benchmark_result = last_json_line(
+        run_command(qadv_benchmark_command, REPO_ROOT, log_path, args.command_timeout)
+    )
+    qadv_checkpoint = Path(args.qadv_checkpoint)
+    if not qadv_checkpoint.is_absolute():
+        qadv_checkpoint = REPO_ROOT / qadv_checkpoint
+    qadv_candidate = train_qadv_candidate(
+        python=python,
+        data_path=qadv_benchmark_dir / "all.jsonl",
+        resume_path=qadv_checkpoint,
+        output_path=models_dir / "qadv-arbiter.pt",
+        steps=args.qadv_training_steps,
+        learning_rate=args.qadv_learning_rate,
+        seed=seed + 300,
+        heldout_fraction=args.heldout_fraction,
+        device=args.device,
+        log_path=log_path,
+        timeout_seconds=args.command_timeout,
+    )
 
     candidates: list[dict] = []
     evaluations: list[dict] = []
@@ -501,7 +679,18 @@ def run_round(args: argparse.Namespace, round_number: int, run_dir: Path, python
             "players": args.players,
             "gamesPerPlayer": args.games_per_player,
             "outputDir": str(data_dir.relative_to(REPO_ROOT)),
+            "policyOutputDir": str(policy_data_dir.relative_to(REPO_ROOT)),
             "benchmark": benchmark_result,
+        },
+        "qadvantage": {
+            "players": args.players,
+            "gamesPerPlayer": args.qadv_games_per_player,
+            "simulations": args.qadv_simulations,
+            "temperatureMoves": args.qadv_temperature_moves,
+            "outputDir": str(qadv_data_dir.relative_to(REPO_ROOT)),
+            "generation": qadv_generation,
+            "benchmark": qadv_benchmark_result,
+            "candidate": qadv_candidate,
         },
         "cleanRetraining": {
             "steps": args.training_steps,
@@ -537,6 +726,12 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--training-steps", type=int, default=250)
     result.add_argument("--workers", type=int, default=2)
     result.add_argument("--selfplay-simulations", type=int, default=4)
+    result.add_argument("--qadv-games-per-player", type=int, default=8, help="fresh games per player for the root-Q target lane")
+    result.add_argument("--qadv-simulations", type=int, default=32, help="MCTS simulations per move for the root-Q target lane")
+    result.add_argument("--qadv-temperature-moves", type=int, default=16)
+    result.add_argument("--qadv-training-steps", type=int, default=1_000)
+    result.add_argument("--qadv-learning-rate", type=float, default=3e-4)
+    result.add_argument("--qadv-checkpoint", default=str(DEFAULT_QADV_CHECKPOINT))
     result.add_argument("--league-simulations", type=int, default=2)
     result.add_argument("--games-per-match", type=int, default=1)
     result.add_argument("--max-league-pairings", type=int, default=0, help="cap league pairings; 0 battles the full active roster")
@@ -554,7 +749,11 @@ def main() -> None:
     args = parser().parse_args()
     if args.smoke:
         args.games_per_player = 1
+        args.qadv_games_per_player = 1
         args.training_steps = 2
+        args.qadv_training_steps = 2
+        args.qadv_simulations = 2
+        args.qadv_temperature_moves = 8
         args.architectures = ["compact-gnn"]
         args.games_per_match = 1
         args.league_simulations = 1
@@ -562,8 +761,20 @@ def main() -> None:
         args.workers = 1
         args.command_timeout = min(args.command_timeout, 300)
         args.eval_max_examples = 256
-    if args.games_per_player < 1 or args.training_steps < 1 or args.workers < 1:
-        raise SystemExit("games, training steps, and workers must be positive")
+    if any(
+        value < 1
+        for value in (
+            args.games_per_player,
+            args.qadv_games_per_player,
+            args.training_steps,
+            args.qadv_training_steps,
+            args.qadv_simulations,
+            args.workers,
+        )
+    ):
+        raise SystemExit("games, simulations, training steps, and workers must be positive")
+    if args.qadv_learning_rate <= 0:
+        raise SystemExit("Q/Advantage learning rate must be positive")
     if not 0.0 < args.heldout_fraction < 1.0:
         raise SystemExit("held-out fraction must be between 0 and 1")
     if args.games_per_match < 1 or args.league_simulations < 1:

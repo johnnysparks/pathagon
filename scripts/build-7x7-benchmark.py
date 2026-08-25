@@ -13,6 +13,7 @@ from typing import Iterable
 
 
 EXCLUDED_ENGINES = {"typescript-live-cross-play"}
+ROOT_Q_SOURCE = "mcts-root-q-v1"
 
 
 def records_from_value(value: object) -> Iterable[dict]:
@@ -73,11 +74,27 @@ def replay_signature(record: dict, size: int, reserve: int) -> str:
     payload = {
         "size": size,
         "reserve": reserve,
+        "agents": record.get("agents"),
         "winner": record.get("winner"),
         "moves": [move.get("action") for move in record["moves"]],
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def has_complete_action_values(record: dict) -> bool:
+    moves = record.get("moves")
+    if not isinstance(moves, list) or not moves:
+        return False
+    return all(
+        isinstance(move, dict)
+        and isinstance(move.get("actionValues"), list)
+        and isinstance(move.get("actionVisits"), list)
+        and move.get("actionValueSource") == ROOT_Q_SOURCE
+        and len(move["actionValues"]) == len(move["actionVisits"])
+        and len(move["actionValues"]) > 0
+        for move in moves
+    )
 
 
 def group_key(record: dict, signature: str) -> str:
@@ -125,6 +142,11 @@ def main() -> None:
         default=[],
         help="relative glob pattern to exclude while discovering source archives; may be repeated",
     )
+    parser.add_argument(
+        "--require-action-values",
+        action="store_true",
+        help="keep only complete games whose every move has mcts-root-q-v1 action-value targets",
+    )
     args = parser.parse_args()
     if not 0.0 < args.heldout_fraction < 1.0:
         raise SystemExit("--heldout-fraction must be between 0 and 1")
@@ -133,6 +155,7 @@ def main() -> None:
     raw_counts: Counter[str] = Counter()
     raw_positions = 0
     skipped = []
+    skipped_missing_action_values = 0
     excluded_dirs = set(args.exclude_dir)
     excluded_paths = tuple(args.exclude_path)
 
@@ -155,6 +178,9 @@ def main() -> None:
             size, reserve = record_config(record, path)
             if size != 7 or reserve != 14:
                 skipped.append({"path": str(path), "size": size, "reserve": reserve})
+                continue
+            if args.require_action_values and not has_complete_action_values(record):
+                skipped_missing_action_values += 1
                 continue
             raw_counts[str(path)] += 1
             raw_positions += len(record["moves"])
@@ -192,6 +218,8 @@ def main() -> None:
         "heldoutGames": len(heldout_records),
         "heldoutPositions": position_count(heldout_records),
         "duplicateGamesRemoved": sum(raw_counts.values()) - len(ordered),
+        "requireActionValues": args.require_action_values,
+        "skippedMissingActionValues": skipped_missing_action_values,
         "trainSeeds": sorted({record.get("seed") for record in train_records if record.get("seed") is not None}),
         "heldoutSeeds": sorted({record.get("seed") for record in heldout_records if record.get("seed") is not None}),
         "sources": [{"path": path, "rawGames": count} for path, count in sorted(raw_counts.items())],
