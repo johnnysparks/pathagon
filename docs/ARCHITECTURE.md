@@ -1,7 +1,7 @@
 # Architecture
 
 Pathagon has four active planes: the browser product, the rules/search
-engines, the learning laboratory, and the game archive.
+engines, the research laboratory, and the game archive.
 
 ## Runtime ownership
 
@@ -9,7 +9,7 @@ engines, the learning laboratory, and the game archive.
 | --- | --- |
 | TypeScript in [`app/`](../app/) | Browser game state, UI, reference/coaching behavior, and regression fixtures |
 | Rust in [`engine-rs/`](../engine-rs/) | Bitboard rules, search, native self-play, evaluator training, and high-volume generation |
-| Python in [`learning/`](../learning/) | GNN/CNN construction, replay training, export, scoring, and learner leagues |
+| Python in [`research/gnn/`](../research/gnn/) | GNN/CNN construction, replay training, export, scoring, and learner leagues |
 | D1 through [`db/`](../db/) | Durable human and imported self-play archives |
 
 The Rust/WASM adapter is an active integration boundary. It must pass the

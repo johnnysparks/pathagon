@@ -7,14 +7,17 @@ const args = parseArgs(process.argv.slice(2));
 const file = args.file;
 const url = args.url;
 if (!file || !url) {
-  throw new Error("Usage: npm run selfplay:archive -- --file <json-or-jsonl> --url <site-url> [--engine rust|typescript] [--mode arena] [--run-id name]");
+  throw new Error("Usage: npm run selfplay:archive -- --file <json-or-jsonl> --url <site-url> --engine <rust|python> [--mode arena] [--run-id name]");
 }
 
 const sourcePath = resolve(file);
 const records = await loadRecords(sourcePath);
 if (!records.length) throw new Error(`No complete self-play records found in ${sourcePath}`);
 
-const engine = args.engine ?? "typescript";
+const engine = args.engine;
+if (engine !== "rust" && engine !== "python") {
+  throw new Error("Archive engine is required and must be rust or python");
+}
 const mode = args.mode ?? inferMode(sourcePath);
 const runId = sanitize(args.runId ?? basename(sourcePath).replace(/\.(json|jsonl)$/i, ""));
 const endpoint = url.replace(/\/$/, "") + "/api/selfplay";

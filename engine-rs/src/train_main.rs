@@ -28,7 +28,7 @@ fn main() {
             tactical_proof_horizon: None,
         },
     };
-    let output = PathBuf::from(args.get("out").map(String::as_str).unwrap_or("training/rust-v1"));
+    let output = PathBuf::from(args.get("out").map(String::as_str).unwrap_or("research/runs/rust-v1"));
     let started = Instant::now();
     let result = train(Champion::baseline(weights), config);
     let written = write_training_output(&output, &result)

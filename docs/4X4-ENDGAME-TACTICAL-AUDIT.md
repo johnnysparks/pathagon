@@ -9,14 +9,14 @@ Run it with:
 
 ```bash
 .venv-pathagon-gnn/bin/python scripts/evaluate-4x4-endgame.py \
-  --checkpoint training/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-gnn-30k.pt \
+  --checkpoint research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-gnn-30k.pt \
   --budgets 0,32,128 \
   --solver-horizon 3
 ```
 
 ## Solver labels
 
-`learning/gnn/solver.py` provides a generic legal-move AND/OR search with:
+`research/gnn/solver.py` provides a generic legal-move AND/OR search with:
 
 - a transposition table with exact, lower-bound, and upper-bound entries;
 - repetition-count signatures in the cache key, so threefold repetition is

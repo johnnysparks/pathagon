@@ -15,14 +15,14 @@ import torch
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from learning.gnn.game import BoardConfig, GameState, Player  # noqa: E402
-from learning.gnn.mcts import PUCTSearch  # noqa: E402
-from learning.gnn.solver import ExactSolver  # noqa: E402
-from learning.gnn.tactics import tactical_root  # noqa: E402
-from learning.gnn.train import load_model  # noqa: E402
+from research.gnn.game import BoardConfig, GameState, Player  # noqa: E402
+from research.gnn.mcts import PUCTSearch  # noqa: E402
+from research.gnn.solver import ExactSolver  # noqa: E402
+from research.gnn.tactics import tactical_root  # noqa: E402
+from research.gnn.train import load_model  # noqa: E402
 
 
-DEFAULT_CHECKPOINT = REPO_ROOT / "training/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-gnn-30k.pt"
+DEFAULT_CHECKPOINT = REPO_ROOT / "research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-gnn-30k.pt"
 
 
 def parse_budgets(value: str) -> tuple[int, ...]:

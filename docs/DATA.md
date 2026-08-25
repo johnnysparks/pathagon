@@ -7,12 +7,12 @@ research outputs. They should not all be managed the same way.
 
 | Data | Source of truth | Git policy |
 | --- | --- | --- |
-| Rules and UI code | `app/`, `engine-rs/`, `learning/` | Track normally |
+| Rules and UI code | `app/`, `engine-rs/`, `research/gnn/` | Track normally |
 | Contract and parity fixtures | `contracts/`, `fixtures/` | Track; changes require tests |
-| Small curated corpus | `corpus/` | Track and review diffs |
+| Small curated corpus | `research/corpora/` | Track and review diffs |
 | Large self-play archives | D1, local archive, or external storage | Ignore unless explicitly promoted |
-| Selected checkpoints | `training/` | Track when small and named in a report |
-| Dataset manifests and hashes | `training/` | Track |
+| Selected checkpoints | `research/runs/` | Track when small and named in a report |
+| Dataset manifests and hashes | `research/runs/` | Track |
 | Published lab snapshots | `public/lab/` | Build/deployment output; do not hand-edit |
 | Browser WASM/model artifacts | `public/engine/`, `public/models/` | Generated release artifacts with recorded hashes |
 

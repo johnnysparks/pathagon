@@ -38,7 +38,7 @@ default 7x7 heuristic search is unchanged.
 npm run rust:corpus -- --games 100 --seed 20260823 --opponent search
 ```
 
-The compact corpus under [`corpus/rust-v1/`](../corpus/rust-v1/) is reviewable
+The compact corpus under [`research/corpora/rust-v1/`](../research/corpora/rust-v1/) is reviewable
 knowledge, not disposable output. Large experimental archives should remain
 outside Git until they earn promotion into a curated corpus.
 

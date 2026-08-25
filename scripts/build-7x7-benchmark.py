@@ -108,8 +108,8 @@ def write_records(path: Path, records: Iterable[dict]) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=Path("training/gnn"))
-    parser.add_argument("--output", type=Path, default=Path("training/gnn/benchmark-7x7"))
+    parser.add_argument("--root", type=Path, default=Path("research/runs/gnn"))
+    parser.add_argument("--output", type=Path, default=Path("research/runs/gnn/benchmark-7x7"))
     parser.add_argument("--heldout-fraction", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=20260824)
     args = parser.parse_args()

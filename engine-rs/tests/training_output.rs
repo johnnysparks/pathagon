@@ -5,7 +5,7 @@ use pathagon_engine::corpus::{parse_compact_game, StrategyBook};
 
 #[test]
 fn tracked_training_splits_are_replayable_and_separate() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../training/rust-v1/corpus");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../research/runs/rust-v1/corpus");
     verify_split(&root.join("training"), 32, 808);
     verify_split(&root.join("evaluation"), 16, 797);
 }

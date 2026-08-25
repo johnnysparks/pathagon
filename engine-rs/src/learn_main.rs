@@ -10,12 +10,12 @@ fn main() {
     let games = PathBuf::from(
         args.get("games")
             .map(String::as_str)
-            .unwrap_or("corpus/rust-v1/games.tsv"),
+            .unwrap_or("research/corpora/rust-v1/games.tsv"),
     );
     let output = PathBuf::from(
         args.get("out")
             .map(String::as_str)
-            .unwrap_or("training/rust-v1/learned-100"),
+            .unwrap_or("research/runs/rust-v1/learned-100"),
     );
     let agent = args
         .get("agent")

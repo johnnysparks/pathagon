@@ -13,9 +13,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from learning.gnn.contract import agent_manifest
-from learning.gnn.game import BoardConfig
-from learning.gnn.league import (
+from research.gnn.contract import agent_manifest
+from research.gnn.game import BoardConfig
+from research.gnn.league import (
     AgentSpec,
     GNNAgent,
     HeuristicAgent,
@@ -25,12 +25,12 @@ from learning.gnn.league import (
     summarize,
     update_elo,
 )
-from learning.gnn.train import choose_device
+from research.gnn.train import choose_device
 
 
 GNN_ID = "gnn-warmstart-7x7"
 SURVEYOR_ID = "surveyor-v0.2.0"
-DEFAULT_CHECKPOINT = REPO_ROOT / "training/gnn/benchmark-7x7/gnn-warmstart.pt"
+DEFAULT_CHECKPOINT = REPO_ROOT / "research/runs/gnn/benchmark-7x7/gnn-warmstart.pt"
 
 
 def parse_args() -> argparse.Namespace:
@@ -44,7 +44,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-plies", type=int, default=180)
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT)
-    parser.add_argument("--out", type=Path, default=Path("training/gnn/league/gnn-learner-vs-surveyor-fresh.json"))
+    parser.add_argument("--out", type=Path, default=Path("research/runs/gnn/league/gnn-learner-vs-surveyor-fresh.json"))
     parser.add_argument("--upload-url", help="site URL or /api/selfplay endpoint; upload one game after each result")
     parser.add_argument("--run-id", default="gnn-surveyor-fresh-20260824")
     parser.add_argument("--bearer-token", default=os.environ.get("PATHAGON_BRIDGE_TOKEN"))

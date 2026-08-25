@@ -5,24 +5,23 @@ the leaderboard displays records imported from that workflow.
 
 ## Owners
 
-- TypeScript provides browser-reference regression arenas and historical league
-  comparisons.
 - Rust provides high-throughput search, self-play, and evaluator tournaments.
 - Python provides neural self-play, checkpoint evaluation, and learned-agent
   pairwise matches.
 
-TypeScript promotion training is retired. Rust owns handcrafted evaluator
-promotion, while Python owns GNN/CNN checkpoint experiments.
+The browser-facing TypeScript rules and search implementation remain the
+reference/coaching path, but the former TypeScript offline arena is retired.
+Rust owns handcrafted evaluator promotion, while Python owns GNN/CNN checkpoint
+experiments.
 
-## TypeScript regression arena
+## Offline match generation
 
 ```bash
-npm run selfplay -- --mode arena --games 20 --seed 20260822
-npm run selfplay:league -- --games 8 --seed 20260823
+./scripts/run-rust-archive.sh macbook-lunatic-001 1000 20260824 lunatic
 ```
 
-The runner alternates colors and uses deterministic seeds. Its output under
-`selfplay/progress/runs/` is disposable until explicitly archived.
+For neural checkpoint comparisons, use the dedicated Python match and
+self-play scripts documented in [`docs/WORKFLOWS.md`](WORKFLOWS.md).
 
 ## Evaluation requirements
 

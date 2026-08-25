@@ -9,7 +9,7 @@ the browser leaderboard, which only displays imported or offline match data.
 npm ci
 rustup toolchain install 1.98.0
 python3 -m venv .venv-pathagon-gnn
-.venv-pathagon-gnn/bin/python -m pip install -r learning/gnn/requirements.txt
+.venv-pathagon-gnn/bin/python -m pip install -r research/gnn/requirements.txt
 ```
 
 The project uses Node `>=22.13.0`, Rust `1.98.0`, and Python with the learner
@@ -28,12 +28,6 @@ engine, contract, or dataset changes.
 
 ## Offline match generation
 
-TypeScript regression arena:
-
-```bash
-npm run selfplay -- --mode arena --games 20 --seed 20260822
-```
-
 Rust high-throughput archive:
 
 ```bash
@@ -50,7 +44,7 @@ Validate and upload completed offline records with:
 
 ```bash
 npm run selfplay:archive -- \
-  --file training/gnn/league/rust-lunatic-7x7.jsonl \
+  --file research/runs/gnn/league/rust-lunatic-7x7.jsonl \
   --url https://pathagon-game.sparks-house-6466.chatgpt.site \
   --engine rust
 ```
@@ -64,8 +58,8 @@ Build a canonical 7x7 split:
 
 ```bash
 python3 scripts/build-7x7-benchmark.py \
-  --root training/gnn \
-  --output training/gnn/benchmark-7x7 \
+  --root research/runs/gnn \
+  --output research/runs/gnn/benchmark-7x7 \
   --heldout-fraction 0.2 \
   --seed 20260824
 ```
@@ -73,10 +67,10 @@ python3 scripts/build-7x7-benchmark.py \
 Warm-start a learner:
 
 ```bash
-.venv-pathagon-gnn/bin/python -m learning.gnn.train warmstart \
-  --data training/gnn/benchmark-7x7/train.jsonl \
+.venv-pathagon-gnn/bin/python -m research.gnn.train warmstart \
+  --data research/runs/gnn/benchmark-7x7/train.jsonl \
   --size 7 --reserve 14 --steps 2000 \
-  --out training/gnn/pathagon-warmstart.pt
+  --out research/runs/gnn/pathagon-warmstart.pt
 ```
 
 On the current Apple Silicon setup, small unbatched warm-starts are faster on
@@ -89,16 +83,16 @@ Use disjoint seeds, alternate colors, record the exact agent configuration,
 and retain the complete match output. Held-out policy metrics are useful for
 diagnosis; promotion requires pairwise strength evidence as well.
 
-The dated reports under `training/gnn/benchmark-7x7/` and
-`training/gnn/round-full-20260824/` are the current examples of this format.
+The dated reports under `research/runs/gnn/benchmark-7x7/` and
+`research/runs/gnn/round-full-20260824/` are the current examples of this format.
 
 ## Browser artifacts
 
 Export the fixed 7x7 CNN and build the Rust/WASM artifacts separately:
 
 ```bash
-.venv-pathagon-gnn/bin/python -m learning.gnn.export \
-  --checkpoint training/gnn/benchmark-7x7/cnn-warmstart.pt \
+.venv-pathagon-gnn/bin/python -m research.gnn.export \
+  --checkpoint research/runs/gnn/benchmark-7x7/cnn-warmstart.pt \
   --output public/models/pathagon-cnn.onnx
 npm run build:engine
 ```

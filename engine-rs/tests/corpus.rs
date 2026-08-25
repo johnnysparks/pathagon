@@ -5,7 +5,7 @@ use pathagon_engine::corpus::{parse_compact_game, StrategyBook};
 
 #[test]
 fn tracked_corpus_is_replayable_and_indexed() {
-    let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../corpus/rust-v1");
+    let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../research/corpora/rust-v1");
     let source = fs::read_to_string(directory.join("games.tsv")).expect("read tracked games");
     let mut games = 0;
     for (line_number, line) in source.lines().enumerate() {

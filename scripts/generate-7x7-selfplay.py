@@ -16,11 +16,11 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUTPUT = Path("training/gnn/benchmark-7x7/generated/batch-20260824-neural-mix")
+DEFAULT_OUTPUT = Path("research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-mix")
 PLAYERS = {
     "scout": {
         "label": "GNN Scout",
-        "checkpoint": Path("training/gnn/benchmark-7x7/small-gnn-warmstart.pt"),
+        "checkpoint": Path("research/runs/gnn/benchmark-7x7/small-gnn-warmstart.pt"),
         "architecture": "gnn",
         "agent_id": "python-gnn-puct-scout-v0.1.0",
         "agent_name": "Python GNN PUCT Scout",
@@ -28,7 +28,7 @@ PLAYERS = {
     },
     "learner": {
         "label": "GNN Learner",
-        "checkpoint": Path("training/gnn/benchmark-7x7/gnn-warmstart.pt"),
+        "checkpoint": Path("research/runs/gnn/benchmark-7x7/gnn-warmstart.pt"),
         "architecture": "gnn",
         "agent_id": "python-gnn-puct-learner-v0.1.0",
         "agent_name": "Python GNN PUCT Learner",
@@ -36,7 +36,7 @@ PLAYERS = {
     },
     "cnn": {
         "label": "CNN Learner",
-        "checkpoint": Path("training/gnn/benchmark-7x7/cnn-warmstart.pt"),
+        "checkpoint": Path("research/runs/gnn/benchmark-7x7/cnn-warmstart.pt"),
         "architecture": "cnn",
         "agent_id": "python-cnn-puct-v0.1.0",
         "agent_name": "Python CNN PUCT",
@@ -44,7 +44,7 @@ PLAYERS = {
     },
     "reval-gnn": {
         "label": "Re-evaluated GNN 30k",
-        "checkpoint": Path("training/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-gnn-30k.pt"),
+        "checkpoint": Path("research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-gnn-30k.pt"),
         "architecture": "gnn",
         "agent_id": "python-gnn-puct-reval30k-v0.1.0",
         "agent_name": "Python GNN PUCT Re-evaluated 30k",
@@ -52,7 +52,7 @@ PLAYERS = {
     },
     "reval-cnn": {
         "label": "Re-evaluated CNN 30k",
-        "checkpoint": Path("training/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-cnn-30k.pt"),
+        "checkpoint": Path("research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-cnn-30k.pt"),
         "architecture": "cnn",
         "agent_id": "python-cnn-puct-reval30k-v0.1.0",
         "agent_name": "Python CNN PUCT Re-evaluated 30k",
@@ -139,7 +139,7 @@ def run_player(args: argparse.Namespace, player_name: str, player_index: int, ou
     command = [
         sys.executable,
         "-m",
-        "learning.gnn.train",
+        "research.gnn.train",
         "alphazero",
         "--resume",
         str(checkpoint),

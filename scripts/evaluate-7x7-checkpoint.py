@@ -15,9 +15,9 @@ import torch
 # Allow direct execution from the repository root as well as ``python -m``.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from learning.gnn.data import ReplayExample, load_replay_examples
-from learning.gnn.game import BoardConfig
-from learning.gnn.train import choose_device, load_model
+from research.gnn.data import ReplayExample, load_replay_examples
+from research.gnn.game import BoardConfig
+from research.gnn.train import choose_device, load_model
 
 
 def select_examples(examples: List[ReplayExample], limit: int, seed: int) -> List[ReplayExample]:

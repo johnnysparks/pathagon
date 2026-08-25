@@ -9,8 +9,8 @@ leaderboard matches.
 Cloudflare D1 has two tables:
 
 - `human_games` stores completed anonymous web games;
-- `selfplay_games` stores validated offline TypeScript, Rust, and Python
-  matches.
+- `selfplay_games` stores validated offline Rust and Python matches. Legacy
+  TypeScript records remain readable for historical archive compatibility.
 
 The complete contract-v1 replay is retained with searchable metadata: engine,
 mode, run ID, agents, result, termination reason, seed, and ply count. Git is
@@ -28,7 +28,7 @@ Run an offline match batch, then import the completed records:
 ./scripts/run-rust-archive.sh macbook-lunatic-001 1000 20260824 lunatic
 
 npm run selfplay:archive -- \
-  --file training/gnn/league/macbook-lunatic-001.jsonl \
+  --file research/runs/gnn/league/macbook-lunatic-001.jsonl \
   --url https://pathagon-game.sparks-house-6466.chatgpt.site \
   --engine rust
 ```

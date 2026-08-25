@@ -18,13 +18,13 @@ regression, but strength comparisons should use the canonical 7x7 distribution.
 
 ## Current artifacts
 
-- [`training/gnn/benchmark-7x7/`](../training/gnn/benchmark-7x7/) contains the
+- [`research/runs/gnn/benchmark-7x7/`](../research/runs/gnn/benchmark-7x7/) contains the
   earlier deduplicated benchmark and held-out report.
-- [`training/gnn/benchmark-7x7-full-20260824/`](../training/gnn/benchmark-7x7-full-20260824/)
+- [`research/runs/gnn/benchmark-7x7-full-20260824/`](../research/runs/gnn/benchmark-7x7-full-20260824/)
   contains the full-data split manifest and ignored replay payloads.
-- [`training/gnn/round-full-20260824/`](../training/gnn/round-full-20260824/)
+- [`research/runs/gnn/round-full-20260824/`](../research/runs/gnn/round-full-20260824/)
   contains compact, CNN, and full-GNN checkpoints with scoring snapshots.
-- [`training/rust-v1/learned-100/`](../training/rust-v1/learned-100/) contains
+- [`research/runs/rust-v1/learned-100/`](../research/runs/rust-v1/learned-100/) contains
   the historical exact-state learner.
 
 ## Dataset rules

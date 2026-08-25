@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { COACHING_SEARCH, analyzeAction, analyzeActions } from "../app/ai.ts";
+import { COACHING_SEARCH, DEFAULT_WEIGHTS, analyzeAction, analyzeActions, searchBestAction } from "../app/ai.ts";
 import { LUNATIC_OPPONENT, SURVEYOR_OPPONENT } from "../app/opponents.ts";
 import { applyAction, createGame, legalActions } from "../app/pathagon.ts";
 import type { GameState, Player } from "../app/pathagon.ts";
@@ -90,4 +90,12 @@ test("move coaching sorts the visible heatmap from best to worst", () => {
   const moves = analyzeActions(createGame(), { ...COACHING_SEARCH, depth: 1, maxNodes: 500 }, 12);
   assert.equal(moves.length, 12);
   assert.ok(moves.every((move, index) => index === 0 || moves[index - 1].score >= move.score));
+});
+
+test("iterative search returns the last completed depth inside its node budget", () => {
+  const result = searchBestAction(createGame(), { depth: 5, maxNodes: 120, beamWidth: 49, weights: DEFAULT_WEIGHTS });
+  assert.ok(result.action);
+  assert.ok(result.nodes <= 120);
+  assert.equal(result.exhausted, true);
+  assert.ok(result.completedDepth >= 1 && result.completedDepth < 5);
 });

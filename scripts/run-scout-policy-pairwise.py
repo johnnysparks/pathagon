@@ -15,9 +15,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from learning.gnn.contract import agent_manifest
-from learning.gnn.game import BoardConfig
-from learning.gnn.league import (
+from research.gnn.contract import agent_manifest
+from research.gnn.game import BoardConfig
+from research.gnn.league import (
     AgentSpec,
     GNNAgent,
     HeuristicAgent,
@@ -30,16 +30,16 @@ from learning.gnn.league import (
     summarize,
     update_elo,
 )
-from learning.gnn.train import choose_device
+from research.gnn.train import choose_device
 
 
 NEW_AGENT_NAMES = ("puct", "beam", "hybrid", "pathfinder10k", "scout10k")
 DEFAULT_OPPONENTS = ("pathfinder", "surveyor", "lunatic", "learner", "cnn", "scout")
 OPPONENT_NAMES = DEFAULT_OPPONENTS + ("coin-flip", "puct", "beam", "hybrid", "pathfinder10k", "scout10k")
 CHECKPOINTS = {
-    "scout": REPO_ROOT / "training/gnn/benchmark-7x7/small-gnn-warmstart.pt",
-    "learner": REPO_ROOT / "training/gnn/benchmark-7x7/gnn-warmstart.pt",
-    "cnn": REPO_ROOT / "training/gnn/benchmark-7x7/cnn-warmstart.pt",
+    "scout": REPO_ROOT / "research/runs/gnn/benchmark-7x7/small-gnn-warmstart.pt",
+    "learner": REPO_ROOT / "research/runs/gnn/benchmark-7x7/gnn-warmstart.pt",
+    "cnn": REPO_ROOT / "research/runs/gnn/benchmark-7x7/cnn-warmstart.pt",
 }
 
 
@@ -197,7 +197,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--upload-url", required=True, help="site URL or /api/selfplay endpoint")
     parser.add_argument("--bearer-token", default=os.environ.get("PATHAGON_BRIDGE_TOKEN"))
     parser.add_argument("--run-id", default="offline-scout-policy-pairwise-20260824")
-    parser.add_argument("--out", type=Path, default=Path("training/gnn/league/scout-policy-pairwise-20260824.json"))
+    parser.add_argument("--out", type=Path, default=Path("research/runs/gnn/league/scout-policy-pairwise-20260824.json"))
     args = parser.parse_args()
     if args.games_per_match < 1 or args.games_per_match > 10:
         parser.error("--games-per-match must be between 1 and 10")
