@@ -31,13 +31,13 @@ the commands used to generate, archive, train, evaluate, and deploy, read
 | [`app/`](app/) | Browser product, game UI, reference/coaching behavior |
 | [`engine-rs/`](engine-rs/) | Rust rules, search, self-play, training, and WASM adapters |
 | [`learning/`](learning/) | Python GNN/CNN research code and model tooling |
-| [`training/`](training/) | Checkpoints, datasets, league archives, and experiment reports |
+| [`training/`](training/) | Checkpoints, datasets, evaluation archives, and experiment reports |
 | [`selfplay/`](selfplay/) | TypeScript offline arena and league runner |
 | [`scripts/`](scripts/) | Reusable build, archive, parity, and evaluation commands |
 | [`contracts/`](contracts/) | Versioned cross-runtime interchange contract |
 | [`corpus/`](corpus/) | Small curated Rust corpus suitable for Git |
 | [`fixtures/`](fixtures/) | Rules and parity fixtures |
-| [`public/`](public/) | Deployable static assets and published lab snapshots |
+| [`public/`](public/) | Deployable static assets and published lab archives |
 | [`db/`](db/) and [`drizzle/`](drizzle/) | D1 access code and schema migrations |
 | [`docs/`](docs/) | Architecture, workflows, data policy, and experiment guidance |
 

@@ -19,6 +19,6 @@ ignored unless a manifest identifies them as a curated reproducibility input.
 Keep selected checkpoints, manifests, hashes, and reports in Git when they are
 small enough to review and reproduce.
 
-The current directory names predate the final artifact taxonomy. The planned
-internal split is checkpoints, datasets, evaluations, and runs; path changes
-should be made as one coordinated migration with all script references updated.
+The dated directories are intentionally stable because scripts and reports refer
+to them directly. Add new artifacts under the closest existing category and keep
+large generated data external or ignored.

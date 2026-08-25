@@ -11,7 +11,7 @@ lives in [`learning/gnn/`](../../learning/gnn/); workflow commands live in
 | `benchmark-7x7/` | Earlier deduplicated 7x7 CNN/GNN benchmark and held-out results |
 | `benchmark-7x7-full-20260824/` | Full-data 7x7 split manifest; large replay files are ignored |
 | `round-full-20260824/` | Dated compact-GNN, CNN, and full-GNN training report |
-| `league/` | Historical and current pairwise/league archives |
+| `league/` | 7x7 league snapshots and pairwise evaluation archives |
 | `pathagon-*.pt` | Warm-start and generation checkpoints |
 | `*.jsonl` | Replay archives or generated self-play data |
 

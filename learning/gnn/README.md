@@ -7,7 +7,8 @@ promotion path. The canonical comparison target is 7x7 with 14 reserves. See
 
 The GNN remains the scale-compatible research baseline; the CNN path is
 intentionally fixed to 7x7 so it can be compared under the same PUCT and replay
-workflow.
+workflow. Smaller boards are supported for curriculum and regression work, not
+as competing league targets.
 
 ## What is implemented
 
@@ -88,7 +89,7 @@ For a 7x7 run, use the full 196-ply board cap so move-cap draws are not
 introduced by the learner. Training targets should use 32-64 PUCT simulations;
 the defaults retain 64 simulations, 10,000 optimizer updates, and 100,000
 replay positions. A 1,000-game pilot is the first meaningful data milestone;
-scale toward 10,000 games only after its held-out league results improve.
+scale toward 10,000 games only after its held-out 7x7 evaluation results improve.
 
 The small graph operations used during search are typically faster on CPU;
 checkpoint updates can still use MPS through the default `--device auto`.

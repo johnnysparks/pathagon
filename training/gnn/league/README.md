@@ -1,9 +1,9 @@
 # Learning evaluation archives
 
-This directory contains JSON/JSONL records from offline learner evaluations,
-pairwise matches, and historical leagues. It is not the source code for the
-league runner; see [`learning/gnn/league.py`](../../../learning/gnn/league.py)
-and [`docs/WORKFLOWS.md`](../../../docs/WORKFLOWS.md).
+This directory contains JSON/JSONL records from 7x7 learner evaluations,
+pairwise matches, and league snapshots. It is not the source code for the league
+runner; see [`learning/gnn/league.py`](../../../learning/gnn/league.py) and
+[`docs/WORKFLOWS.md`](../../../docs/WORKFLOWS.md).
 
 ## Record requirements
 
@@ -25,9 +25,9 @@ league tools. They are provisional comparison signals, not human Elo.
 - `scout-policy-*` files are focused pairwise experiments for learned players.
 - `rust-*.jsonl` and machine-labelled JSONL files are offline replay archives
   suitable for validation and dataset construction.
-- The 7x7 records are the canonical strength evidence. Smaller-board curriculum
-  and regression material lives in the dedicated self-play and evaluation paths.
+- These 7x7 records are the canonical strength evidence; curriculum and
+  regression material belongs in the dedicated self-play and evaluation paths.
 
-Large archives should eventually move to the external/ignored data path with a
-tracked manifest and hash. The public copies under `public/lab/` are currently
-static mirrors and should be generated rather than hand-edited.
+Large archives belong in the external or ignored data path with a tracked
+manifest and hash. The public copies under `public/lab/` are static mirrors for
+the read-only lab and should be generated rather than hand-edited.
