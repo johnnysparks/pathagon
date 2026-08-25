@@ -5,7 +5,7 @@ const url = args.url;
 const agent = args.agent;
 const mode = args.mode ?? "cross-play";
 const token = args.token ?? process.env.PATHAGON_ARCHIVE_TOKEN;
-if (!url || !agent) throw new Error("Usage: node --experimental-strip-types scripts/dedupe-selfplay.ts --url <site-url> --agent <agent-id> [--mode cross-play] [--apply]");
+if (!url) throw new Error("Usage: node --experimental-strip-types scripts/dedupe-selfplay.ts --url <site-url> [--agent <agent-id>] [--mode cross-play] [--apply]");
 
 const endpoint = url.replace(/\/$/, "") + "/api/selfplay";
 const games = await loadGames(endpoint, agent, mode, token);
@@ -18,7 +18,7 @@ for (const game of games.sort((left, right) => left.recordedAt.localeCompare(rig
 }
 
 const summary = {
-  agent,
+  agent: agent ?? "all",
   mode,
   fetched: games.length,
   uniqueTrajectories: bySignature.size,
@@ -52,15 +52,17 @@ type ArchiveGame = {
   recordedAt: string;
   record: {
     config?: unknown;
+    agents: unknown;
     winner: string | null;
     moves: Array<{ action: unknown }>;
   };
 };
 
-async function loadGames(endpoint: string, agent: string, mode: string, token: string | undefined) {
+async function loadGames(endpoint: string, agent: string | undefined, mode: string, token: string | undefined) {
   const games: ArchiveGame[] = [];
   for (let offset = 0; ; offset += 500) {
-    const query = new URLSearchParams({ mode, agent, limit: "500", offset: String(offset) });
+    const query = new URLSearchParams({ mode, limit: "500", offset: String(offset) });
+    if (agent) query.set("agent", agent);
     const response = await fetch(`${endpoint}?${query}`, {
       headers: token ? { "OAI-Sites-Authorization": `Bearer ${token}` } : {},
     });
@@ -76,6 +78,7 @@ async function loadGames(endpoint: string, agent: string, mode: string, token: s
 function replaySignature(record: ArchiveGame["record"]) {
   const payload = {
     config: record.config,
+    agents: record.agents,
     winner: record.winner,
     moves: record.moves.map((move) => move.action),
   };

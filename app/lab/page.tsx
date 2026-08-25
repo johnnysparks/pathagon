@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { applyAction, createGame } from "../pathagon";
+import { applyAction, createGame, type GameState } from "../pathagon";
 import type { ContractMove, ContractReplayRecord } from "../contract";
 
 const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
@@ -578,6 +578,7 @@ function ReplayViewer({ game, summary, ply, playing, onPlayPause, onPlyChange }:
           return <div className={`replay-cell ${last ? "last" : ""} ${winning ? "winning" : ""}`} key={index} role="gridcell" aria-label={replayCellLabel(index, piece, forbidden, winning, state.config.boardSize)}><span className="replay-socket" />{piece ? <span className={`replay-piece ${piece}`} /> : null}{forbidden ? <span className="replay-forbidden" aria-hidden="true">×</span> : null}</div>;
         })}
       </div>
+      {ply === moves.length ? <FinalStateBadge state={state} winnerLabel={winnerLabel} /> : null}
     </div>
     <div className="replay-status-row"><span className={`replay-turn-dot ${state.turn}`} /><div><strong>{move ? describeReplayMove(move, state.config.boardSize) : status}</strong><small>{move ? status : `${game.record.config.boardSize}×${game.record.config.boardSize} board · ${game.record.agents.light} vs ${game.record.agents.dark}`}</small></div></div>
     <div className="replay-controls" aria-label="Replay controls">
@@ -590,6 +591,16 @@ function ReplayViewer({ game, summary, ply, playing, onPlayPause, onPlyChange }:
     <input className="replay-scrubber" type="range" min="0" max={moves.length} value={ply} onChange={(event) => onPlyChange(Number(event.target.value))} aria-label="Replay position" />
     <div className="replay-scrubber-labels"><span>Start</span><span>{moves.length ? `Final · ${winnerLabel ?? "draw"}` : "No moves"}</span></div>
     <p className="replay-key-hint">Space to play/pause · ← → to step · Esc to close</p>
+  </div>;
+}
+
+function FinalStateBadge({ state, winnerLabel }: { state: GameState; winnerLabel: string | null }) {
+  return <div className="final-state-badge" aria-label={`Final board state${winnerLabel ? ` · ${winnerLabel}` : " · draw"}`}>
+    <span className="final-state-badge-label">Final</span>
+    <div className="final-state-pixels" aria-hidden="true">
+      {state.board.map((piece, index) => <span className={`final-state-pixel ${piece ?? "empty"} ${state.winningPath.includes(index) ? "winning" : ""}`} key={index} />)}
+    </div>
+    <span className="final-state-badge-result">{winnerLabel ?? "Draw"}</span>
   </div>;
 }
 
