@@ -257,15 +257,25 @@ def train_qadv_replay(
             target_policy = target_policy / target_policy.sum().clamp_min(1.0e-8)
             policy_loss = -(target_policy * F.log_softmax(logits, dim=0)).sum()
 
-        target_q, visits = _aligned_q_targets(example, actions, logits.device)
-        weights = torch.sqrt(visits / visits.sum().clamp_min(1.0))
-        q_loss_values = F.smooth_l1_loss(q_values, target_q, reduction="none")
-        q_loss = (q_loss_values * weights).sum() / weights.sum().clamp_min(1.0e-8)
-        q_baseline = (target_q * weights).sum() / weights.sum().clamp_min(1.0e-8)
-        target_advantage = target_q - q_baseline
-        advantage_loss_values = F.smooth_l1_loss(advantages, target_advantage, reduction="none")
-        advantage_loss = (advantage_loss_values * weights).sum() / weights.sum().clamp_min(1.0e-8)
-        rank_loss = pairwise_rank_loss(q_values, target_q, weights)
+        q_fields = (example.action_values, example.action_visits, example.action_value_actions)
+        if any(field is not None for field in q_fields) and not all(field is not None for field in q_fields):
+            raise ValueError("Q/A training requires action values, visits, and action alignment together")
+        if all(field is not None for field in q_fields):
+            target_q, visits = _aligned_q_targets(example, actions, logits.device)
+            weights = torch.sqrt(visits / visits.sum().clamp_min(1.0))
+            q_loss_values = F.smooth_l1_loss(q_values, target_q, reduction="none")
+            q_loss = (q_loss_values * weights).sum() / weights.sum().clamp_min(1.0e-8)
+            q_baseline = (target_q * weights).sum() / weights.sum().clamp_min(1.0e-8)
+            target_advantage = target_q - q_baseline
+            advantage_loss_values = F.smooth_l1_loss(advantages, target_advantage, reduction="none")
+            advantage_loss = (advantage_loss_values * weights).sum() / weights.sum().clamp_min(1.0e-8)
+            rank_loss = pairwise_rank_loss(q_values, target_q, weights)
+        else:
+            # Outcome-only tournament records still teach the shared policy and
+            # value heads, but are not mislabeled as root-Q supervision.
+            q_loss = q_values.sum() * 0.0
+            advantage_loss = advantages.sum() * 0.0
+            rank_loss = q_values.sum() * 0.0
         expected_value = torch.tensor(example.value, dtype=value.dtype, device=value.device)
         value_loss = F.mse_loss(value, expected_value)
         loss = policy_loss + value_loss + q_weight * q_loss + advantage_weight * advantage_loss + rank_weight * rank_loss

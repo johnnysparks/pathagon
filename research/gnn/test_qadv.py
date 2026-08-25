@@ -61,6 +61,15 @@ class QAdvTest(unittest.TestCase):
         action = QAdvGuidedAgent(model, top_k=4, reply_k=3).choose_action(state, random.Random(0), set())
         self.assertIn(action, state.legal_actions())
 
+    def test_qadv_training_accepts_outcome_only_tournament_examples(self) -> None:
+        state = GameState.initial(BoardConfig(5, 8))
+        action = state.legal_actions()[0]
+        example = ReplayExample(state=state, action=action, value=-1.0, seed=2)
+        model = PathagonGNN(hidden_size=8, message_layers=1, qadv=True)
+        metrics = train_qadv_replay(model, [example], steps=1, learning_rate=1.0, seed=4, symmetry_augmentation=False)
+        self.assertGreater(metrics["policy_loss"], 0.0)
+        self.assertEqual(metrics["q_loss"], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
