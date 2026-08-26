@@ -1,6 +1,8 @@
-import { querySelfPlayGames } from "../../../db/selfplay-games";
+import { countSelfPlayGames, querySelfPlayGames } from "../../../db/selfplay-games";
 
 const MAX_QUERY_GAMES = 500;
+const DEFAULT_HISTORY_LIMIT = 24;
+const MAX_HISTORY_LIMIT = 50;
 const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
 const RUN_ID_PATTERN = /^[a-zA-Z0-9._:-]{1,120}$/;
 const WEB_GENERATED_ENGINE = "typescript-live-cross-play";
@@ -48,6 +50,9 @@ export async function GET(request: Request) {
     const requestedRunId = url.searchParams.get("runId");
     const aggregate = requestedRunId === ALL_CROSS_PLAY_RUN_ID || (!requestedRunId && url.searchParams.get("latest") === "1");
     const runId = aggregate ? ALL_CROSS_PLAY_RUN_ID : requestedRunId ? validateRunId(requestedRunId) : (() => { throw new Error("A cross-play run ID is required"); })();
+    if (url.searchParams.get("history") === "1") {
+      return Response.json(await readHistoryPage(aggregate, runId, url), { headers: { "cache-control": "private, no-store" } });
+    }
     const records = aggregate ? await queryAllCrossPlayGames() : await queryRun(runId);
     if (!records.length) return Response.json({ found: false, error: "No imported cross-play games yet" }, { status: 404 });
     const standings = buildStandings(records);
@@ -59,12 +64,32 @@ export async function GET(request: Request) {
       status: "complete",
       standings,
       headToHead,
-      latest: records.slice(-5).reverse().map(({ id, record }) => summarizeGame(id, record)),
+      latest: records.slice(-5).reverse().map(({ id, recordedAt, record }) => summarizeGame(id, recordedAt, record)),
     }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to read cross-play run";
     return Response.json({ found: false, error: message }, { status: 400 });
   }
+}
+
+async function readHistoryPage(aggregate: boolean, runId: string, url: URL) {
+  const limit = boundedInteger(url.searchParams.get("limit"), DEFAULT_HISTORY_LIMIT, 1, MAX_HISTORY_LIMIT);
+  const offset = boundedInteger(url.searchParams.get("offset"), 0, 0, 1_000_000);
+  const filters = aggregate
+    ? { mode: "cross-play", excludeEngine: WEB_GENERATED_ENGINE }
+    : { mode: "cross-play", excludeEngine: WEB_GENERATED_ENGINE, runId };
+  const [records, total] = await Promise.all([
+    querySelfPlayGames({ ...filters, limit, offset }),
+    countSelfPlayGames(filters),
+  ]);
+  return {
+    runId,
+    games: records.map(({ id, recordedAt, record }) => summarizeGame(id, recordedAt, record)),
+    total,
+    limit,
+    offset,
+    hasMore: offset + records.length < total,
+  };
 }
 
 async function queryRun(runId: string) {
@@ -194,9 +219,10 @@ function updateElo(ratings: Map<string, number>, light: string, dark: string, wi
   ratings.set(dark, darkRating + 24 * ((1 - actualLight) - (1 - expectedLight)));
 }
 
-function summarizeGame(id: string, record: Awaited<ReturnType<typeof queryRun>>[number]["record"]) {
+function summarizeGame(id: string, recordedAt: string, record: Awaited<ReturnType<typeof queryRun>>[number]["record"]) {
   return {
     id,
+    recordedAt,
     seed: record.seed,
     light: labelFor(record.agents.light),
     dark: labelFor(record.agents.dark),

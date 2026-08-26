@@ -48,14 +48,18 @@ export async function deleteSelfPlayGames(ids: string[]) {
   return { deleted: result.meta.changes ?? 0 };
 }
 
-export type SelfPlayQuery = {
+export type SelfPlayFilters = {
   engine?: string;
+  excludeEngine?: string;
   mode?: string;
   agent?: string;
   winner?: "light" | "dark";
   result?: "win" | "draw";
   reason?: SelfPlayArchiveEntry["record"]["reason"];
   runId?: string;
+};
+
+export type SelfPlayQuery = SelfPlayFilters & {
   limit: number;
   offset: number;
 };
@@ -71,21 +75,21 @@ type SelfPlayRow = {
 
 export async function querySelfPlayGames(query: SelfPlayQuery) {
   const d1 = await database();
-  const conditions: string[] = [];
-  const values: string[] = [];
-  if (query.engine) { conditions.push("engine = ?"); values.push(query.engine); }
-  if (query.mode) { conditions.push("mode = ?"); values.push(query.mode); }
-  if (query.agent) { conditions.push("(light_agent = ? OR dark_agent = ?)"); values.push(query.agent, query.agent); }
-  if (query.winner) { conditions.push("winner = ?"); values.push(query.winner); }
-  if (query.result) { conditions.push("result = ?"); values.push(query.result); }
-  if (query.reason) { conditions.push("reason = ?"); values.push(query.reason); }
-  if (query.runId) { conditions.push("run_id = ?"); values.push(query.runId); }
-  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const { where, values } = buildWhere(query);
   const rows = await d1.prepare(`SELECT id, recorded_at, engine, mode, run_id, record
     FROM selfplay_games ${where} ORDER BY recorded_at DESC, id DESC LIMIT ? OFFSET ?`)
     .bind(...values, query.limit, query.offset)
     .all<SelfPlayRow>();
   return rows.results.map(toArchiveGame);
+}
+
+export async function countSelfPlayGames(query: SelfPlayFilters) {
+  const d1 = await database();
+  const { where, values } = buildWhere(query);
+  const row = await d1.prepare(`SELECT COUNT(*) AS count FROM selfplay_games ${where}`)
+    .bind(...values)
+    .first<{ count: number | string }>();
+  return Number(row?.count ?? 0);
 }
 
 export async function getSelfPlayGame(id: string) {
@@ -104,4 +108,18 @@ function toArchiveGame(row: SelfPlayRow) {
     runId: row.run_id,
     record: JSON.parse(row.record) as SelfPlayArchiveEntry["record"],
   };
+}
+
+function buildWhere(query: SelfPlayFilters) {
+  const conditions: string[] = [];
+  const values: string[] = [];
+  if (query.engine) { conditions.push("engine = ?"); values.push(query.engine); }
+  if (query.excludeEngine) { conditions.push("engine != ?"); values.push(query.excludeEngine); }
+  if (query.mode) { conditions.push("mode = ?"); values.push(query.mode); }
+  if (query.agent) { conditions.push("(light_agent = ? OR dark_agent = ?)"); values.push(query.agent, query.agent); }
+  if (query.winner) { conditions.push("winner = ?"); values.push(query.winner); }
+  if (query.result) { conditions.push("result = ?"); values.push(query.result); }
+  if (query.reason) { conditions.push("reason = ?"); values.push(query.reason); }
+  if (query.runId) { conditions.push("run_id = ?"); values.push(query.runId); }
+  return { where: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "", values };
 }

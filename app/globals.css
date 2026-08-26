@@ -709,6 +709,28 @@ body:has(.portal-app.dark) { background: #121a15; }
 .live-game-row:hover { background: rgba(223,240,225,.58); }
 .live-game-row:focus-visible { position: relative; z-index: 1; outline: 2px solid var(--portal-green); outline-offset: -2px; }
 .live-game-result em { margin-left: 8px; color: var(--portal-green); font-style: normal; font-weight: 900; }
+.archive-history { margin-top: 24px; padding-top: 22px; border-top: 1px solid rgba(174,194,171,.58); }
+.archive-history-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.archive-history-heading h3 { margin: 5px 0 0; color: var(--portal-ink); font-family: Georgia, serif; font-size: 23px; font-weight: 500; letter-spacing: -.035em; }
+.archive-history-count { color: var(--portal-muted); font-size: 10px; font-weight: 800; white-space: nowrap; }
+.archive-history-intro { margin: 7px 0 0; color: var(--portal-muted); font-size: 11px; line-height: 1.45; }
+.history-game-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 15px; }
+.history-game-row { display: grid; grid-template-columns: 35px minmax(0, 1fr) auto; grid-template-areas: "number match result" "number match date" "number replay replay"; gap: 5px 9px; min-width: 0; padding: 11px 12px; border: 1px solid rgba(174,194,171,.65); border-radius: 10px; color: var(--portal-muted); background: rgba(255,255,255,.38); cursor: pointer; text-align: left; }
+.history-game-row:hover { border-color: #8fb699; background: rgba(223,240,225,.58); }
+.history-game-row:focus-visible { outline: 2px solid var(--portal-green); outline-offset: 2px; }
+.history-game-number { grid-area: number; padding-top: 2px; color: var(--portal-muted); font-family: Georgia, serif; font-size: 15px; }
+.history-game-match { grid-area: match; display: flex; min-width: 0; align-items: center; gap: 5px; }
+.history-game-match strong { overflow: hidden; color: var(--portal-ink); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.history-game-match span { color: var(--portal-muted); font-size: 9px; }
+.history-game-result { grid-area: result; color: var(--portal-green); font-size: 9px; font-weight: 850; text-align: right; white-space: nowrap; }
+.history-game-result small { display: block; margin-top: 2px; color: var(--portal-muted); font-size: 9px; font-weight: 500; }
+.history-game-row time { grid-area: date; color: var(--portal-muted); font-size: 9px; text-align: right; white-space: nowrap; }
+.history-game-replay { grid-area: replay; color: var(--portal-green); font-size: 9px; font-weight: 900; text-align: right; }
+.history-load-sentinel { display: flex; min-height: 33px; align-items: center; justify-content: center; padding-top: 12px; color: var(--portal-muted); font-size: 9px; font-weight: 750; }
+.history-load-sentinel button, .archive-history-state button { border: 0; padding: 0; color: var(--portal-green); background: transparent; cursor: pointer; font: inherit; font-weight: 850; text-decoration: underline; }
+.archive-history-state { display: grid; justify-items: center; gap: 5px; margin: 15px 0 0; padding: 22px 15px; border: 1px dashed rgba(174,194,171,.75); border-radius: 9px; color: var(--portal-muted); font-size: 10px; text-align: center; }
+.archive-history-state strong { color: var(--portal-ink); font-size: 11px; }
+.archive-history-state.error strong { color: #a25d4f; }
 
 /* Archived game playback */
 .replay-modal-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(20,28,23,.66); backdrop-filter: blur(5px); }
@@ -881,6 +903,10 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
 .leaderboard-app.dark .fresh-match-callout strong { color: #f4ead3; }
 .leaderboard-app.dark .live-run-summary div, .leaderboard-app.dark .live-game-list { border-color: #355240; background: rgba(40,67,50,.58); }
 .leaderboard-app.dark .live-game-row:hover { background: rgba(55,91,63,.58); }
+.leaderboard-app.dark .archive-history { border-color: #304237; }
+.leaderboard-app.dark .history-game-row { border-color: #355240; background: rgba(40,67,50,.38); }
+.leaderboard-app.dark .history-game-row:hover { border-color: #5d9770; background: rgba(55,91,63,.58); }
+.leaderboard-app.dark .archive-history-state { border-color: #355240; }
 .leaderboard-app.dark .table-toolbar { border-color: #355240; background: rgba(40,67,50,.34); }
 .leaderboard-app.dark .table-control input, .leaderboard-app.dark .table-control select { border-color: #405c49; color: var(--portal-ink); background: rgba(27,43,34,.72); }
 .leaderboard-app.dark .table-clear-button { border-color: #405c49; }
@@ -933,6 +959,8 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
   .live-run-summary div { padding: 9px; }
   .live-game-row { grid-template-columns: 32px minmax(0, 1fr) 13px minmax(0, 1fr); }
   .live-game-result { grid-column: 2 / 5; text-align: left; }
+  .history-game-list { grid-template-columns: 1fr; }
+  .archive-history-heading { align-items: flex-start; flex-direction: column; gap: 6px; }
   .replay-modal-backdrop { padding: 10px; }
   .replay-modal { max-height: calc(100vh - 20px); border-radius: 15px; }
   .replay-modal-header { padding: 17px 16px 14px; }
