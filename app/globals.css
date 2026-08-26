@@ -699,15 +699,17 @@ body:has(.portal-app.dark) { background: #121a15; }
 .live-run-summary span { color: var(--portal-muted); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .live-run-empty, .live-run-error { margin: 14px 0 0; color: var(--portal-muted); font-size: 11px; }
 .live-run-error { color: #a25d4f; }
-.live-game-list { display: grid; gap: 0; margin-top: 15px; overflow: hidden; border: 1px solid #c8dfca; border-radius: 9px; background: rgba(255,255,255,.46); }
-.live-game-row { display: grid; grid-template-columns: 48px 37px minmax(0, 1fr) 18px minmax(0, 1fr) auto; gap: 8px; align-items: center; min-height: 56px; padding: 6px 10px; border-top: 1px solid rgba(174,194,171,.45); color: var(--portal-muted); font-size: 10px; }
-.live-game-row:first-child { border-top: 0; }
-.live-game-thumbnail { display: grid; width: 44px; height: 44px; box-sizing: border-box; place-items: center; overflow: hidden; padding: 3px; border: 1px solid rgba(184,208,187,.75); border-radius: 7px; background: rgba(20,31,24,.78); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05), 0 2px 5px rgba(13,25,17,.13); image-rendering: pixelated; }
+.live-game-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 15px; padding: 8px; overflow: hidden; border: 1px solid #c8dfca; border-radius: 9px; background: rgba(255,255,255,.46); }
+.live-game-row { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; grid-template-rows: auto auto auto; grid-template-areas: "thumbnail number result" "thumbnail light light" "thumbnail versus dark"; gap: 4px 8px; align-items: center; min-height: 96px; padding: 10px; border: 1px solid rgba(174,194,171,.45); border-radius: 8px; color: var(--portal-muted); font-size: 10px; }
+.live-game-thumbnail { display: grid; grid-area: thumbnail; width: 72px; height: 72px; box-sizing: border-box; place-items: center; overflow: hidden; padding: 3px; border: 1px solid rgba(184,208,187,.75); border-radius: 7px; background: rgba(20,31,24,.78); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05), 0 2px 5px rgba(13,25,17,.13); image-rendering: pixelated; }
 .live-game-thumbnail canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 .live-game-row strong { overflow: hidden; color: var(--portal-ink); text-overflow: ellipsis; white-space: nowrap; }
-.live-game-number { color: var(--portal-muted); font-size: 9px; }
-.live-game-result { color: var(--portal-green); font-size: 9px; font-weight: 800; text-align: right; }
-.live-game-row { width: 100%; border-right: 0; border-bottom: 0; border-left: 0; cursor: pointer; font-family: inherit; text-align: left; }
+.live-game-number { grid-area: number; color: var(--portal-muted); font-size: 9px; }
+.live-game-light { grid-area: light; }
+.live-game-versus { grid-area: versus; }
+.live-game-dark { grid-area: dark; }
+.live-game-result { grid-area: result; color: var(--portal-green); font-size: 9px; font-weight: 800; text-align: right; }
+.live-game-row { width: 100%; cursor: pointer; font-family: inherit; text-align: left; }
 .live-game-row:hover { background: rgba(223,240,225,.58); }
 .live-game-row:focus-visible { position: relative; z-index: 1; outline: 2px solid var(--portal-green); outline-offset: -2px; }
 .live-game-result em { margin-left: 8px; color: var(--portal-green); font-style: normal; font-weight: 900; }
@@ -933,13 +935,10 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
   .portal-footer { flex-direction: column; }
   .live-run-summary { gap: 6px; }
   .live-run-summary div { padding: 9px; }
-  .live-game-row { grid-template-columns: 46px 32px minmax(0, 1fr) 13px minmax(0, 1fr); min-height: 64px; }
-  .live-game-thumbnail { grid-column: 1; grid-row: 1 / span 2; width: 42px; height: 42px; }
-  .live-game-number { grid-column: 2; grid-row: 1; }
-  .live-game-light { grid-column: 3; grid-row: 1; }
-  .live-game-versus { grid-column: 4; grid-row: 1; }
-  .live-game-dark { grid-column: 5; grid-row: 1; }
-  .live-game-result { grid-column: 3 / 6; grid-row: 2; text-align: left; }
+  .live-game-list { grid-template-columns: 1fr; gap: 7px; padding: 7px; }
+  .live-game-row { grid-template-columns: 68px minmax(0, 1fr) auto; grid-template-rows: auto auto auto; grid-template-areas: "thumbnail number result" "thumbnail light light" "thumbnail versus dark"; min-height: 86px; padding: 9px; }
+  .live-game-thumbnail { width: 64px; height: 64px; }
+  .live-game-result { text-align: right; }
   .replay-modal-backdrop { padding: 10px; }
   .replay-modal { max-height: calc(100vh - 20px); border-radius: 15px; }
   .replay-modal-header { padding: 17px 16px 14px; }

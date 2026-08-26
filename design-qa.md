@@ -7,6 +7,8 @@
 
 ## Implementation evidence
 
+- `/tmp/pathagon-lab-grid-desktop.png` — current full Lab viewport with four seeded recent games, 1400 × 1200 px, CSS viewport 1400 × 1200 px, devicePixelRatio 1.
+- `/tmp/pathagon-lab-grid-mobile-cdp.png` — current focused live-archive viewport, 390 × 844 px, CSS viewport 390 × 844 px, devicePixelRatio 1 with Chrome device metrics emulation.
 - `/tmp/pathagon-lab-live-games-desktop.png` — full Lab page, 1200 × 8728 px, CSS viewport 1200 × 773 px, devicePixelRatio 1.
 - `/tmp/pathagon-lab-live-games-desktop-focus.png` — recent-game table, 1102 × 229 px, same CSS viewport and density.
 - `/tmp/pathagon-lab-mobile-full.jpg` — full Lab page, CSS viewport 390 × 844 px, devicePixelRatio 1.
@@ -16,16 +18,17 @@
 
 - Theme: dark.
 - State: four local cross-play records supplied final board states so the new thumbnails could be inspected; those temporary records were deleted after capture. The remote archive was not modified.
-- Full-view evidence confirms the new rows sit within the existing archive panel without changing the surrounding Lab hierarchy. The source is a camera photo rather than a same-viewport browser capture, so the focused table comparison is the fidelity gate.
-- Focused comparison: each row now leads with a compact 7×7 final-board image using the same pixel colors and winning-path highlight as the playback badge. Desktop thumbnails measure 44 × 44 px; mobile thumbnails measure 42 × 42 px. The result text remains in the row, so the thumbnail intentionally omits duplicate `Final` and winner labels.
+- Full-view evidence confirms the cards sit within the existing archive panel without changing the surrounding Lab hierarchy. The source is a camera photo rather than a same-viewport browser capture, so the focused archive comparison is the fidelity gate.
+- Focused comparison: the archive uses a two-column card grid on desktop and a single-column grid on mobile. Each card leads with a taller 72 × 72 px desktop board image or 64 × 64 px mobile board image using the same pixel colors and winning-path highlight as the playback badge. The result text remains in the card, so the thumbnail intentionally omits duplicate `Final` and winner labels.
+- Responsive evidence: the current mobile capture measured `innerWidth: 390`, `scrollWidth: 390`, a 326 px archive list, four 310 × 86 px cards, and four 64 × 64 px thumbnails. No horizontal overflow was detected.
 - Resolution pass: the row thumbnail is backed by a 256 × 256 canvas and downscaled to the measured display sizes above, preserving the compact layout while improving raster sharpness.
 
 ## Required fidelity surfaces
 
 - Fonts and typography: existing Lab typography and row text are unchanged; model names and result metadata retain their existing truncation and weight.
-- Spacing and layout rhythm: the row grows to accommodate the 44 px desktop thumbnail and uses an explicit two-line mobile grid; no horizontal overflow was detected at 1200 px or 390 px.
+- Spacing and layout rhythm: the archive now uses an 8 px desktop card gap with 10 px card padding and a 7 px mobile gap with 9 px card padding; no horizontal overflow was detected at 1400 px or 390 px.
 - Colors and visual tokens: the thumbnail reuses the existing dark archive surface, green border, board cells, light/dark pieces, and winning-path accent.
-- Image quality and asset fidelity: the thumbnail uses a 256 × 256 canvas with real final board data from the archive summary; the compact display remains pixel-crisp and no placeholder asset was introduced.
+- Image quality and asset fidelity: each thumbnail uses a 256 × 256 canvas with real final board data from the archive summary; the taller display remains pixel-crisp and no placeholder asset was introduced.
 - Copy and content: row labels and replay affordance are unchanged; the board is decorative and the button retains its accessible replay label.
 
 ## Findings
@@ -51,6 +54,7 @@ Initial implementation pass had no actionable P0/P1/P2 findings. The only respon
 - [x] Render the board thumbnail at the leading edge of each recent-game row.
 - [x] Preserve replay row behavior and final playback badge.
 - [x] Verify desktop and mobile layout, overflow, and console health.
-- [x] Back the row thumbnail with a 256 × 256 raster surface without changing its responsive display size.
+- [x] Back the thumbnail with a 256 × 256 raster surface and preserve crisp responsive scaling.
+- [x] Show the archive as a desktop card grid with a single-column mobile fallback.
 
 final result: passed
