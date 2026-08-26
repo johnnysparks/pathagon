@@ -6,6 +6,7 @@ import { applyAction, createGame, type GameState } from "../pathagon";
 import type { ContractMove, ContractReplayRecord } from "../contract";
 
 const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
+const GAME_THUMBNAIL_RESOLUTION = 256;
 
 const MODELS = [
   {
@@ -741,7 +742,47 @@ function FinalStateBadge({ state, winnerLabel }: { state: GameState; winnerLabel
 }
 
 function GameThumbnail({ board, winningPath }: { board: GameState["board"]; winningPath: number[] }) {
-  return <span className="live-game-thumbnail" aria-hidden="true"><FinalStatePixels board={board} winningPath={winningPath} /></span>;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+
+    drawGameThumbnail(context, board, winningPath);
+  }, [board, winningPath]);
+
+  return <span className="live-game-thumbnail" aria-hidden="true"><canvas ref={canvasRef} width={GAME_THUMBNAIL_RESOLUTION} height={GAME_THUMBNAIL_RESOLUTION} /></span>;
+}
+
+function drawGameThumbnail(context: CanvasRenderingContext2D, board: GameState["board"], winningPath: number[]) {
+  const boardSize = Math.sqrt(board.length);
+  if (!Number.isInteger(boardSize)) return;
+
+  const resolution = GAME_THUMBNAIL_RESOLUTION;
+  const padding = 8;
+  const gap = 4;
+  const cellSize = (resolution - padding * 2 - gap * (boardSize - 1)) / boardSize;
+  const winning = new Set(winningPath);
+
+  context.clearRect(0, 0, resolution, resolution);
+  context.imageSmoothingEnabled = false;
+  context.fillStyle = "rgba(147,183,143,.12)";
+  context.fillRect(0, 0, resolution, resolution);
+
+  board.forEach((piece, index) => {
+    const column = index % boardSize;
+    const row = Math.floor(index / boardSize);
+    const x = padding + column * (cellSize + gap);
+    const y = padding + row * (cellSize + gap);
+    const isWinning = winning.has(index);
+
+    context.fillStyle = isWinning ? "#d9c66f" : piece === "light" ? "#e9dfc4" : piece === "dark" ? "#49392f" : "rgba(211,230,204,.08)";
+    context.fillRect(x, y, cellSize, cellSize);
+    context.strokeStyle = isWinning ? "#fff1a4" : piece === "light" ? "rgba(245,237,209,.76)" : piece === "dark" ? "rgba(25,20,17,.72)" : "rgba(211,230,204,.17)";
+    context.lineWidth = 2;
+    context.strokeRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+  });
 }
 
 function FinalStatePixels({ board, winningPath }: { board: GameState["board"]; winningPath: number[] }) {

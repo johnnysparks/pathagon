@@ -18,13 +18,14 @@
 - State: four local cross-play records supplied final board states so the new thumbnails could be inspected; those temporary records were deleted after capture. The remote archive was not modified.
 - Full-view evidence confirms the new rows sit within the existing archive panel without changing the surrounding Lab hierarchy. The source is a camera photo rather than a same-viewport browser capture, so the focused table comparison is the fidelity gate.
 - Focused comparison: each row now leads with a compact 7×7 final-board image using the same pixel colors and winning-path highlight as the playback badge. Desktop thumbnails measure 44 × 44 px; mobile thumbnails measure 42 × 42 px. The result text remains in the row, so the thumbnail intentionally omits duplicate `Final` and winner labels.
+- Resolution pass: the row thumbnail is backed by a 256 × 256 canvas and downscaled to the measured display sizes above, preserving the compact layout while improving raster sharpness.
 
 ## Required fidelity surfaces
 
 - Fonts and typography: existing Lab typography and row text are unchanged; model names and result metadata retain their existing truncation and weight.
 - Spacing and layout rhythm: the row grows to accommodate the 44 px desktop thumbnail and uses an explicit two-line mobile grid; no horizontal overflow was detected at 1200 px or 390 px.
 - Colors and visual tokens: the thumbnail reuses the existing dark archive surface, green border, board cells, light/dark pieces, and winning-path accent.
-- Image quality and asset fidelity: the thumbnail reuses the existing `FinalStatePixels` renderer and real final board data from the archive summary; no placeholder or second approximation was introduced.
+- Image quality and asset fidelity: the thumbnail uses a 256 × 256 canvas with real final board data from the archive summary; the compact display remains pixel-crisp and no placeholder asset was introduced.
 - Copy and content: row labels and replay affordance are unchanged; the board is decorative and the button retains its accessible replay label.
 
 ## Findings
@@ -50,5 +51,6 @@ Initial implementation pass had no actionable P0/P1/P2 findings. The only respon
 - [x] Render the board thumbnail at the leading edge of each recent-game row.
 - [x] Preserve replay row behavior and final playback badge.
 - [x] Verify desktop and mobile layout, overflow, and console health.
+- [x] Back the row thumbnail with a 256 × 256 raster surface without changing its responsive display size.
 
 final result: passed
