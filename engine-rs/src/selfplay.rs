@@ -6,13 +6,19 @@ use crate::corpus::StrategyBook;
 use crate::learned::LearnedBook;
 use crate::search::{lunatic_action, search_best_action, SearchConfig};
 use crate::{bit_squares, Action, BoardConfig, GameState, Player};
+#[cfg(feature = "inference")]
+use crate::inference::OnnxGnnPolicyValueModel;
+#[cfg(feature = "inference")]
+use crate::puct::{search as puct_search, PuctConfig};
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum Agent {
     Random { id: String },
     Lunatic { id: String },
     Search { id: String, config: SearchConfig, book: Option<Arc<StrategyBook>> },
     Learned { id: String, config: SearchConfig, book: Arc<LearnedBook>, minimum_visits: u32 },
+    #[cfg(feature = "inference")]
+    Gnn { id: String, config: PuctConfig, model: Arc<OnnxGnnPolicyValueModel> },
 }
 
 impl Agent {
@@ -39,9 +45,16 @@ impl Agent {
         Self::Learned { id: id.into(), config, book, minimum_visits }
     }
 
+    #[cfg(feature = "inference")]
+    pub fn gnn(id: impl Into<String>, config: PuctConfig, model: Arc<OnnxGnnPolicyValueModel>) -> Self {
+        Self::Gnn { id: id.into(), config, model }
+    }
+
     pub fn id(&self) -> &str {
         match self {
             Self::Random { id } | Self::Lunatic { id } | Self::Search { id, .. } | Self::Learned { id, .. } => id,
+            #[cfg(feature = "inference")]
+            Self::Gnn { id, .. } => id,
         }
     }
 
@@ -115,6 +128,20 @@ impl Agent {
                     table_hits: result.table_hits,
                     book_hit: false,
                     root_q: None,
+                }
+            }
+            #[cfg(feature = "inference")]
+            Self::Gnn { config, model, .. } => {
+                let result = puct_search(model.as_ref(), state, *config)
+                    .unwrap_or_else(|error| panic!("native GNN PUCT failed: {error}"));
+                Decision {
+                    action: result.action,
+                    score: (result.value * 1_000.0) as i32,
+                    nodes: result.evaluations.iter().map(|evaluation| u64::from(evaluation.visits)).sum(),
+                    completed_depth: 0,
+                    table_hits: 0,
+                    book_hit: false,
+                    root_q: result.root_q_targets().ok(),
                 }
             }
         }
@@ -269,6 +296,16 @@ fn agent_spec_json(agent: &Agent) -> String {
             config.beam_width as u32,
             config.weights,
             config.tactical_proof_horizon,
+        ),
+        #[cfg(feature = "inference")]
+        Agent::Gnn { config, .. } => (
+            "neural",
+            "The Q-Arbiter · Rust GNN policy",
+            0,
+            u64::from(config.simulations),
+            0,
+            crate::search::EvaluationWeights::default(),
+            None,
         ),
     };
     let mut specification = serde_json::json!({

@@ -118,6 +118,21 @@ Rust/WASM inference session:
 npm run build:engine
 ```
 
+The native Rust performance spike can also load the shared policy/value trunk
+from a QAdv GNN checkpoint. This keeps root-Q targets in the Rust PUCT archive
+while the Q/A action head and Pathfinder exploration controls remain in the
+next parity milestone:
+
+```bash
+./.venv-pathagon-gnn/bin/python -m research.gnn.export_gnn \
+  --checkpoint research/runs/gnn/benchmark-7x7/generated/<qadv-batch>/qadv-arbiter-7x7-v0.1.0-exploration-20260825.pt \
+  --output work/rust-qadv-spike/qadv-gnn-policy-value.onnx
+cargo run --release --manifest-path engine-rs/Cargo.toml \
+  --features inference --bin pathagon-selfplay -- \
+  --onnx work/rust-qadv-spike/qadv-gnn-policy-value.onnx \
+  --opponent neural --simulations 128 --workers 2 --jsonl
+```
+
 The build expects the pinned `wasm-bindgen` CLI to be available on `PATH`.
 
 The small rules/search module is emitted to `public/engine`. The learned CNN

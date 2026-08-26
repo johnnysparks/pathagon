@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -7,8 +8,12 @@ use std::time::Instant;
 use pathagon_engine::corpus::{write_corpus, StrategyBook};
 use pathagon_engine::learned::LearnedBook;
 use pathagon_engine::search::{EvaluationWeights, SearchConfig};
-use pathagon_engine::selfplay::{play_game, Agent, MatchOptions};
+use pathagon_engine::selfplay::{play_game, Agent, GameRecord, MatchOptions};
 use pathagon_engine::Player;
+#[cfg(feature = "inference")]
+use pathagon_engine::inference::OnnxGnnPolicyValueModel;
+#[cfg(feature = "inference")]
+use pathagon_engine::puct::PuctConfig;
 
 fn main() {
     let args = parse_args();
@@ -21,12 +26,15 @@ fn main() {
     let depth = number(&args, "depth", 4_u8);
     let max_nodes = number(&args, "nodes", 90_000_u64);
     let beam_width = number(&args, "beam", 40_usize);
+    let simulations = number(&args, "simulations", 64_u32);
+    let cpuct = number(&args, "cpuct", 1.5_f32);
     let tactical_proof_horizon = args
         .get("tactical-proof-horizon")
         .and_then(|value| value.parse().ok());
     let opponent_name = args.get("opponent").map(String::as_str).unwrap_or("random");
     let jsonl = args.contains_key("jsonl");
     let progress_every = number(&args, "progress-every", (games / 20).max(1));
+    let workers = number(&args, "workers", 1_usize).max(1);
     let corpus_directory = args.get("corpus").map(PathBuf::from);
     let learned_book = args.get("learned").map(PathBuf::from)
         .map(|path| LearnedBook::load(&path))
@@ -40,6 +48,16 @@ fn main() {
         .unwrap_or_else(|error| fail(&format!("cannot load strategy book: {error}")))
         .map(Arc::new);
 
+    #[cfg(feature = "inference")]
+    let neural_model = args.get("onnx").map(|path| {
+        let bytes = fs::read(path).unwrap_or_else(|error| fail(&format!("cannot read ONNX model: {error}")));
+        Arc::new(OnnxGnnPolicyValueModel::from_bytes(&bytes).unwrap_or_else(|error| fail(&format!("cannot load GNN ONNX model: {error}"))))
+    });
+    #[cfg(not(feature = "inference"))]
+    if args.contains_key("onnx") {
+        fail("--onnx requires the inference feature; rebuild with --features inference");
+    }
+
     let config = SearchConfig {
         depth,
         max_nodes,
@@ -47,11 +65,37 @@ fn main() {
         weights: EvaluationWeights::default(),
         tactical_proof_horizon,
     };
+    #[cfg(feature = "inference")]
+    let champion = if let Some(model) = neural_model.as_ref() {
+        Agent::gnn(
+            "qadv-arbiter-7x7-rust-policy-v0.1.0",
+            PuctConfig { simulations, cpuct },
+            Arc::clone(model),
+        )
+    } else {
+        learned_book.as_ref().map_or_else(
+            || with_optional_book(Agent::search("rust-pathfinder-v0.1.0", config), &book),
+            |book| Agent::learned("rust-learned-tabular-v0.1.0", config, Arc::clone(book), learned_minimum_visits),
+        )
+    };
+    #[cfg(not(feature = "inference"))]
     let champion = learned_book.as_ref().map_or_else(
         || with_optional_book(Agent::search("rust-pathfinder-v0.1.0", config), &book),
         |book| Agent::learned("rust-learned-tabular-v0.1.0", config, Arc::clone(book), learned_minimum_visits),
     );
-    let opponent = if opponent_name == "search" {
+    let opponent = if opponent_name == "neural" {
+        #[cfg(feature = "inference")]
+        {
+            let model = neural_model.as_ref().unwrap_or_else(|| fail("--opponent neural requires --onnx <model>"));
+            Agent::gnn(
+                "qadv-arbiter-7x7-rust-policy-v0.1.0",
+                PuctConfig { simulations, cpuct },
+                Arc::clone(model),
+            )
+        }
+        #[cfg(not(feature = "inference"))]
+        fail("--opponent neural requires the inference feature; rebuild with --features inference")
+    } else if opponent_name == "search" {
         with_optional_book(Agent::search(
             "rust-surveyor-v0.1.0",
             SearchConfig { depth: 2, max_nodes: 12_000, beam_width: 64, ..config },
@@ -73,19 +117,34 @@ fn main() {
     let mut total_nodes = 0_u64;
     let mut book_hits = 0_u64;
     let mut records = Vec::with_capacity(games as usize);
-    for game in 0..games {
+    let worker_count = workers.min(games.max(1) as usize);
+    let mut indexed_records: Vec<(u32, GameRecord)> = if worker_count == 1 {
+        (0..games)
+            .map(|game| (game, play_index(&champion, &opponent, game, seed, max_plies, opening_random_plies, board_size, reserve_per_player)))
+            .collect()
+    } else {
+        std::thread::scope(|scope| {
+            let handles = (0..worker_count)
+                .map(|worker| {
+                    let champion = champion.clone();
+                    let opponent = opponent.clone();
+                    scope.spawn(move || {
+                        (worker as u32..games)
+                            .step_by(worker_count)
+                            .map(|game| (game, play_index(&champion, &opponent, game, seed, max_plies, opening_random_plies, board_size, reserve_per_player)))
+                            .collect::<Vec<_>>()
+                    })
+                })
+                .collect::<Vec<_>>();
+            handles
+                .into_iter()
+                .flat_map(|handle| handle.join().expect("Rust self-play worker panicked"))
+                .collect()
+        })
+    };
+    indexed_records.sort_by_key(|(game, _record)| *game);
+    for (game, record) in indexed_records {
         let champion_is_light = game % 2 == 0;
-        let record = play_game(
-            if champion_is_light { &champion } else { &opponent },
-            if champion_is_light { &opponent } else { &champion },
-            MatchOptions {
-                seed: seed.wrapping_add(game),
-                max_plies,
-                opening_random_plies,
-                board_size,
-                reserve_per_player,
-            },
-        );
         match record.winner {
             None => draws += 1,
             Some(winner) if winner == if champion_is_light { Player::Light } else { Player::Dark } => wins += 1,
@@ -134,6 +193,30 @@ fn main() {
     } else {
         println!("{summary}");
     }
+}
+
+fn play_index(
+    champion: &Agent,
+    opponent: &Agent,
+    game: u32,
+    seed: u32,
+    max_plies: u16,
+    opening_random_plies: u16,
+    board_size: u8,
+    reserve_per_player: u8,
+) -> GameRecord {
+    let champion_is_light = game % 2 == 0;
+    play_game(
+        if champion_is_light { champion } else { opponent },
+        if champion_is_light { opponent } else { champion },
+        MatchOptions {
+            seed: seed.wrapping_add(game),
+            max_plies,
+            opening_random_plies,
+            board_size,
+            reserve_per_player,
+        },
+    )
 }
 
 fn with_optional_book(agent: Agent, book: &Option<Arc<StrategyBook>>) -> Agent {
