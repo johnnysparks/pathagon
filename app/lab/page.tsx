@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { applyAction, createGame, type GameState } from "../pathagon";
 import type { ContractMove, ContractReplayRecord } from "../contract";
@@ -200,6 +200,7 @@ type LiveStanding = {
 
 type LiveGame = {
   id: string;
+  recordedAt: string;
   seed: number;
   light: string;
   dark: string;
@@ -245,6 +246,15 @@ type CrossPlayState = {
   latest: LiveGame[];
 };
 
+type HistoryPage = {
+  runId: string;
+  games: LiveGame[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+};
+
 type StandingFilter = "all" | "rated" | "candidate" | "waiting" | "disabled";
 type StandingSort = "rank" | "elo-desc" | "games-desc" | "name-asc";
 type HeadToHeadFilter = "all" | "active" | "inactive";
@@ -271,6 +281,11 @@ export default function LearningLab() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [crossPlay, setCrossPlay] = useState<CrossPlayState | null>(null);
   const [crossPlayError, setCrossPlayError] = useState<string | null>(null);
+  const [historyGames, setHistoryGames] = useState<LiveGame[]>([]);
+  const [historyTotal, setHistoryTotal] = useState<number | null>(null);
+  const [historyHasMore, setHistoryHasMore] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [replaySummary, setReplaySummary] = useState<LiveGame | null>(null);
   const [replayGame, setReplayGame] = useState<ArchivedReplayGame | null>(null);
   const [replayPly, setReplayPly] = useState(0);
@@ -286,6 +301,11 @@ export default function LearningLab() {
   const [headToHeadFilter, setHeadToHeadFilter] = useState<HeadToHeadFilter>("all");
   const [headToHeadSort, setHeadToHeadSort] = useState<HeadToHeadSort>("games-desc");
   const replayRequest = useRef(0);
+  const historySentinel = useRef<HTMLDivElement | null>(null);
+  const historyOffset = useRef(0);
+  const historyHasMoreRef = useRef(true);
+  const historyLoadingRef = useRef(false);
+  const historyRequest = useRef(0);
 
   const liveStandingById = useMemo(
     () => new Map((crossPlay?.standings ?? []).map((standing) => [standing.id, standing])),
@@ -363,6 +383,55 @@ export default function LearningLab() {
     const timer = window.setTimeout(() => setTheme(preferredTheme), 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  const loadHistoryPage = useCallback(async (reset = false) => {
+    if (historyLoadingRef.current || (!reset && !historyHasMoreRef.current)) return;
+    const requestId = historyRequest.current + 1;
+    historyRequest.current = requestId;
+    const offset = reset ? 0 : historyOffset.current;
+    if (reset) {
+      historyOffset.current = 0;
+      historyHasMoreRef.current = true;
+      setHistoryGames([]);
+      setHistoryTotal(null);
+    }
+    historyLoadingRef.current = true;
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const response = await fetch(`/api/cross-play?runId=${ALL_CROSS_PLAY_RUN_ID}&history=1&limit=24&offset=${offset}`, { cache: "no-store" });
+      const payload = await response.json() as HistoryPage & { error?: string };
+      if (requestId !== historyRequest.current) return;
+      if (!response.ok) throw new Error(payload.error ?? "History unavailable");
+      setHistoryGames((current) => reset ? payload.games : appendUniqueGames(current, payload.games));
+      historyOffset.current = offset + payload.games.length;
+      historyHasMoreRef.current = payload.hasMore;
+      setHistoryHasMore(payload.hasMore);
+      setHistoryTotal(payload.total);
+    } catch (error: unknown) {
+      if (requestId === historyRequest.current) setHistoryError(error instanceof Error ? error.message : "History unavailable");
+    } finally {
+      if (requestId === historyRequest.current) {
+        historyLoadingRef.current = false;
+        setHistoryLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadHistoryPage(true), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadHistoryPage]);
+
+  useEffect(() => {
+    const sentinel = historySentinel.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadHistoryPage();
+    }, { rootMargin: "360px 0px" });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [historyGames.length, historyHasMore, loadHistoryPage]);
 
   useEffect(() => {
     if (!replayModalOpen || !replayPlaying || !replayGame) return;
@@ -531,6 +600,26 @@ export default function LearningLab() {
         </div>
         {crossPlayError ? <p className="live-run-error" role="status">{crossPlayError} · retrying automatically</p> : null}
         {crossPlay?.latest.length ? <div className="live-game-list" aria-label="Latest cross-play games">{crossPlay.latest.map((game) => <button className="live-game-row" type="button" key={game.id} onClick={() => void openReplay(game)} aria-label={`Replay ${game.light} versus ${game.dark}`}><GameThumbnail board={game.finalBoard} winningPath={game.winningPath} /><span className="live-game-number">{shortGameId(game.id)}</span><strong className="live-game-light">{game.light}</strong><span className="live-game-versus">vs</span><strong className="live-game-dark">{game.dark}</strong><span className="live-game-result">{game.winner ? `${game.winner} · ${game.plies} plies` : `draw · ${game.plies} plies`} <em>Replay ↗</em></span></button>)}</div> : <p className="live-run-empty">Waiting for an imported offline cross-play result.</p>}
+        <div className="archive-history" aria-labelledby="history-title">
+          <div className="archive-history-heading">
+            <div><span className="portal-kicker">Archive history</span><h3 id="history-title">More games, on demand.</h3></div>
+            <span className="archive-history-count">{historyTotal === null ? "Loading history" : `${historyGames.length} of ${historyTotal} loaded`}</span>
+          </div>
+          <p className="archive-history-intro">Scroll down to load older cross-play games. Select any result to open its replay.</p>
+          {historyGames.length ? <div className="history-game-list" aria-label="Cross-play game history">
+            {historyGames.map((game) => <button className="history-game-row" type="button" key={game.id} onClick={() => void openReplay(game)} aria-label={`Replay ${game.light} versus ${game.dark}`}>
+              <GameThumbnail board={game.finalBoard} winningPath={game.winningPath} />
+              <span className="history-game-number">{shortGameId(game.id)}</span>
+              <span className="history-game-match"><strong>{game.light}</strong><span>vs</span><strong>{game.dark}</strong></span>
+              <span className="history-game-result">{game.winner ? `${game.winner} won` : "Draw"}<small>{game.plies} plies</small></span>
+              <time dateTime={game.recordedAt}>{formatArchiveDate(game.recordedAt)}</time>
+              <span className="history-game-replay">Replay ↗</span>
+            </button>)}
+          </div> : historyLoading ? <p className="archive-history-state">Loading the first games…</p> : historyError ? <div className="archive-history-state error" role="alert"><strong>History couldn&apos;t load.</strong><span>{historyError}</span><button type="button" onClick={() => void loadHistoryPage(true)}>Try again</button></div> : <p className="archive-history-state">No archived cross-play games yet.</p>}
+          <div className="history-load-sentinel" ref={historySentinel} aria-live="polite">
+            {historyLoading && historyGames.length ? "Loading older games…" : historyError && historyGames.length ? <button type="button" onClick={() => void loadHistoryPage()}>Try again</button> : !historyHasMore && historyGames.length ? "End of history" : historyGames.length ? "Keep scrolling for more" : null}
+          </div>
+        </div>
       </section>
 
       <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
@@ -817,4 +906,15 @@ async function readLatestCrossPlay(): Promise<CrossPlayState> {
   const payload = await response.json() as CrossPlayState & { error?: string };
   if (!response.ok) throw new Error(payload.error ?? "No imported cross-play archive available");
   return payload;
+}
+
+function appendUniqueGames(current: LiveGame[], incoming: LiveGame[]) {
+  const known = new Set(current.map((game) => game.id));
+  return [...current, ...incoming.filter((game) => !known.has(game.id))];
+}
+
+function formatArchiveDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
