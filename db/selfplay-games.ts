@@ -57,6 +57,7 @@ export type SelfPlayFilters = {
   result?: "win" | "draw";
   reason?: SelfPlayArchiveEntry["record"]["reason"];
   runId?: string;
+  pair?: [string, string];
 };
 
 export type SelfPlayQuery = SelfPlayFilters & {
@@ -121,5 +122,9 @@ function buildWhere(query: SelfPlayFilters) {
   if (query.result) { conditions.push("result = ?"); values.push(query.result); }
   if (query.reason) { conditions.push("reason = ?"); values.push(query.reason); }
   if (query.runId) { conditions.push("run_id = ?"); values.push(query.runId); }
+  if (query.pair) {
+    conditions.push("((light_agent = ? AND dark_agent = ?) OR (light_agent = ? AND dark_agent = ?))");
+    values.push(query.pair[0], query.pair[1], query.pair[1], query.pair[0]);
+  }
   return { where: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "", values };
 }

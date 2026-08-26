@@ -76,9 +76,12 @@ export async function GET(request: Request) {
 async function readHistoryPage(aggregate: boolean, runId: string, url: URL) {
   const limit = boundedInteger(url.searchParams.get("limit"), DEFAULT_HISTORY_LIMIT, 1, MAX_HISTORY_LIMIT);
   const offset = boundedInteger(url.searchParams.get("offset"), 0, 0, 1_000_000);
+  const pairLeft = validateAgent(url.searchParams.get("pairLeft"));
+  const pairRight = validateAgent(url.searchParams.get("pairRight"));
+  if (Boolean(pairLeft) !== Boolean(pairRight)) throw new Error("Both pairwise agents are required");
   const filters = aggregate
-    ? { mode: "cross-play", excludeEngine: WEB_GENERATED_ENGINE }
-    : { mode: "cross-play", excludeEngine: WEB_GENERATED_ENGINE, runId };
+    ? { mode: "cross-play", excludeEngine: WEB_GENERATED_ENGINE, pair: pairLeft && pairRight ? [pairLeft, pairRight] as [string, string] : undefined }
+    : { mode: "cross-play", excludeEngine: WEB_GENERATED_ENGINE, runId, pair: pairLeft && pairRight ? [pairLeft, pairRight] as [string, string] : undefined };
   const [records, total] = await Promise.all([
     querySelfPlayGames({ ...filters, limit, offset }),
     countSelfPlayGames(filters),
@@ -247,4 +250,17 @@ function labelFor(id: string) {
 function validateRunId(value: unknown): string {
   if (typeof value !== "string" || !RUN_ID_PATTERN.test(value)) throw new Error("Invalid cross-play run ID");
   return value;
+}
+
+function validateAgent(value: string | null) {
+  if (value === null) return undefined;
+  if (!AGENTS.some((agent) => agent.id === value)) throw new Error("Invalid pairwise agent");
+  return value;
+}
+
+function boundedInteger(value: string | null, fallback: number, minimum: number, maximum: number) {
+  if (value === null || value.trim() === "") return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed)) throw new Error("Pagination values must be integers");
+  return Math.min(maximum, Math.max(minimum, parsed));
 }
