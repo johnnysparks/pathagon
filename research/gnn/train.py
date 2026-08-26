@@ -387,6 +387,7 @@ def initialize_selfplay_worker(
         message_layers=model_config.get("message_layers", 8),
         residual_blocks=model_config.get("residual_blocks", 4),
         board_size=model_config.get("board_size", board_size),
+        qadv=bool(model_config.get("qadv") or model_config.get("action_value_head")),
     )
     model.load_state_dict(state_dict)
     model.to(device)

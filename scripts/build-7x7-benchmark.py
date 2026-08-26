@@ -75,14 +75,15 @@ def record_config(record: dict, path: Path) -> tuple[int, int]:
     return size, reserve
 
 
-def replay_signature(record: dict, size: int, reserve: int) -> str:
+def replay_signature(record: dict, size: int, reserve: int, include_agents: bool = True) -> str:
     payload = {
         "size": size,
         "reserve": reserve,
-        "agents": record.get("agents"),
         "winner": record.get("winner"),
         "moves": [move.get("action") for move in record["moves"]],
     }
+    if include_agents:
+        payload["agents"] = record.get("agents")
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
@@ -152,6 +153,11 @@ def main() -> None:
         action="store_true",
         help="keep only complete games whose every move has mcts-root-q-v1 action-value targets",
     )
+    parser.add_argument(
+        "--dedupe-by-actions",
+        action="store_true",
+        help="deduplicate identical board trajectories even when the generating agent IDs differ",
+    )
     args = parser.parse_args()
     if not 0.0 < args.heldout_fraction < 1.0:
         raise SystemExit("--heldout-fraction must be between 0 and 1")
@@ -189,7 +195,7 @@ def main() -> None:
                 continue
             raw_counts[str(path)] += 1
             raw_positions += len(record["moves"])
-            signature = replay_signature(record, size, reserve)
+            signature = replay_signature(record, size, reserve, include_agents=not args.dedupe_by_actions)
             unique.setdefault(signature, (str(path), record, size, reserve))
 
     groups: dict[str, list[tuple[str, dict]]] = defaultdict(list)
@@ -224,6 +230,7 @@ def main() -> None:
         "heldoutPositions": position_count(heldout_records),
         "duplicateGamesRemoved": sum(raw_counts.values()) - len(ordered),
         "requireActionValues": args.require_action_values,
+        "dedupeByActions": args.dedupe_by_actions,
         "skippedMissingActionValues": skipped_missing_action_values,
         "trainSeeds": sorted({record.get("seed") for record in train_records if record.get("seed") is not None}),
         "heldoutSeeds": sorted({record.get("seed") for record in heldout_records if record.get("seed") is not None}),

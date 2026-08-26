@@ -58,6 +58,14 @@ PLAYERS = {
         "agent_name": "Python CNN PUCT Re-evaluated 30k",
         "agent_engine": "python-cnn",
     },
+    "qadv": {
+        "label": "The Q-Arbiter · Q/Advantage",
+        "checkpoint": Path("research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-qadv-backfill-20260825/qadv-arbiter-7x7-v0.1.0-backfilled.pt"),
+        "architecture": "gnn",
+        "agent_id": "qadv-arbiter-7x7-v0.1.0",
+        "agent_name": "The Q-Arbiter",
+        "agent_engine": "python-gnn",
+    },
 }
 
 
