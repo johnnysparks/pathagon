@@ -259,8 +259,7 @@ function validateAgent(value: string | null) {
 }
 
 function boundedInteger(value: string | null, fallback: number, minimum: number, maximum: number) {
-  if (value === null || value.trim() === "") return fallback;
-  const parsed = Number(value);
+  const parsed = value === null || value.trim() === "" ? fallback : Number(value);
   if (!Number.isInteger(parsed)) throw new Error("Pagination values must be integers");
   return Math.min(maximum, Math.max(minimum, parsed));
 }
