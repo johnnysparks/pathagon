@@ -1059,7 +1059,7 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
 .game-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 11px; }
 .game-card { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 11px; align-items: stretch; width: 100%; min-width: 0; min-height: 111px; border: 1px solid rgba(174,194,171,.72); border-radius: 10px; padding: 10px; color: var(--portal-muted); background: rgba(255,255,255,.38); cursor: pointer; text-align: left; }
 .game-card:hover { border-color: #6ca37a; background: rgba(223,240,225,.58); }
-.game-card > .live-game-thumbnail { width: 88px; height: 88px; padding: 4px; border-radius: 8px; align-self: center; }
+.game-card > .live-game-thumbnail { grid-area: auto; width: 88px; height: auto; min-height: 100%; aspect-ratio: 1; padding: 4px; border-radius: 8px; align-self: stretch; }
 .game-card-body { display: flex; min-width: 0; flex-direction: column; gap: 7px; }
 .game-card-topline, .game-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .game-card-topline { color: var(--portal-muted); font-size: 9px; }
@@ -1124,7 +1124,7 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
   .game-set-standings .standing-elo { grid-area: elo; align-self: end; text-align: right; }
   .game-set-standings .standing-record { grid-area: record; align-items: flex-end; }
   .game-card { grid-template-columns: 78px minmax(0, 1fr); min-height: 100px; }
-  .game-card > .live-game-thumbnail { width: 78px; height: 78px; }
+  .game-card > .live-game-thumbnail { width: 78px; height: auto; }
   .game-list-heading { align-items: flex-start; }
   .game-list-heading-meta { align-items: flex-end; }
 }
