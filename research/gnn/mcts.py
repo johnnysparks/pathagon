@@ -105,7 +105,10 @@ class PUCTSearch:
         add_root_noise: bool = False,
         history: Optional[Set[tuple]] = None,
         rng: Optional[random.Random] = None,
+        policy_temperature: float = 1.0,
     ) -> Tuple[MCTSNode, List[Action], List[float]]:
+        if policy_temperature <= 0:
+            raise ValueError("policy_temperature must be positive")
         root = MCTSNode(state)
         self.expand(root)
         if state.ply >= state.config.max_plies:
@@ -118,7 +121,7 @@ class PUCTSearch:
         for _ in range(self.simulations):
             self._simulate(root, set(previous_positions))
         actions = list(state.legal_actions())
-        probabilities = self.visit_policy(root, actions, temperature=1.0)
+        probabilities = self.visit_policy(root, actions, temperature=policy_temperature)
         if self.tactical_guard and state.config.size <= 4:
             tactical_actions = set(tactical_priority_actions(state))
             if tactical_actions:

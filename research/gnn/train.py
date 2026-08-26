@@ -30,6 +30,18 @@ _SELFPLAY_MODEL: Optional[NeuralModel] = None
 _SELFPLAY_CONFIG: Optional[BoardConfig] = None
 _SELFPLAY_SIMULATIONS = 0
 _SELFPLAY_TEMPERATURE_MOVES = 0
+_SELFPLAY_POLICY_TEMPERATURE = 1.0
+_SELFPLAY_OPENING_MOVES = 0
+_SELFPLAY_OPENING_TEMPERATURE = 1.0
+_SELFPLAY_OPENING_RANDOMNESS = 0.0
+_SELFPLAY_PATHFINDER_GUIDANCE = 0.0
+_SELFPLAY_PLACEMENT_GUIDANCE: Optional[float] = None
+_SELFPLAY_PATHFINDER_TEMPERATURE = 1.0
+_SELFPLAY_PATHFINDER_DEPTH = 2
+_SELFPLAY_PATHFINDER_BEAM = 8
+_SELFPLAY_PATHFINDER_NODES = 1_000
+_SELFPLAY_TACTICAL_SIMULATIONS = 0
+_SELFPLAY_TACTICAL_CAPTURE_THRESHOLD = 1
 _SELFPLAY_GENERATION = 0
 _SELFPLAY_GENERATIONS = 0
 _SELFPLAY_GAMES = 0
@@ -364,6 +376,18 @@ def initialize_selfplay_worker(
     max_plies: int,
     simulations: int,
     temperature_moves: int,
+    policy_temperature: float,
+    opening_moves: int,
+    opening_temperature: float,
+    opening_randomness: float,
+    pathfinder_guidance: float,
+    placement_guidance: Optional[float],
+    pathfinder_temperature: float,
+    pathfinder_depth: int,
+    pathfinder_beam: int,
+    pathfinder_nodes: int,
+    tactical_simulations: int,
+    tactical_capture_threshold: int,
     device_name: str,
     generation: int,
     generations: int,
@@ -373,6 +397,18 @@ def initialize_selfplay_worker(
     global _SELFPLAY_CONFIG
     global _SELFPLAY_SIMULATIONS
     global _SELFPLAY_TEMPERATURE_MOVES
+    global _SELFPLAY_POLICY_TEMPERATURE
+    global _SELFPLAY_OPENING_MOVES
+    global _SELFPLAY_OPENING_TEMPERATURE
+    global _SELFPLAY_OPENING_RANDOMNESS
+    global _SELFPLAY_PATHFINDER_GUIDANCE
+    global _SELFPLAY_PLACEMENT_GUIDANCE
+    global _SELFPLAY_PATHFINDER_TEMPERATURE
+    global _SELFPLAY_PATHFINDER_DEPTH
+    global _SELFPLAY_PATHFINDER_BEAM
+    global _SELFPLAY_PATHFINDER_NODES
+    global _SELFPLAY_TACTICAL_SIMULATIONS
+    global _SELFPLAY_TACTICAL_CAPTURE_THRESHOLD
     global _SELFPLAY_GENERATION
     global _SELFPLAY_GENERATIONS
     global _SELFPLAY_GAMES
@@ -396,6 +432,18 @@ def initialize_selfplay_worker(
     _SELFPLAY_CONFIG = BoardConfig(board_size, reserve_per_player, max_plies)
     _SELFPLAY_SIMULATIONS = simulations
     _SELFPLAY_TEMPERATURE_MOVES = temperature_moves
+    _SELFPLAY_POLICY_TEMPERATURE = policy_temperature
+    _SELFPLAY_OPENING_MOVES = opening_moves
+    _SELFPLAY_OPENING_TEMPERATURE = opening_temperature
+    _SELFPLAY_OPENING_RANDOMNESS = opening_randomness
+    _SELFPLAY_PATHFINDER_GUIDANCE = pathfinder_guidance
+    _SELFPLAY_PLACEMENT_GUIDANCE = placement_guidance
+    _SELFPLAY_PATHFINDER_TEMPERATURE = pathfinder_temperature
+    _SELFPLAY_PATHFINDER_DEPTH = pathfinder_depth
+    _SELFPLAY_PATHFINDER_BEAM = pathfinder_beam
+    _SELFPLAY_PATHFINDER_NODES = pathfinder_nodes
+    _SELFPLAY_TACTICAL_SIMULATIONS = tactical_simulations
+    _SELFPLAY_TACTICAL_CAPTURE_THRESHOLD = tactical_capture_threshold
     _SELFPLAY_GENERATION = generation
     _SELFPLAY_GENERATIONS = generations
     _SELFPLAY_GAMES = games
@@ -425,6 +473,18 @@ def generate_game_worker(game_index: int, game_seed: int) -> Tuple[int, List[Sea
         seed=game_seed,
         add_root_noise=True,
         progress=game_progress,
+        policy_temperature=_SELFPLAY_POLICY_TEMPERATURE,
+        opening_moves=_SELFPLAY_OPENING_MOVES,
+        opening_temperature=_SELFPLAY_OPENING_TEMPERATURE,
+        opening_randomness=_SELFPLAY_OPENING_RANDOMNESS,
+        pathfinder_guidance=_SELFPLAY_PATHFINDER_GUIDANCE,
+        placement_guidance=_SELFPLAY_PLACEMENT_GUIDANCE,
+        pathfinder_temperature=_SELFPLAY_PATHFINDER_TEMPERATURE,
+        pathfinder_depth=_SELFPLAY_PATHFINDER_DEPTH,
+        pathfinder_beam=_SELFPLAY_PATHFINDER_BEAM,
+        pathfinder_nodes=_SELFPLAY_PATHFINDER_NODES,
+        tactical_simulations=_SELFPLAY_TACTICAL_SIMULATIONS,
+        tactical_capture_threshold=_SELFPLAY_TACTICAL_CAPTURE_THRESHOLD,
     )
     return game_index, examples, final_state
 
@@ -661,6 +721,18 @@ def run_alphazero(args: argparse.Namespace) -> None:
                 config.max_plies,
                 args.simulations,
                 args.temperature_moves,
+                args.policy_temperature,
+                args.opening_moves,
+                args.opening_temperature,
+                args.opening_randomness,
+                args.pathfinder_guidance,
+                None if args.placement_guidance < 0 else args.placement_guidance,
+                args.pathfinder_temperature,
+                args.pathfinder_depth,
+                args.pathfinder_beam,
+                args.pathfinder_nodes,
+                args.tactical_simulations,
+                args.tactical_capture_threshold,
                 str(selfplay_device),
                 generation,
                 args.generations,
@@ -739,6 +811,18 @@ def run_alphazero(args: argparse.Namespace) -> None:
             "selfplay_device": str(selfplay_device),
             "simulations": args.simulations,
             "temperature_moves": args.temperature_moves,
+            "policy_temperature": args.policy_temperature,
+            "opening_moves": args.opening_moves,
+            "opening_temperature": args.opening_temperature,
+            "opening_randomness": args.opening_randomness,
+            "pathfinder_guidance": args.pathfinder_guidance,
+            "placement_guidance": args.placement_guidance if args.placement_guidance >= 0 else args.pathfinder_guidance,
+            "pathfinder_temperature": args.pathfinder_temperature,
+            "pathfinder_depth": args.pathfinder_depth,
+            "pathfinder_beam": args.pathfinder_beam,
+            "pathfinder_nodes": args.pathfinder_nodes,
+            "tactical_simulations": args.tactical_simulations,
+            "tactical_capture_threshold": args.tactical_capture_threshold,
             "updates": args.updates,
             "replay_limit": args.replay_limit,
             "symmetry_augmentation": args.symmetry_augmentation,
@@ -775,6 +859,18 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--workers", type=int, default=1, help="parallel self-play worker processes")
     result.add_argument("--selfplay-device", default="cpu", help="device used by self-play workers")
     result.add_argument("--simulations", type=int, default=64, help="PUCT simulations per move (32-64 recommended for training)")
+    result.add_argument("--policy-temperature", type=float, default=1.0, help="temperature applied to the MCTS visit policy")
+    result.add_argument("--opening-moves", type=int, default=0, help="opening plies that receive the opening temperature/noise schedule")
+    result.add_argument("--opening-temperature", type=float, default=1.0, help="MCTS policy temperature during randomized openings")
+    result.add_argument("--opening-randomness", type=float, default=0.0, help="uniform-policy mix during randomized openings")
+    result.add_argument("--pathfinder-guidance", type=float, default=0.0, help="Pathfinder shallow-search blend weight after placement")
+    result.add_argument("--placement-guidance", type=float, default=-1.0, help="Pathfinder blend weight during placement; negative inherits --pathfinder-guidance")
+    result.add_argument("--pathfinder-temperature", type=float, default=1.0, help="temperature used to soften Pathfinder scores")
+    result.add_argument("--pathfinder-depth", type=int, default=2, help="Pathfinder guidance search depth")
+    result.add_argument("--pathfinder-beam", type=int, default=8, help="Pathfinder guidance beam width")
+    result.add_argument("--pathfinder-nodes", type=int, default=1_000, help="Pathfinder guidance node budget")
+    result.add_argument("--tactical-simulations", type=int, default=0, help="simulation count for tactical roots; 0 disables selective depth")
+    result.add_argument("--tactical-capture-threshold", type=int, default=1, help="minimum immediate capture count that triggers tactical depth")
     result.add_argument("--updates", type=int, default=10_000, help="optimizer updates per generation (0 generates data without training)")
     result.add_argument("--q-weight", type=float, default=1.0, help="root-Q regression loss weight for qadv training")
     result.add_argument("--advantage-weight", type=float, default=0.5, help="centered advantage loss weight for qadv training")

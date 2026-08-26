@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import math
 from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
@@ -10,6 +11,7 @@ from .game import Action, BoardConfig, GameState, Player, bits, repetition_key
 from .contract import ROOT_Q_SOURCE, agent_manifest, agent_specification, engine_metadata, game_config
 from .mcts import PUCTSearch
 from .model import PathagonGNN
+from .pathfinder import PathfinderGuide
 
 
 @dataclass(frozen=True)
@@ -103,6 +105,52 @@ def avoid_repeated_successors(
     return action_list, filtered
 
 
+def _softmax_scores(scores: Iterable[float], temperature: float) -> Tuple[float, ...]:
+    values = tuple(float(score) for score in scores)
+    if not values:
+        return ()
+    if temperature <= 0:
+        best = max(range(len(values)), key=lambda index: (values[index], -index))
+        return tuple(1.0 if index == best else 0.0 for index in range(len(values)))
+    scale = max(1.0, 3_500.0 * temperature)
+    maximum = max(values)
+    weights = tuple(math.exp((value - maximum) / scale) for value in values)
+    total = sum(weights)
+    return tuple(weight / total for weight in weights)
+
+
+def _blend_probabilities(
+    base: Iterable[float],
+    guide: Iterable[float],
+    weight: float,
+) -> Tuple[float, ...]:
+    base_values = tuple(float(value) for value in base)
+    guide_values = tuple(float(value) for value in guide)
+    if len(base_values) != len(guide_values):
+        raise ValueError("base and guidance policies must have the same length")
+    blended = tuple((1.0 - weight) * base_value + weight * guide_value for base_value, guide_value in zip(base_values, guide_values))
+    total = sum(blended)
+    if total <= 0:
+        return tuple(1.0 / len(blended) for _ in blended) if blended else ()
+    return tuple(value / total for value in blended)
+
+
+def _mix_uniform(probabilities: Iterable[float], weight: float) -> Tuple[float, ...]:
+    values = tuple(float(value) for value in probabilities)
+    if not values:
+        return ()
+    uniform = 1.0 / len(values)
+    return tuple((1.0 - weight) * value + weight * uniform for value in values)
+
+
+def _is_tactical_state(state: GameState, capture_threshold: int) -> bool:
+    for action in state.legal_actions():
+        afterstate = state.apply_legal(action)
+        if afterstate.winner is state.turn or afterstate.last_capture >= capture_threshold:
+            return True
+    return False
+
+
 def generate_game(
     model: PathagonGNN,
     config: BoardConfig,
@@ -111,20 +159,68 @@ def generate_game(
     seed: int = 0,
     add_root_noise: bool = True,
     progress: Optional[Callable[[GameState], None]] = None,
+    policy_temperature: float = 1.0,
+    opening_moves: int = 0,
+    opening_temperature: float = 1.0,
+    opening_randomness: float = 0.0,
+    pathfinder_guidance: float = 0.0,
+    placement_guidance: Optional[float] = None,
+    pathfinder_temperature: float = 1.0,
+    pathfinder_depth: int = 2,
+    pathfinder_beam: int = 8,
+    pathfinder_nodes: int = 1_000,
+    tactical_simulations: int = 0,
+    tactical_capture_threshold: int = 1,
 ) -> Tuple[List[SearchExample], GameState]:
-    search = PUCTSearch(model, simulations=simulations)
+    for name, value in (
+        ("policy_temperature", policy_temperature),
+        ("opening_temperature", opening_temperature),
+        ("pathfinder_temperature", pathfinder_temperature),
+    ):
+        if value <= 0:
+            raise ValueError(f"{name} must be positive")
+    for name, value in (
+        ("opening_randomness", opening_randomness),
+        ("pathfinder_guidance", pathfinder_guidance),
+        ("placement_guidance", pathfinder_guidance if placement_guidance is None else placement_guidance),
+    ):
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"{name} must be between 0 and 1")
+    if opening_moves < 0 or tactical_simulations < 0 or tactical_capture_threshold < 1:
+        raise ValueError("opening moves, tactical simulations, and capture threshold must be valid")
+    placement_weight = pathfinder_guidance if placement_guidance is None else placement_guidance
+    guide = PathfinderGuide(pathfinder_depth, pathfinder_beam, pathfinder_nodes) if max(pathfinder_guidance, placement_weight) > 0 else None
     examples: List[Tuple[GameState, Tuple[Action, ...], Tuple[float, ...], Action, Tuple[float, ...], Tuple[int, ...]]] = []
 
     def choose_action(state: GameState, actions: Tuple[Action, ...], rng: random.Random, history: Set[tuple]) -> Action:
+        tactical = tactical_simulations > simulations and _is_tactical_state(state, tactical_capture_threshold)
+        search = PUCTSearch(model, simulations=tactical_simulations if tactical else simulations)
+        in_opening = state.ply < opening_moves
+        effective_temperature = opening_temperature if in_opening else policy_temperature
         root, search_actions, probabilities = search.run(
             state,
             add_root_noise=add_root_noise,
             history=history,
             rng=rng,
+            policy_temperature=effective_temperature,
         )
         if actions != tuple(search_actions):
             raise AssertionError("MCTS action order diverged from the state action list")
         action_values, action_visits = search.root_action_values(root, list(actions))
+        _, probabilities = avoid_repeated_successors(state, actions, probabilities, history)
+        if guide is not None:
+            guidance_weight = placement_weight if state.reserves[state.turn] > 0 else pathfinder_guidance
+            if guidance_weight > 0:
+                path_scores = guide.score_actions(state, actions)
+                probabilities = _blend_probabilities(
+                    probabilities,
+                    _softmax_scores(path_scores, pathfinder_temperature),
+                    guidance_weight,
+                )
+        if in_opening and opening_randomness > 0:
+            probabilities = _mix_uniform(probabilities, opening_randomness)
+        # Blending can reintroduce probability on a repeated successor, so
+        # apply the repetition guard again after all exploration dials.
         _, probabilities = avoid_repeated_successors(state, actions, probabilities, history)
         if state.ply < temperature_moves:
             action = rng.choices(actions, weights=probabilities, k=1)[0]

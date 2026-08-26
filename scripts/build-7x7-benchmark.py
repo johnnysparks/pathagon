@@ -103,7 +103,11 @@ def has_complete_action_values(record: dict) -> bool:
     )
 
 
-def group_key(record: dict, signature: str) -> str:
+def group_key(record: dict, signature: str, opening_plies: int = 0) -> str:
+    if opening_plies > 0:
+        opening = [move.get("action") for move in record["moves"][:opening_plies]]
+        encoded = json.dumps(opening, sort_keys=True, separators=(",", ":"))
+        return f"opening:{hashlib.sha256(encoded.encode('utf-8')).hexdigest()}"
     seed = record.get("seed")
     return f"seed:{seed}" if seed is not None else f"record:{signature}"
 
@@ -137,6 +141,12 @@ def main() -> None:
     parser.add_argument("--heldout-fraction", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=20260824)
     parser.add_argument(
+        "--opening-plies",
+        type=int,
+        default=0,
+        help="group train/held-out assignment by the first N actions so opening patterns never cross the split",
+    )
+    parser.add_argument(
         "--exclude-dir",
         action="append",
         default=[],
@@ -161,6 +171,8 @@ def main() -> None:
     args = parser.parse_args()
     if not 0.0 < args.heldout_fraction < 1.0:
         raise SystemExit("--heldout-fraction must be between 0 and 1")
+    if args.opening_plies < 0:
+        raise SystemExit("--opening-plies cannot be negative")
 
     unique: dict[str, tuple[str, dict, int, int]] = {}
     raw_counts: Counter[str] = Counter()
@@ -200,12 +212,12 @@ def main() -> None:
 
     groups: dict[str, list[tuple[str, dict]]] = defaultdict(list)
     for signature, (source, record, _size, _reserve) in unique.items():
-        groups[group_key(record, signature)].append((signature, record))
+        groups[group_key(record, signature, args.opening_plies)].append((signature, record))
     train_groups, heldout_groups = choose_split(groups, args.heldout_fraction, args.seed)
 
     ordered = sorted(unique.items(), key=lambda item: (int(item[1][1].get("seed") or 0), item[0]))
-    train_records = [record for signature, (_source, record, _size, _reserve) in ordered if group_key(record, signature) in train_groups]
-    heldout_records = [record for signature, (_source, record, _size, _reserve) in ordered if group_key(record, signature) in heldout_groups]
+    train_records = [record for signature, (_source, record, _size, _reserve) in ordered if group_key(record, signature, args.opening_plies) in train_groups]
+    heldout_records = [record for signature, (_source, record, _size, _reserve) in ordered if group_key(record, signature, args.opening_plies) in heldout_groups]
     args.output.mkdir(parents=True, exist_ok=True)
     write_records(args.output / "all.jsonl", (record for _signature, (_source, record, _size, _reserve) in ordered))
     write_records(args.output / "train.jsonl", train_records)
@@ -220,6 +232,7 @@ def main() -> None:
         "reservePerPlayer": 14,
         "splitSeed": args.seed,
         "heldoutFraction": args.heldout_fraction,
+        "openingHoldoutPlies": args.opening_plies,
         "rawGames": sum(raw_counts.values()),
         "rawPositions": raw_positions,
         "uniqueGames": len(ordered),
@@ -234,6 +247,9 @@ def main() -> None:
         "skippedMissingActionValues": skipped_missing_action_values,
         "trainSeeds": sorted({record.get("seed") for record in train_records if record.get("seed") is not None}),
         "heldoutSeeds": sorted({record.get("seed") for record in heldout_records if record.get("seed") is not None}),
+        "trainOpeningGroups": len(train_groups),
+        "heldoutOpeningGroups": len(heldout_groups),
+        "openingGroupOverlap": len(train_groups & heldout_groups),
         "sources": [{"path": path, "rawGames": count} for path, count in sorted(raw_counts.items())],
         "skippedNon7x7": skipped,
     }

@@ -60,7 +60,7 @@ PLAYERS = {
     },
     "qadv": {
         "label": "The Q-Arbiter · Q/Advantage",
-        "checkpoint": Path("research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-qadv-backfill-20260825/qadv-arbiter-7x7-v0.1.0-backfilled.pt"),
+        "checkpoint": Path("research/runs/gnn/benchmark-7x7/generated/batch-20260825-qadv-deep-exploration-20260825/qadv-arbiter-7x7-v0.1.0-exploration-20260825.pt"),
         "architecture": "gnn",
         "agent_id": "qadv-arbiter-7x7-v0.1.0",
         "agent_name": "The Q-Arbiter",
@@ -171,6 +171,30 @@ def run_player(args: argparse.Namespace, player_name: str, player_index: int, ou
         str(args.simulations),
         "--temperature-moves",
         str(args.temperature_moves),
+        "--policy-temperature",
+        str(args.policy_temperature),
+        "--opening-moves",
+        str(args.opening_moves),
+        "--opening-temperature",
+        str(args.opening_temperature),
+        "--opening-randomness",
+        str(args.opening_randomness),
+        "--pathfinder-guidance",
+        str(args.pathfinder_guidance),
+        "--placement-guidance",
+        str(args.placement_guidance),
+        "--pathfinder-temperature",
+        str(args.pathfinder_temperature),
+        "--pathfinder-depth",
+        str(args.pathfinder_depth),
+        "--pathfinder-beam",
+        str(args.pathfinder_beam),
+        "--pathfinder-nodes",
+        str(args.pathfinder_nodes),
+        "--tactical-simulations",
+        str(args.tactical_simulations),
+        "--tactical-capture-threshold",
+        str(args.tactical_capture_threshold),
         "--updates",
         "0",
         "--seed",
@@ -209,6 +233,18 @@ def run_player(args: argparse.Namespace, player_name: str, player_index: int, ou
         "configuration": {
             "simulations": args.simulations,
             "temperatureMoves": args.temperature_moves,
+            "policyTemperature": args.policy_temperature,
+            "openingMoves": args.opening_moves,
+            "openingTemperature": args.opening_temperature,
+            "openingRandomness": args.opening_randomness,
+            "pathfinderGuidance": args.pathfinder_guidance,
+            "placementGuidance": args.placement_guidance if args.placement_guidance >= 0 else args.pathfinder_guidance,
+            "pathfinderTemperature": args.pathfinder_temperature,
+            "pathfinderDepth": args.pathfinder_depth,
+            "pathfinderBeam": args.pathfinder_beam,
+            "pathfinderNodes": args.pathfinder_nodes,
+            "tacticalSimulations": args.tactical_simulations,
+            "tacticalCaptureThreshold": args.tactical_capture_threshold,
             "workers": args.workers,
             "maxPlies": args.max_plies,
         },
@@ -225,6 +261,18 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--simulations", type=int, default=4)
     parser.add_argument("--temperature-moves", type=int, default=32)
+    parser.add_argument("--policy-temperature", type=float, default=1.0)
+    parser.add_argument("--opening-moves", type=int, default=0)
+    parser.add_argument("--opening-temperature", type=float, default=1.0)
+    parser.add_argument("--opening-randomness", type=float, default=0.0)
+    parser.add_argument("--pathfinder-guidance", type=float, default=0.0)
+    parser.add_argument("--placement-guidance", type=float, default=-1.0)
+    parser.add_argument("--pathfinder-temperature", type=float, default=1.0)
+    parser.add_argument("--pathfinder-depth", type=int, default=2)
+    parser.add_argument("--pathfinder-beam", type=int, default=8)
+    parser.add_argument("--pathfinder-nodes", type=int, default=1_000)
+    parser.add_argument("--tactical-simulations", type=int, default=0)
+    parser.add_argument("--tactical-capture-threshold", type=int, default=1)
     parser.add_argument("--max-plies", type=int, default=196)
     parser.add_argument("--selfplay-device", default="cpu")
     parser.add_argument("--device", default="cpu")
