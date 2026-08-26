@@ -1,4 +1,5 @@
 import { querySelfPlayGames } from "../../../db/selfplay-games";
+import { applyAction, createGame } from "../../pathagon";
 
 const MAX_QUERY_GAMES = 500;
 const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
@@ -195,6 +196,10 @@ function updateElo(ratings: Map<string, number>, light: string, dark: string, wi
 }
 
 function summarizeGame(id: string, record: Awaited<ReturnType<typeof queryRun>>[number]["record"]) {
+  const finalState = record.moves.reduce(
+    (state, move) => applyAction(state, move.action),
+    createGame(record.config),
+  );
   return {
     id,
     seed: record.seed,
@@ -204,6 +209,8 @@ function summarizeGame(id: string, record: Awaited<ReturnType<typeof queryRun>>[
     result: record.result,
     reason: record.reason,
     plies: record.plies,
+    finalBoard: finalState.board,
+    winningPath: finalState.winningPath,
   };
 }
 

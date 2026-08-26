@@ -206,6 +206,8 @@ type LiveGame = {
   result: "win" | "draw";
   reason: string;
   plies: number;
+  finalBoard: GameState["board"];
+  winningPath: number[];
 };
 
 type ArchivedReplayGame = {
@@ -527,7 +529,7 @@ export default function LearningLab() {
           <div><strong>{crossPlay?.latest[0]?.winner ?? (crossPlay?.latest[0] ? "draw" : "—")}</strong><span>latest stored result</span></div>
         </div>
         {crossPlayError ? <p className="live-run-error" role="status">{crossPlayError} · retrying automatically</p> : null}
-        {crossPlay?.latest.length ? <div className="live-game-list" aria-label="Latest cross-play games">{crossPlay.latest.map((game) => <button className="live-game-row" type="button" key={game.id} onClick={() => void openReplay(game)} aria-label={`Replay ${game.light} versus ${game.dark}`}><span className="live-game-number">{shortGameId(game.id)}</span><strong>{game.light}</strong><span>vs</span><strong>{game.dark}</strong><span className="live-game-result">{game.winner ? `${game.winner} · ${game.plies} plies` : `draw · ${game.plies} plies`} <em>Replay ↗</em></span></button>)}</div> : <p className="live-run-empty">Waiting for an imported offline cross-play result.</p>}
+        {crossPlay?.latest.length ? <div className="live-game-list" aria-label="Latest cross-play games">{crossPlay.latest.map((game) => <button className="live-game-row" type="button" key={game.id} onClick={() => void openReplay(game)} aria-label={`Replay ${game.light} versus ${game.dark}`}><GameThumbnail board={game.finalBoard} winningPath={game.winningPath} /><span className="live-game-number">{shortGameId(game.id)}</span><strong className="live-game-light">{game.light}</strong><span className="live-game-versus">vs</span><strong className="live-game-dark">{game.dark}</strong><span className="live-game-result">{game.winner ? `${game.winner} · ${game.plies} plies` : `draw · ${game.plies} plies`} <em>Replay ↗</em></span></button>)}</div> : <p className="live-run-empty">Waiting for an imported offline cross-play result.</p>}
       </section>
 
       <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
@@ -733,11 +735,17 @@ function ReplayViewer({ game, summary, ply, playing, onPlayPause, onPlyChange }:
 function FinalStateBadge({ state, winnerLabel }: { state: GameState; winnerLabel: string | null }) {
   return <div className="final-state-badge" aria-label={`Final board state${winnerLabel ? ` · ${winnerLabel}` : " · draw"}`}>
     <span className="final-state-badge-label">Final</span>
-    <div className="final-state-pixels" aria-hidden="true">
-      {state.board.map((piece, index) => <span className={`final-state-pixel ${piece ?? "empty"} ${state.winningPath.includes(index) ? "winning" : ""}`} key={index} />)}
-    </div>
+    <FinalStatePixels board={state.board} winningPath={state.winningPath} />
     <span className="final-state-badge-result">{winnerLabel ?? "Draw"}</span>
   </div>;
+}
+
+function GameThumbnail({ board, winningPath }: { board: GameState["board"]; winningPath: number[] }) {
+  return <span className="live-game-thumbnail" aria-hidden="true"><FinalStatePixels board={board} winningPath={winningPath} /></span>;
+}
+
+function FinalStatePixels({ board, winningPath }: { board: GameState["board"]; winningPath: number[] }) {
+  return <span className="final-state-pixels">{board.map((piece, index) => <span className={`final-state-pixel ${piece ?? "empty"} ${winningPath.includes(index) ? "winning" : ""}`} key={index} />)}</span>;
 }
 
 function describeReplayMove(move: ContractMove, boardSize: number) {
