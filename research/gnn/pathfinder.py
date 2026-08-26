@@ -32,18 +32,25 @@ class PathfinderGuide:
     def score_actions(self, state: GameState, actions: Iterable[Action]) -> List[float]:
         self.nodes = 0
         root = state.turn
-        scores: List[float] = []
-        for action in actions:
+        action_list = list(actions)
+        fallback: dict[Action, float] = {}
+        ordered = []
+        for action in action_list:
             afterstate = state.apply_legal(action)
-            if afterstate.winner is root:
-                scores.append(1_000_000_000.0)
-                continue
-            if self.nodes >= self.max_nodes:
-                scores.append(float(evaluate_position(afterstate, root)))
+            fallback[action] = 1_000_000_000.0 if afterstate.winner is root else float(evaluate_position(afterstate, root))
+            tactical = 2_000_000_000 if afterstate.winner is state.turn else afterstate.last_capture * 10_000
+            ordered.append((tactical + fallback[action], action))
+        ordered.sort(key=lambda item: (item[0], -action_sort_key(item[1])), reverse=True)
+        scores = dict(fallback)
+        # Pathfinder searches a beam of root candidates; the remaining legal
+        # actions retain the cheap successor-state score as a soft fallback.
+        for _root_score, action in ordered[: self.beam_width]:
+            afterstate = state.apply_legal(action)
+            if afterstate.winner is root or self.nodes >= self.max_nodes:
                 continue
             self.nodes += 1
-            scores.append(float(self._search(afterstate, root, self.depth - 1, float("-inf"), float("inf"))))
-        return scores
+            scores[action] = float(self._search(afterstate, root, self.depth - 1, float("-inf"), float("inf")))
+        return [scores[action] for action in action_list]
 
     def _search(self, state: GameState, root: Player, depth: int, alpha: float, beta: float) -> float:
         if state.winner is not None or depth <= 0 or self.nodes >= self.max_nodes:
