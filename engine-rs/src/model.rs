@@ -198,9 +198,13 @@ pub struct GnnQAdvInputs {
 
 impl GnnQAdvInputs {
     pub fn from_state(state: GameState) -> Result<Self, String> {
-        let base = GnnPolicyValueInputs::from_state(state)?;
         let actions = state.legal_actions();
-        let rows = transition_features(state, &actions);
+        Self::from_state_with_actions(state, &actions)
+    }
+
+    pub fn from_state_with_actions(state: GameState, actions: &[Action]) -> Result<Self, String> {
+        let base = GnnPolicyValueInputs::from_state_with_actions(state, actions)?;
+        let rows = transition_features(state, actions);
         let mut padded = vec![0.0_f32; MAX_ACTIONS * QADV_TRANSITION_FEATURE_COUNT];
         padded[..rows.len()].copy_from_slice(&rows);
         Ok(Self {
@@ -215,6 +219,14 @@ impl GnnQAdvInputs {
 
 impl GnnPolicyValueInputs {
     pub fn from_state(state: GameState) -> Result<Self, String> {
+        let actions = state.legal_actions();
+        Self::from_state_with_actions(state, &actions)
+    }
+
+    pub fn from_state_with_actions(
+        state: GameState,
+        legal_actions: &[Action],
+    ) -> Result<Self, String> {
         if state.config.board_size != DEPLOYED_BOARD_SIZE {
             return Err(format!(
                 "GNN policy model requires {}x{} board, received {}x{}",
@@ -299,7 +311,6 @@ impl GnnPolicyValueInputs {
             f32::from(state.last_player == Some(Player::Dark)),
             f32::from(state.ply) / f32::from(state.config.max_plies),
         ];
-        let legal_actions = state.legal_actions();
         if legal_actions.len() > MAX_ACTIONS {
             return Err(format!(
                 "legal action count exceeds model capacity: {}",
@@ -315,7 +326,7 @@ impl GnnPolicyValueInputs {
             MAX_ACTIONS
         ];
         let mut action_mask = vec![0.0_f32; MAX_ACTIONS];
-        for (index, action) in legal_actions.into_iter().enumerate() {
+        for (index, action) in legal_actions.iter().copied().enumerate() {
             action_specs[index] = action.into();
             action_mask[index] = 1.0;
         }

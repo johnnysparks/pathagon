@@ -34,6 +34,11 @@ outputs before running matches. The guided mode carries the same temperature,
 opening-mix, and Pathfinder blend controls as Python; `--qadv-onnx` exercises
 the direct action-value head.
 
+For a repeatable release-mode timing sample using the full guided recipe, run
+`python3 scripts/benchmark-rust-qadv.py`. It reports both engine time and wall
+time, along with the exact game/node totals, so engine changes can be compared
+on the same seeds and simulation budget.
+
 For the opt-in small-board tactical proof mode, add
 `--tactical-proof-horizon 3`. It applies only to boards up to 4x4, searches
 the full legal action set, and records the mode in the agent parameters. The

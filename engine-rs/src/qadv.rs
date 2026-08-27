@@ -5,7 +5,7 @@
 //! checks, not as a second learned evaluator.
 
 use crate::search::{capture_opportunities, connection_distance, edge_presence, largest_component};
-use crate::{Action, GameState, Player};
+use crate::{neighbor_mask_for, Action, GameState, Player};
 
 pub const TRANSITION_FEATURE_COUNT: usize = 24;
 
@@ -41,7 +41,7 @@ fn signals(state: GameState, player: Player) -> PositionSignals {
         opponent_pieces: state.pieces(opponent).count_ones() as i32,
         own_reserve: i32::from(state.reserve[player.index()]),
         opponent_reserve: i32::from(state.reserve[opponent.index()]),
-        mobility: state.legal_actions().len() as i32,
+        mobility: state.legal_action_count() as i32,
     }
 }
 
@@ -50,29 +50,10 @@ fn normalized_delta(value: i32, scale: i32) -> f32 {
 }
 
 fn neighbor_counts(state: GameState, square: u8, player: Player) -> (i32, i32, i32) {
-    let mut own = 0;
-    let mut opponent = 0;
-    let mut empty = 0;
-    let board_size = state.config.board_size;
-    let row = square / board_size;
-    let column = square % board_size;
-    let mut visit = |next: u8| match state.board_at(next) {
-        Some(piece) if piece == player => own += 1,
-        Some(_) => opponent += 1,
-        None => empty += 1,
-    };
-    if row > 0 {
-        visit(square - board_size);
-    }
-    if row + 1 < board_size {
-        visit(square + board_size);
-    }
-    if column > 0 {
-        visit(square - 1);
-    }
-    if column + 1 < board_size {
-        visit(square + 1);
-    }
+    let neighbors = neighbor_mask_for(state.config.board_size, square);
+    let own = (state.pieces(player) & neighbors).count_ones() as i32;
+    let opponent = (state.pieces(player.other()) & neighbors).count_ones() as i32;
+    let empty = neighbors.count_ones() as i32 - own - opponent;
     (own, opponent, empty)
 }
 

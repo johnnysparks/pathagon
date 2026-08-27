@@ -21,8 +21,36 @@ pub struct QAdvPolicyValue {
     pub q_values: Vec<f32>,
 }
 
+static ZERO_QADV_TRANSITION_FEATURES: [f32; MAX_ACTIONS * QADV_TRANSITION_FEATURE_COUNT] =
+    [0.0; MAX_ACTIONS * QADV_TRANSITION_FEATURE_COUNT];
+
 pub trait PolicyValueModel {
     fn evaluate(&self, state: GameState) -> Result<PolicyValue, String>;
+
+    /// Evaluate a state when the caller already has its canonical action list.
+    /// Implementations may use it to avoid regenerating legal actions.
+    fn evaluate_with_actions(
+        &self,
+        state: GameState,
+        _actions: &[crate::Action],
+    ) -> Result<PolicyValue, String> {
+        self.evaluate(state)
+    }
+
+    /// Evaluate only the policy/value path when a model has an auxiliary
+    /// action head that is not needed by tree expansion. Implementations with
+    /// no cheaper path inherit the full evaluation.
+    fn evaluate_policy_value(&self, state: GameState) -> Result<PolicyValue, String> {
+        self.evaluate(state)
+    }
+
+    fn evaluate_policy_value_with_actions(
+        &self,
+        state: GameState,
+        actions: &[crate::Action],
+    ) -> Result<PolicyValue, String> {
+        self.evaluate_with_actions(state, actions)
+    }
 }
 
 pub struct OnnxPolicyValueModel {
@@ -100,7 +128,16 @@ impl OnnxGnnPolicyValueModel {
 
 impl PolicyValueModel for OnnxGnnPolicyValueModel {
     fn evaluate(&self, state: GameState) -> Result<PolicyValue, String> {
-        let inputs = GnnPolicyValueInputs::from_state(state)?;
+        let actions = state.legal_actions();
+        self.evaluate_with_actions(state, &actions)
+    }
+
+    fn evaluate_with_actions(
+        &self,
+        state: GameState,
+        actions: &[crate::Action],
+    ) -> Result<PolicyValue, String> {
+        let inputs = GnnPolicyValueInputs::from_state_with_actions(state, actions)?;
         let node_features = tensor(
             &[1, GNN_GRAPH_NODE_COUNT, GNN_NODE_FEATURE_COUNT],
             &inputs.node_features,
@@ -160,7 +197,16 @@ impl OnnxQAdvModel {
     }
 
     pub fn evaluate_qadv(&self, state: GameState) -> Result<QAdvPolicyValue, String> {
-        let inputs = GnnQAdvInputs::from_state(state)?;
+        let actions = state.legal_actions();
+        self.evaluate_qadv_with_actions(state, &actions)
+    }
+
+    pub fn evaluate_qadv_with_actions(
+        &self,
+        state: GameState,
+        actions: &[crate::Action],
+    ) -> Result<QAdvPolicyValue, String> {
+        let inputs = GnnQAdvInputs::from_state_with_actions(state, actions)?;
         let node_features = tensor(
             &[1, GNN_GRAPH_NODE_COUNT, GNN_NODE_FEATURE_COUNT],
             &inputs.node_features,
@@ -211,6 +257,65 @@ impl OnnxQAdvModel {
             q_values,
         })
     }
+
+    /// The exported QAdv graph shares its policy/value trunk with the Q head;
+    /// transition features feed only the third output. PUCT leaf expansion
+    /// does not need Q values, so it can skip rebuilding every legal
+    /// afterstate's transition vector and pass zero padding to the graph.
+    fn evaluate_policy_value_only(
+        &self,
+        state: GameState,
+        actions: &[crate::Action],
+    ) -> Result<PolicyValue, String> {
+        let inputs = GnnPolicyValueInputs::from_state_with_actions(state, actions)?;
+        let node_features = tensor(
+            &[1, GNN_GRAPH_NODE_COUNT, GNN_NODE_FEATURE_COUNT],
+            &inputs.node_features,
+        )?;
+        let global = tensor(&[1, GLOBAL_FEATURE_COUNT], &inputs.global_features)?;
+        let action_specs = inputs
+            .action_specs
+            .iter()
+            .flat_map(|action| {
+                [
+                    f32::from(action.kind),
+                    f32::from(action.from),
+                    f32::from(action.to),
+                ]
+            })
+            .collect::<Vec<_>>();
+        let action_specs = tensor(&[1, MAX_ACTIONS, ACTION_FEATURE_COUNT], &action_specs)?;
+        let action_mask = tensor(&[1, MAX_ACTIONS], &inputs.action_mask)?;
+        let transition_features = tensor(
+            &[1, MAX_ACTIONS, QADV_TRANSITION_FEATURE_COUNT],
+            &ZERO_QADV_TRANSITION_FEATURES,
+        )?;
+        let outputs = self
+            .model
+            .run(tvec![
+                node_features.into_tvalue(),
+                global.into_tvalue(),
+                action_specs.into_tvalue(),
+                action_mask.into_tvalue(),
+                transition_features.into_tvalue(),
+            ])
+            .map_err(|error| error.to_string())?;
+        if outputs.len() != 3 {
+            return Err(format!(
+                "QAdv model returned {} outputs, expected 3",
+                outputs.len()
+            ));
+        }
+        let policy_logits = f32_values(&outputs[0])?;
+        let value = f32_values(&outputs[1])?
+            .first()
+            .copied()
+            .ok_or_else(|| "QAdv model returned an empty value tensor".to_owned())?;
+        Ok(PolicyValue {
+            policy_logits,
+            value,
+        })
+    }
 }
 
 impl PolicyValueModel for OnnxQAdvModel {
@@ -220,6 +325,31 @@ impl PolicyValueModel for OnnxQAdvModel {
             policy_logits: output.policy_logits,
             value: output.value,
         })
+    }
+
+    fn evaluate_with_actions(
+        &self,
+        state: GameState,
+        actions: &[crate::Action],
+    ) -> Result<PolicyValue, String> {
+        let output = self.evaluate_qadv_with_actions(state, actions)?;
+        Ok(PolicyValue {
+            policy_logits: output.policy_logits,
+            value: output.value,
+        })
+    }
+
+    fn evaluate_policy_value(&self, state: GameState) -> Result<PolicyValue, String> {
+        let actions = state.legal_actions();
+        self.evaluate_policy_value_with_actions(state, &actions)
+    }
+
+    fn evaluate_policy_value_with_actions(
+        &self,
+        state: GameState,
+        actions: &[crate::Action],
+    ) -> Result<PolicyValue, String> {
+        self.evaluate_policy_value_only(state, actions)
     }
 }
 
@@ -236,10 +366,7 @@ fn load_model(
         .map_err(|error| error.to_string())
 }
 
-fn tensor(
-    shape: &[usize],
-    values: &[f32],
-) -> Result<tract::tract_core::prelude::Tensor, String> {
+fn tensor(shape: &[usize], values: &[f32]) -> Result<tract::tract_core::prelude::Tensor, String> {
     let expected = shape.iter().product::<usize>();
     if values.len() != expected {
         return Err(format!(
@@ -247,8 +374,7 @@ fn tensor(
             values.len()
         ));
     }
-    tract::tract_core::prelude::Tensor::from_shape(shape, values)
-        .map_err(|error| error.to_string())
+    tract::tract_core::prelude::Tensor::from_shape(shape, values).map_err(|error| error.to_string())
 }
 
 fn f32_values(tensor: &tract::tract_core::prelude::Tensor) -> Result<Vec<f32>, String> {

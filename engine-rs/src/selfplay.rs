@@ -4,12 +4,16 @@ use std::sync::Arc;
 use crate::contract::RootQTargets;
 use crate::corpus::StrategyBook;
 #[cfg(feature = "inference")]
-use crate::inference::{OnnxGnnPolicyValueModel, OnnxQAdvModel};
+use crate::inference::{OnnxGnnPolicyValueModel, OnnxQAdvModel, PolicyValue};
 use crate::learned::LearnedBook;
 #[cfg(feature = "inference")]
 use crate::pathfinder::{PathfinderConfig, PathfinderGuide};
 #[cfg(feature = "inference")]
-use crate::puct::{search as puct_search, PuctConfig};
+use crate::puct::{
+    search as puct_search,
+    search_with_root_output_and_seeds_and_actions as puct_search_with_root_output_and_seeds_and_actions,
+    PuctConfig,
+};
 use crate::search::{lunatic_action, search_best_action, SearchConfig};
 use crate::{bit_squares, Action, BoardConfig, GameState, Player};
 
@@ -844,18 +848,35 @@ fn choose_qadv_guided(
         simulations,
         ..config.guided.puct
     };
-    let result = puct_search(model, state, puct_config)
-        .unwrap_or_else(|error| panic!("native QAdv PUCT failed: {error}"));
     let output = model
-        .evaluate_qadv(state)
+        .evaluate_qadv_with_actions(state, &actions)
         .unwrap_or_else(|error| panic!("native QAdv evaluation failed: {error}"));
+    let q_values = output.q_values;
+    let root_output = PolicyValue {
+        policy_logits: output.policy_logits,
+        value: output.value,
+    };
+    let result = puct_search_with_root_output_and_seeds_and_actions(
+        model,
+        state,
+        puct_config,
+        Some(root_output),
+        Some(q_values.clone()),
+        Some(actions),
+    )
+    .unwrap_or_else(|error| panic!("native QAdv PUCT failed: {error}"));
+    let actions = result
+        .evaluations
+        .iter()
+        .map(|evaluation| evaluation.action)
+        .collect::<Vec<_>>();
     let in_opening = state.ply < config.guided.opening_moves;
     let effective_temperature = if in_opening {
         config.guided.opening_temperature
     } else {
         config.guided.policy_temperature
     };
-    let q_values = &output.q_values[..actions.len()];
+    let q_values = &q_values[..actions.len()];
     let q_probability = q_softmax(q_values, effective_temperature);
     let visit_probability = visit_probabilities(&result, effective_temperature);
     let q_weight = config.qadv_weight.clamp(0.0, 1.0);

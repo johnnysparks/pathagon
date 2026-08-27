@@ -33,6 +33,97 @@ pub const CELL_COUNT: u8 = BOARD_SIZE * BOARD_SIZE;
 pub const MAX_CELL_COUNT: u8 = MAX_BOARD_SIZE * MAX_BOARD_SIZE;
 pub const DEFAULT_MAX_PLIES: u16 = 180;
 
+#[derive(Clone, Copy)]
+struct CaptureRay {
+    near: u64,
+    far: u64,
+}
+
+const EMPTY_CAPTURE_RAY: CaptureRay = CaptureRay { near: 0, far: 0 };
+
+const fn build_neighbor_masks() -> [[u64; MAX_CELL_COUNT as usize]; (MAX_BOARD_SIZE + 1) as usize] {
+    let mut table = [[0_u64; MAX_CELL_COUNT as usize]; (MAX_BOARD_SIZE + 1) as usize];
+    let mut board_size = 1_u8;
+    while board_size <= MAX_BOARD_SIZE {
+        let mut square = 0_u8;
+        while square < MAX_CELL_COUNT {
+            if square < board_size * board_size {
+                let row = square / board_size;
+                let column = square % board_size;
+                let mut mask = 0_u64;
+                if row > 0 {
+                    mask |= 1_u64 << (square - board_size);
+                }
+                if row + 1 < board_size {
+                    mask |= 1_u64 << (square + board_size);
+                }
+                if column > 0 {
+                    mask |= 1_u64 << (square - 1);
+                }
+                if column + 1 < board_size {
+                    mask |= 1_u64 << (square + 1);
+                }
+                table[board_size as usize][square as usize] = mask;
+            }
+            square += 1;
+        }
+        board_size += 1;
+    }
+    table
+}
+
+const fn build_capture_rays(
+) -> [[[CaptureRay; 4]; MAX_CELL_COUNT as usize]; (MAX_BOARD_SIZE + 1) as usize] {
+    let mut table =
+        [[[EMPTY_CAPTURE_RAY; 4]; MAX_CELL_COUNT as usize]; (MAX_BOARD_SIZE + 1) as usize];
+    let mut board_size = 1_u8;
+    while board_size <= MAX_BOARD_SIZE {
+        let mut square = 0_u8;
+        while square < board_size * board_size {
+            let row = square / board_size;
+            let column = square % board_size;
+            let mut direction = 0_usize;
+            while direction < 4 {
+                let (row_delta, column_delta) = match direction {
+                    0 => (-1_i8, 0_i8),
+                    1 => (1_i8, 0_i8),
+                    2 => (0_i8, -1_i8),
+                    _ => (0_i8, 1_i8),
+                };
+                let near_row = row as i8 + row_delta;
+                let near_column = column as i8 + column_delta;
+                let far_row = row as i8 + row_delta * 2;
+                let far_column = column as i8 + column_delta * 2;
+                if near_row >= 0
+                    && near_row < board_size as i8
+                    && near_column >= 0
+                    && near_column < board_size as i8
+                    && far_row >= 0
+                    && far_row < board_size as i8
+                    && far_column >= 0
+                    && far_column < board_size as i8
+                {
+                    let near = (near_row as u8 * board_size + near_column as u8) as u8;
+                    let far = (far_row as u8 * board_size + far_column as u8) as u8;
+                    table[board_size as usize][square as usize][direction] = CaptureRay {
+                        near: 1_u64 << near,
+                        far: 1_u64 << far,
+                    };
+                }
+                direction += 1;
+            }
+            square += 1;
+        }
+        board_size += 1;
+    }
+    table
+}
+
+static NEIGHBOR_MASKS: [[u64; MAX_CELL_COUNT as usize]; (MAX_BOARD_SIZE + 1) as usize] =
+    build_neighbor_masks();
+static CAPTURE_RAYS: [[[CaptureRay; 4]; MAX_CELL_COUNT as usize]; (MAX_BOARD_SIZE + 1) as usize] =
+    build_capture_rays();
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct BoardConfig {
     pub board_size: u8,
@@ -243,6 +334,27 @@ impl GameState {
         actions
     }
 
+    /// Count legal actions without materializing the action list.
+    ///
+    /// This is used by evaluators that only need mobility. Keeping it beside
+    /// `legal_actions` makes the count share exactly the same rule boundary
+    /// without paying for thousands of short-lived `Action` vectors.
+    pub fn legal_action_count(self) -> usize {
+        if self.winner.is_some() {
+            return 0;
+        }
+        let destinations = self.config.full_board() & !(self.light | self.dark | self.forbidden);
+        let destination_count = destinations.count_ones() as usize;
+        if self.reserve[self.turn.index()] > 0 {
+            return destination_count;
+        }
+        let mut sources = self.pieces(self.turn);
+        if let Some(square) = self.last_relocated_to[self.turn.index()] {
+            sources &= !bit(square);
+        }
+        sources.count_ones() as usize * destination_count
+    }
+
     pub fn apply(self, action: Action) -> Result<Transition, &'static str> {
         if !self.legal_actions().contains(&action) {
             return Err("illegal Pathagon action");
@@ -307,7 +419,31 @@ pub struct Transition {
 }
 
 pub fn has_winning_path(state: GameState, player: Player) -> bool {
-    !winning_path(state, player).is_empty()
+    let pieces = state.pieces(player);
+    let near_edge = if player == Player::Light {
+        row_mask(state.config.board_size, state.config.board_size - 1)
+    } else {
+        column_mask(state.config.board_size, 0)
+    };
+    let far_edge = if player == Player::Light {
+        row_mask(state.config.board_size, 0)
+    } else {
+        column_mask(state.config.board_size, state.config.board_size - 1)
+    };
+    let mut frontier = pieces & near_edge;
+    let mut visited = frontier;
+    while frontier != 0 {
+        if frontier & far_edge != 0 {
+            return true;
+        }
+        let mut next = 0_u64;
+        for square in squares(frontier) {
+            next |= neighbor_mask_for(state.config.board_size, square);
+        }
+        frontier = next & pieces & !visited;
+        visited |= frontier;
+    }
+    false
 }
 
 pub fn winning_path(state: GameState, player: Player) -> Vec<u8> {
@@ -392,49 +528,22 @@ impl Iterator for Squares {
 }
 
 pub(crate) fn neighbor_mask_for(board_size: u8, square: u8) -> u64 {
-    let row = square / board_size;
-    let column = square % board_size;
-    let mut mask = 0;
-    if row > 0 {
-        mask |= bit(square - board_size);
-    }
-    if row + 1 < board_size {
-        mask |= bit(square + board_size);
-    }
-    if column > 0 {
-        mask |= bit(square - 1);
-    }
-    if column + 1 < board_size {
-        mask |= bit(square + 1);
-    }
-    mask
+    NEIGHBOR_MASKS[board_size as usize][square as usize]
 }
 
-fn captures_from(state: GameState, origin: u8, player: Player) -> u64 {
-    let opponent = player.other();
-    let board_size = state.config.board_size;
-    let row = (origin / board_size) as i8;
-    let column = (origin % board_size) as i8;
+pub(crate) fn captures_from(state: GameState, origin: u8, player: Player) -> u64 {
+    let opponent_pieces = state.pieces(player.other());
+    let own_pieces = state.pieces(player);
     let mut captured = 0;
-    for (row_delta, column_delta) in [(-1_i8, 0_i8), (1, 0), (0, -1), (0, 1)] {
-        let near_row = row + row_delta;
-        let near_column = column + column_delta;
-        let far_row = row + row_delta * 2;
-        let far_column = column + column_delta * 2;
-        if !(0..board_size as i8).contains(&far_row) || !(0..board_size as i8).contains(&far_column)
-        {
-            continue;
-        }
-        let near = (near_row * board_size as i8 + near_column) as u8;
-        let far = (far_row * board_size as i8 + far_column) as u8;
-        if state.board_at(near) == Some(opponent) && state.board_at(far) == Some(player) {
-            captured |= bit(near);
+    for ray in CAPTURE_RAYS[state.config.board_size as usize][origin as usize] {
+        if opponent_pieces & ray.near != 0 && own_pieces & ray.far != 0 {
+            captured |= ray.near;
         }
     }
     captured
 }
 
-const fn row_mask(board_size: u8, row: u8) -> u64 {
+pub(crate) const fn row_mask(board_size: u8, row: u8) -> u64 {
     let mut mask = 0;
     let mut column = 0;
     while column < board_size {
@@ -444,7 +553,7 @@ const fn row_mask(board_size: u8, row: u8) -> u64 {
     mask
 }
 
-const fn column_mask(board_size: u8, column: u8) -> u64 {
+pub(crate) const fn column_mask(board_size: u8, column: u8) -> u64 {
     let mut mask = 0;
     let mut row = 0;
     while row < board_size {
@@ -495,5 +604,51 @@ mod tests {
             .iter()
             .any(|action| matches!(action, Action::Relocate { from: 48, .. })));
         assert!(state.apply(Action::Relocate { from: 0, to: 0 }).is_err());
+    }
+
+    #[test]
+    fn allocation_free_action_count_matches_canonical_actions() {
+        let mut state = GameState::new();
+        let mut seed = 0x51f2_9ab3_u32;
+        for _ in 0..96 {
+            assert_eq!(state.legal_action_count(), state.legal_actions().len());
+            let actions = state.legal_actions();
+            let Some(action) = actions.get((seed as usize) % actions.len().max(1)).copied() else {
+                break;
+            };
+            seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            state = state.apply_legal(action).state;
+            if state.winner.is_some() {
+                break;
+            }
+        }
+    }
+
+    #[test]
+    fn bitboard_winner_check_matches_path_reconstruction() {
+        for board_size in MIN_BOARD_SIZE..=MAX_BOARD_SIZE {
+            let mut state = GameState::with_board_size(board_size);
+            let mut seed = u32::from(board_size).wrapping_mul(0x9e37_79b9);
+            for _ in 0..128 {
+                for player in [Player::Light, Player::Dark] {
+                    assert_eq!(
+                        has_winning_path(state, player),
+                        !winning_path(state, player).is_empty(),
+                        "winner mismatch on {board_size}x{board_size} for {}",
+                        player.as_str()
+                    );
+                }
+                let actions = state.legal_actions();
+                let Some(action) = actions.get((seed as usize) % actions.len().max(1)).copied()
+                else {
+                    break;
+                };
+                seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                state = state.apply_legal(action).state;
+                if state.winner.is_some() {
+                    break;
+                }
+            }
+        }
     }
 }

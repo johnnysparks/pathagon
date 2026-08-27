@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
-use crate::{bit, neighbor_mask_for, squares, Action, GameState, Player};
+use crate::{
+    bit, captures_from, column_mask, neighbor_mask_for, row_mask, squares, Action, GameState,
+    Player, MAX_CELL_COUNT,
+};
 
 const WIN_SCORE: i32 = 1_000_000_000;
 const NEG_INF: i32 = i32::MIN / 4;
@@ -499,49 +502,56 @@ pub(crate) fn connection_distance(state: GameState, player: Player) -> i32 {
     let opponent = player.other();
     let board_size = state.config.board_size;
     let cell_count = state.config.cells();
-    let mut distance = vec![u8::MAX; cell_count as usize];
-    let mut queue = VecDeque::new();
+    let own_pieces = state.pieces(player);
+    let opponent_pieces = state.pieces(opponent);
+    let far_edge = if player == Player::Light {
+        row_mask(board_size, 0)
+    } else {
+        column_mask(board_size, board_size - 1)
+    };
+    let mut distance = [u8::MAX; MAX_CELL_COUNT as usize];
+    let mut buckets = [0_u64; MAX_CELL_COUNT as usize + 1];
     for index in 0..board_size {
         let square = if player == Player::Light {
             (board_size - 1) * board_size + index
         } else {
             index * board_size
         };
-        if state.board_at(square) == Some(opponent) {
+        let square_bit = bit(square);
+        if opponent_pieces & square_bit != 0 {
             continue;
         }
-        let cost = u8::from(state.board_at(square) != Some(player));
+        let cost = u8::from(own_pieces & square_bit == 0);
         distance[square as usize] = cost;
-        if cost == 0 {
-            queue.push_front(square);
-        } else {
-            queue.push_back(square);
-        }
+        buckets[cost as usize] |= square_bit;
     }
-    while let Some(square) = queue.pop_front() {
-        let row = square / board_size;
-        let column = square % board_size;
-        if (player == Player::Light && row == 0)
-            || (player == Player::Dark && column == board_size - 1)
-        {
-            return distance[square as usize] as i32;
+    let mut current_distance = 0_usize;
+    while current_distance <= cell_count as usize {
+        while buckets[current_distance] != 0 {
+            let square = buckets[current_distance].trailing_zeros() as u8;
+            buckets[current_distance] &= !bit(square);
+            if bit(square) & far_edge != 0 {
+                return current_distance as i32;
+            }
+            for next in squares(neighbor_mask_for(board_size, square)) {
+                let next_bit = bit(next);
+                if opponent_pieces & next_bit != 0 {
+                    continue;
+                }
+                let step = u8::from(own_pieces & next_bit == 0);
+                let next_distance = current_distance as u8 + step;
+                if next_distance >= distance[next as usize] {
+                    continue;
+                }
+                let previous_distance = distance[next as usize];
+                if previous_distance != u8::MAX {
+                    buckets[previous_distance as usize] &= !next_bit;
+                }
+                distance[next as usize] = next_distance;
+                buckets[next_distance as usize] |= next_bit;
+            }
         }
-        for next in squares(neighbor_mask_for(board_size, square)) {
-            if state.board_at(next) == Some(opponent) {
-                continue;
-            }
-            let step = u8::from(state.board_at(next) != Some(player));
-            let next_distance = distance[square as usize].saturating_add(step);
-            if next_distance >= distance[next as usize] {
-                continue;
-            }
-            distance[next as usize] = next_distance;
-            if step == 0 {
-                queue.push_front(next);
-            } else {
-                queue.push_back(next);
-            }
-        }
+        current_distance += 1;
     }
     cell_count as i32
 }
@@ -550,15 +560,20 @@ pub(crate) fn largest_component(state: GameState, player: Player) -> i32 {
     let mut remaining = state.pieces(player);
     let mut largest = 0;
     while let Some(first) = squares(remaining).next() {
-        let mut stack = vec![first];
+        let mut stack = [0_u8; MAX_CELL_COUNT as usize];
+        let mut stack_len = 1_usize;
+        stack[0] = first;
         remaining &= !bit(first);
         let mut size = 0;
-        while let Some(square) = stack.pop() {
+        while stack_len != 0 {
+            stack_len -= 1;
+            let square = stack[stack_len];
             size += 1;
             let adjacent = neighbor_mask_for(state.config.board_size, square) & remaining;
             for next in squares(adjacent) {
                 remaining &= !bit(next);
-                stack.push(next);
+                stack[stack_len] = next;
+                stack_len += 1;
             }
         }
         largest = largest.max(size);
@@ -568,28 +583,12 @@ pub(crate) fn largest_component(state: GameState, player: Player) -> i32 {
 
 pub(crate) fn capture_opportunities(state: GameState, player: Player) -> i32 {
     let occupied = state.light | state.dark | state.forbidden;
-    let board_size = state.config.board_size;
     let mut victims = 0;
     for origin in 0..state.config.cells() {
         if occupied & bit(origin) != 0 {
             continue;
         }
-        let row = (origin / board_size) as i8;
-        let column = (origin % board_size) as i8;
-        for (row_delta, column_delta) in [(-1_i8, 0_i8), (1, 0), (0, -1), (0, 1)] {
-            let far_row = row + row_delta * 2;
-            let far_column = column + column_delta * 2;
-            if !(0..board_size as i8).contains(&far_row)
-                || !(0..board_size as i8).contains(&far_column)
-            {
-                continue;
-            }
-            let near = ((row + row_delta) * board_size as i8 + column + column_delta) as u8;
-            let far = (far_row * board_size as i8 + far_column) as u8;
-            if state.board_at(near) == Some(player.other()) && state.board_at(far) == Some(player) {
-                victims |= bit(near);
-            }
-        }
+        victims |= captures_from(state, origin, player);
     }
     victims.count_ones() as i32
 }
@@ -624,6 +623,86 @@ fn put_first(actions: &mut Vec<Action>, preferred: Action) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::VecDeque;
+
+    fn reference_connection_distance(state: GameState, player: Player) -> i32 {
+        let opponent = player.other();
+        let board_size = state.config.board_size;
+        let cell_count = state.config.cells();
+        let mut distance = vec![u8::MAX; cell_count as usize];
+        let mut queue = VecDeque::new();
+        for index in 0..board_size {
+            let square = if player == Player::Light {
+                (board_size - 1) * board_size + index
+            } else {
+                index * board_size
+            };
+            if state.board_at(square) == Some(opponent) {
+                continue;
+            }
+            let cost = u8::from(state.board_at(square) != Some(player));
+            distance[square as usize] = cost;
+            if cost == 0 {
+                queue.push_front(square);
+            } else {
+                queue.push_back(square);
+            }
+        }
+        while let Some(square) = queue.pop_front() {
+            let row = square / board_size;
+            let column = square % board_size;
+            if (player == Player::Light && row == 0)
+                || (player == Player::Dark && column == board_size - 1)
+            {
+                return distance[square as usize] as i32;
+            }
+            for next in squares(neighbor_mask_for(board_size, square)) {
+                if state.board_at(next) == Some(opponent) {
+                    continue;
+                }
+                let step = u8::from(state.board_at(next) != Some(player));
+                let next_distance = distance[square as usize].saturating_add(step);
+                if next_distance >= distance[next as usize] {
+                    continue;
+                }
+                distance[next as usize] = next_distance;
+                if step == 0 {
+                    queue.push_front(next);
+                } else {
+                    queue.push_back(next);
+                }
+            }
+        }
+        cell_count as i32
+    }
+
+    #[test]
+    fn allocation_free_connection_distance_matches_reference_search() {
+        for board_size in crate::MIN_BOARD_SIZE..=crate::MAX_BOARD_SIZE {
+            let mut state = GameState::with_board_size(board_size);
+            let mut seed = u32::from(board_size).wrapping_mul(0x243f_6a88);
+            for _ in 0..96 {
+                for player in [Player::Light, Player::Dark] {
+                    assert_eq!(
+                        connection_distance(state, player),
+                        reference_connection_distance(state, player),
+                        "connection distance mismatch on {board_size}x{board_size} for {}",
+                        player.as_str()
+                    );
+                }
+                let actions = state.legal_actions();
+                let Some(action) = actions.get((seed as usize) % actions.len().max(1)).copied()
+                else {
+                    break;
+                };
+                seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                state = state.apply_legal(action).state;
+                if state.winner.is_some() {
+                    break;
+                }
+            }
+        }
+    }
 
     #[test]
     fn iterative_search_respects_budget() {

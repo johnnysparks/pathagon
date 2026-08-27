@@ -5,7 +5,7 @@
 //! those signals into a deterministic tree policy that can run natively or in
 //! the inference-enabled WASM build.
 
-use crate::inference::PolicyValueModel;
+use crate::inference::{PolicyValue, PolicyValueModel};
 use crate::search::{evaluate, EvaluationWeights};
 use crate::{Action, GameState};
 
@@ -61,8 +61,8 @@ struct Node {
     state: GameState,
     actions: Vec<Action>,
     priors: Vec<f32>,
-    children: Vec<Option<Box<Node>>>,
-    seeded_value: Option<f32>,
+    children: Vec<Option<usize>>,
+    child_seeds: Vec<Option<f32>>,
     visits: u32,
     value_sum: f32,
     expanded: bool,
@@ -75,7 +75,7 @@ impl Node {
             actions: Vec::new(),
             priors: Vec::new(),
             children: Vec::new(),
-            seeded_value: None,
+            child_seeds: Vec::new(),
             visits: 0,
             value_sum: 0.0,
             expanded: false,
@@ -92,23 +92,31 @@ impl Node {
 
     fn estimated_value(self: &Self) -> f32 {
         if self.visits == 0 {
-            self.seeded_value.unwrap_or(0.0)
+            0.0
         } else {
             self.mean_value()
         }
     }
 
-    fn expand<M: PolicyValueModel>(&mut self, model: &M) -> Result<f32, String> {
+    fn expand<M: PolicyValueModel>(
+        &mut self,
+        model: &M,
+        root_output: Option<PolicyValue>,
+        actions: Option<Vec<Action>>,
+    ) -> Result<f32, String> {
         if self.state.winner.is_some() || self.state.ply >= self.state.config.max_plies {
             self.expanded = true;
             return Ok(terminal_value(self.state));
         }
-        self.actions = self.state.legal_actions();
+        self.actions = actions.unwrap_or_else(|| self.state.legal_actions());
         if self.actions.is_empty() {
             self.expanded = true;
             return Ok(0.0);
         }
-        let output = model.evaluate(self.state)?;
+        let output = match root_output {
+            Some(output) => output,
+            None => model.evaluate_policy_value_with_actions(self.state, &self.actions)?,
+        };
         if output.policy_logits.len() < self.actions.len() {
             return Err(format!(
                 "policy/value model returned {} logits for {} legal actions",
@@ -118,18 +126,23 @@ impl Node {
         }
         self.priors = softmax(&output.policy_logits[..self.actions.len()]);
         self.children = (0..self.actions.len()).map(|_| None).collect();
+        self.child_seeds = (0..self.actions.len()).map(|_| None).collect();
         self.expanded = true;
         Ok(output.value.clamp(-1.0, 1.0))
     }
 
-    fn select_action(&self, cpuct: f32) -> usize {
+    fn select_action(&self, nodes: &[Node], cpuct: f32) -> usize {
         let parent_scale = (self.visits.max(1) as f32).sqrt();
         let mut best_index = 0;
         let mut best_score = f32::NEG_INFINITY;
         for index in 0..self.actions.len() {
-            let (child_visits, child_value) = self.children[index]
-                .as_deref()
-                .map_or((0, 0.0), |child| (child.visits, -child.estimated_value()));
+            let (child_visits, child_value) = self.children[index].map_or_else(
+                || (0, -self.child_seeds[index].unwrap_or(0.0)),
+                |child_index| {
+                    let child = &nodes[child_index];
+                    (child.visits, -child.estimated_value())
+                },
+            );
             let score = child_value
                 + cpuct * self.priors[index] * parent_scale / (1.0 + child_visits as f32);
             if score > best_score
@@ -144,14 +157,82 @@ impl Node {
     }
 }
 
+struct Tree {
+    nodes: Vec<Node>,
+}
+
+impl Tree {
+    fn with_capacity(capacity: usize) -> Self {
+        Self {
+            nodes: Vec::with_capacity(capacity),
+        }
+    }
+
+    fn push(&mut self, state: GameState) -> usize {
+        let index = self.nodes.len();
+        self.nodes.push(Node::new(state));
+        index
+    }
+}
+
 pub fn search<M: PolicyValueModel>(
     model: &M,
     state: GameState,
     config: PuctConfig,
 ) -> Result<PuctResult, String> {
-    let mut root = Node::new(state);
-    let root_value = root.expand(model)?;
-    if root.actions.is_empty() {
+    search_with_root_output(model, state, config, None)
+}
+
+/// Run PUCT with an already-computed root policy/value output.
+///
+/// Q/Advantage self-play already evaluates the root to obtain its action-value
+/// head. Reusing that policy/value pair avoids a second full ONNX invocation
+/// for the same state while keeping every deeper PUCT expansion unchanged.
+pub fn search_with_root_output<M: PolicyValueModel>(
+    model: &M,
+    state: GameState,
+    config: PuctConfig,
+    root_output: Option<PolicyValue>,
+) -> Result<PuctResult, String> {
+    search_with_root_output_and_seeds(model, state, config, root_output, None)
+}
+
+/// Run PUCT with optional root action-value seeds in canonical action order.
+/// A QAdv root can supply its already-computed Q vector here, avoiding the
+/// eager heuristic afterstate scan that generic policy/value search uses.
+pub fn search_with_root_output_and_seeds<M: PolicyValueModel>(
+    model: &M,
+    state: GameState,
+    config: PuctConfig,
+    root_output: Option<PolicyValue>,
+    root_seeds: Option<Vec<f32>>,
+) -> Result<PuctResult, String> {
+    search_with_root_output_and_seeds_and_actions(
+        model,
+        state,
+        config,
+        root_output,
+        root_seeds,
+        None,
+    )
+}
+
+/// Variant of seeded PUCT for callers that already own the canonical root
+/// action list. The list is moved into the root node, avoiding one more legal
+/// move generation pass and preserving its exact order.
+pub fn search_with_root_output_and_seeds_and_actions<M: PolicyValueModel>(
+    model: &M,
+    state: GameState,
+    config: PuctConfig,
+    root_output: Option<PolicyValue>,
+    root_seeds: Option<Vec<f32>>,
+    root_actions: Option<Vec<Action>>,
+) -> Result<PuctResult, String> {
+    let root_capacity = config.simulations as usize + crate::MAX_CELL_COUNT as usize + 1;
+    let mut tree = Tree::with_capacity(root_capacity);
+    let root_index = tree.push(state);
+    let root_value = tree.nodes[root_index].expand(model, root_output, root_actions)?;
+    if tree.nodes[root_index].actions.is_empty() {
         return Ok(PuctResult {
             action: None,
             value: root_value,
@@ -159,23 +240,27 @@ pub fn search<M: PolicyValueModel>(
             evaluations: Vec::new(),
         });
     }
-    seed_root_afterstates(&mut root);
+    seed_root_afterstates(&mut tree, root_index, root_seeds.as_deref());
 
     for _ in 0..config.simulations {
-        simulate(&mut root, model, config.cpuct)?;
+        simulate(&mut tree, root_index, model, config.cpuct)?;
     }
 
+    let root = &tree.nodes[root_index];
     let evaluations = root
         .actions
         .iter()
         .enumerate()
         .map(|(index, action)| {
-            let child = root.children[index].as_deref();
+            let child = root.children[index].map(|child_index| &tree.nodes[child_index]);
             PuctActionEvaluation {
                 action: *action,
                 prior: root.priors[index],
                 visits: child.map_or(0, |node| node.visits),
-                value: child.map_or(0.0, |node| -node.estimated_value()),
+                value: child.map_or_else(
+                    || -root.child_seeds[index].unwrap_or(0.0),
+                    |node| -node.estimated_value(),
+                ),
             }
         })
         .collect::<Vec<_>>();
@@ -195,10 +280,22 @@ pub fn search<M: PolicyValueModel>(
     })
 }
 
-fn seed_root_afterstates(root: &mut Node) {
-    let root_player = root.state.turn;
-    for (index, action) in root.actions.iter().copied().enumerate() {
-        let next_state = root.state.apply_legal(action).state;
+fn seed_root_afterstates(tree: &mut Tree, root_index: usize, root_seeds: Option<&[f32]>) {
+    if let Some(root_seeds) =
+        root_seeds.filter(|seeds| seeds.len() >= tree.nodes[root_index].actions.len())
+    {
+        for index in 0..tree.nodes[root_index].actions.len() {
+            // The supplied values are from the root player's perspective;
+            // stored child estimates use the side-to-move perspective.
+            tree.nodes[root_index].child_seeds[index] = Some(-root_seeds[index].clamp(-1.0, 1.0));
+        }
+        return;
+    }
+    let root_player = tree.nodes[root_index].state.turn;
+    let action_count = tree.nodes[root_index].actions.len();
+    for index in 0..action_count {
+        let action = tree.nodes[root_index].actions[index];
+        let next_state = tree.nodes[root_index].state.apply_legal(action).state;
         let root_value = if next_state.winner.is_some() {
             -terminal_value(next_state)
         } else if next_state.ply >= next_state.config.max_plies {
@@ -207,47 +304,51 @@ fn seed_root_afterstates(root: &mut Node) {
             let score = evaluate(next_state, root_player, EvaluationWeights::default()) as f32;
             (score / 3_500.0).tanh()
         };
-        let mut child = Node::new(next_state);
-        // Node values are stored for the child side to move; the root scan is
-        // evaluated from the parent's perspective.
-        child.seeded_value = Some(-root_value);
-        root.children[index] = Some(Box::new(child));
+        // Store values from the child side to move; selection and result
+        // export consume them with a sign flip. The actual child node is
+        // created lazily when PUCT selects this action.
+        tree.nodes[root_index].child_seeds[index] = Some(-root_value);
     }
 }
 
-fn simulate<M: PolicyValueModel>(node: &mut Node, model: &M, cpuct: f32) -> Result<f32, String> {
-    if !node.expanded {
-        let value = node.expand(model)?;
-        node.visits += 1;
-        node.value_sum += value;
+fn simulate<M: PolicyValueModel>(
+    tree: &mut Tree,
+    node_index: usize,
+    model: &M,
+    cpuct: f32,
+) -> Result<f32, String> {
+    if !tree.nodes[node_index].expanded {
+        let value = tree.nodes[node_index].expand(model, None, None)?;
+        tree.nodes[node_index].visits += 1;
+        tree.nodes[node_index].value_sum += value;
         return Ok(value);
     }
-    if node.state.winner.is_some()
-        || node.state.ply >= node.state.config.max_plies
-        || node.actions.is_empty()
+    if tree.nodes[node_index].state.winner.is_some()
+        || tree.nodes[node_index].state.ply >= tree.nodes[node_index].state.config.max_plies
+        || tree.nodes[node_index].actions.is_empty()
     {
-        let value = terminal_value(node.state);
-        node.visits += 1;
-        node.value_sum += value;
+        let value = terminal_value(tree.nodes[node_index].state);
+        tree.nodes[node_index].visits += 1;
+        tree.nodes[node_index].value_sum += value;
         return Ok(value);
     }
 
-    let index = node.select_action(cpuct);
-    if node.children[index].is_none() {
-        node.children[index] = Some(Box::new(Node::new(
-            node.state.apply_legal(node.actions[index]).state,
-        )));
-    }
-    let child_value = simulate(
-        node.children[index]
-            .as_deref_mut()
-            .expect("PUCT child created before simulation"),
-        model,
-        cpuct,
-    )?;
+    let index = tree.nodes[node_index].select_action(&tree.nodes, cpuct);
+    let child_index = if let Some(child_index) = tree.nodes[node_index].children[index] {
+        child_index
+    } else {
+        let next_state = tree.nodes[node_index]
+            .state
+            .apply_legal(tree.nodes[node_index].actions[index])
+            .state;
+        let child_index = tree.push(next_state);
+        tree.nodes[node_index].children[index] = Some(child_index);
+        child_index
+    };
+    let child_value = simulate(tree, child_index, model, cpuct)?;
     let value = -child_value;
-    node.visits += 1;
-    node.value_sum += value;
+    tree.nodes[node_index].visits += 1;
+    tree.nodes[node_index].value_sum += value;
     Ok(value)
 }
 
@@ -331,20 +432,28 @@ mod tests {
 
     #[test]
     fn root_afterstate_scan_seeds_every_legal_child() {
-        let mut root = Node::new(GameState::new());
-        root.expand(&TestModel).expect("expand root");
-        let action_count = root.actions.len();
+        let mut tree = Tree::with_capacity(50);
+        let root_index = tree.push(GameState::new());
+        tree.nodes[root_index]
+            .expand(&TestModel, None, None)
+            .expect("expand root");
+        let action_count = tree.nodes[root_index].actions.len();
 
-        seed_root_afterstates(&mut root);
+        seed_root_afterstates(&mut tree, root_index, None);
 
-        assert_eq!(root.children.len(), action_count);
-        assert!(root.children.iter().all(|child| child
-            .as_ref()
-            .is_some_and(|node| node.seeded_value.is_some())));
-        assert!(root
+        assert_eq!(tree.nodes[root_index].children.len(), action_count);
+        assert!(tree.nodes[root_index]
             .children
             .iter()
-            .all(|child| child.as_ref().unwrap().visits == 0));
+            .all(|child| child.is_none()));
+        assert!(tree.nodes[root_index]
+            .child_seeds
+            .iter()
+            .all(|seed| seed.is_some()));
+        assert!(tree.nodes[root_index]
+            .children
+            .iter()
+            .all(|child| child.is_none()));
     }
 
     #[test]
@@ -364,5 +473,46 @@ mod tests {
         assert_eq!(result.value, 0.0);
         assert_eq!(result.simulations, 0);
         assert!(result.evaluations.is_empty());
+    }
+
+    #[test]
+    fn root_action_value_seeds_preserve_root_perspective_without_children() {
+        let state = GameState::new();
+        let actions = state.legal_actions();
+        let seeds = actions
+            .iter()
+            .enumerate()
+            .map(|(index, _)| index as f32 / actions.len() as f32)
+            .collect::<Vec<_>>();
+        let result = search_with_root_output_and_seeds(
+            &TestModel,
+            state,
+            PuctConfig {
+                simulations: 0,
+                cpuct: 1.5,
+            },
+            Some(PolicyValue {
+                policy_logits: vec![0.0; crate::model::MAX_ACTIONS],
+                value: 0.0,
+            }),
+            Some(seeds.clone()),
+        )
+        .expect("run seeded PUCT");
+        assert_eq!(
+            result
+                .evaluations
+                .iter()
+                .map(|evaluation| evaluation.value)
+                .collect::<Vec<_>>(),
+            seeds
+        );
+        assert_eq!(
+            result
+                .evaluations
+                .iter()
+                .map(|item| item.visits)
+                .sum::<u32>(),
+            0
+        );
     }
 }
