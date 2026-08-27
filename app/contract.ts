@@ -63,7 +63,7 @@ export type AgentSpecification = {
   id: string;
   name: string;
   version: string;
-  kind: "random" | "heuristic" | "search" | "learned" | "puct";
+  kind: "random" | "heuristic" | "search" | "learned" | "puct" | "qadv";
   engineId: string;
   manifest: AgentManifest;
   parameters?: Record<string, unknown>;
@@ -190,7 +190,7 @@ export function validateEngineMetadata(value: unknown): EngineMetadata {
 
 export function validateAgentSpecification(value: unknown): AgentSpecification {
   if (!isRecord(value) || !field(value.id) || typeof value.name !== "string" || value.name.length < 1 || value.name.length > 128 || !field(value.version) || !field(value.engineId)) throw new Error("Invalid agent specification");
-  if (!["random", "heuristic", "search", "learned", "puct"].includes(String(value.kind))) throw new Error("Invalid agent kind");
+  if (!["random", "heuristic", "search", "learned", "puct", "qadv"].includes(String(value.kind))) throw new Error("Invalid agent kind");
   const manifest = validateAgentManifest(value.manifest);
   if (value.parameters !== undefined && !isRecord(value.parameters)) throw new Error("Invalid agent parameters");
   return { id: value.id, name: value.name, version: value.version, kind: value.kind as AgentSpecification["kind"], engineId: value.engineId, manifest, ...(value.parameters === undefined ? {} : { parameters: value.parameters }) };
