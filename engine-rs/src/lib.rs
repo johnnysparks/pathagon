@@ -6,19 +6,21 @@
 
 use std::collections::VecDeque;
 
-pub mod corpus;
 pub mod contract;
+pub mod corpus;
 pub mod endgame;
+#[cfg(feature = "inference")]
+pub mod inference;
 pub mod learned;
 pub mod model;
+pub mod pathfinder;
+#[cfg(feature = "inference")]
+pub mod puct;
+pub mod qadv;
 pub mod runtime;
 pub mod search;
 pub mod selfplay;
 pub mod training;
-#[cfg(feature = "inference")]
-pub mod inference;
-#[cfg(feature = "inference")]
-pub mod puct;
 #[cfg(feature = "wasm")]
 pub mod wasm_api;
 
@@ -39,16 +41,26 @@ pub struct BoardConfig {
 }
 
 impl BoardConfig {
-    pub const DEFAULT: Self = Self { board_size: BOARD_SIZE, reserve_per_player: 14, max_plies: DEFAULT_MAX_PLIES };
+    pub const DEFAULT: Self = Self {
+        board_size: BOARD_SIZE,
+        reserve_per_player: 14,
+        max_plies: DEFAULT_MAX_PLIES,
+    };
 
     pub fn new(board_size: u8, reserve_per_player: u8) -> Result<Self, String> {
         if !(MIN_BOARD_SIZE..=MAX_BOARD_SIZE).contains(&board_size) {
-            return Err(format!("board size outside {MIN_BOARD_SIZE}..{MAX_BOARD_SIZE}"));
+            return Err(format!(
+                "board size outside {MIN_BOARD_SIZE}..{MAX_BOARD_SIZE}"
+            ));
         }
         if reserve_per_player == 0 || reserve_per_player > 64 {
             return Err("reserve outside 1..64".to_owned());
         }
-        Ok(Self { board_size, reserve_per_player, max_plies: DEFAULT_MAX_PLIES })
+        Ok(Self {
+            board_size,
+            reserve_per_player,
+            max_plies: DEFAULT_MAX_PLIES,
+        })
     }
 
     pub fn with_max_plies(mut self, max_plies: u16) -> Result<Self, String> {
@@ -69,7 +81,11 @@ impl BoardConfig {
     }
 
     pub const fn full_board(self) -> u64 {
-        if self.cells() == 64 { u64::MAX } else { (1_u64 << self.cells()) - 1 }
+        if self.cells() == 64 {
+            u64::MAX
+        } else {
+            (1_u64 << self.cells()) - 1
+        }
     }
 }
 
@@ -217,7 +233,8 @@ impl GameState {
             sources &= !bit(square);
         }
         let destination_squares: Vec<u8> = squares(destinations).collect();
-        let mut actions = Vec::with_capacity(sources.count_ones() as usize * destination_squares.len());
+        let mut actions =
+            Vec::with_capacity(sources.count_ones() as usize * destination_squares.len());
         for from in squares(sources) {
             for &to in &destination_squares {
                 actions.push(Action::Relocate { from, to });
@@ -258,7 +275,10 @@ impl GameState {
         self.winner = has_winning_path(self, player).then_some(player);
         self.turn = opponent;
         self.ply += 1;
-        Transition { state: self, captured }
+        Transition {
+            state: self,
+            captured,
+        }
     }
 
     fn set_piece(&mut self, player: Player, square: u8) {
@@ -292,8 +312,16 @@ pub fn has_winning_path(state: GameState, player: Player) -> bool {
 
 pub fn winning_path(state: GameState, player: Player) -> Vec<u8> {
     let pieces = state.pieces(player);
-    let near_edge = if player == Player::Light { row_mask(state.config.board_size, state.config.board_size - 1) } else { column_mask(state.config.board_size, 0) };
-    let far_edge = if player == Player::Light { row_mask(state.config.board_size, 0) } else { column_mask(state.config.board_size, state.config.board_size - 1) };
+    let near_edge = if player == Player::Light {
+        row_mask(state.config.board_size, state.config.board_size - 1)
+    } else {
+        column_mask(state.config.board_size, 0)
+    };
+    let far_edge = if player == Player::Light {
+        row_mask(state.config.board_size, 0)
+    } else {
+        column_mask(state.config.board_size, state.config.board_size - 1)
+    };
     let starts: Vec<u8> = squares(pieces & near_edge).collect();
     let mut queue = VecDeque::from(starts.clone());
     let mut visited = pieces & near_edge;
@@ -309,7 +337,8 @@ pub fn winning_path(state: GameState, player: Player) -> Vec<u8> {
             path.reverse();
             return path;
         }
-        for next in squares(neighbor_mask_for(state.config.board_size, square) & pieces & !visited) {
+        for next in squares(neighbor_mask_for(state.config.board_size, square) & pieces & !visited)
+        {
             visited |= bit(next);
             parent[next as usize] = Some(square);
             queue.push_back(next);
@@ -392,7 +421,8 @@ fn captures_from(state: GameState, origin: u8, player: Player) -> u64 {
         let near_column = column + column_delta;
         let far_row = row + row_delta * 2;
         let far_column = column + column_delta * 2;
-        if !(0..board_size as i8).contains(&far_row) || !(0..board_size as i8).contains(&far_column) {
+        if !(0..board_size as i8).contains(&far_row) || !(0..board_size as i8).contains(&far_column)
+        {
             continue;
         }
         let near = (near_row * board_size as i8 + near_column) as u8;
@@ -425,7 +455,9 @@ const fn column_mask(board_size: u8, column: u8) -> u64 {
 }
 
 fn parse_square(text: &str) -> Result<u8, String> {
-    let square: u8 = text.parse().map_err(|_| format!("invalid square: {text}"))?;
+    let square: u8 = text
+        .parse()
+        .map_err(|_| format!("invalid square: {text}"))?;
     if square >= MAX_CELL_COUNT {
         return Err(format!("square outside board: {square}"));
     }
@@ -454,8 +486,14 @@ mod tests {
         let mut state = GameState::new();
         state.light = (0..14).fold(0, |mask, square| mask | bit(square));
         state.reserve[Player::Light.index()] = 0;
-        let moved = state.apply(Action::Relocate { from: 0, to: 48 }).unwrap().state;
-        assert!(!moved.legal_actions().iter().any(|action| matches!(action, Action::Relocate { from: 48, .. })));
+        let moved = state
+            .apply(Action::Relocate { from: 0, to: 48 })
+            .unwrap()
+            .state;
+        assert!(!moved
+            .legal_actions()
+            .iter()
+            .any(|action| matches!(action, Action::Relocate { from: 48, .. })));
         assert!(state.apply(Action::Relocate { from: 0, to: 0 }).is_err());
     }
 }

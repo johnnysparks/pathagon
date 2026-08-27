@@ -91,7 +91,6 @@ impl From<MoveEvaluation> for RuntimeMoveEvaluation {
             table_hits: result.table_hits,
         }
     }
-
 }
 
 impl From<SearchResult> for RuntimeSearchResult {

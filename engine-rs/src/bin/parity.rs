@@ -5,9 +5,7 @@ use pathagon_engine::{bit_squares, Action, BoardConfig, GameState, Player};
 use serde_json::{json, Value};
 
 fn main() {
-    let path = env::args()
-        .nth(1)
-        .expect("usage: parity <fixture.json>");
+    let path = env::args().nth(1).expect("usage: parity <fixture.json>");
     let fixture: Value =
         serde_json::from_str(&fs::read_to_string(path).expect("read parity fixture"))
             .expect("parse parity fixture");

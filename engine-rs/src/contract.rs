@@ -19,7 +19,10 @@ pub struct RootQTargets {
 
 impl RootQTargets {
     pub fn new(action_values: Vec<f32>, action_visits: Vec<u32>) -> Result<Self, String> {
-        let targets = Self { action_values, action_visits };
+        let targets = Self {
+            action_values,
+            action_visits,
+        };
         targets.validate()?;
         Ok(targets)
     }
@@ -28,7 +31,11 @@ impl RootQTargets {
         if self.action_values.is_empty() || self.action_values.len() != self.action_visits.len() {
             return Err("root-Q values and visits must be non-empty and aligned".to_owned());
         }
-        if self.action_values.iter().any(|value| !value.is_finite() || !(-1.0..=1.0).contains(value)) {
+        if self
+            .action_values
+            .iter()
+            .any(|value| !value.is_finite() || !(-1.0..=1.0).contains(value))
+        {
             return Err("root-Q action value outside -1..1".to_owned());
         }
         Ok(())
@@ -153,11 +160,23 @@ pub struct ContractMove {
     pub table_hits: u64,
     #[serde(default)]
     pub policy: Option<Vec<f32>>,
-    #[serde(rename = "actionValues", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "actionValues",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub action_values: Option<Vec<f32>>,
-    #[serde(rename = "actionVisits", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "actionVisits",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub action_visits: Option<Vec<u32>>,
-    #[serde(rename = "actionValueSource", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "actionValueSource",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub action_value_source: Option<String>,
     pub score: Option<i32>,
     #[serde(rename = "bookHit")]
@@ -195,15 +214,27 @@ pub struct ReplayRecord {
 
 impl GameConfig {
     pub fn validate(&self) -> Result<(), String> {
-        if self.rules_version != RULES_VERSION { return Err("unsupported rules version".to_owned()); }
-        if !(3..=8).contains(&self.board_size) { return Err("board size outside 3..8".to_owned()); }
-        if self.reserve_per_player == 0 || self.reserve_per_player > 64 { return Err("reserve outside 1..64".to_owned()); }
-        if self.max_plies == 0 || self.max_plies > 4096 { return Err("maximum plies outside 1..4096".to_owned()); }
-        if self.repetition_limit != 3 { return Err("repetition limit must be 3".to_owned()); }
+        if self.rules_version != RULES_VERSION {
+            return Err("unsupported rules version".to_owned());
+        }
+        if !(3..=8).contains(&self.board_size) {
+            return Err("board size outside 3..8".to_owned());
+        }
+        if self.reserve_per_player == 0 || self.reserve_per_player > 64 {
+            return Err("reserve outside 1..64".to_owned());
+        }
+        if self.max_plies == 0 || self.max_plies > 4096 {
+            return Err("maximum plies outside 1..4096".to_owned());
+        }
+        if self.repetition_limit != 3 {
+            return Err("repetition limit must be 3".to_owned());
+        }
         Ok(())
     }
 
-    pub fn cells(&self) -> u8 { self.board_size * self.board_size }
+    pub fn cells(&self) -> u8 {
+        self.board_size * self.board_size
+    }
 }
 
 impl ContractAction {
@@ -219,31 +250,63 @@ impl ContractAction {
 
 impl Position {
     pub fn validate(&self) -> Result<(), String> {
-        if self.contract_version != CONTRACT_VERSION { return Err("unsupported position contract version".to_owned()); }
+        if self.contract_version != CONTRACT_VERSION {
+            return Err("unsupported position contract version".to_owned());
+        }
         self.config.validate()?;
         let cells = self.config.cells() as usize;
-        if self.board.len() != cells { return Err("position board length mismatch".to_owned()); }
-        validate_squares(&self.forbidden, self.config.cells(), "forbidden")?;
-        for square in [self.last_relocated_to.light, self.last_relocated_to.dark].into_iter().flatten() {
-            if square >= self.config.cells() { return Err("relocation marker outside board".to_owned()); }
+        if self.board.len() != cells {
+            return Err("position board length mismatch".to_owned());
         }
-        if self.ply > self.config.max_plies { return Err("position ply exceeds maximum".to_owned()); }
+        validate_squares(&self.forbidden, self.config.cells(), "forbidden")?;
+        for square in [self.last_relocated_to.light, self.last_relocated_to.dark]
+            .into_iter()
+            .flatten()
+        {
+            if square >= self.config.cells() {
+                return Err("relocation marker outside board".to_owned());
+            }
+        }
+        if self.ply > self.config.max_plies {
+            return Err("position ply exceeds maximum".to_owned());
+        }
         Ok(())
     }
 }
 
 impl EngineMetadata {
     pub fn validate(&self) -> Result<(), String> {
-        if self.id.is_empty() || self.id.len() > 128 || self.version.is_empty() || self.version.len() > 32 { return Err("invalid engine metadata fields".to_owned()); }
-        if !matches!(self.runtime.as_str(), "typescript" | "rust" | "python") || self.rules_version != RULES_VERSION { return Err("invalid engine metadata".to_owned()); }
+        if self.id.is_empty()
+            || self.id.len() > 128
+            || self.version.is_empty()
+            || self.version.len() > 32
+        {
+            return Err("invalid engine metadata fields".to_owned());
+        }
+        if !matches!(self.runtime.as_str(), "typescript" | "rust" | "python")
+            || self.rules_version != RULES_VERSION
+        {
+            return Err("invalid engine metadata".to_owned());
+        }
         Ok(())
     }
 }
 
 impl AgentSpecification {
     pub fn validate(&self) -> Result<(), String> {
-        if self.id.is_empty() || self.name.is_empty() || self.version.is_empty() || self.engine_id.is_empty() { return Err("invalid agent specification fields".to_owned()); }
-        if !matches!(self.kind.as_str(), "random" | "heuristic" | "search" | "learned" | "puct") { return Err("invalid agent kind".to_owned()); }
+        if self.id.is_empty()
+            || self.name.is_empty()
+            || self.version.is_empty()
+            || self.engine_id.is_empty()
+        {
+            return Err("invalid agent specification fields".to_owned());
+        }
+        if !matches!(
+            self.kind.as_str(),
+            "random" | "heuristic" | "search" | "learned" | "puct"
+        ) {
+            return Err("invalid agent kind".to_owned());
+        }
         self.manifest.validate()?;
         Ok(())
     }
@@ -251,12 +314,17 @@ impl AgentSpecification {
 
 impl AgentManifest {
     pub fn validate(&self) -> Result<(), String> {
-        if self.manifest_version != 1 || !matches!(self.runtime.as_str(), "typescript" | "rust" | "python") || self.rules_version != RULES_VERSION {
+        if self.manifest_version != 1
+            || !matches!(self.runtime.as_str(), "typescript" | "rust" | "python")
+            || self.rules_version != RULES_VERSION
+        {
             return Err("invalid agent manifest metadata".to_owned());
         }
         if let Some(hash) = &self.model_hash {
             let digest = hash.strip_prefix("sha256:").unwrap_or("");
-            if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit()) { return Err("invalid agent model hash".to_owned()); }
+            if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+                return Err("invalid agent model hash".to_owned());
+            }
         }
         Ok(())
     }
@@ -264,26 +332,54 @@ impl AgentManifest {
 
 impl ReplayRecord {
     pub fn validate(&self) -> Result<(), String> {
-        if self.contract_version != CONTRACT_VERSION { return Err("unsupported replay contract version".to_owned()); }
-        if self.seed > u32::MAX as u64 { return Err("seed outside u32".to_owned()); }
+        if self.contract_version != CONTRACT_VERSION {
+            return Err("unsupported replay contract version".to_owned());
+        }
+        if self.seed > u32::MAX as u64 {
+            return Err("seed outside u32".to_owned());
+        }
         self.config.validate()?;
         self.engine.validate()?;
         self.agent_specifications.light.validate()?;
         self.agent_specifications.dark.validate()?;
-        if self.agents.light != self.agent_specifications.light.id || self.agents.dark != self.agent_specifications.dark.id { return Err("agent ID does not match specification".to_owned()); }
-        if self.result != if self.winner.is_some() { "win" } else { "draw" } { return Err("result does not match winner".to_owned()); }
-        if !matches!(self.reason.as_str(), "path" | "threefold-repetition" | "max-plies" | "no-legal-action") { return Err("invalid termination reason".to_owned()); }
-        if self.plies > self.config.max_plies || self.moves.len() != self.plies as usize { return Err("replay plies do not match moves".to_owned()); }
+        if self.agents.light != self.agent_specifications.light.id
+            || self.agents.dark != self.agent_specifications.dark.id
+        {
+            return Err("agent ID does not match specification".to_owned());
+        }
+        if self.result != if self.winner.is_some() { "win" } else { "draw" } {
+            return Err("result does not match winner".to_owned());
+        }
+        if !matches!(
+            self.reason.as_str(),
+            "path" | "threefold-repetition" | "max-plies" | "no-legal-action"
+        ) {
+            return Err("invalid termination reason".to_owned());
+        }
+        if self.plies > self.config.max_plies || self.moves.len() != self.plies as usize {
+            return Err("replay plies do not match moves".to_owned());
+        }
         for (index, movement) in self.moves.iter().enumerate() {
-            if movement.ply != index as u16 + 1 { return Err("move ply is not sequential".to_owned()); }
+            if movement.ply != index as u16 + 1 {
+                return Err("move ply is not sequential".to_owned());
+            }
             movement.action.validate(self.config.cells())?;
             validate_squares(&movement.captured, self.config.cells(), "captured")?;
             if let Some(policy) = &movement.policy {
-                if policy.is_empty() || policy.iter().any(|probability| !probability.is_finite() || *probability < 0.0 || *probability > 1.0) || policy.iter().sum::<f32>() <= 0.0 {
+                if policy.is_empty()
+                    || policy.iter().any(|probability| {
+                        !probability.is_finite() || *probability < 0.0 || *probability > 1.0
+                    })
+                    || policy.iter().sum::<f32>() <= 0.0
+                {
                     return Err("invalid move policy".to_owned());
                 }
             }
-            validate_root_q_fields(&movement.action_values, &movement.action_visits, &movement.action_value_source)?;
+            validate_root_q_fields(
+                &movement.action_values,
+                &movement.action_visits,
+                &movement.action_value_source,
+            )?;
         }
         Ok(())
     }
@@ -295,17 +391,28 @@ impl ReplayRecord {
     }
 }
 
-fn validate_root_q_fields(values: &Option<Vec<f32>>, visits: &Option<Vec<u32>>, source: &Option<String>) -> Result<(), String> {
+fn validate_root_q_fields(
+    values: &Option<Vec<f32>>,
+    visits: &Option<Vec<u32>>,
+    source: &Option<String>,
+) -> Result<(), String> {
     match (values, visits, source) {
         (None, None, None) => Ok(()),
-        (Some(values), Some(visits), Some(source)) if source == ROOT_Q_SOURCE => RootQTargets::new(values.clone(), visits.clone()).map(|_| ()),
-        _ => Err("root-Q fields must include aligned values, visits, and the supported source".to_owned()),
+        (Some(values), Some(visits), Some(source)) if source == ROOT_Q_SOURCE => {
+            RootQTargets::new(values.clone(), visits.clone()).map(|_| ())
+        }
+        _ => Err(
+            "root-Q fields must include aligned values, visits, and the supported source"
+                .to_owned(),
+        ),
     }
 }
 
 fn validate_squares(squares: &[u8], cells: u8, label: &str) -> Result<(), String> {
     for (index, square) in squares.iter().enumerate() {
-        if *square >= cells || squares[..index].contains(square) { return Err(format!("invalid {label} square")); }
+        if *square >= cells || squares[..index].contains(square) {
+            return Err(format!("invalid {label} square"));
+        }
     }
     Ok(())
 }

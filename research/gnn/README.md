@@ -118,10 +118,9 @@ Rust/WASM inference session:
 npm run build:engine
 ```
 
-The native Rust performance spike can also load the shared policy/value trunk
-from a QAdv GNN checkpoint. This keeps root-Q targets in the Rust PUCT archive
-while the Q/A action head and Pathfinder exploration controls remain in the
-next parity milestone:
+The native Rust parity harness can load either the shared policy/value trunk or
+the complete QAdv export from the same checkpoint. The second form includes
+the deterministic 24-feature transition tensor and direct Q/A action ranking:
 
 ```bash
 ./.venv-pathagon-gnn/bin/python -m research.gnn.export_gnn \
@@ -131,6 +130,25 @@ cargo run --release --manifest-path engine-rs/Cargo.toml \
   --features inference --bin pathagon-selfplay -- \
   --onnx work/rust-qadv-spike/qadv-gnn-policy-value.onnx \
   --opponent neural --simulations 128 --workers 2 --jsonl
+
+./.venv-pathagon-gnn/bin/python -m research.gnn.export_gnn \
+  --checkpoint research/runs/gnn/benchmark-7x7/generated/<qadv-batch>/qadv-arbiter-7x7-v0.1.0-exploration-20260825.pt \
+  --output work/rust-qadv-spike/qadv-gnn-qadv.onnx --include-qadv
+cargo run --release --manifest-path engine-rs/Cargo.toml \
+  --features inference --bin pathagon-selfplay -- \
+  --eval-only --qadv-onnx work/rust-qadv-spike/qadv-gnn-qadv.onnx \
+  --eval-sequence P24,P0,P1,P2,P3,P4
+
+# Full native exploration controls: Pathfinder blend, temperature schedule,
+# opening uniform mix, and two low-priority workers for development headroom.
+cargo run --release --manifest-path engine-rs/Cargo.toml \
+  --features inference --bin pathagon-selfplay -- \
+  --onnx work/rust-qadv-spike/qadv-gnn-policy-value.onnx --guided \
+  --simulations 128 --temperature-moves 48 --policy-temperature 1.15 \
+  --opening-moves 16 --opening-temperature 1.8 --opening-randomness 0.30 \
+  --pathfinder-guidance 0.45 --placement-guidance 0.30 \
+  --pathfinder-temperature 1.15 --pathfinder-depth 2 \
+  --pathfinder-beam 8 --pathfinder-nodes 512 --workers 2 --jsonl
 ```
 
 The build expects the pinned `wasm-bindgen` CLI to be available on `PATH`.

@@ -1,5 +1,5 @@
-use std::collections::{HashMap, VecDeque};
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, VecDeque};
 
 use crate::{bit, neighbor_mask_for, squares, Action, GameState, Player};
 
@@ -185,7 +185,11 @@ pub fn search_best_action(state: GameState, config: SearchConfig) -> SearchResul
     }
 
     if completed_depth == 0 {
-        best_score = evaluate(state.apply_legal(best_action).state, root_player, config.weights);
+        best_score = evaluate(
+            state.apply_legal(best_action).state,
+            root_player,
+            config.weights,
+        );
     }
     SearchResult {
         action: Some(best_action),
@@ -197,7 +201,11 @@ pub fn search_best_action(state: GameState, config: SearchConfig) -> SearchResul
     }
 }
 
-pub fn analyze_action(state: GameState, action: Action, config: SearchConfig) -> Result<MoveEvaluation, String> {
+pub fn analyze_action(
+    state: GameState,
+    action: Action,
+    config: SearchConfig,
+) -> Result<MoveEvaluation, String> {
     if !state.legal_actions().contains(&action) {
         return Err("cannot analyze an illegal Pathagon action".to_owned());
     }
@@ -233,14 +241,21 @@ pub fn analyze_action(state: GameState, action: Action, config: SearchConfig) ->
     })
 }
 
-pub fn analyze_actions(state: GameState, config: SearchConfig, max_actions: usize) -> Vec<MoveEvaluation> {
+pub fn analyze_actions(
+    state: GameState,
+    config: SearchConfig,
+    max_actions: usize,
+) -> Vec<MoveEvaluation> {
     let root_player = state.turn;
     let before_score = evaluate(state, root_player, config.weights);
     let mut budget = Budget::default();
     let mut table = HashMap::new();
     let mut alpha = NEG_INF;
     let mut results = Vec::new();
-    for action in ordered_actions(state, root_player, config.weights).into_iter().take(max_actions) {
+    for action in ordered_actions(state, root_player, config.weights)
+        .into_iter()
+        .take(max_actions)
+    {
         if budget.nodes >= config.max_nodes {
             budget.exhausted = true;
             break;
@@ -310,7 +325,11 @@ pub fn lunatic_action(state: GameState) -> SearchResult {
             transition.captured.count_ones() as i32 * 10_000
                 + (before_own_distance - own_distance) * 500
                 + (opponent_distance - before_opponent_distance) * 350
-                + if matches!(action, Action::Relocate { .. }) { 10 } else { 0 }
+                + if matches!(action, Action::Relocate { .. }) {
+                    10
+                } else {
+                    0
+                }
         };
         if score > best_score || (score == best_score && action.order() < best_action.order()) {
             best_action = action;
@@ -336,8 +355,13 @@ pub fn evaluate(state: GameState, player: Player, weights: EvaluationWeights) ->
         return -WIN_SCORE + state.ply as i32;
     }
     let path = connection_distance(state, opponent) - connection_distance(state, player);
-    let material = state.pieces(player).count_ones() as i32 - state.pieces(opponent).count_ones() as i32;
-    let capture_direction = if state.last_player == Some(player) { 1 } else { -1 };
+    let material =
+        state.pieces(player).count_ones() as i32 - state.pieces(opponent).count_ones() as i32;
+    let capture_direction = if state.last_player == Some(player) {
+        1
+    } else {
+        -1
+    };
     let structure = largest_component(state, player) - largest_component(state, opponent);
     let threats = capture_opportunities(state, player) - capture_opportunities(state, opponent);
     let edges = edge_presence(state, player) - edge_presence(state, opponent);
@@ -370,7 +394,11 @@ fn minimax(
     let key = (state, root_player);
     let original_alpha = alpha;
     let original_beta = beta;
-    if let Some(entry) = table.get(&key).copied().filter(|entry| entry.depth >= depth) {
+    if let Some(entry) = table
+        .get(&key)
+        .copied()
+        .filter(|entry| entry.depth >= depth)
+    {
         budget.table_hits += 1;
         match entry.bound {
             Bound::Exact => return entry.score,
@@ -392,7 +420,16 @@ fn minimax(
     for action in actions {
         let next = state.apply_legal(action).state;
         budget.nodes += 1;
-        let score = minimax(next, root_player, depth - 1, alpha, beta, config, budget, table);
+        let score = minimax(
+            next,
+            root_player,
+            depth - 1,
+            alpha,
+            beta,
+            config,
+            budget,
+            table,
+        );
         if maximizing {
             best = best.max(score);
             alpha = alpha.max(best);
@@ -412,7 +449,14 @@ fn minimax(
         } else {
             Bound::Exact
         };
-        table.insert(key, TableEntry { depth, score: best, bound });
+        table.insert(
+            key,
+            TableEntry {
+                depth,
+                score: best,
+                bound,
+            },
+        );
     }
     if budget.nodes >= config.max_nodes {
         budget.exhausted = true;
@@ -420,7 +464,11 @@ fn minimax(
     best
 }
 
-fn ordered_actions(state: GameState, root_player: Player, weights: EvaluationWeights) -> Vec<Action> {
+fn ordered_actions(
+    state: GameState,
+    root_player: Player,
+    weights: EvaluationWeights,
+) -> Vec<Action> {
     let maximizing = state.turn == root_player;
     let mut scored: Vec<(Action, i32)> = state
         .legal_actions()
@@ -447,14 +495,18 @@ fn ordered_actions(state: GameState, root_player: Player, weights: EvaluationWei
     scored.into_iter().map(|(action, _)| action).collect()
 }
 
-fn connection_distance(state: GameState, player: Player) -> i32 {
+pub(crate) fn connection_distance(state: GameState, player: Player) -> i32 {
     let opponent = player.other();
     let board_size = state.config.board_size;
     let cell_count = state.config.cells();
     let mut distance = vec![u8::MAX; cell_count as usize];
     let mut queue = VecDeque::new();
     for index in 0..board_size {
-        let square = if player == Player::Light { (board_size - 1) * board_size + index } else { index * board_size };
+        let square = if player == Player::Light {
+            (board_size - 1) * board_size + index
+        } else {
+            index * board_size
+        };
         if state.board_at(square) == Some(opponent) {
             continue;
         }
@@ -469,7 +521,9 @@ fn connection_distance(state: GameState, player: Player) -> i32 {
     while let Some(square) = queue.pop_front() {
         let row = square / board_size;
         let column = square % board_size;
-        if (player == Player::Light && row == 0) || (player == Player::Dark && column == board_size - 1) {
+        if (player == Player::Light && row == 0)
+            || (player == Player::Dark && column == board_size - 1)
+        {
             return distance[square as usize] as i32;
         }
         for next in squares(neighbor_mask_for(board_size, square)) {
@@ -492,7 +546,7 @@ fn connection_distance(state: GameState, player: Player) -> i32 {
     cell_count as i32
 }
 
-fn largest_component(state: GameState, player: Player) -> i32 {
+pub(crate) fn largest_component(state: GameState, player: Player) -> i32 {
     let mut remaining = state.pieces(player);
     let mut largest = 0;
     while let Some(first) = squares(remaining).next() {
@@ -512,7 +566,7 @@ fn largest_component(state: GameState, player: Player) -> i32 {
     largest
 }
 
-fn capture_opportunities(state: GameState, player: Player) -> i32 {
+pub(crate) fn capture_opportunities(state: GameState, player: Player) -> i32 {
     let occupied = state.light | state.dark | state.forbidden;
     let board_size = state.config.board_size;
     let mut victims = 0;
@@ -525,7 +579,9 @@ fn capture_opportunities(state: GameState, player: Player) -> i32 {
         for (row_delta, column_delta) in [(-1_i8, 0_i8), (1, 0), (0, -1), (0, 1)] {
             let far_row = row + row_delta * 2;
             let far_column = column + column_delta * 2;
-            if !(0..board_size as i8).contains(&far_row) || !(0..board_size as i8).contains(&far_column) {
+            if !(0..board_size as i8).contains(&far_row)
+                || !(0..board_size as i8).contains(&far_column)
+            {
                 continue;
             }
             let near = ((row + row_delta) * board_size as i8 + column + column_delta) as u8;
@@ -538,13 +594,21 @@ fn capture_opportunities(state: GameState, player: Player) -> i32 {
     victims.count_ones() as i32
 }
 
-fn edge_presence(state: GameState, player: Player) -> i32 {
+pub(crate) fn edge_presence(state: GameState, player: Player) -> i32 {
     let board_size = state.config.board_size;
     let mut near = false;
     let mut far = false;
     for index in 0..board_size {
-        let near_square = if player == Player::Light { (board_size - 1) * board_size + index } else { index * board_size };
-        let far_square = if player == Player::Light { index } else { index * board_size + board_size - 1 };
+        let near_square = if player == Player::Light {
+            (board_size - 1) * board_size + index
+        } else {
+            index * board_size
+        };
+        let far_square = if player == Player::Light {
+            index
+        } else {
+            index * board_size + board_size - 1
+        };
         near |= state.board_at(near_square) == Some(player);
         far |= state.board_at(far_square) == Some(player);
     }
@@ -565,7 +629,12 @@ mod tests {
     fn iterative_search_respects_budget() {
         let result = search_best_action(
             GameState::new(),
-            SearchConfig { depth: 5, max_nodes: 120, beam_width: 49, ..SearchConfig::default() },
+            SearchConfig {
+                depth: 5,
+                max_nodes: 120,
+                beam_width: 49,
+                ..SearchConfig::default()
+            },
         );
         assert!(result.action.is_some());
         assert!(result.nodes <= 120);
@@ -588,10 +657,21 @@ mod tests {
             let state = GameState::with_board_size(size);
             let result = search_best_action(
                 state,
-                SearchConfig { depth: 1, max_nodes: 256, beam_width: 64, ..SearchConfig::default() },
+                SearchConfig {
+                    depth: 1,
+                    max_nodes: 256,
+                    beam_width: 64,
+                    ..SearchConfig::default()
+                },
             );
-            assert!(result.action.is_some(), "{size}x{size} search returned no action");
-            assert!(state.legal_actions().contains(&result.action.unwrap()), "{size}x{size} search returned an illegal action");
+            assert!(
+                result.action.is_some(),
+                "{size}x{size} search returned no action"
+            );
+            assert!(
+                state.legal_actions().contains(&result.action.unwrap()),
+                "{size}x{size} search returned an illegal action"
+            );
         }
     }
 
@@ -626,12 +706,10 @@ mod tests {
                 ..SearchConfig::default()
             },
         );
-        assert!(
-            [5_u8, 7, 9, 11, 15]
-                .into_iter()
-                .map(|from| Action::Relocate { from, to: 0 })
-                .any(|action| result.action == Some(action))
-        );
+        assert!([5_u8, 7, 9, 11, 15]
+            .into_iter()
+            .map(|from| Action::Relocate { from, to: 0 })
+            .any(|action| result.action == Some(action)));
         assert_eq!(result.score, 0);
         assert_eq!(result.completed_depth, 3);
         assert!(!result.exhausted);

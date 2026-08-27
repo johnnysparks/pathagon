@@ -24,5 +24,10 @@ fn verify_split(directory: &Path, expected_games: usize, expected_positions: usi
         games += 1;
     }
     assert_eq!(games, expected_games);
-    assert_eq!(StrategyBook::load(&directory.join("positions.tsv")).unwrap().len(), expected_positions);
+    assert_eq!(
+        StrategyBook::load(&directory.join("positions.tsv"))
+            .unwrap()
+            .len(),
+        expected_positions
+    );
 }

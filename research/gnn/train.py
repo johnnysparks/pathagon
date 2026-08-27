@@ -541,15 +541,40 @@ def run_warmstart(args: argparse.Namespace) -> None:
     print(json.dumps(metadata | {"out": args.out, "device": str(device)}, sort_keys=True))
 
 
-def load_replay_source(source: Path, config: BoardConfig) -> List[ReplayExample]:
-    """Load one JSONL replay or all JSONL files in a generated batch directory."""
+def load_replay_source(
+    source: Path,
+    config: BoardConfig,
+    seed_start: Optional[int] = None,
+    seed_end: Optional[int] = None,
+) -> List[ReplayExample]:
+    """Load JSONL replays or direct ``game-*.json`` artifacts from a batch.
 
-    paths = sorted(source.glob("*.jsonl")) if source.is_dir() else [source]
+    The seed filter lets a repaired/partially complete campaign be trained
+    without copying every large game record into a second JSONL file or
+    accidentally including surplus seeds outside the declared experiment.
+    """
+
+    if (seed_start is None) != (seed_end is None):
+        raise ValueError("seed_start and seed_end must be provided together")
+    if seed_start is not None and seed_end < seed_start:
+        raise ValueError("seed_end must not precede seed_start")
+    paths = (
+        sorted(source.glob("*.jsonl")) + sorted(source.glob("game-*.json"))
+        if source.is_dir()
+        else [source]
+    )
     if not paths:
         raise FileNotFoundError(f"no JSONL replay files found under {source}")
     examples: List[ReplayExample] = []
     for path in paths:
-        examples.extend(load_replay_examples(path, config=config))
+        if seed_start is None:
+            examples.extend(load_replay_examples(path, config=config))
+            continue
+        examples.extend(
+            example
+            for example in load_replay_examples(path, config=config)
+            if seed_start <= example.seed <= seed_end
+        )
     return examples
 
 
@@ -609,7 +634,7 @@ def run_qadv(args: argparse.Namespace) -> None:
     config = BoardConfig(7, 14)
     source = Path(args.data)
     print(f"qadv: loading and validating replay from {source}", file=sys.stderr, flush=True)
-    examples = load_replay_source(source, config)
+    examples = load_replay_source(source, config, args.seed_start, args.seed_end)
     if args.max_examples:
         examples = examples[: args.max_examples]
     train_examples, heldout_examples = split_replay_examples(examples, args.heldout_fraction, args.seed)
@@ -643,6 +668,8 @@ def run_qadv(args: argparse.Namespace) -> None:
         "agent_name": args.agent_name,
         "agent_version": args.agent_version,
         "data": str(source),
+        "seed_start": args.seed_start,
+        "seed_end": args.seed_end,
         "examples": len(examples),
         "train_examples": len(train_examples),
         "heldout_examples": len(heldout_examples),
@@ -854,6 +881,8 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--steps", type=int, default=200)
     result.add_argument("--learning-rate", type=float, default=3e-4)
     result.add_argument("--max-examples", type=int, default=0)
+    result.add_argument("--seed-start", type=int, help="include only replay records at or after this seed")
+    result.add_argument("--seed-end", type=int, help="include only replay records at or before this seed")
     result.add_argument("--generations", type=int, default=1)
     result.add_argument("--games", type=int, default=8)
     result.add_argument("--workers", type=int, default=1, help="parallel self-play worker processes")

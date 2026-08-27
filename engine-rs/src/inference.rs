@@ -1,8 +1,11 @@
 //! ONNX policy/value inference for native Rust and WASM.
 
+use std::sync::Arc;
+
 use crate::model::{
-    GnnPolicyValueInputs, PolicyValueInputs, ACTION_FEATURE_COUNT, BOARD_FEATURE_COUNT,
-    GLOBAL_FEATURE_COUNT, GNN_GRAPH_NODE_COUNT, GNN_NODE_FEATURE_COUNT, MAX_ACTIONS,
+    GnnPolicyValueInputs, GnnQAdvInputs, PolicyValueInputs, ACTION_FEATURE_COUNT,
+    BOARD_FEATURE_COUNT, GLOBAL_FEATURE_COUNT, GNN_GRAPH_NODE_COUNT, GNN_NODE_FEATURE_COUNT,
+    MAX_ACTIONS, QADV_TRANSITION_FEATURE_COUNT,
 };
 use crate::GameState;
 use tract::prelude::*;
@@ -12,27 +15,25 @@ pub struct PolicyValue {
     pub value: f32,
 }
 
+pub struct QAdvPolicyValue {
+    pub policy_logits: Vec<f32>,
+    pub value: f32,
+    pub q_values: Vec<f32>,
+}
+
 pub trait PolicyValueModel {
     fn evaluate(&self, state: GameState) -> Result<PolicyValue, String>;
 }
 
 pub struct OnnxPolicyValueModel {
-    model: tract::Runnable,
+    model: Arc<tract::tract_core::model::typed::TypedRunnableModel>,
 }
 
 impl OnnxPolicyValueModel {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
-        let mut inference = tract::onnx()
-            .map_err(|error| error.to_string())?
-            .load_buffer(bytes)
-            .map_err(|error| error.to_string())?;
-        inference.analyse().map_err(|error| error.to_string())?;
-        let model = inference
-            .into_model()
-            .map_err(|error| error.to_string())?
-            .into_runnable()
-            .map_err(|error| error.to_string())?;
-        Ok(Self { model })
+        Ok(Self {
+            model: load_model(bytes)?,
+        })
     }
 }
 
@@ -56,7 +57,12 @@ impl PolicyValueModel for OnnxPolicyValueModel {
         let action_mask = tensor(&[1, MAX_ACTIONS], &inputs.action_mask)?;
         let outputs = self
             .model
-            .run([board, global, action_specs, action_mask])
+            .run(tvec![
+                board.into_tvalue(),
+                global.into_tvalue(),
+                action_specs.into_tvalue(),
+                action_mask.into_tvalue(),
+            ])
             .map_err(|error| error.to_string())?;
         if outputs.len() != 2 {
             return Err(format!(
@@ -78,26 +84,17 @@ impl PolicyValueModel for OnnxPolicyValueModel {
 
 /// ONNX policy/value runner for the fixed 7x7 GNN export.
 ///
-/// This deliberately implements the same small trait as the deployed CNN
-/// runner, allowing the existing native PUCT implementation to benchmark a
-/// QAdv checkpoint's shared trunk before the Q/A action head is ported.
+/// This implements the same small trait as the deployed CNN runner, allowing
+/// native PUCT to share the Python checkpoint's graph policy/value trunk.
 pub struct OnnxGnnPolicyValueModel {
-    model: tract::Runnable,
+    model: Arc<tract::tract_core::model::typed::TypedRunnableModel>,
 }
 
 impl OnnxGnnPolicyValueModel {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
-        let mut inference = tract::onnx()
-            .map_err(|error| error.to_string())?
-            .load_buffer(bytes)
-            .map_err(|error| error.to_string())?;
-        inference.analyse().map_err(|error| error.to_string())?;
-        let model = inference
-            .into_model()
-            .map_err(|error| error.to_string())?
-            .into_runnable()
-            .map_err(|error| error.to_string())?;
-        Ok(Self { model })
+        Ok(Self {
+            model: load_model(bytes)?,
+        })
     }
 }
 
@@ -112,13 +109,24 @@ impl PolicyValueModel for OnnxGnnPolicyValueModel {
         let action_specs = inputs
             .action_specs
             .iter()
-            .flat_map(|action| [f32::from(action.kind), f32::from(action.from), f32::from(action.to)])
+            .flat_map(|action| {
+                [
+                    f32::from(action.kind),
+                    f32::from(action.from),
+                    f32::from(action.to),
+                ]
+            })
             .collect::<Vec<_>>();
         let action_specs = tensor(&[1, MAX_ACTIONS, ACTION_FEATURE_COUNT], &action_specs)?;
         let action_mask = tensor(&[1, MAX_ACTIONS], &inputs.action_mask)?;
         let outputs = self
             .model
-            .run([node_features, global, action_specs, action_mask])
+            .run(tvec![
+                node_features.into_tvalue(),
+                global.into_tvalue(),
+                action_specs.into_tvalue(),
+                action_mask.into_tvalue(),
+            ])
             .map_err(|error| error.to_string())?;
         if outputs.len() != 2 {
             return Err(format!(
@@ -131,11 +139,107 @@ impl PolicyValueModel for OnnxGnnPolicyValueModel {
             .first()
             .copied()
             .ok_or_else(|| "GNN policy/value model returned an empty value tensor".to_owned())?;
-        Ok(PolicyValue { policy_logits, value })
+        Ok(PolicyValue {
+            policy_logits,
+            value,
+        })
     }
 }
 
-fn tensor(shape: &[usize], values: &[f32]) -> Result<tract::Tensor, String> {
+/// ONNX runner for the full Q/Advantage export, including deterministic
+/// transition features and the per-action Q head.
+pub struct OnnxQAdvModel {
+    model: Arc<tract::tract_core::model::typed::TypedRunnableModel>,
+}
+
+impl OnnxQAdvModel {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
+        Ok(Self {
+            model: load_model(bytes)?,
+        })
+    }
+
+    pub fn evaluate_qadv(&self, state: GameState) -> Result<QAdvPolicyValue, String> {
+        let inputs = GnnQAdvInputs::from_state(state)?;
+        let node_features = tensor(
+            &[1, GNN_GRAPH_NODE_COUNT, GNN_NODE_FEATURE_COUNT],
+            &inputs.node_features,
+        )?;
+        let global = tensor(&[1, GLOBAL_FEATURE_COUNT], &inputs.global_features)?;
+        let action_specs = inputs
+            .action_specs
+            .iter()
+            .flat_map(|action| {
+                [
+                    f32::from(action.kind),
+                    f32::from(action.from),
+                    f32::from(action.to),
+                ]
+            })
+            .collect::<Vec<_>>();
+        let action_specs = tensor(&[1, MAX_ACTIONS, ACTION_FEATURE_COUNT], &action_specs)?;
+        let action_mask = tensor(&[1, MAX_ACTIONS], &inputs.action_mask)?;
+        let transition_features = tensor(
+            &[1, MAX_ACTIONS, QADV_TRANSITION_FEATURE_COUNT],
+            &inputs.transition_features,
+        )?;
+        let outputs = self
+            .model
+            .run(tvec![
+                node_features.into_tvalue(),
+                global.into_tvalue(),
+                action_specs.into_tvalue(),
+                action_mask.into_tvalue(),
+                transition_features.into_tvalue(),
+            ])
+            .map_err(|error| error.to_string())?;
+        if outputs.len() != 3 {
+            return Err(format!(
+                "QAdv model returned {} outputs, expected 3",
+                outputs.len()
+            ));
+        }
+        let policy_logits = f32_values(&outputs[0])?;
+        let value = f32_values(&outputs[1])?
+            .first()
+            .copied()
+            .ok_or_else(|| "QAdv model returned an empty value tensor".to_owned())?;
+        let q_values = f32_values(&outputs[2])?;
+        Ok(QAdvPolicyValue {
+            policy_logits,
+            value,
+            q_values,
+        })
+    }
+}
+
+impl PolicyValueModel for OnnxQAdvModel {
+    fn evaluate(&self, state: GameState) -> Result<PolicyValue, String> {
+        let output = self.evaluate_qadv(state)?;
+        Ok(PolicyValue {
+            policy_logits: output.policy_logits,
+            value: output.value,
+        })
+    }
+}
+
+fn load_model(
+    bytes: &[u8],
+) -> Result<Arc<tract::tract_core::model::typed::TypedRunnableModel>, String> {
+    let inference = tract::onnx()
+        .model_for_read(&mut std::io::Cursor::new(bytes))
+        .map_err(|error| error.to_string())?;
+    inference
+        .into_optimized()
+        .map_err(|error| error.to_string())?
+        .into_runnable()
+        .map_err(|error| error.to_string())
+}
+
+fn tensor(
+    shape: &[usize],
+    values: &[f32],
+) -> Result<tract::tract_core::prelude::Tensor, String> {
     let expected = shape.iter().product::<usize>();
     if values.len() != expected {
         return Err(format!(
@@ -143,22 +247,13 @@ fn tensor(shape: &[usize], values: &[f32]) -> Result<tract::Tensor, String> {
             values.len()
         ));
     }
-    let bytes = values
-        .iter()
-        .flat_map(|value| value.to_ne_bytes())
-        .collect::<Vec<_>>();
-    tract::Tensor::from_bytes(DatumType::F32, shape, &bytes).map_err(|error| error.to_string())
+    tract::tract_core::prelude::Tensor::from_shape(shape, values)
+        .map_err(|error| error.to_string())
 }
 
-fn f32_values(tensor: &tract::Tensor) -> Result<Vec<f32>, String> {
-    let (datum_type, _shape, bytes) = tensor.as_bytes().map_err(|error| error.to_string())?;
-    if datum_type != DatumType::F32 {
-        return Err(format!(
-            "expected f32 model output, received {datum_type:?}"
-        ));
-    }
-    Ok(bytes
-        .chunks_exact(std::mem::size_of::<f32>())
-        .map(|bytes| f32::from_ne_bytes(bytes.try_into().expect("f32-sized chunk")))
-        .collect())
+fn f32_values(tensor: &tract::tract_core::prelude::Tensor) -> Result<Vec<f32>, String> {
+    tensor
+        .to_plain_array_view::<f32>()
+        .map(|values| values.iter().copied().collect())
+        .map_err(|error| error.to_string())
 }

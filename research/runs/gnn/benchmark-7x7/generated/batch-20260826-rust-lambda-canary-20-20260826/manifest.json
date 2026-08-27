@@ -1,0 +1,53 @@
+{
+  "averageSecondsPerGame": 135.83561662079302,
+  "budgetGuardrailUsd": 2.0,
+  "completedGames": 20,
+  "completedPositions": 1299,
+  "concurrency": 8,
+  "costModel": {
+    "maxSecondsPerGame": 90.0,
+    "memoryMb": 3008,
+    "usdPerGbSecond": 1.66667e-05
+  },
+  "createdAtUtc": "2026-08-26T09:28:12Z",
+  "estimatedComputeUsd": 0.2660119479052181,
+  "failedSeeds": [],
+  "functionName": "pathagon-qadv-worker-20260826",
+  "gamesRequested": 20,
+  "profile": "pathagon",
+  "recipe": {
+    "max_plies": 196,
+    "opening_moves": 16,
+    "opening_randomness": 0.3,
+    "opening_temperature": 1.8,
+    "pathfinder_beam": 8,
+    "pathfinder_depth": 2,
+    "pathfinder_guidance": 0.45,
+    "pathfinder_nodes": 512,
+    "pathfinder_temperature": 1.15,
+    "placement_guidance": 0.3,
+    "policy_temperature": 1.15,
+    "qadv_weight": 1.0,
+    "simulations": 128,
+    "tactical_capture_threshold": 2,
+    "tactical_simulations": 512,
+    "temperature_moves": 48
+  },
+  "region": "us-east-2",
+  "reviewBatches": [
+    {
+      "batch": 1,
+      "exactDuplicateGames": 0,
+      "games": 20,
+      "positions": 1299,
+      "stateRepeatGames": 0,
+      "textReport": "review-batches/batch-0001.txt",
+      "threefoldStateGames": 0
+    }
+  ],
+  "reviewEvery": 20,
+  "schemaVersion": 1,
+  "seedEnd": 2026100119,
+  "seedStart": 2026100100,
+  "status": "complete"
+}

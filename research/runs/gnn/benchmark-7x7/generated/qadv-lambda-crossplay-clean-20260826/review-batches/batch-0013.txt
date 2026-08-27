@@ -1,0 +1,84 @@
+Self-play audit: ['/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/qadv-lambda-crossplay-clean-20260826/batches/batch-0013.jsonl']
+Games: 100 | positions: 1876 | exact duplicate games: 0
+Length: {'min': 13.0, 'p50': 18.0, 'p95': 26.0, 'max': 48.0, 'mean': 18.76}
+Results: {"win": 100}
+Reasons: {"path": 100}
+Rule replay: 100 valid / 100 games; state-repeat games: 0
+
+Most common opening prefixes:
+     1x  P27 P6 P28 P0 P8 P1
+     1x  P0 P1 P2 P28 P30 P23
+     1x  P3 P17 P1 P15 P37 P16
+     1x  P0 P30 P28 P11 P7 P2
+     1x  P12 P5 P3 P19 P38 P17
+     1x  P0 P32 P28 P18 P14 P22
+     1x  P2 P16 P31 P17 P7 P14
+     1x  P0 P39 P35 P25 P21 P14
+     1x  P35 P42 P30 P28 P12 P48
+     1x  P0 P47 P42 P16 P14 P45
+
+Suspicious candidates:
+  seed=2026221256 plies=48 captures=17 flags=partial-q-coverage maxStateVisits=1 opening=P22 P1 P24 P3 P38 P31
+  seed=2026221224 plies=32 captures=10 flags=partial-q-coverage maxStateVisits=1 opening=P6 P20 P41 P14 P10 P17
+  seed=2026221257 plies=31 captures=6 flags=partial-q-coverage maxStateVisits=1 opening=P0 P2 P42 P14 P17 P33
+  seed=2026221263 plies=29 captures=7 flags=partial-q-coverage maxStateVisits=1 opening=P0 P5 P42 P13 P7 P29
+  seed=2026221295 plies=29 captures=7 flags=partial-q-coverage maxStateVisits=1 opening=P0 P24 P21 P29 P28 P42
+  seed=2026221228 plies=26 captures=6 flags=partial-q-coverage maxStateVisits=1 opening=P30 P2 P15 P1 P6 P13
+  seed=2026221258 plies=26 captures=4 flags=partial-q-coverage maxStateVisits=1 opening=P30 P2 P5 P19 P16 P23
+  seed=2026221266 plies=26 captures=6 flags=partial-q-coverage maxStateVisits=1 opening=P36 P43 P13 P29 P39 P28
+  seed=2026221272 plies=26 captures=8 flags=partial-q-coverage maxStateVisits=1 opening=P37 P44 P9 P30 P23 P16
+  seed=2026221202 plies=24 captures=6 flags=partial-q-coverage maxStateVisits=1 opening=P3 P17 P1 P15 P37 P16
+  seed=2026221208 plies=24 captures=6 flags=partial-q-coverage maxStateVisits=1 opening=P35 P42 P30 P28 P12 P48
+  seed=2026221274 plies=24 captures=5 flags=partial-q-coverage maxStateVisits=1 opening=P4 P18 P9 P16 P46 P2
+  seed=2026221205 plies=23 captures=6 flags=partial-q-coverage maxStateVisits=1 opening=P0 P32 P28 P18 P14 P22
+  seed=2026221229 plies=23 captures=4 flags=partial-q-coverage maxStateVisits=1 opening=P0 P28 P30 P2 P1 P32
+  seed=2026221235 plies=23 captures=3 flags=partial-q-coverage maxStateVisits=1 opening=P0 P14 P16 P38 P37 P4
+  seed=2026221247 plies=23 captures=5 flags=partial-q-coverage maxStateVisits=1 opening=P0 P2 P42 P45 P7 P15
+  seed=2026221251 plies=23 captures=3 flags=partial-q-coverage maxStateVisits=1 opening=P0 P31 P28 P26 P21 P15
+  seed=2026221289 plies=23 captures=5 flags=partial-q-coverage maxStateVisits=1 opening=P0 P21 P23 P42 P44 P38
+  seed=2026221200 plies=22 captures=4 flags=partial-q-coverage maxStateVisits=1 opening=P27 P6 P28 P0 P8 P1
+  seed=2026221242 plies=22 captures=4 flags=partial-q-coverage maxStateVisits=1 opening=P3 P17 P33 P19 P13 P20
+
+Interesting candidates:
+  seed=2026221256 plies=48 captures=17 uniqueActions=42 qSpread=0.422 opening=P22 P1 P24 P3 P38 P31
+  seed=2026221224 plies=32 captures=10 uniqueActions=29 qSpread=0.308 opening=P6 P20 P41 P14 P10 P17
+  seed=2026221272 plies=26 captures=8 uniqueActions=22 qSpread=0.232 opening=P37 P44 P9 P30 P23 P16
+  seed=2026221263 plies=29 captures=7 uniqueActions=29 qSpread=0.447 opening=P0 P5 P42 P13 P7 P29
+  seed=2026221295 plies=29 captures=7 uniqueActions=25 qSpread=0.542 opening=P0 P24 P21 P29 P28 P42
+  seed=2026221257 plies=31 captures=6 uniqueActions=29 qSpread=0.297 opening=P0 P2 P42 P14 P17 P33
+  seed=2026221266 plies=26 captures=6 uniqueActions=24 qSpread=0.273 opening=P36 P43 P13 P29 P39 P28
+  seed=2026221202 plies=24 captures=6 uniqueActions=24 qSpread=0.253 opening=P3 P17 P1 P15 P37 P16
+  seed=2026221208 plies=24 captures=6 uniqueActions=22 qSpread=0.420 opening=P35 P42 P30 P28 P12 P48
+  seed=2026221205 plies=23 captures=6 uniqueActions=21 qSpread=0.408 opening=P0 P32 P28 P18 P14 P22
+  seed=2026221228 plies=26 captures=6 uniqueActions=21 qSpread=0.380 opening=P30 P2 P15 P1 P6 P13
+  seed=2026221274 plies=24 captures=5 uniqueActions=24 qSpread=0.226 opening=P4 P18 P9 P16 P46 P2
+  seed=2026221247 plies=23 captures=5 uniqueActions=23 qSpread=0.399 opening=P0 P2 P42 P45 P7 P15
+  seed=2026221289 plies=23 captures=5 uniqueActions=23 qSpread=0.305 opening=P0 P21 P23 P42 P44 P38
+  seed=2026221277 plies=21 captures=5 uniqueActions=20 qSpread=0.308 opening=P0 P14 P16 P45 P44 P40
+  seed=2026221258 plies=26 captures=4 uniqueActions=24 qSpread=0.228 opening=P30 P2 P5 P19 P16 P23
+  seed=2026221200 plies=22 captures=4 uniqueActions=22 qSpread=0.282 opening=P27 P6 P28 P0 P8 P1
+  seed=2026221250 plies=22 captures=4 uniqueActions=22 qSpread=0.254 opening=P18 P4 P48 P6 P7 P0
+  seed=2026221290 plies=22 captures=4 uniqueActions=22 qSpread=0.253 opening=P28 P0 P7 P14 P23 P2
+  seed=2026221229 plies=23 captures=4 uniqueActions=22 qSpread=0.249 opening=P0 P28 P30 P2 P1 P32
+
+Manual-review sample:
+  seed=2026221202 plies=24 captures=6 flags=partial-q-coverage actions=P3 P17 P1 P15 P37 P16 P13 P20 P10 P6 P27 P34 P7 P14 P47 P0 P44 P2 P11 P4 P39 P18 P40 P19
+  seed=2026221205 plies=23 captures=6 flags=partial-q-coverage actions=P0 P32 P28 P18 P14 P22 P21 P24 P23 P35 P42 P47 P25 P48 P11 P17 P39 P30 P37 P34 P35 P22 P7
+  seed=2026221211 plies=19 captures=2 flags=partial-q-coverage actions=P0 P33 P28 P42 P43 P29 P30 P6 P29 P11 P7 P37 P44 P24 P21 P17 P14 P1 P36
+  seed=2026221213 plies=19 captures=2 flags=partial-q-coverage actions=P0 P12 P7 P13 P14 P46 P42 P1 P2 P44 P45 P43 P47 P24 P21 P30 P28 P10 P35
+  seed=2026221215 plies=21 captures=2 flags=partial-q-coverage actions=P0 P47 P42 P45 P35 P13 P7 P36 P37 P26 P21 P28 P14 P30 P29 P3 P23 P41 P22 P18 P36
+  seed=2026221219 plies=21 captures=4 flags=partial-q-coverage actions=P0 P43 P42 P22 P44 P29 P21 P13 P23 P25 P28 P4 P30 P35 P22 P27 P37 P14 P7 P20 P14
+  seed=2026221223 plies=13 captures=0 flags=partial-q-coverage actions=P0 P16 P14 P25 P21 P9 P7 P2 P42 P1 P28 P29 P35
+  seed=2026221230 plies=20 captures=4 flags=partial-q-coverage actions=P8 P1 P21 P15 P16 P17 P31 P14 P45 P28 P11 P18 P47 P4 P42 P16 P36 P19 P3 P20
+  seed=2026221235 plies=23 captures=3 flags=partial-q-coverage actions=P0 P14 P16 P38 P37 P4 P39 P19 P44 P25 P23 P40 P41 P36 P35 P32 P30 P26 P8 P33 P7 P34 P9
+  seed=2026221236 plies=18 captures=2 flags=partial-q-coverage actions=P8 P1 P25 P15 P30 P0 P33 P6 P36 P2 P7 P14 P32 P4 P42 P3 P21 P5
+  seed=2026221238 plies=16 captures=1 flags=partial-q-coverage actions=P36 P43 P38 P29 P31 P45 P2 P42 P26 P44 P6 P48 P33 P47 P5 P46
+  seed=2026221240 plies=14 captures=0 flags=partial-q-coverage actions=P47 P5 P18 P4 P32 P3 P42 P0 P48 P6 P15 P1 P36 P2
+  seed=2026221252 plies=16 captures=1 flags=partial-q-coverage actions=P45 P3 P38 P0 P12 P5 P48 P19 P29 P6 P35 P4 P24 P2 P41 P1
+  seed=2026221260 plies=14 captures=0 flags=partial-q-coverage actions=P46 P4 P38 P3 P48 P6 P24 P2 P22 P1 P42 P0 P32 P5
+  seed=2026221270 plies=22 captures=4 flags=partial-q-coverage actions=P13 P6 P15 P20 P19 P18 P37 P19 P13 P7 P10 P17 P34 P3 P29 P22 P26 P8 P28 P16 P42 P9
+  seed=2026221276 plies=14 captures=0 flags=partial-q-coverage actions=P43 P1 P23 P2 P32 P4 P16 P3 P17 P0 P25 P5 P36 P6
+  seed=2026221279 plies=17 captures=0 flags=partial-q-coverage actions=P0 P39 P35 P40 P42 P17 P28 P5 P14 P7 P21 P33 P8 P16 P15 P34 P1
+  seed=2026221286 plies=18 captures=2 flags=partial-q-coverage actions=P12 P5 P6 P19 P41 P20 P35 P14 P25 P18 P34 P32 P0 P17 P8 P15 P31 P16
+  seed=2026221290 plies=22 captures=4 flags=partial-q-coverage actions=P28 P0 P7 P14 P23 P2 P26 P5 P33 P6 P8 P1 P46 P15 P9 P16 P18 P30 P48 P4 P38 P3
+  seed=2026221295 plies=29 captures=7 flags=partial-q-coverage actions=P0 P24 P21 P29 P28 P42 P30 P15 P14 P3 P16 P31 P32 P19 P44 P47 P7 P37 P36 P23 P38 P8 P30 P11 P9 P34 P29 P31 P37

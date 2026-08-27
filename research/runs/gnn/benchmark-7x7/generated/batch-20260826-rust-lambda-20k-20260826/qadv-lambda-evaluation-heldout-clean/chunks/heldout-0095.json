@@ -1,0 +1,61 @@
+{
+  "chunkId": null,
+  "schema": "pathagon-qadv-evaluation-v1",
+  "summary": {
+    "games": 7,
+    "invalidGames": 0,
+    "metrics": {
+      "all": {
+        "positions": 471,
+        "predictedPairwiseAgreement": 547196,
+        "predictedPairwisePairs": 851905,
+        "predictedSelectedActionIsTargetQMax": 41,
+        "predictedSelectedActionTargetQRank": 15829.0,
+        "qMae": 1266.512602609381,
+        "qMse": 156.3562318088527,
+        "qSpread": 178.50450940430164,
+        "qWeight": 28563.38755207612,
+        "selectedActionIsQMax": 33,
+        "selectedActionQPercentile": 293.946686572221,
+        "selectedActionQRank": 20772.0,
+        "visitedActions": 17868,
+        "visitedPairs": 852284
+      },
+      "placement": {
+        "positions": 300,
+        "predictedPairwiseAgreement": 27383,
+        "predictedPairwisePairs": 44929,
+        "predictedSelectedActionIsTargetQMax": 31,
+        "predictedSelectedActionTargetQRank": 3617.0,
+        "qMae": 541.9410265449173,
+        "qMse": 81.92784073114052,
+        "qSpread": 77.2969731837511,
+        "qWeight": 11222.385433591926,
+        "selectedActionIsQMax": 28,
+        "selectedActionQPercentile": 182.84150981418796,
+        "selectedActionQRank": 3848.0,
+        "visitedActions": 4486,
+        "visitedPairs": 44948
+      },
+      "relocation": {
+        "positions": 171,
+        "predictedPairwiseAgreement": 519813,
+        "predictedPairwisePairs": 806976,
+        "predictedSelectedActionIsTargetQMax": 10,
+        "predictedSelectedActionTargetQRank": 12212.0,
+        "qMae": 724.5715760644619,
+        "qMse": 74.42839107771202,
+        "qSpread": 101.20753622055054,
+        "qWeight": 17341.002118484244,
+        "selectedActionIsQMax": 5,
+        "selectedActionQPercentile": 111.10517675803273,
+        "selectedActionQRank": 16924.0,
+        "visitedActions": 13382,
+        "visitedPairs": 807336
+      }
+    },
+    "missingQPositions": 0,
+    "positions": 471,
+    "qPositions": 471
+  }
+}

@@ -12,7 +12,12 @@ fn shared_rule_fixtures_match_rust_engine() {
             continue;
         }
         let fields: Vec<&str> = line.split('\t').collect();
-        assert_eq!(fields.len(), 12, "fixture line {} has wrong field count", line_number + 1);
+        assert_eq!(
+            fields.len(),
+            12,
+            "fixture line {} has wrong field count",
+            line_number + 1
+        );
         let name = fields[0];
         let mut state = GameState::new();
         state.light = 0;
@@ -35,11 +40,26 @@ fn shared_rule_fixtures_match_rust_engine() {
         let action = parse_action(fields[8]).unwrap();
         let expected_legal = fields[9] == "true";
         let transition = state.apply(action);
-        assert_eq!(transition.is_ok(), expected_legal, "{name}: legality mismatch");
+        assert_eq!(
+            transition.is_ok(),
+            expected_legal,
+            "{name}: legality mismatch"
+        );
         if let Ok(transition) = transition {
-            let expected_winner = if fields[10] == "-" { None } else { Some(player(fields[10])) };
-            assert_eq!(transition.state.winner, expected_winner, "{name}: winner mismatch");
-            assert_eq!(bit_squares(transition.captured), squares(fields[11]), "{name}: captures mismatch");
+            let expected_winner = if fields[10] == "-" {
+                None
+            } else {
+                Some(player(fields[10]))
+            };
+            assert_eq!(
+                transition.state.winner, expected_winner,
+                "{name}: winner mismatch"
+            );
+            assert_eq!(
+                bit_squares(transition.captured),
+                squares(fields[11]),
+                "{name}: captures mismatch"
+            );
         }
     }
 }
@@ -57,9 +77,18 @@ fn optional_square(value: &str) -> Option<u8> {
 }
 
 fn squares(value: &str) -> Vec<u8> {
-    if value == "-" { Vec::new() } else { value.split(',').map(|square| square.parse().unwrap()).collect() }
+    if value == "-" {
+        Vec::new()
+    } else {
+        value
+            .split(',')
+            .map(|square| square.parse().unwrap())
+            .collect()
+    }
 }
 
 fn mask(value: &str) -> u64 {
-    squares(value).into_iter().fold(0, |result, square| result | (1_u64 << square))
+    squares(value)
+        .into_iter()
+        .fold(0, |result, square| result | (1_u64 << square))
 }

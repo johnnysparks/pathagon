@@ -57,11 +57,24 @@ export type SelfPlayFilters = {
   result?: "win" | "draw";
   reason?: SelfPlayArchiveEntry["record"]["reason"];
   runId?: string;
+  pair?: [string, string];
 };
 
 export type SelfPlayQuery = SelfPlayFilters & {
   limit: number;
   offset: number;
+};
+
+export type SelfPlayResult = {
+  id: string;
+  recordedAt: string;
+  engine: string;
+  mode: string;
+  runId: string | null;
+  seed: number;
+  lightAgent: string;
+  darkAgent: string;
+  winner: SelfPlayGameRecord["winner"];
 };
 
 type SelfPlayRow = {
@@ -73,6 +86,18 @@ type SelfPlayRow = {
   record: string;
 };
 
+type SelfPlayResultRow = {
+  id: string;
+  recorded_at: string;
+  engine: string;
+  mode: string;
+  run_id: string | null;
+  seed: number;
+  light_agent: string;
+  dark_agent: string;
+  winner: SelfPlayGameRecord["winner"];
+};
+
 export async function querySelfPlayGames(query: SelfPlayQuery) {
   const d1 = await database();
   const { where, values } = buildWhere(query);
@@ -81,6 +106,16 @@ export async function querySelfPlayGames(query: SelfPlayQuery) {
     .bind(...values, query.limit, query.offset)
     .all<SelfPlayRow>();
   return rows.results.map(toArchiveGame);
+}
+
+export async function querySelfPlayResults(query: SelfPlayQuery) {
+  const d1 = await database();
+  const { where, values } = buildWhere(query);
+  const rows = await d1.prepare(`SELECT id, recorded_at, engine, mode, run_id, seed, light_agent, dark_agent, winner
+    FROM selfplay_games ${where} ORDER BY recorded_at DESC, id DESC LIMIT ? OFFSET ?`)
+    .bind(...values, query.limit, query.offset)
+    .all<SelfPlayResultRow>();
+  return rows.results.map(toSelfPlayResult);
 }
 
 export async function countSelfPlayGames(query: SelfPlayFilters) {
@@ -110,6 +145,20 @@ function toArchiveGame(row: SelfPlayRow) {
   };
 }
 
+function toSelfPlayResult(row: SelfPlayResultRow): SelfPlayResult {
+  return {
+    id: row.id,
+    recordedAt: row.recorded_at,
+    engine: row.engine,
+    mode: row.mode,
+    runId: row.run_id,
+    seed: row.seed,
+    lightAgent: row.light_agent,
+    darkAgent: row.dark_agent,
+    winner: row.winner,
+  };
+}
+
 function buildWhere(query: SelfPlayFilters) {
   const conditions: string[] = [];
   const values: string[] = [];
@@ -121,5 +170,9 @@ function buildWhere(query: SelfPlayFilters) {
   if (query.result) { conditions.push("result = ?"); values.push(query.result); }
   if (query.reason) { conditions.push("reason = ?"); values.push(query.reason); }
   if (query.runId) { conditions.push("run_id = ?"); values.push(query.runId); }
+  if (query.pair) {
+    conditions.push("((light_agent = ? AND dark_agent = ?) OR (light_agent = ? AND dark_agent = ?))");
+    values.push(query.pair[0], query.pair[1], query.pair[1], query.pair[0]);
+  }
   return { where: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "", values };
 }

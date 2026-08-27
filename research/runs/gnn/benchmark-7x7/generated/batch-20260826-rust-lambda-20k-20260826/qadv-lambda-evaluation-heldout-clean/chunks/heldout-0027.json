@@ -1,0 +1,61 @@
+{
+  "chunkId": null,
+  "schema": "pathagon-qadv-evaluation-v1",
+  "summary": {
+    "games": 35,
+    "invalidGames": 0,
+    "metrics": {
+      "all": {
+        "positions": 2321,
+        "predictedPairwiseAgreement": 3847201,
+        "predictedPairwisePairs": 6064337,
+        "predictedSelectedActionIsTargetQMax": 183,
+        "predictedSelectedActionTargetQRank": 86317.0,
+        "qMae": 6648.667942665727,
+        "qMse": 738.1742964320367,
+        "qSpread": 806.4980614036322,
+        "qWeight": 155822.00662108054,
+        "selectedActionIsQMax": 155,
+        "selectedActionQPercentile": 1330.118412176348,
+        "selectedActionQRank": 121321.0,
+        "visitedActions": 100390,
+        "visitedPairs": 6066644
+      },
+      "placement": {
+        "positions": 1487,
+        "predictedPairwiseAgreement": 123813,
+        "predictedPairwisePairs": 200848,
+        "predictedSelectedActionIsTargetQMax": 125,
+        "predictedSelectedActionTargetQRank": 19315.0,
+        "qMae": 2599.8550740632422,
+        "qMse": 324.2124753221694,
+        "qSpread": 341.41478657349944,
+        "qWeight": 55950.8093707545,
+        "selectedActionIsQMax": 114,
+        "selectedActionQPercentile": 852.113679100853,
+        "selectedActionQRank": 20624.0,
+        "visitedActions": 21731,
+        "visitedPairs": 200917
+      },
+      "relocation": {
+        "positions": 834,
+        "predictedPairwiseAgreement": 3723388,
+        "predictedPairwisePairs": 5863489,
+        "predictedSelectedActionIsTargetQMax": 58,
+        "predictedSelectedActionTargetQRank": 67002.0,
+        "qMae": 4048.8128686024684,
+        "qMse": 413.96182110987655,
+        "qSpread": 465.0832748301327,
+        "qWeight": 99871.19725033615,
+        "selectedActionIsQMax": 41,
+        "selectedActionQPercentile": 478.00473307549686,
+        "selectedActionQRank": 100697.0,
+        "visitedActions": 78659,
+        "visitedPairs": 5865727
+      }
+    },
+    "missingQPositions": 0,
+    "positions": 2321,
+    "qPositions": 2321
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "chunkId": null,
+  "schema": "pathagon-qadv-evaluation-v1",
+  "summary": {
+    "games": 35,
+    "invalidGames": 0,
+    "metrics": {
+      "all": {
+        "positions": 2285,
+        "predictedPairwiseAgreement": 3121712,
+        "predictedPairwisePairs": 4904587,
+        "predictedSelectedActionIsTargetQMax": 175,
+        "predictedSelectedActionTargetQRank": 81477.0,
+        "qMae": 6220.7978882971465,
+        "qMse": 703.3269726798269,
+        "qSpread": 774.4729822464287,
+        "qWeight": 143121.67373379212,
+        "selectedActionIsQMax": 169,
+        "selectedActionQPercentile": 1353.610190442051,
+        "selectedActionQRank": 108885.0,
+        "visitedActions": 91313,
+        "visitedPairs": 4906306
+      },
+      "placement": {
+        "positions": 1479,
+        "predictedPairwiseAgreement": 126575,
+        "predictedPairwisePairs": 204640,
+        "predictedSelectedActionIsTargetQMax": 122,
+        "predictedSelectedActionTargetQRank": 18799.0,
+        "qMae": 2563.9771202904462,
+        "qMse": 314.76528429455345,
+        "qSpread": 334.5510050021112,
+        "qWeight": 54752.991870805665,
+        "selectedActionIsQMax": 133,
+        "selectedActionQPercentile": 862.3062175924904,
+        "selectedActionQRank": 20205.0,
+        "visitedActions": 21910,
+        "visitedPairs": 204707
+      },
+      "relocation": {
+        "positions": 806,
+        "predictedPairwiseAgreement": 2995137,
+        "predictedPairwisePairs": 4699947,
+        "predictedSelectedActionIsTargetQMax": 53,
+        "predictedSelectedActionTargetQRank": 62678.0,
+        "qMae": 3656.8207680066475,
+        "qMse": 388.56168838527407,
+        "qSpread": 439.92197724431753,
+        "qWeight": 88368.68186299581,
+        "selectedActionIsQMax": 36,
+        "selectedActionQPercentile": 491.30397284955995,
+        "selectedActionQRank": 88680.0,
+        "visitedActions": 69403,
+        "visitedPairs": 4701599
+      }
+    },
+    "missingQPositions": 0,
+    "positions": 2285,
+    "qPositions": 2285
+  }
+}

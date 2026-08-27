@@ -1,0 +1,39 @@
+{
+  "boardSize": 7,
+  "createdAtUtc": "2026-08-26T01:56:13.428329+00:00",
+  "gamesPerPlayer": 1000,
+  "generation": {
+    "maxPlies": 196,
+    "openingMoves": 16,
+    "openingRandomness": 0.3,
+    "openingTemperature": 1.8,
+    "pathfinderBeam": 8,
+    "pathfinderDepth": 2,
+    "pathfinderGuidance": 0.45,
+    "pathfinderNodes": 1000,
+    "pathfinderTemperature": 1.15,
+    "placementGuidance": 0.3,
+    "policyTemperature": 1.15,
+    "selfplayDevice": "cpu",
+    "simulations": 128,
+    "tacticalCaptureThreshold": 1,
+    "tacticalSimulations": 512,
+    "temperatureMoves": 48,
+    "trainingUpdates": 0,
+    "workers": 8
+  },
+  "players": [],
+  "playersRequested": [
+    "qadv",
+    "reval-gnn",
+    "reval-cnn",
+    "learner",
+    "scout"
+  ],
+  "reservePerPlayer": 14,
+  "schemaVersion": 1,
+  "seedEnd": 2026094499,
+  "seedStart": 2026089500,
+  "status": "failed",
+  "failure": "Interrupted after runtime audit; tactical escalation was too broad"
+}

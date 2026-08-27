@@ -17,7 +17,11 @@ fn main() {
         evaluation_pairs: number(&args, "evaluation-pairs", defaults.evaluation_pairs),
         seed: number(&args, "seed", defaults.seed),
         mutation_per_mille: number(&args, "mutation-per-mille", defaults.mutation_per_mille),
-        promotion_rate_per_mille: number(&args, "promotion-rate-per-mille", defaults.promotion_rate_per_mille),
+        promotion_rate_per_mille: number(
+            &args,
+            "promotion-rate-per-mille",
+            defaults.promotion_rate_per_mille,
+        ),
         max_plies: number(&args, "max-plies", defaults.max_plies),
         opening_random_plies: number(&args, "opening-random-plies", defaults.opening_random_plies),
         search: SearchConfig {
@@ -28,7 +32,11 @@ fn main() {
             tactical_proof_horizon: None,
         },
     };
-    let output = PathBuf::from(args.get("out").map(String::as_str).unwrap_or("research/runs/rust-v1"));
+    let output = PathBuf::from(
+        args.get("out")
+            .map(String::as_str)
+            .unwrap_or("research/runs/rust-v1"),
+    );
     let started = Instant::now();
     let result = train(Champion::baseline(weights), config);
     let written = write_training_output(&output, &result)
@@ -57,7 +65,10 @@ fn parse_args() -> HashMap<String, String> {
         if let Some(option) = values[index].strip_prefix("--") {
             if let Some((key, value)) = option.split_once('=') {
                 parsed.insert(key.to_owned(), value.to_owned());
-            } else if values.get(index + 1).is_some_and(|next| !next.starts_with("--")) {
+            } else if values
+                .get(index + 1)
+                .is_some_and(|next| !next.starts_with("--"))
+            {
                 parsed.insert(option.to_owned(), values[index + 1].clone());
                 index += 1;
             }
@@ -68,7 +79,9 @@ fn parse_args() -> HashMap<String, String> {
 }
 
 fn number<T: std::str::FromStr>(args: &HashMap<String, String>, key: &str, fallback: T) -> T {
-    args.get(key).and_then(|value| value.parse().ok()).unwrap_or(fallback)
+    args.get(key)
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(fallback)
 }
 
 fn fail(message: &str) -> ! {

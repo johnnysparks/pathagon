@@ -45,8 +45,14 @@ impl PuctResult {
     /// contract. Values are already from the root player's perspective.
     pub fn root_q_targets(&self) -> Result<crate::contract::RootQTargets, String> {
         crate::contract::RootQTargets::new(
-            self.evaluations.iter().map(|evaluation| evaluation.value).collect(),
-            self.evaluations.iter().map(|evaluation| evaluation.visits).collect(),
+            self.evaluations
+                .iter()
+                .map(|evaluation| evaluation.value)
+                .collect(),
+            self.evaluations
+                .iter()
+                .map(|evaluation| evaluation.visits)
+                .collect(),
         )
     }
 }
@@ -332,11 +338,13 @@ mod tests {
         seed_root_afterstates(&mut root);
 
         assert_eq!(root.children.len(), action_count);
+        assert!(root.children.iter().all(|child| child
+            .as_ref()
+            .is_some_and(|node| node.seeded_value.is_some())));
         assert!(root
             .children
             .iter()
-            .all(|child| child.as_ref().is_some_and(|node| node.seeded_value.is_some())));
-        assert!(root.children.iter().all(|child| child.as_ref().unwrap().visits == 0));
+            .all(|child| child.as_ref().unwrap().visits == 0));
     }
 
     #[test]

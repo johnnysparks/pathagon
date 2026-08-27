@@ -1,0 +1,402 @@
+{
+  "actionKinds": {
+    "place": 41
+  },
+  "captureMismatchGames": 0,
+  "captures": {
+    "max": 2.0,
+    "mean": 1.0,
+    "min": 0.0,
+    "p50": 0.0,
+    "p95": 2.0
+  },
+  "commonOpenings": [
+    {
+      "count": 1,
+      "opening": "P18 P11 P15 P8 P13 P6"
+    },
+    {
+      "count": 1,
+      "opening": "P1 P25 P21 P2 P8 P38"
+    }
+  ],
+  "exactDuplicateGames": 0,
+  "exactDuplicateGroups": [],
+  "games": 2,
+  "inputs": [
+    "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/qadv-lambda-crossplay-canary-20260826/batches/batch-0001.jsonl"
+  ],
+  "interesting": [
+    {
+      "actionKinds": {
+        "place": 24
+      },
+      "actions": [
+        "P18",
+        "P11",
+        "P15",
+        "P8",
+        "P13",
+        "P6",
+        "P17",
+        "P7",
+        "P30",
+        "P5",
+        "P21",
+        "P4",
+        "P1",
+        "P10",
+        "P35",
+        "P28",
+        "P43",
+        "P29",
+        "P27",
+        "P24",
+        "P0",
+        "P8",
+        "P42",
+        "P9"
+      ],
+      "captures": 2,
+      "decisionPlies": 24,
+      "flags": [
+        "partial-q-coverage"
+      ],
+      "inverseRelocations": 0,
+      "line": 1,
+      "opening": "P18 P11 P15 P8 P13 P6",
+      "openingHash": "84465ceaa8537ab3",
+      "plies": 24,
+      "qCoverage": 0.5,
+      "qCoveredPositions": 12,
+      "qSpreadMean": 0.26849382027833335,
+      "qTopGapMean": 0.004214816895,
+      "qVisitEntropyMean": 4.801162169797047,
+      "reason": "path",
+      "repeatedBlocks": [],
+      "result": "win",
+      "seed": 2026230000,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/qadv-lambda-crossplay-canary-20260826/batches/batch-0001.jsonl",
+      "stateMetrics": {
+        "captureMismatches": 0,
+        "illegalPly": null,
+        "maxPositionVisits": 1,
+        "repeatedPositions": 0,
+        "ruleReplay": true,
+        "threefoldPositions": 0
+      },
+      "terminalClosurePositions": 0,
+      "uniqueActions": 23
+    },
+    {
+      "actionKinds": {
+        "place": 17
+      },
+      "actions": [
+        "P1",
+        "P25",
+        "P21",
+        "P2",
+        "P8",
+        "P38",
+        "P15",
+        "P16",
+        "P22",
+        "P41",
+        "P39",
+        "P4",
+        "P43",
+        "P5",
+        "P36",
+        "P23",
+        "P29"
+      ],
+      "captures": 0,
+      "decisionPlies": 17,
+      "flags": [
+        "partial-q-coverage"
+      ],
+      "inverseRelocations": 0,
+      "line": 2,
+      "opening": "P1 P25 P21 P2 P8 P38",
+      "openingHash": "9910456b707e810f",
+      "plies": 17,
+      "qCoverage": 0.47058823529411764,
+      "qCoveredPositions": 8,
+      "qSpreadMean": 0.2705216139875,
+      "qTopGapMean": 0.007375321075000001,
+      "qVisitEntropyMean": 4.872612883846597,
+      "reason": "path",
+      "repeatedBlocks": [],
+      "result": "win",
+      "seed": 2026230001,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/qadv-lambda-crossplay-canary-20260826/batches/batch-0001.jsonl",
+      "stateMetrics": {
+        "captureMismatches": 0,
+        "illegalPly": null,
+        "maxPositionVisits": 1,
+        "repeatedPositions": 0,
+        "ruleReplay": true,
+        "threefoldPositions": 0
+      },
+      "terminalClosurePositions": 0,
+      "uniqueActions": 17
+    }
+  ],
+  "lengths": {
+    "max": 24.0,
+    "mean": 20.5,
+    "min": 17.0,
+    "p50": 17.0,
+    "p95": 24.0
+  },
+  "positions": 41,
+  "qCoverage": 0.4878048780487805,
+  "qCoveredPositions": 20,
+  "qEligiblePositions": 41,
+  "reasons": {
+    "path": 2
+  },
+  "results": {
+    "win": 2
+  },
+  "reviewSample": [
+    {
+      "actionKinds": {
+        "place": 24
+      },
+      "actions": [
+        "P18",
+        "P11",
+        "P15",
+        "P8",
+        "P13",
+        "P6",
+        "P17",
+        "P7",
+        "P30",
+        "P5",
+        "P21",
+        "P4",
+        "P1",
+        "P10",
+        "P35",
+        "P28",
+        "P43",
+        "P29",
+        "P27",
+        "P24",
+        "P0",
+        "P8",
+        "P42",
+        "P9"
+      ],
+      "captures": 2,
+      "decisionPlies": 24,
+      "flags": [
+        "partial-q-coverage"
+      ],
+      "inverseRelocations": 0,
+      "line": 1,
+      "opening": "P18 P11 P15 P8 P13 P6",
+      "openingHash": "84465ceaa8537ab3",
+      "plies": 24,
+      "qCoverage": 0.5,
+      "qCoveredPositions": 12,
+      "qSpreadMean": 0.26849382027833335,
+      "qTopGapMean": 0.004214816895,
+      "qVisitEntropyMean": 4.801162169797047,
+      "reason": "path",
+      "repeatedBlocks": [],
+      "result": "win",
+      "seed": 2026230000,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/qadv-lambda-crossplay-canary-20260826/batches/batch-0001.jsonl",
+      "stateMetrics": {
+        "captureMismatches": 0,
+        "illegalPly": null,
+        "maxPositionVisits": 1,
+        "repeatedPositions": 0,
+        "ruleReplay": true,
+        "threefoldPositions": 0
+      },
+      "terminalClosurePositions": 0,
+      "uniqueActions": 23
+    },
+    {
+      "actionKinds": {
+        "place": 17
+      },
+      "actions": [
+        "P1",
+        "P25",
+        "P21",
+        "P2",
+        "P8",
+        "P38",
+        "P15",
+        "P16",
+        "P22",
+        "P41",
+        "P39",
+        "P4",
+        "P43",
+        "P5",
+        "P36",
+        "P23",
+        "P29"
+      ],
+      "captures": 0,
+      "decisionPlies": 17,
+      "flags": [
+        "partial-q-coverage"
+      ],
+      "inverseRelocations": 0,
+      "line": 2,
+      "opening": "P1 P25 P21 P2 P8 P38",
+      "openingHash": "9910456b707e810f",
+      "plies": 17,
+      "qCoverage": 0.47058823529411764,
+      "qCoveredPositions": 8,
+      "qSpreadMean": 0.2705216139875,
+      "qTopGapMean": 0.007375321075000001,
+      "qVisitEntropyMean": 4.872612883846597,
+      "reason": "path",
+      "repeatedBlocks": [],
+      "result": "win",
+      "seed": 2026230001,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/qadv-lambda-crossplay-canary-20260826/batches/batch-0001.jsonl",
+      "stateMetrics": {
+        "captureMismatches": 0,
+        "illegalPly": null,
+        "maxPositionVisits": 1,
+        "repeatedPositions": 0,
+        "ruleReplay": true,
+        "threefoldPositions": 0
+      },
+      "terminalClosurePositions": 0,
+      "uniqueActions": 17
+    }
+  ],
+  "ruleReplayGames": 2,
+  "schemaVersion": 1,
+  "stateRepeatGames": 0,
+  "suspicious": [
+    {
+      "actionKinds": {
+        "place": 24
+      },
+      "actions": [
+        "P18",
+        "P11",
+        "P15",
+        "P8",
+        "P13",
+        "P6",
+        "P17",
+        "P7",
+        "P30",
+        "P5",
+        "P21",
+        "P4",
+        "P1",
+        "P10",
+        "P35",
+        "P28",
+        "P43",
+        "P29",
+        "P27",
+        "P24",
+        "P0",
+        "P8",
+        "P42",
+        "P9"
+      ],
+      "captures": 2,
+      "decisionPlies": 24,
+      "flags": [
+        "partial-q-coverage"
+      ],
+      "inverseRelocations": 0,
+      "line": 1,
+      "opening": "P18 P11 P15 P8 P13 P6",
+      "openingHash": "84465ceaa8537ab3",
+      "plies": 24,
+      "qCoverage": 0.5,
+      "qCoveredPositions": 12,
+      "qSpreadMean": 0.26849382027833335,
+      "qTopGapMean": 0.004214816895,
+      "qVisitEntropyMean": 4.801162169797047,
+      "reason": "path",
+      "repeatedBlocks": [],
+      "result": "win",
+      "seed": 2026230000,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/qadv-lambda-crossplay-canary-20260826/batches/batch-0001.jsonl",
+      "stateMetrics": {
+        "captureMismatches": 0,
+        "illegalPly": null,
+        "maxPositionVisits": 1,
+        "repeatedPositions": 0,
+        "ruleReplay": true,
+        "threefoldPositions": 0
+      },
+      "terminalClosurePositions": 0,
+      "uniqueActions": 23
+    },
+    {
+      "actionKinds": {
+        "place": 17
+      },
+      "actions": [
+        "P1",
+        "P25",
+        "P21",
+        "P2",
+        "P8",
+        "P38",
+        "P15",
+        "P16",
+        "P22",
+        "P41",
+        "P39",
+        "P4",
+        "P43",
+        "P5",
+        "P36",
+        "P23",
+        "P29"
+      ],
+      "captures": 0,
+      "decisionPlies": 17,
+      "flags": [
+        "partial-q-coverage"
+      ],
+      "inverseRelocations": 0,
+      "line": 2,
+      "opening": "P1 P25 P21 P2 P8 P38",
+      "openingHash": "9910456b707e810f",
+      "plies": 17,
+      "qCoverage": 0.47058823529411764,
+      "qCoveredPositions": 8,
+      "qSpreadMean": 0.2705216139875,
+      "qTopGapMean": 0.007375321075000001,
+      "qVisitEntropyMean": 4.872612883846597,
+      "reason": "path",
+      "repeatedBlocks": [],
+      "result": "win",
+      "seed": 2026230001,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/qadv-lambda-crossplay-canary-20260826/batches/batch-0001.jsonl",
+      "stateMetrics": {
+        "captureMismatches": 0,
+        "illegalPly": null,
+        "maxPositionVisits": 1,
+        "repeatedPositions": 0,
+        "ruleReplay": true,
+        "threefoldPositions": 0
+      },
+      "terminalClosurePositions": 0,
+      "uniqueActions": 17
+    }
+  ],
+  "terminalClosurePositions": 0,
+  "threefoldStateGames": 0
+}

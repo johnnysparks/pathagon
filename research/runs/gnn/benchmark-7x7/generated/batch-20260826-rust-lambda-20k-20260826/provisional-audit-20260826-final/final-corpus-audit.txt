@@ -1,0 +1,54 @@
+Pathagon self-play corpus audit
+Games: 17500 / 17500 requested
+Seed coverage: 17500 present, 0 missing, 0 unexpected
+Rule replay: 17500 valid; capture-mismatch games: 0
+Repeated-state games: 0; threefold-state games: 0
+Exact duplicate games: 0 in 0 groups
+Q coverage: 1093587 / 1093587 eligible positions (100.00%); terminal closures: 1
+Openings: 17500 unique 12-ply prefixes; repeated-prefix excess: 0
+
+Most repeated openings:
+
+Suspicious candidates:
+  seed=2026201843 plies=196 captures=71 flags=max-plies opening=P39 P32 P47 P37 P15 P10 P1 P8 P13 P48 P27 P42
+  seed=2026202058 plies=196 captures=80 flags=max-plies opening=P5 P34 P14 P30 P17 P7 P8 P10 P11 P43 P6 P38
+  seed=2026202477 plies=196 captures=83 flags=max-plies opening=P32 P35 P44 P46 P37 P34 P28 P14 P2 P8 P43 P10
+  seed=2026204736 plies=196 captures=77 flags=max-plies opening=P5 P45 P12 P28 P16 P35 P30 P33 P6 P20 P27 P18
+  seed=2026204390 plies=184 captures=58 flags=- opening=P43 P34 P6 P48 P32 P33 P2 P17 P36 P25 P13 P10
+  seed=2026201789 plies=183 captures=61 flags=- opening=P8 P22 P45 P14 P21 P3 P2 P20 P23 P31 P34 P18
+  seed=2026201602 plies=181 captures=30 flags=- opening=P26 P13 P46 P43 P14 P16 P47 P28 P24 P33 P48 P41
+  seed=2026206261 plies=180 captures=72 flags=- opening=P31 P41 P16 P5 P1 P10 P20 P13 P3 P21 P33 P12
+  seed=2026203458 plies=177 captures=55 flags=- opening=P30 P18 P31 P38 P40 P6 P32 P25 P8 P28 P45 P4
+  seed=2026200258 plies=175 captures=55 flags=- opening=P7 P21 P28 P43 P27 P22 P14 P20 P11 P17 P46 P37
+  seed=2026206116 plies=173 captures=54 flags=- opening=P3 P34 P46 P17 P25 P18 P11 P29 P27 P26 P40 P0
+  seed=2026212757 plies=173 captures=56 flags=- opening=P6 P42 P47 P7 P29 P34 P45 P15 P30 P21 P5 P18
+  seed=2026217466 plies=172 captures=57 flags=- opening=P33 P12 P24 P11 P5 P9 P36 P10 P2 P20 P26 P21
+  seed=2026210992 plies=170 captures=69 flags=- opening=P39 P20 P13 P11 P19 P33 P0 P4 P2 P48 P6 P14
+  seed=2026211559 plies=170 captures=55 flags=- opening=P25 P23 P22 P31 P21 P11 P47 P26 P44 P8 P20 P29
+  seed=2026209871 plies=168 captures=58 flags=- opening=P26 P21 P36 P34 P9 P0 P48 P25 P6 P12 P1 P15
+  seed=2026200076 plies=167 captures=17 flags=- opening=P43 P36 P12 P35 P14 P18 P4 P30 P41 P8 P31 P44
+  seed=2026201188 plies=167 captures=58 flags=- opening=P28 P2 P23 P3 P30 P48 P27 P6 P26 P29 P8 P24
+  seed=2026210001 plies=167 captures=57 flags=- opening=P35 P15 P14 P12 P39 P33 P19 P27 P42 P21 P9 P2
+  seed=2026200083 plies=166 captures=58 flags=- opening=P37 P14 P30 P46 P34 P33 P1 P35 P18 P44 P25 P8
+
+Interesting candidates:
+  seed=2026202477 plies=196 captures=83 uniqueActions=131 qSpread=0.555 opening=P32 P35 P44 P46 P37 P34 P28 P14 P2 P8 P43 P10
+  seed=2026202058 plies=196 captures=80 uniqueActions=134 qSpread=0.584 opening=P5 P34 P14 P30 P17 P7 P8 P10 P11 P43 P6 P38
+  seed=2026204736 plies=196 captures=77 uniqueActions=137 qSpread=0.522 opening=P5 P45 P12 P28 P16 P35 P30 P33 P6 P20 P27 P18
+  seed=2026206261 plies=180 captures=72 uniqueActions=126 qSpread=0.428 opening=P31 P41 P16 P5 P1 P10 P20 P13 P3 P21 P33 P12
+  seed=2026201843 plies=196 captures=71 uniqueActions=133 qSpread=0.504 opening=P39 P32 P47 P37 P15 P10 P1 P8 P13 P48 P27 P42
+  seed=2026210992 plies=170 captures=69 uniqueActions=116 qSpread=0.655 opening=P39 P20 P13 P11 P19 P33 P0 P4 P2 P48 P6 P14
+  seed=2026209295 plies=156 captures=64 uniqueActions=104 qSpread=0.530 opening=P43 P23 P28 P14 P17 P11 P9 P5 P24 P42 P46 P7
+  seed=2026209616 plies=157 captures=62 uniqueActions=111 qSpread=0.553 opening=P32 P16 P47 P44 P9 P46 P11 P40 P6 P15 P5 P35
+  seed=2026210526 plies=147 captures=62 uniqueActions=99 qSpread=0.621 opening=P18 P14 P40 P30 P34 P15 P33 P43 P44 P42 P35 P7
+  seed=2026201789 plies=183 captures=61 uniqueActions=138 qSpread=0.439 opening=P8 P22 P45 P14 P21 P3 P2 P20 P23 P31 P34 P18
+  seed=2026212302 plies=146 captures=61 uniqueActions=101 qSpread=0.528 opening=P6 P44 P37 P25 P1 P38 P12 P23 P4 P2 P5 P10
+  seed=2026208778 plies=160 captures=60 uniqueActions=115 qSpread=0.457 opening=P34 P44 P20 P3 P23 P38 P4 P35 P43 P45 P15 P30
+  seed=2026202820 plies=155 captures=60 uniqueActions=114 qSpread=0.459 opening=P10 P47 P1 P12 P38 P37 P8 P2 P48 P18 P0 P20
+  seed=2026201048 plies=160 captures=60 uniqueActions=113 qSpread=0.506 opening=P43 P32 P12 P8 P36 P35 P26 P11 P13 P7 P29 P46
+  seed=2026217049 plies=146 captures=60 uniqueActions=102 qSpread=0.502 opening=P29 P43 P32 P10 P44 P35 P4 P45 P13 P21 P47 P27
+  seed=2026210729 plies=164 captures=59 uniqueActions=120 qSpread=0.604 opening=P17 P22 P24 P4 P34 P29 P11 P38 P7 P42 P9 P26
+  seed=2026212251 plies=140 captures=59 uniqueActions=94 qSpread=0.588 opening=P20 P35 P17 P0 P44 P4 P46 P25 P48 P34 P14 P13
+  seed=2026204390 plies=184 captures=58 uniqueActions=135 qSpread=0.602 opening=P43 P34 P6 P48 P32 P33 P2 P17 P36 P25 P13 P10
+  seed=2026209871 plies=168 captures=58 uniqueActions=126 qSpread=0.375 opening=P26 P21 P36 P34 P9 P0 P48 P25 P6 P12 P1 P15
+  seed=2026201188 plies=167 captures=58 uniqueActions=123 qSpread=0.362 opening=P28 P2 P23 P3 P30 P48 P27 P6 P26 P29 P8 P24

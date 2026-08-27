@@ -1,0 +1,340 @@
+{
+  "copied": [
+    {
+      "plies": 57,
+      "qCovered": 57,
+      "seed": 2026205190,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026205190.json"
+    },
+    {
+      "plies": 61,
+      "qCovered": 61,
+      "seed": 2026205313,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026205313.json"
+    },
+    {
+      "plies": 40,
+      "qCovered": 40,
+      "seed": 2026205320,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026205320.json"
+    },
+    {
+      "plies": 83,
+      "qCovered": 83,
+      "seed": 2026205419,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026205419.json"
+    },
+    {
+      "plies": 61,
+      "qCovered": 61,
+      "seed": 2026205570,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026205570.json"
+    },
+    {
+      "plies": 42,
+      "qCovered": 42,
+      "seed": 2026206029,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026206029.json"
+    },
+    {
+      "plies": 77,
+      "qCovered": 77,
+      "seed": 2026206065,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026206065.json"
+    },
+    {
+      "plies": 84,
+      "qCovered": 84,
+      "seed": 2026206076,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026206076.json"
+    },
+    {
+      "plies": 47,
+      "qCovered": 47,
+      "seed": 2026206082,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026206082.json"
+    },
+    {
+      "plies": 71,
+      "qCovered": 71,
+      "seed": 2026206225,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026206225.json"
+    },
+    {
+      "plies": 38,
+      "qCovered": 38,
+      "seed": 2026206253,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026206253.json"
+    },
+    {
+      "plies": 77,
+      "qCovered": 77,
+      "seed": 2026206799,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026206799.json"
+    },
+    {
+      "plies": 148,
+      "qCovered": 148,
+      "seed": 2026206808,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026206808.json"
+    },
+    {
+      "plies": 66,
+      "qCovered": 66,
+      "seed": 2026206821,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026206821.json"
+    },
+    {
+      "plies": 61,
+      "qCovered": 61,
+      "seed": 2026206830,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026206830.json"
+    },
+    {
+      "plies": 60,
+      "qCovered": 60,
+      "seed": 2026206895,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026206895.json"
+    },
+    {
+      "plies": 60,
+      "qCovered": 60,
+      "seed": 2026206939,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026206939.json"
+    },
+    {
+      "plies": 56,
+      "qCovered": 56,
+      "seed": 2026207515,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026207515.json"
+    },
+    {
+      "plies": 54,
+      "qCovered": 54,
+      "seed": 2026207587,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026207587.json"
+    },
+    {
+      "plies": 38,
+      "qCovered": 38,
+      "seed": 2026207755,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026207755.json"
+    },
+    {
+      "plies": 87,
+      "qCovered": 87,
+      "seed": 2026207836,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026207836.json"
+    },
+    {
+      "plies": 64,
+      "qCovered": 64,
+      "seed": 2026207853,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026207853.json"
+    },
+    {
+      "plies": 95,
+      "qCovered": 95,
+      "seed": 2026207910,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026207910.json"
+    },
+    {
+      "plies": 56,
+      "qCovered": 56,
+      "seed": 2026208451,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026208451.json"
+    },
+    {
+      "plies": 54,
+      "qCovered": 54,
+      "seed": 2026208464,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026208464.json"
+    },
+    {
+      "plies": 99,
+      "qCovered": 99,
+      "seed": 2026208506,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026208506.json"
+    },
+    {
+      "plies": 73,
+      "qCovered": 73,
+      "seed": 2026208507,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026208507.json"
+    },
+    {
+      "plies": 49,
+      "qCovered": 49,
+      "seed": 2026208600,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026208600.json"
+    },
+    {
+      "plies": 63,
+      "qCovered": 63,
+      "seed": 2026208639,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026208639.json"
+    },
+    {
+      "plies": 42,
+      "qCovered": 42,
+      "seed": 2026209121,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026209121.json"
+    },
+    {
+      "plies": 78,
+      "qCovered": 78,
+      "seed": 2026209366,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026209366.json"
+    },
+    {
+      "plies": 34,
+      "qCovered": 34,
+      "seed": 2026210103,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026210103.json"
+    },
+    {
+      "plies": 61,
+      "qCovered": 61,
+      "seed": 2026210342,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026210342.json"
+    },
+    {
+      "plies": 42,
+      "qCovered": 42,
+      "seed": 2026210346,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026210346.json"
+    },
+    {
+      "plies": 57,
+      "qCovered": 57,
+      "seed": 2026210480,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026210480.json"
+    },
+    {
+      "plies": 55,
+      "qCovered": 55,
+      "seed": 2026210647,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026210647.json"
+    },
+    {
+      "plies": 34,
+      "qCovered": 34,
+      "seed": 2026210903,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026210903.json"
+    },
+    {
+      "plies": 66,
+      "qCovered": 66,
+      "seed": 2026211150,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026211150.json"
+    },
+    {
+      "plies": 51,
+      "qCovered": 51,
+      "seed": 2026211406,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026211406.json"
+    },
+    {
+      "plies": 60,
+      "qCovered": 60,
+      "seed": 2026211818,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026211818.json"
+    },
+    {
+      "plies": 64,
+      "qCovered": 64,
+      "seed": 2026212698,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026212698.json"
+    },
+    {
+      "plies": 136,
+      "qCovered": 136,
+      "seed": 2026214153,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026214153.json"
+    },
+    {
+      "plies": 49,
+      "qCovered": 49,
+      "seed": 2026214674,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026214674.json"
+    },
+    {
+      "plies": 31,
+      "qCovered": 31,
+      "seed": 2026214708,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026214708.json"
+    },
+    {
+      "plies": 75,
+      "qCovered": 75,
+      "seed": 2026215910,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026215910.json"
+    },
+    {
+      "plies": 62,
+      "qCovered": 62,
+      "seed": 2026216105,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026216105.json"
+    },
+    {
+      "plies": 43,
+      "qCovered": 43,
+      "seed": 2026216236,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026216236.json"
+    },
+    {
+      "plies": 67,
+      "qCovered": 67,
+      "seed": 2026216292,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026216292.json"
+    },
+    {
+      "plies": 58,
+      "qCovered": 58,
+      "seed": 2026216471,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026216471.json"
+    },
+    {
+      "plies": 102,
+      "qCovered": 102,
+      "seed": 2026216551,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026216551.json"
+    },
+    {
+      "plies": 58,
+      "qCovered": 58,
+      "seed": 2026216564,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026216564.json"
+    },
+    {
+      "plies": 29,
+      "qCovered": 29,
+      "seed": 2026217010,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026217010.json"
+    },
+    {
+      "plies": 92,
+      "qCovered": 92,
+      "seed": 2026217464,
+      "source": "/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026217464.json"
+    }
+  ],
+  "counts": {
+    "copied": 53,
+    "invalid": 0,
+    "skippedExisting": 8,
+    "skippedOutOfRange": 0
+  },
+  "invalid": [],
+  "skippedExisting": [
+    2026201789,
+    2026201843,
+    2026202058,
+    2026202477,
+    2026202558,
+    2026202967,
+    2026204390,
+    2026204736
+  ],
+  "skippedOutOfRange": []
+}

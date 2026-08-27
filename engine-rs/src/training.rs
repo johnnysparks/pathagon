@@ -55,7 +55,11 @@ pub struct Champion {
 
 impl Champion {
     pub fn baseline(weights: EvaluationWeights) -> Self {
-        Self { id: "rust-handcrafted-g0".to_owned(), generation: 0, weights }
+        Self {
+            id: "rust-handcrafted-g0".to_owned(),
+            generation: 0,
+            weights,
+        }
     }
 }
 
@@ -115,7 +119,10 @@ pub fn train(initial: Champion, config: TrainingConfig) -> TrainingResult {
     let mut evaluation_records = Vec::new();
 
     for generation_offset in 0..config.generations {
-        let generation = initial.generation.saturating_add(generation_offset).saturating_add(1);
+        let generation = initial
+            .generation
+            .saturating_add(generation_offset)
+            .saturating_add(1);
         let incumbent = champion.clone();
         let mut generation_trials = Vec::new();
         for candidate_index in 0..config.population {
@@ -141,11 +148,23 @@ pub fn train(initial: Champion, config: TrainingConfig) -> TrainingResult {
             });
         }
 
-        let best_index = generation_trials.iter().enumerate().max_by(|left, right| {
-            left.1.training.net().cmp(&right.1.training.net())
-                .then_with(|| left.1.training.points_rate_per_mille().cmp(&right.1.training.points_rate_per_mille()))
-                .then_with(|| right.1.id.cmp(&left.1.id))
-        }).map(|(index, _)| index);
+        let best_index = generation_trials
+            .iter()
+            .enumerate()
+            .max_by(|left, right| {
+                left.1
+                    .training
+                    .net()
+                    .cmp(&right.1.training.net())
+                    .then_with(|| {
+                        left.1
+                            .training
+                            .points_rate_per_mille()
+                            .cmp(&right.1.training.points_rate_per_mille())
+                    })
+                    .then_with(|| right.1.id.cmp(&left.1.id))
+            })
+            .map(|(index, _)| index);
 
         if let Some(best_index) = best_index {
             let candidate = &generation_trials[best_index];
@@ -154,7 +173,10 @@ pub fn train(initial: Champion, config: TrainingConfig) -> TrainingResult {
                 candidate.weights,
                 &incumbent,
                 config,
-                config.seed.wrapping_add(0xA5A5_0000).wrapping_add(generation_offset as u32 * 100_000),
+                config
+                    .seed
+                    .wrapping_add(0xA5A5_0000)
+                    .wrapping_add(generation_offset as u32 * 100_000),
                 config.evaluation_pairs,
             );
             let evaluation = summarize(&records, &candidate.id);
@@ -175,21 +197,45 @@ pub fn train(initial: Champion, config: TrainingConfig) -> TrainingResult {
         trials.extend(generation_trials);
     }
 
-    TrainingResult { config, initial, champion, trials, training_records, evaluation_records }
+    TrainingResult {
+        config,
+        initial,
+        champion,
+        trials,
+        training_records,
+        evaluation_records,
+    }
 }
 
-pub fn write_training_output(directory: &Path, result: &TrainingResult) -> io::Result<TrainingOutput> {
+pub fn write_training_output(
+    directory: &Path,
+    result: &TrainingResult,
+) -> io::Result<TrainingOutput> {
     fs::create_dir_all(directory)?;
     let training = write_corpus(&directory.join("corpus/training"), &result.training_records)?;
-    let evaluation = write_corpus(&directory.join("corpus/evaluation"), &result.evaluation_records)?;
-    fs::write(directory.join("champion.json"), champion_json(&result.champion))?;
+    let evaluation = write_corpus(
+        &directory.join("corpus/evaluation"),
+        &result.evaluation_records,
+    )?;
+    fs::write(
+        directory.join("champion.json"),
+        champion_json(&result.champion),
+    )?;
     fs::write(directory.join("report.json"), result.to_json())?;
-    Ok(TrainingOutput { training, evaluation })
+    Ok(TrainingOutput {
+        training,
+        evaluation,
+    })
 }
 
 impl TrainingResult {
     pub fn to_json(&self) -> String {
-        let trials = self.trials.iter().map(trial_json).collect::<Vec<_>>().join(",");
+        let trials = self
+            .trials
+            .iter()
+            .map(trial_json)
+            .collect::<Vec<_>>()
+            .join(",");
         format!(
             "{{\"schemaVersion\":1,\"seed\":{},\"config\":{{\"generations\":{},\"population\":{},\"trainingPairs\":{},\"evaluationPairs\":{},\"mutationPerMille\":{},\"promotionRatePerMille\":{},\"maxPlies\":{},\"openingRandomPlies\":{},\"search\":{}}},\"initial\":{},\"champion\":{},\"promotions\":{},\"trials\":[{}]}}\n",
             self.config.seed,
@@ -218,8 +264,20 @@ fn paired_series(
     seed: u32,
     pairs: u16,
 ) -> Vec<GameRecord> {
-    let candidate = Agent::search(candidate_id, SearchConfig { weights: candidate_weights, ..config.search });
-    let incumbent_agent = Agent::search(&incumbent.id, SearchConfig { weights: incumbent.weights, ..config.search });
+    let candidate = Agent::search(
+        candidate_id,
+        SearchConfig {
+            weights: candidate_weights,
+            ..config.search
+        },
+    );
+    let incumbent_agent = Agent::search(
+        &incumbent.id,
+        SearchConfig {
+            weights: incumbent.weights,
+            ..config.search
+        },
+    );
     let mut records = Vec::with_capacity(pairs as usize * 2);
     for pair in 0..pairs {
         let options = MatchOptions {
@@ -235,9 +293,16 @@ fn paired_series(
 }
 
 fn summarize(records: &[GameRecord], candidate_id: &str) -> MatchScore {
-    let mut score = MatchScore { games: records.len() as u32, ..MatchScore::default() };
+    let mut score = MatchScore {
+        games: records.len() as u32,
+        ..MatchScore::default()
+    };
     for record in records {
-        let candidate_player = if record.light_agent == candidate_id { Player::Light } else { Player::Dark };
+        let candidate_player = if record.light_agent == candidate_id {
+            Player::Light
+        } else {
+            Player::Dark
+        };
         match record.winner {
             Some(winner) if winner == candidate_player => score.wins += 1,
             Some(_) => score.losses += 1,
@@ -247,7 +312,11 @@ fn summarize(records: &[GameRecord], candidate_id: &str) -> MatchScore {
     score
 }
 
-fn mutate_weights(weights: EvaluationWeights, random: &mut Mulberry32, scale: u16) -> EvaluationWeights {
+fn mutate_weights(
+    weights: EvaluationWeights,
+    random: &mut Mulberry32,
+    scale: u16,
+) -> EvaluationWeights {
     EvaluationWeights {
         path: mutate_weight(weights.path, random, scale),
         material: mutate_weight(weights.material, random, scale),
@@ -267,21 +336,35 @@ fn mutate_weight(value: i32, random: &mut Mulberry32, scale: u16) -> i32 {
 fn candidate_id(generation: u8, index: u8, weights: EvaluationWeights) -> String {
     format!(
         "rust-evo-g{generation}-c{index}-{}-{}-{}-{}-{}-{}",
-        weights.path, weights.material, weights.capture, weights.structure, weights.threat, weights.edge,
+        weights.path,
+        weights.material,
+        weights.capture,
+        weights.structure,
+        weights.threat,
+        weights.edge,
     )
 }
 
 fn score_json(score: MatchScore) -> String {
     format!(
         "{{\"games\":{},\"wins\":{},\"losses\":{},\"draws\":{},\"pointsRatePerMille\":{}}}",
-        score.games, score.wins, score.losses, score.draws, score.points_rate_per_mille(),
+        score.games,
+        score.wins,
+        score.losses,
+        score.draws,
+        score.points_rate_per_mille(),
     )
 }
 
 fn weights_json(weights: EvaluationWeights) -> String {
     format!(
         "{{\"path\":{},\"material\":{},\"capture\":{},\"structure\":{},\"threat\":{},\"edge\":{}}}",
-        weights.path, weights.material, weights.capture, weights.structure, weights.threat, weights.edge,
+        weights.path,
+        weights.material,
+        weights.capture,
+        weights.structure,
+        weights.threat,
+        weights.edge,
     )
 }
 
@@ -302,7 +385,9 @@ fn search_json(search: SearchConfig) -> String {
 fn champion_json(champion: &Champion) -> String {
     format!(
         "{{\"schemaVersion\":1,\"id\":\"{}\",\"generation\":{},\"weights\":{}}}\n",
-        champion.id, champion.generation, weights_json(champion.weights),
+        champion.id,
+        champion.generation,
+        weights_json(champion.weights),
     )
 }
 
@@ -332,7 +417,12 @@ mod tests {
             evaluation_pairs: 1,
             max_plies: 50,
             opening_random_plies: 4,
-            search: SearchConfig { depth: 1, max_nodes: 500, beam_width: 20, ..SearchConfig::default() },
+            search: SearchConfig {
+                depth: 1,
+                max_nodes: 500,
+                beam_width: 20,
+                ..SearchConfig::default()
+            },
             ..TrainingConfig::default()
         };
         let initial = Champion::baseline(config.search.weights);
@@ -342,6 +432,13 @@ mod tests {
         assert_eq!(first.trials.len(), 2);
         assert_eq!(first.training_records.len(), 4);
         assert_eq!(first.evaluation_records.len(), 2);
-        assert_eq!(first.trials.iter().filter(|trial| trial.evaluation.is_some()).count(), 1);
+        assert_eq!(
+            first
+                .trials
+                .iter()
+                .filter(|trial| trial.evaluation.is_some())
+                .count(),
+            1
+        );
     }
 }

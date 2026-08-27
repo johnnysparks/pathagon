@@ -16,7 +16,7 @@ from .game import Action, BoardConfig, GameState, Player, repetition_key
 from .contract import agent_manifest, agent_specification, engine_metadata, game_config
 from .evaluation import connection_distance, evaluate_position, normalize_heuristic, squares_from_mask
 from .mcts import PUCTSearch
-from .selfplay import avoid_repeated_successors, run_match
+from .selfplay import _blend_probabilities, _mix_uniform, _softmax_scores, avoid_repeated_successors, run_match
 from .train import choose_device, load_model
 
 
@@ -182,6 +182,12 @@ class QAdvGuidedAgent:
         q_weight: float = 0.50,
         reply_weight: float = 0.35,
         heuristic_weight: float = 0.15,
+        temperature_moves: int = 48,
+        policy_temperature: float = 1.15,
+        opening_moves: int = 16,
+        opening_temperature: float = 1.8,
+        opening_randomness: float = 0.30,
+        pathfinder_temperature: float = 1.15,
     ) -> None:
         if not getattr(model, "qadv", False):
             raise ValueError("QAdvGuidedAgent requires a qadv-enabled model")
@@ -190,14 +196,31 @@ class QAdvGuidedAgent:
         total = q_weight + reply_weight + heuristic_weight
         if total <= 0.0:
             raise ValueError("guided-search weights must have a positive sum")
+        if temperature_moves < 0 or opening_moves < 0:
+            raise ValueError("temperature and opening move counts must be non-negative")
+        for name, value in (
+            ("policy_temperature", policy_temperature),
+            ("opening_temperature", opening_temperature),
+            ("pathfinder_temperature", pathfinder_temperature),
+        ):
+            if value <= 0.0:
+                raise ValueError(f"{name} must be positive")
+        if not 0.0 <= opening_randomness <= 1.0:
+            raise ValueError("opening_randomness must be between 0 and 1")
         self.model = model
         self.top_k = top_k
         self.reply_k = reply_k
         self.q_weight = q_weight / total
         self.reply_weight = reply_weight / total
         self.heuristic_weight = heuristic_weight / total
+        self.temperature_moves = temperature_moves
+        self.policy_temperature = policy_temperature
+        self.opening_moves = opening_moves
+        self.opening_temperature = opening_temperature
+        self.opening_randomness = opening_randomness
+        self.pathfinder_temperature = pathfinder_temperature
 
-    def choose_action(self, state: GameState, _rng: random.Random, history: Set[tuple]) -> Action | None:
+    def choose_action(self, state: GameState, rng: random.Random, history: Set[tuple]) -> Action | None:
         actions = list(state.legal_actions())
         if not actions:
             return None
@@ -263,7 +286,19 @@ class QAdvGuidedAgent:
                 + self.heuristic_weight * min(heuristic, worst_reply_heuristic)
             )
             scored.append((score, action))
-        return max(scored, key=lambda item: (item[0], -action_sort_key(item[1])))[1]
+        if not scored:
+            return safe_actions[0]
+        scored.sort(key=lambda item: (-item[0], action_sort_key(item[1])))
+        score_values = [item[0] for item in scored]
+        actions_by_score = [item[1] for item in scored]
+        in_opening = state.ply < self.opening_moves
+        effective_temperature = self.opening_temperature if in_opening else self.policy_temperature
+        probabilities = _softmax_scores(score_values, effective_temperature)
+        if in_opening and self.opening_randomness > 0.0:
+            probabilities = _mix_uniform(probabilities, self.opening_randomness)
+        if state.ply < self.temperature_moves:
+            return rng.choices(actions_by_score, weights=probabilities, k=1)[0]
+        return actions_by_score[max(range(len(actions_by_score)), key=lambda index: (probabilities[index], -action_sort_key(actions_by_score[index])))]
 
 
 class PolicyBeamAgent:

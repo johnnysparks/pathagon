@@ -27,12 +27,12 @@ Use `--jsonl` for complete machine-readable records and `--opponent search` for
 search-versus-search matches. For a provenance-stamped archive, use
 `scripts/run-rust-archive.sh` as described in [`WORKFLOWS.md`](WORKFLOWS.md).
 
-The inference feature now includes a native GNN trunk spike for the current
-QAdv checkpoint. Export it with `research.gnn.export_gnn`, then run
-`pathagon-selfplay --features inference --onnx <artifact> --opponent neural`.
-This milestone ports the shared policy/value path and Rust root-Q generation;
-temperature mixing, Pathfinder blending, and the Q/A action head still need
-parity work before it can replace Python exploratory self-play.
+The inference feature includes a native GNN parity harness for the current QAdv
+checkpoint. Export the shared policy/value artifact or the full QAdv artifact
+with `research.gnn.export_gnn`, then use `--eval-only` to cross-check numerical
+outputs before running matches. The guided mode carries the same temperature,
+opening-mix, and Pathfinder blend controls as Python; `--qadv-onnx` exercises
+the direct action-value head.
 
 For the opt-in small-board tactical proof mode, add
 `--tactical-proof-horizon 3`. It applies only to boards up to 4x4, searches

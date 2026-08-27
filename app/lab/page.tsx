@@ -6,6 +6,7 @@ import { applyAction, createGame, type GameState } from "../pathagon";
 import type { ContractMove, ContractReplayRecord } from "../contract";
 
 const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
+const GAME_THUMBNAIL_RESOLUTION = 256;
 
 const MODELS = [
   {
@@ -207,6 +208,8 @@ type LiveGame = {
   result: "win" | "draw";
   reason: string;
   plies: number;
+  finalBoard: GameState["board"];
+  winningPath: number[];
 };
 
 type ArchivedReplayGame = {
@@ -258,6 +261,8 @@ type HeadToHeadFilter = "all" | "active" | "inactive";
 type HeadToHeadSort = "games-desc" | "games-asc" | "win-rate-desc" | "loss-rate-asc" | "draw-rate-desc" | "score-rate-desc" | "pairing-asc";
 
 type HeadToHeadView = {
+  leftId: string;
+  rightId: string;
   focusLabel: string;
   opponentId: string;
   opponentLabel: string;
@@ -274,10 +279,23 @@ type HeadToHeadView = {
   scoreRate: number;
 };
 
+type GameSet = "ladder" | "pairwise";
+type MobileView = "sets" | "games" | "game";
+type PairSelection = {
+  leftId: string;
+  rightId: string;
+  leftLabel: string;
+  rightLabel: string;
+  games: number;
+};
+
 export default function LearningLab() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [crossPlay, setCrossPlay] = useState<CrossPlayState | null>(null);
   const [crossPlayError, setCrossPlayError] = useState<string | null>(null);
+  const [activeSet, setActiveSet] = useState<GameSet>("ladder");
+  const [selectedPair, setSelectedPair] = useState<PairSelection | null>(null);
+  const [mobileView, setMobileView] = useState<MobileView>("sets");
   const [historyGames, setHistoryGames] = useState<LiveGame[]>([]);
   const [historyTotal, setHistoryTotal] = useState<number | null>(null);
   const [historyHasMore, setHistoryHasMore] = useState(true);
@@ -295,7 +313,7 @@ export default function LearningLab() {
   const [standingSort, setStandingSort] = useState<StandingSort>("rank");
   const [headToHeadSearch, setHeadToHeadSearch] = useState("");
   const [headToHeadFocus, setHeadToHeadFocus] = useState("all");
-  const [headToHeadFilter, setHeadToHeadFilter] = useState<HeadToHeadFilter>("all");
+  const [headToHeadFilter, setHeadToHeadFilter] = useState<HeadToHeadFilter>("active");
   const [headToHeadSort, setHeadToHeadSort] = useState<HeadToHeadSort>("games-desc");
   const replayRequest = useRef(0);
   const historySentinel = useRef<HTMLDivElement | null>(null);
@@ -370,7 +388,6 @@ export default function LearningLab() {
   const strengthLeaderLive = crossPlay?.standings[0];
   const strengthLeader = MODELS.find((model) => model.id === strengthLeaderLive?.id) ?? MODELS[0];
   const ratedAgentCount = crossPlay?.standings.filter((standing) => standing.games > 0).length ?? MODELS.filter((model) => !model.planned).length;
-  const queuedCandidateCount = MODELS.filter((model) => model.planned && !liveStandingById.get(model.id)?.games).length;
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("pathagon-lab-theme");
@@ -382,7 +399,7 @@ export default function LearningLab() {
   }, []);
 
   const loadHistoryPage = useCallback(async (reset = false) => {
-    if (historyLoadingRef.current || (!reset && !historyHasMoreRef.current)) return;
+    if (!reset && (historyLoadingRef.current || !historyHasMoreRef.current)) return;
     const requestId = historyRequest.current + 1;
     historyRequest.current = requestId;
     const offset = reset ? 0 : historyOffset.current;
@@ -392,11 +409,25 @@ export default function LearningLab() {
       setHistoryGames([]);
       setHistoryTotal(null);
     }
+    if (activeSet === "pairwise" && !selectedPair) {
+      historyHasMoreRef.current = false;
+      setHistoryHasMore(false);
+      setHistoryTotal(0);
+      setHistoryError(null);
+      historyLoadingRef.current = false;
+      setHistoryLoading(false);
+      return;
+    }
     historyLoadingRef.current = true;
     setHistoryLoading(true);
     setHistoryError(null);
     try {
-      const response = await fetch(`/api/cross-play?runId=${ALL_CROSS_PLAY_RUN_ID}&history=1&limit=24&offset=${offset}`, { cache: "no-store" });
+      const params = new URLSearchParams({ runId: ALL_CROSS_PLAY_RUN_ID, history: "1", limit: "24", offset: String(offset) });
+      if (selectedPair) {
+        params.set("pairLeft", selectedPair.leftId);
+        params.set("pairRight", selectedPair.rightId);
+      }
+      const response = await fetch(`/api/cross-play?${params.toString()}`, { cache: "no-store" });
       const payload = await response.json() as HistoryPage & { error?: string };
       if (requestId !== historyRequest.current) return;
       if (!response.ok) throw new Error(payload.error ?? "History unavailable");
@@ -413,7 +444,7 @@ export default function LearningLab() {
         setHistoryLoading(false);
       }
     }
-  }, []);
+  }, [activeSet, selectedPair]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadHistoryPage(true), 0);
@@ -447,6 +478,7 @@ export default function LearningLab() {
         replayRequest.current += 1;
         setReplayPlaying(false);
         setReplayModalOpen(false);
+        setMobileView("games");
         return;
       }
       if (!replayGame) return;
@@ -532,6 +564,7 @@ export default function LearningLab() {
     replayRequest.current += 1;
     setReplayPlaying(false);
     setReplayModalOpen(false);
+    setMobileView("games");
   }
 
   function changeReplayPly(nextPly: number) {
@@ -540,14 +573,22 @@ export default function LearningLab() {
     setReplayPly(Math.max(0, Math.min(replayGame.record.moves.length, nextPly)));
   }
 
+  function selectPairing(pairing: HeadToHeadView) {
+    const left = MODELS.find((model) => model.id === pairing.leftId);
+    const right = MODELS.find((model) => model.id === pairing.rightId);
+    if (!left || !right || pairing.games === 0) return;
+    setSelectedPair({ leftId: left.id, rightId: right.id, leftLabel: left.name, rightLabel: right.name, games: pairing.games });
+    setMobileView("games");
+  }
+
   return (
     <main className={`portal-app leaderboard-app ${theme === "dark" ? "dark" : ""}`}>
-      <nav className="portal-nav" aria-label="Leaderboard navigation">
+      <nav className="portal-nav" aria-label="Model league navigation">
         <Link className="portal-breadcrumb" href="/">
           <span className="portal-mark">P</span>
           <span>Pathagon</span>
           <span className="portal-slash">/</span>
-          <span>Leaderboard</span>
+          <span>Model league</span>
         </Link>
         <div className="portal-nav-right">
           <span className="portal-live"><span /> 7×7 league</span>
@@ -559,66 +600,89 @@ export default function LearningLab() {
         </div>
       </nav>
 
-      <header className="leaderboard-hero">
-        <div className="leaderboard-hero-copy">
+      <header className="leaderboard-compact-header">
+        <div className="leaderboard-compact-copy">
           <span className="portal-kicker">7×7 model league</span>
-          <h1>Leaderboard</h1>
-          <p>Model rankings backed by every imported and offline cross-play result.</p>
+          <h1>Model league.</h1>
+          <p>Browse ranked agents, compare pairings, and replay the games behind the results.</p>
         </div>
-
-        <div className="leaderboard-leader-card" aria-label="Current strength leader">
-          <div className="leaderboard-card-topline"><span>Current strength leader</span><span className="leaderboard-provisional">{strengthLeaderLive ? "Live Elo" : "Waiting for poll"}</span></div>
-          <div className="leaderboard-leader-main">
-            <ModelGlyph tone={strengthLeader.tone} glyph={strengthLeader.glyph} />
-            <div className="leaderboard-leader-name"><strong>{strengthLeaderLive?.label ?? strengthLeader.name}</strong><span>{strengthLeader.family}</span></div>
-            <div className="leaderboard-leader-score"><strong>{strengthLeaderLive?.rating.toLocaleString() ?? "—"}</strong><small>{strengthLeaderLive ? "cumulative Elo" : "live data pending"}</small></div>
-          </div>
-          <div className="leaderboard-signal-row"><span>{strengthLeaderLive ? `${formatRecord(strengthLeaderLive)} cumulative` : "Live standings are loading"}</span><span>higher is better</span></div>
-          <div className="leaderboard-card-footer"><span><i className="live-dot" /> {crossPlay ? `${crossPlay.games} cumulative games` : "Polling cumulative archive"}</span><small>refreshes every 0.9s</small></div>
+        <div className="leaderboard-compact-meta" aria-label="Archive summary">
+          <span className="leaderboard-status polling-status"><span /> {crossPlay ? "Polling" : "Connecting"}</span>
+          <div><strong>{crossPlay?.games ?? "—"}</strong><span>games</span></div>
+          <div><strong>{MODELS.length}</strong><span>agents</span></div>
         </div>
       </header>
 
-      <section className="leaderboard-stat-grid" aria-label="Model league summary">
-        <LeaderboardStat label="Agents tracked" value={String(MODELS.length)} detail={`${ratedAgentCount} rated · ${queuedCandidateCount} queued candidates`} accent="green" />
-        <LeaderboardStat label="7×7 benchmark" value="3,251" detail="2,037 unique · 416 held out" accent="gold" />
-        <LeaderboardStat label="Imported cross-play" value={crossPlay ? String(crossPlay.games) : "—"} detail={crossPlay ? "cumulative archive records" : "waiting for first poll"} accent="gold" />
-        <LeaderboardStat label="Held-out policy NLL" value="2.112" detail="GNN · 416 held-out records" accent="ink" />
+      {crossPlayError ? <p className="live-run-error compact-error" role="status">{crossPlayError} · retrying automatically</p> : null}
+
+      <div className={`game-browser mobile-view-${mobileView}`}>
+      <section className="leaderboard-panel game-sets-panel" aria-labelledby="game-sets-title">
+        <div className="game-section-heading">
+          <div><span className="portal-kicker">Section one</span><h2 id="game-sets-title">Game sets</h2><p>Choose the lens that controls the game list.</p></div>
+          <span className="leaderboard-status"><span /> {crossPlay ? `${ratedAgentCount} rated` : "Waiting for poll"}</span>
+        </div>
+        <div className="game-set-tabs" role="tablist" aria-label="Game sets">
+          <button className={`game-set-tab ${activeSet === "ladder" ? "active" : ""}`} type="button" role="tab" aria-selected={activeSet === "ladder"} onClick={() => { setActiveSet("ladder"); setSelectedPair(null); }}>
+            <strong>Elo ladder</strong><span>Default · {ratedAgentCount} agents</span>
+          </button>
+          <button className={`game-set-tab ${activeSet === "pairwise" ? "active" : ""}`} type="button" role="tab" aria-selected={activeSet === "pairwise"} onClick={() => setActiveSet("pairwise")}>
+            <strong>Pairwise results</strong><span>{crossPlay ? `${crossPlay.headToHead.filter((pairing) => pairing.games > 0).length} active matchups` : "Compare matchups"}</span>
+          </button>
+        </div>
+
+        {activeSet === "ladder" ? <div className="game-set-content" role="tabpanel">
+          <div className="game-set-summary">
+            <div><span className="game-set-label">Cumulative rating</span><strong>Model league</strong><p>All imported cross-play games, ordered by live Elo.</p></div>
+            <div className="game-set-highlight"><span>Leader</span><strong>{strengthLeaderLive?.label ?? strengthLeader.name}</strong><small>{strengthLeaderLive ? `${strengthLeaderLive.rating.toLocaleString()} Elo · ${formatRecord(strengthLeaderLive)}` : "Waiting for live standings"}</small></div>
+          </div>
+          <div className="table-toolbar compact-table-toolbar" aria-label="Standings table controls">
+            <label className="table-control table-search" htmlFor="standings-search"><span>Search</span><input id="standings-search" type="search" value={standingSearch} onChange={(event) => setStandingSearch(event.target.value)} placeholder="Model name or ID" /></label>
+            <label className="table-control" htmlFor="standings-sort"><span>Rank by</span><select id="standings-sort" value={standingSort} onChange={(event) => setStandingSort(event.target.value as StandingSort)}><option value="rank">Leaderboard rank</option><option value="elo-desc">Elo · high to low</option><option value="games-desc">Games · high to low</option><option value="name-asc">Name · A to Z</option></select></label>
+            <span className="table-result-count" aria-live="polite">{visibleModels.length} models</span>
+          </div>
+          <div className="leaderboard-table game-set-standings" role="table" aria-label="Current model standings">
+            <div className="leaderboard-table-row leaderboard-table-header" role="row"><span>#</span><span>Agent</span><span>Elo</span><span>Record</span></div>
+            {visibleModels.length ? visibleModels.map((model) => <ModelStanding key={model.id} model={model} live={liveStandingById.get(model.id)} liveRank={liveRankById.get(model.id)} snapshotLoaded={Boolean(crossPlay)} />) : <div className="table-empty-state" role="row"><strong>No models match.</strong><span>Clear the search to see the ladder.</span></div>}
+          </div>
+          <button className="mobile-section-cta" type="button" onClick={() => setMobileView("games")}>View {crossPlay?.games ?? "all"} games <span>→</span></button>
+        </div> : <div className="game-set-content" role="tabpanel">
+          <p className="game-set-intro">Select a played matchup to make it the active game list. Pairings are read from the same imported archive as the ladder.</p>
+          <div className="table-toolbar compact-table-toolbar pairwise-toolbar" aria-label="Pairwise table controls">
+            <label className="table-control table-search" htmlFor="head-to-head-search"><span>Search</span><input id="head-to-head-search" type="search" value={headToHeadSearch} onChange={(event) => setHeadToHeadSearch(event.target.value)} placeholder="Model or pairing" /></label>
+            <label className="table-control" htmlFor="head-to-head-focus"><span>Focus</span><select id="head-to-head-focus" value={headToHeadFocus} onChange={(event) => setHeadToHeadFocus(event.target.value)}><option value="all">All models</option>{MODELS.map((model) => <option value={model.id} key={model.id}>{model.name}</option>)}</select></label>
+            <label className="table-control" htmlFor="head-to-head-sort"><span>Sort</span><select id="head-to-head-sort" value={headToHeadSort} onChange={(event) => setHeadToHeadSort(event.target.value as HeadToHeadSort)}><option value="games-desc">Play count</option><option value="win-rate-desc">Win rate</option><option value="score-rate-desc">Score rate</option><option value="pairing-asc">Opponent · A to Z</option></select></label>
+            <span className="table-result-count" aria-live="polite">{visibleHeadToHead.length} matchups</span>
+          </div>
+          {crossPlay?.headToHead.length ? visibleHeadToHead.length ? <div className="head-to-head-table game-set-pairings" role="table" aria-label="Head-to-head model results">
+            <div className="head-to-head-row head-to-head-header" role="row"><span>Matchup</span><span>Games</span><span>W–L–D</span><span>Score</span></div>
+            {visibleHeadToHead.map((pairing) => <HeadToHeadRow key={`${pairing.leftId}-${pairing.rightId}`} pairing={pairing} selected={selectedPair?.leftId === pairing.leftId && selectedPair.rightId === pairing.rightId} onSelect={() => selectPairing(pairing)} />)}
+          </div> : <p className="table-empty-state" role="status"><strong>No pairings match.</strong><span>Try a different search.</span></p> : <p className="live-run-empty">Waiting for imported pairwise results.</p>}
+          {selectedPair ? <button className="mobile-section-cta" type="button" onClick={() => setMobileView("games")}>View {selectedPair.games} games <span>→</span></button> : null}
+        </div>}
       </section>
 
-      <section className="leaderboard-panel cross-play-live-panel" aria-labelledby="live-run-title">
-        <div className="cross-play-live-heading">
-          <div><span className="portal-kicker">Imported archive · read-only</span><h2 id="live-run-title">Cumulative cross-play archive</h2><p>The browser polls the database every 0.9 seconds. Imported offline results from chat or the terminal appear here automatically.</p></div>
-          <span className="leaderboard-status polling-status"><span /> {crossPlay ? "Polling" : "Connecting"}</span>
+      <section className="leaderboard-panel game-list-panel" aria-labelledby="game-list-title">
+        <div className="game-section-heading game-list-heading">
+          <button className="mobile-back-button" type="button" onClick={() => setMobileView("sets")}><span>←</span> Game sets</button>
+          <div><span className="portal-kicker">Section two</span><h2 id="game-list-title">Games</h2><p>{activeSet === "pairwise" ? selectedPair ? `${selectedPair.leftLabel} vs ${selectedPair.rightLabel} · newest first` : "Choose a pairing from Game sets" : "All cross-play results · newest first"}</p></div>
+          <div className="game-list-heading-meta"><span className="archive-history-count">{historyTotal === null ? "Loading" : `${historyGames.length} of ${historyTotal}`}</span><span>games loaded</span></div>
         </div>
-        <div className="live-run-summary">
-          <div><strong>{crossPlay?.games ?? "—"}<small>{crossPlay ? ` / ${crossPlay.targetGames}` : ""}</small></strong><span>games counted</span></div>
-          <div><strong>{crossPlay ? "Archive polling" : "Connecting"}</strong><span>browser status</span></div>
-          <div><strong>{crossPlay?.latest[0]?.winner ?? (crossPlay?.latest[0] ? "draw" : "—")}</strong><span>latest stored result</span></div>
-        </div>
-        {crossPlayError ? <p className="live-run-error" role="status">{crossPlayError} · retrying automatically</p> : null}
-        {crossPlay?.latest.length ? <div className="live-game-list" aria-label="Latest cross-play games">{crossPlay.latest.map((game) => <button className="live-game-row" type="button" key={game.id} onClick={() => void openReplay(game)} aria-label={`Replay ${game.light} versus ${game.dark}`}><span className="live-game-number">{shortGameId(game.id)}</span><strong>{game.light}</strong><span>vs</span><strong>{game.dark}</strong><span className="live-game-result">{game.winner ? `${game.winner} · ${game.plies} plies` : `draw · ${game.plies} plies`} <em>Replay ↗</em></span></button>)}</div> : <p className="live-run-empty">Waiting for an imported offline cross-play result.</p>}
-        <div className="archive-history" aria-labelledby="history-title">
-          <div className="archive-history-heading">
-            <div><span className="portal-kicker">Archive history</span><h3 id="history-title">More games, on demand.</h3></div>
-            <span className="archive-history-count">{historyTotal === null ? "Loading history" : `${historyGames.length} of ${historyTotal} loaded`}</span>
-          </div>
-          <p className="archive-history-intro">Scroll down to load older cross-play games. Select any result to open its replay.</p>
-          {historyGames.length ? <div className="history-game-list" aria-label="Cross-play game history">
-            {historyGames.map((game) => <button className="history-game-row" type="button" key={game.id} onClick={() => void openReplay(game)} aria-label={`Replay ${game.light} versus ${game.dark}`}>
-              <span className="history-game-number">{shortGameId(game.id)}</span>
-              <span className="history-game-match"><strong>{game.light}</strong><span>vs</span><strong>{game.dark}</strong></span>
-              <span className="history-game-result">{game.winner ? `${game.winner} won` : "Draw"}<small>{game.plies} plies</small></span>
-              <time dateTime={game.recordedAt}>{formatArchiveDate(game.recordedAt)}</time>
-              <span className="history-game-replay">Replay ↗</span>
+        {activeSet === "pairwise" && !selectedPair ? <div className="game-list-empty"><strong>Choose a pairing</strong><span>Open Pairwise results in Game sets and select any played matchup.</span><button type="button" onClick={() => setMobileView("sets")}>Browse pairings <span>→</span></button></div> : historyGames.length ? <>
+          <div className="game-list-toolbar"><span>Scroll to load older games</span><span>{historyHasMore ? "More available" : "End of history"}</span></div>
+          <div className="game-card-grid" aria-label="Games">
+            {historyGames.map((game) => <button className="game-card" type="button" key={game.id} onClick={() => { setMobileView("game"); void openReplay(game); }} aria-label={`Replay ${game.light} versus ${game.dark}`}>
+              <GameThumbnail board={game.finalBoard} winningPath={game.winningPath} />
+              <span className="game-card-body"><span className="game-card-topline"><span>{shortGameId(game.id)}</span><time dateTime={game.recordedAt}>{formatArchiveDate(game.recordedAt)}</time></span><span className="game-card-match"><strong>{game.light}</strong><span>vs</span><strong>{game.dark}</strong></span><span className="game-card-footer"><span>{game.winner ? `${game.winner} won` : "Draw"} · {game.plies} plies</span><em>Replay ↗</em></span></span>
             </button>)}
-          </div> : historyLoading ? <p className="archive-history-state">Loading the first games…</p> : historyError ? <div className="archive-history-state error" role="alert"><strong>History couldn&apos;t load.</strong><span>{historyError}</span><button type="button" onClick={() => void loadHistoryPage(true)}>Try again</button></div> : <p className="archive-history-state">No archived cross-play games yet.</p>}
-          <div className="history-load-sentinel" ref={historySentinel} aria-live="polite">
-            {historyLoading && historyGames.length ? "Loading older games…" : historyError && historyGames.length ? <button type="button" onClick={() => void loadHistoryPage()}>Try again</button> : !historyHasMore && historyGames.length ? "End of history" : historyGames.length ? "Keep scrolling for more" : null}
           </div>
+        </> : historyLoading ? <div className="game-list-empty"><strong>Loading games…</strong><span>Fetching the newest results from the archive.</span></div> : historyError ? <div className="game-list-empty error" role="alert"><strong>Games couldn&apos;t load.</strong><span>{historyError}</span><button type="button" onClick={() => void loadHistoryPage(true)}>Try again</button></div> : <div className="game-list-empty"><strong>No games yet</strong><span>This set does not have any stored results.</span></div>}
+        <div className="history-load-sentinel" ref={historySentinel} aria-live="polite">
+          {historyLoading && historyGames.length ? "Loading older games…" : historyError && historyGames.length ? <button type="button" onClick={() => void loadHistoryPage()}>Try again</button> : !historyHasMore && historyGames.length ? "End of history" : historyGames.length ? "Keep scrolling for more" : null}
         </div>
       </section>
+      </div>
 
-      <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
+      {false ? <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
         <div className="leaderboard-panel-heading">
           <div><span className="portal-kicker">Standings · imported archive</span><h2 id="standings-title">Every model in the ladder.</h2></div>
           <span className="leaderboard-status"><span /> {crossPlay ? `${ratedAgentCount} rated · archive polling` : "Polling archive"}</span>
@@ -639,9 +703,9 @@ export default function LearningLab() {
           </div>
           {visibleModels.length ? visibleModels.map((model) => <ModelStanding key={model.id} model={model} live={liveStandingById.get(model.id)} liveRank={liveRankById.get(model.id)} snapshotLoaded={Boolean(crossPlay)} />) : <div className="table-empty-state" role="row"><strong>No models match those filters.</strong><span>Try a different search or clear the status filter.</span></div>}
         </div>
-      </section>
+      </section> : null}
 
-      <section className="leaderboard-panel head-to-head-panel" id="head-to-head" aria-labelledby="head-to-head-title">
+      {false ? <section className="leaderboard-panel head-to-head-panel" id="head-to-head" aria-labelledby="head-to-head-title">
         <div className="leaderboard-panel-heading">
           <div><span className="portal-kicker">Head-to-head · imported archive</span><h2 id="head-to-head-title">Pairwise results.</h2></div>
           <span className="leaderboard-status"><span /> {crossPlay ? `${crossPlay.headToHead.filter((pairing) => pairing.games > 0).length} active pairings` : "Waiting for poll"}</span>
@@ -661,7 +725,7 @@ export default function LearningLab() {
           <div className="head-to-head-row head-to-head-header" role="row"><span>Matchup</span><span>Games</span><span>W–L–D</span><span>Rates · W / L / D</span><span>Score rate</span><span>Light starts</span></div>
           {visibleHeadToHead.map((pairing) => <HeadToHeadRow key={`${pairing.focusLabel}-${pairing.opponentId}`} pairing={pairing} />)}
         </div> : <p className="table-empty-state" role="status"><strong>No pairings match those filters.</strong><span>Try a different model name or clear the status filter.</span></p> : <p className="live-run-empty">Waiting for imported pairwise results.</p>}
-      </section>
+      </section> : null}
 
       <footer className="portal-footer"><span>7×7 model leaderboard</span><span>Read-only view · polling the imported archive</span></footer>
       {replayModalOpen ? <ReplayModal summary={replaySummary} game={replayGame} loading={Boolean(replayLoadingId)} error={replayError} ply={replayPly} playing={replayPlaying} onClose={closeReplay} onPlayPause={() => setReplayPlaying((current) => !current)} onPlyChange={changeReplayPly} /> : null}
@@ -673,13 +737,9 @@ function ModelGlyph({ tone, glyph }: { tone: string; glyph: string }) {
   return <span className={`model-glyph ${tone}`} aria-hidden="true">{glyph}</span>;
 }
 
-function LeaderboardStat({ label, value, detail, accent }: { label: string; value: string; detail: string; accent: string }) {
-  return <div className={`leaderboard-stat ${accent}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></div>;
-}
-
-function HeadToHeadRow({ pairing }: { pairing: HeadToHeadView }) {
+function HeadToHeadRow({ pairing, selected = false, onSelect }: { pairing: HeadToHeadView; selected?: boolean; onSelect?: () => void }) {
   const active = pairing.games > 0;
-  return <div className={`head-to-head-row ${active ? "" : "disabled"}`} role="row"><div className="head-to-head-match"><strong>{pairing.focusLabel}</strong><span>vs</span><strong>{pairing.opponentLabel}</strong></div><span className="head-to-head-games">{active ? pairing.games : "—"}</span><span className="head-to-head-record">{active ? `${pairing.wins}–${pairing.losses}–${pairing.draws}` : "no games"}</span><div className="head-to-head-rates" aria-label={active ? `Win ${formatRate(pairing.winRate)}, loss ${formatRate(pairing.lossRate)}, draw ${formatRate(pairing.drawRate)}` : "No games"}><span><b>W</b>{active ? formatRate(pairing.winRate) : "—"}</span><span><b>L</b>{active ? formatRate(pairing.lossRate) : "—"}</span><span><b>D</b>{active ? formatRate(pairing.drawRate) : "—"}</span></div><span className="head-to-head-score">{active ? formatRate(pairing.scoreRate) : "—"}</span><span className="head-to-head-colors">{active ? `${pairing.focusLightGames}–${pairing.opponentLightGames}` : "disabled"}</span></div>;
+  return <button className={`head-to-head-row ${active ? "" : "disabled"} ${selected ? "selected" : ""}`} type="button" role="row" disabled={!onSelect || !active} aria-selected={selected} onClick={onSelect}><div className="head-to-head-match"><strong>{pairing.focusLabel}</strong><span>vs</span><strong>{pairing.opponentLabel}</strong></div><span className="head-to-head-games">{active ? pairing.games : "—"}</span><span className="head-to-head-record">{active ? `${pairing.wins}–${pairing.losses}–${pairing.draws}` : "no games"}</span><div className="head-to-head-rates" aria-label={active ? `Win ${formatRate(pairing.winRate)}, loss ${formatRate(pairing.lossRate)}, draw ${formatRate(pairing.drawRate)}` : "No games"}><span><b>W</b>{active ? formatRate(pairing.winRate) : "—"}</span><span><b>L</b>{active ? formatRate(pairing.lossRate) : "—"}</span><span><b>D</b>{active ? formatRate(pairing.drawRate) : "—"}</span></div><span className="head-to-head-score">{active ? formatRate(pairing.scoreRate) : "—"}</span><span className="head-to-head-colors">{active ? `${pairing.focusLightGames}–${pairing.opponentLightGames}` : "disabled"}</span></button>;
 }
 
 function orientHeadToHead(pairing: HeadToHead, focusId: string): HeadToHeadView {
@@ -690,6 +750,8 @@ function orientHeadToHead(pairing: HeadToHead, focusId: string): HeadToHeadView 
   const draws = pairing.draws;
   const points = focusIsRight ? pairing.rightPoints : pairing.leftPoints;
   return {
+    leftId: pairing.leftId,
+    rightId: pairing.rightId,
     focusLabel: focusIsRight ? pairing.rightLabel : pairing.leftLabel,
     opponentId: focusIsRight ? pairing.leftId : pairing.rightId,
     opponentLabel: focusIsRight ? pairing.leftLabel : pairing.rightLabel,
@@ -821,11 +883,57 @@ function ReplayViewer({ game, summary, ply, playing, onPlayPause, onPlyChange }:
 function FinalStateBadge({ state, winnerLabel }: { state: GameState; winnerLabel: string | null }) {
   return <div className="final-state-badge" aria-label={`Final board state${winnerLabel ? ` · ${winnerLabel}` : " · draw"}`}>
     <span className="final-state-badge-label">Final</span>
-    <div className="final-state-pixels" aria-hidden="true">
-      {state.board.map((piece, index) => <span className={`final-state-pixel ${piece ?? "empty"} ${state.winningPath.includes(index) ? "winning" : ""}`} key={index} />)}
-    </div>
+    <FinalStatePixels board={state.board} winningPath={state.winningPath} />
     <span className="final-state-badge-result">{winnerLabel ?? "Draw"}</span>
   </div>;
+}
+
+function GameThumbnail({ board, winningPath }: { board: GameState["board"]; winningPath: number[] }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+
+    drawGameThumbnail(context, board, winningPath);
+  }, [board, winningPath]);
+
+  return <span className="live-game-thumbnail" aria-hidden="true"><canvas ref={canvasRef} width={GAME_THUMBNAIL_RESOLUTION} height={GAME_THUMBNAIL_RESOLUTION} /></span>;
+}
+
+function drawGameThumbnail(context: CanvasRenderingContext2D, board: GameState["board"], winningPath: number[]) {
+  const boardSize = Math.sqrt(board.length);
+  if (!Number.isInteger(boardSize)) return;
+
+  const resolution = GAME_THUMBNAIL_RESOLUTION;
+  const padding = 8;
+  const gap = 4;
+  const cellSize = (resolution - padding * 2 - gap * (boardSize - 1)) / boardSize;
+  const winning = new Set(winningPath);
+
+  context.clearRect(0, 0, resolution, resolution);
+  context.imageSmoothingEnabled = false;
+  context.fillStyle = "rgba(147,183,143,.12)";
+  context.fillRect(0, 0, resolution, resolution);
+
+  board.forEach((piece, index) => {
+    const column = index % boardSize;
+    const row = Math.floor(index / boardSize);
+    const x = padding + column * (cellSize + gap);
+    const y = padding + row * (cellSize + gap);
+    const isWinning = winning.has(index);
+
+    context.fillStyle = isWinning ? "#d9c66f" : piece === "light" ? "#e9dfc4" : piece === "dark" ? "#49392f" : "rgba(211,230,204,.08)";
+    context.fillRect(x, y, cellSize, cellSize);
+    context.strokeStyle = isWinning ? "#fff1a4" : piece === "light" ? "rgba(245,237,209,.76)" : piece === "dark" ? "rgba(25,20,17,.72)" : "rgba(211,230,204,.17)";
+    context.lineWidth = 2;
+    context.strokeRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+  });
+}
+
+function FinalStatePixels({ board, winningPath }: { board: GameState["board"]; winningPath: number[] }) {
+  return <span className="final-state-pixels">{board.map((piece, index) => <span className={`final-state-pixel ${piece ?? "empty"} ${winningPath.includes(index) ? "winning" : ""}`} key={index} />)}</span>;
 }
 
 function describeReplayMove(move: ContractMove, boardSize: number) {

@@ -110,7 +110,17 @@ def build_roster(args: argparse.Namespace) -> dict[str, AgentSpec]:
             GUIDED_QADV_ID if guided else DEFAULT_QADV_ID,
             GUIDED_QADV_LABEL if guided else DEFAULT_QADV_LABEL,
             "learned",
-            QAdvGuidedAgent(qadv_model, top_k=args.qadv_top_k, reply_k=args.qadv_reply_k) if guided else QAdvAgent(qadv_model),
+            QAdvGuidedAgent(
+                qadv_model,
+                top_k=args.qadv_top_k,
+                reply_k=args.qadv_reply_k,
+                temperature_moves=args.temperature_moves,
+                policy_temperature=args.policy_temperature,
+                opening_moves=args.opening_moves,
+                opening_temperature=args.opening_temperature,
+                opening_randomness=args.opening_randomness,
+                pathfinder_temperature=args.pathfinder_temperature,
+            ) if guided else QAdvAgent(qadv_model),
             agent_manifest(runtime="python", model_hash=checkpoint_hash(qadv_path)),
         ),
         "pathfinder": AgentSpec(
@@ -166,6 +176,12 @@ def main() -> None:
     parser.add_argument("--selector", choices=("direct", "guided"), default="direct", help="direct Q-max or QAdv-guided shallow adversarial search")
     parser.add_argument("--qadv-top-k", type=int, default=12)
     parser.add_argument("--qadv-reply-k", type=int, default=8)
+    parser.add_argument("--temperature-moves", type=int, default=48)
+    parser.add_argument("--policy-temperature", type=float, default=1.15)
+    parser.add_argument("--opening-moves", type=int, default=16)
+    parser.add_argument("--opening-temperature", type=float, default=1.8)
+    parser.add_argument("--opening-randomness", type=float, default=0.30)
+    parser.add_argument("--pathfinder-temperature", type=float, default=1.15)
     parser.add_argument("--games-per-match", type=int, default=4, help="even count alternates Light/Dark assignments")
     parser.add_argument("--baseline-simulations", type=int, default=4)
     parser.add_argument("--max-plies", type=int, default=196)

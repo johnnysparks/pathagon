@@ -1,0 +1,965 @@
+{
+  "boardSize": 7,
+  "cases": [
+    {
+      "category": "engine-regression",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "completes without panic",
+        "internal and match max-plies agree",
+        "all decision plies retain Q/A targets"
+      ],
+      "id": "engine-max-ply-boundary-2026201789",
+      "observed": {
+        "actionKinds": {
+          "place": 89,
+          "relocate": 94
+        },
+        "captures": 61,
+        "firstRelocationPly": 29,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.0126886576710179,
+        "minimumPositiveVisitedQTopGap": 1.3157999999999226e-05,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 183,
+        "qCoverage": 1.0054945054945055,
+        "qCoveredPositions": 183,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 138,
+        "winner": "light",
+        "zeroGapMoves": 1
+      },
+      "priority": "critical",
+      "rationale": "Previously crossed the stale internal 180-ply limit while the match recipe allowed 196 plies; retain as a native/Rust boundary regression.",
+      "seed": 2026201789,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026201789.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "action-variety",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "is not duplicated by exact trajectory key",
+        "retains legal alternatives in ranked targets",
+        "does not dominate the training pool"
+      ],
+      "id": "low-action-variety-03-2026209295",
+      "observed": {
+        "actionKinds": {
+          "place": 91,
+          "relocate": 65
+        },
+        "captures": 64,
+        "firstRelocationPly": 31,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.01027905256515,
+        "minimumPositiveVisitedQTopGap": 6.38219999999981e-05,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 156,
+        "qCoverage": 1.0064516129032257,
+        "qCoveredPositions": 156,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 104,
+        "winner": "dark",
+        "zeroGapMoves": 1
+      },
+      "priority": "medium",
+      "rationale": "Low action variety can expose shortcut learning and over-concentration on a narrow move motif.",
+      "seed": 2026209295,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026209295.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "action-variety",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "is not duplicated by exact trajectory key",
+        "retains legal alternatives in ranked targets",
+        "does not dominate the training pool"
+      ],
+      "id": "low-action-variety-05-2026212251",
+      "observed": {
+        "actionKinds": {
+          "place": 86,
+          "relocate": 54
+        },
+        "captures": 59,
+        "firstRelocationPly": 33,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.013381432059856115,
+        "minimumPositiveVisitedQTopGap": 1.422559999999986e-05,
+        "minimumVisitedQTopGap": 1.422559999999986e-05,
+        "openingPlaceMoves": 16,
+        "plies": 140,
+        "qCoverage": 1.0071942446043165,
+        "qCoveredPositions": 140,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 94,
+        "winner": "dark",
+        "zeroGapMoves": 0
+      },
+      "priority": "medium",
+      "rationale": "Low action variety can expose shortcut learning and over-concentration on a narrow move motif.",
+      "seed": 2026212251,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026212251.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "action-variety",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "is not duplicated by exact trajectory key",
+        "retains legal alternatives in ranked targets",
+        "does not dominate the training pool"
+      ],
+      "id": "low-action-variety-01-2026213277",
+      "observed": {
+        "actionKinds": {
+          "place": 81,
+          "relocate": 73
+        },
+        "captures": 53,
+        "firstRelocationPly": 29,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.018495312568104574,
+        "minimumPositiveVisitedQTopGap": 1.3679259999999993e-05,
+        "minimumVisitedQTopGap": 1.3679259999999993e-05,
+        "openingPlaceMoves": 16,
+        "plies": 154,
+        "qCoverage": 1.0065359477124183,
+        "qCoveredPositions": 154,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 88,
+        "winner": "dark",
+        "zeroGapMoves": 0
+      },
+      "priority": "medium",
+      "rationale": "Low action variety can expose shortcut learning and over-concentration on a narrow move motif.",
+      "seed": 2026213277,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026213277.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "action-variety",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "is not duplicated by exact trajectory key",
+        "retains legal alternatives in ranked targets",
+        "does not dominate the training pool"
+      ],
+      "id": "low-action-variety-02-2026215535",
+      "observed": {
+        "actionKinds": {
+          "place": 58,
+          "relocate": 54
+        },
+        "captures": 30,
+        "firstRelocationPly": 29,
+        "maxCapture": 1,
+        "meanVisitedQTopGap": 0.08567552972642857,
+        "minimumPositiveVisitedQTopGap": 1.8324000000000118e-05,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 112,
+        "qCoverage": 1.009009009009009,
+        "qCoveredPositions": 112,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 73,
+        "winner": "dark",
+        "zeroGapMoves": 1
+      },
+      "priority": "medium",
+      "rationale": "Low action variety can expose shortcut learning and over-concentration on a narrow move motif.",
+      "seed": 2026215535,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026215535.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "action-variety",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "is not duplicated by exact trajectory key",
+        "retains legal alternatives in ranked targets",
+        "does not dominate the training pool"
+      ],
+      "id": "low-action-variety-06-2026216889",
+      "observed": {
+        "actionKinds": {
+          "place": 75,
+          "relocate": 44
+        },
+        "captures": 48,
+        "firstRelocationPly": 32,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.014823940262689076,
+        "minimumPositiveVisitedQTopGap": 3.795749999999966e-05,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 119,
+        "qCoverage": 1.0084745762711864,
+        "qCoveredPositions": 119,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 80,
+        "winner": "light",
+        "zeroGapMoves": 1
+      },
+      "priority": "medium",
+      "rationale": "Low action variety can expose shortcut learning and over-concentration on a narrow move motif.",
+      "seed": 2026216889,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026216889.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "capture-density",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "captured squares replay exactly",
+        "capture transitions retain aligned action values",
+        "no illegal relocation follows a capture"
+      ],
+      "id": "capture-density-04-2026206261",
+      "observed": {
+        "actionKinds": {
+          "place": 99,
+          "relocate": 81
+        },
+        "captures": 72,
+        "firstRelocationPly": 32,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.018060876474777776,
+        "minimumPositiveVisitedQTopGap": 7.550999999998004e-06,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 180,
+        "qCoverage": 1.005586592178771,
+        "qCoveredPositions": 180,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 126,
+        "winner": "dark",
+        "zeroGapMoves": 1
+      },
+      "priority": "high",
+      "rationale": "Capture-heavy trajectory supplies transition-rich action/value targets and tactical edge cases.",
+      "seed": 2026206261,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026206261.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "capture-density",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "captured squares replay exactly",
+        "capture transitions retain aligned action values",
+        "no illegal relocation follows a capture"
+      ],
+      "id": "capture-density-06-2026210992",
+      "observed": {
+        "actionKinds": {
+          "place": 97,
+          "relocate": 73
+        },
+        "captures": 69,
+        "firstRelocationPly": 29,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.015269855090588235,
+        "minimumPositiveVisitedQTopGap": 4.64550000000008e-05,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 170,
+        "qCoverage": 1.0059171597633136,
+        "qCoveredPositions": 170,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 116,
+        "winner": "dark",
+        "zeroGapMoves": 1
+      },
+      "priority": "high",
+      "rationale": "Capture-heavy trajectory supplies transition-rich action/value targets and tactical edge cases.",
+      "seed": 2026210992,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026210992.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "long-horizon",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "replays legally",
+        "does not lose late-ply Q coverage",
+        "termination reason matches final state"
+      ],
+      "id": "long-horizon-01-2026201843",
+      "observed": {
+        "actionKinds": {
+          "place": 99,
+          "relocate": 97
+        },
+        "captures": 71,
+        "firstRelocationPly": 31,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.01774975716352396,
+        "minimumPositiveVisitedQTopGap": 9.190000000002668e-06,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 196,
+        "qCoverage": 1.005128205128205,
+        "qCoveredPositions": 196,
+        "reason": "max-plies",
+        "result": "draw",
+        "uniqueActions": 133,
+        "winner": null,
+        "zeroGapMoves": 1
+      },
+      "priority": "high",
+      "rationale": "Long trajectory stresses late-game search, terminal handling, and reserve exhaustion.",
+      "seed": 2026201843,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026201843.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "long-horizon",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "replays legally",
+        "does not lose late-ply Q coverage",
+        "termination reason matches final state"
+      ],
+      "id": "long-horizon-02-2026202058",
+      "observed": {
+        "actionKinds": {
+          "place": 108,
+          "relocate": 88
+        },
+        "captures": 80,
+        "firstRelocationPly": 29,
+        "maxCapture": 3,
+        "meanVisitedQTopGap": 0.012716597664410257,
+        "minimumPositiveVisitedQTopGap": 1.012000000000235e-05,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 196,
+        "qCoverage": 1.005128205128205,
+        "qCoveredPositions": 196,
+        "reason": "max-plies",
+        "result": "draw",
+        "uniqueActions": 134,
+        "winner": null,
+        "zeroGapMoves": 1
+      },
+      "priority": "high",
+      "rationale": "Long trajectory stresses late-game search, terminal handling, and reserve exhaustion.",
+      "seed": 2026202058,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026202058.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "long-horizon",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "replays legally",
+        "does not lose late-ply Q coverage",
+        "termination reason matches final state"
+      ],
+      "id": "long-horizon-03-2026202477",
+      "observed": {
+        "actionKinds": {
+          "place": 110,
+          "relocate": 86
+        },
+        "captures": 83,
+        "firstRelocationPly": 31,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.010372575710714284,
+        "minimumPositiveVisitedQTopGap": 8.96300000000072e-06,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 196,
+        "qCoverage": 1.005128205128205,
+        "qCoveredPositions": 196,
+        "reason": "max-plies",
+        "result": "draw",
+        "uniqueActions": 131,
+        "winner": null,
+        "zeroGapMoves": 1
+      },
+      "priority": "high",
+      "rationale": "Long trajectory stresses late-game search, terminal handling, and reserve exhaustion.",
+      "seed": 2026202477,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026202477.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "long-horizon",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "replays legally",
+        "does not lose late-ply Q coverage",
+        "termination reason matches final state"
+      ],
+      "id": "long-horizon-05-2026204390",
+      "observed": {
+        "actionKinds": {
+          "place": 86,
+          "relocate": 98
+        },
+        "captures": 58,
+        "firstRelocationPly": 31,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.014000522603704973,
+        "minimumPositiveVisitedQTopGap": 2.9778999999998876e-05,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 184,
+        "qCoverage": 1.005464480874317,
+        "qCoveredPositions": 184,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 135,
+        "winner": "dark",
+        "zeroGapMoves": 1
+      },
+      "priority": "high",
+      "rationale": "Long trajectory stresses late-game search, terminal handling, and reserve exhaustion.",
+      "seed": 2026204390,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026204390.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "long-horizon",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "replays legally",
+        "does not lose late-ply Q coverage",
+        "termination reason matches final state"
+      ],
+      "id": "long-horizon-04-2026204736",
+      "observed": {
+        "actionKinds": {
+          "place": 105,
+          "relocate": 91
+        },
+        "captures": 77,
+        "firstRelocationPly": 31,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.015846895739005103,
+        "minimumPositiveVisitedQTopGap": 2.736999999999965e-05,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 196,
+        "qCoverage": 1.005128205128205,
+        "qCoveredPositions": 196,
+        "reason": "max-plies",
+        "result": "draw",
+        "uniqueActions": 137,
+        "winner": null,
+        "zeroGapMoves": 1
+      },
+      "priority": "high",
+      "rationale": "Long trajectory stresses late-game search, terminal handling, and reserve exhaustion.",
+      "seed": 2026204736,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games/game-2026204736.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "placement-transition",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "placement actions remain legal",
+        "phase transition is represented in metadata",
+        "Q coverage includes the transition position"
+      ],
+      "id": "placement-transition-01-2026200001",
+      "observed": {
+        "actionKinds": {
+          "place": 76,
+          "relocate": 83
+        },
+        "captures": 49,
+        "firstRelocationPly": 29,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.0074740671194528305,
+        "minimumPositiveVisitedQTopGap": 3.361700000000141e-05,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 159,
+        "qCoverage": 1.0063291139240507,
+        "qCoveredPositions": 159,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 123,
+        "winner": "light",
+        "zeroGapMoves": 1
+      },
+      "priority": "medium",
+      "rationale": "Early placement-to-relocation transition stresses the phase boundary where the model has historically been weakest.",
+      "seed": 2026200001,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026200001.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "placement-transition",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "placement actions remain legal",
+        "phase transition is represented in metadata",
+        "Q coverage includes the transition position"
+      ],
+      "id": "placement-transition-02-2026200004",
+      "observed": {
+        "actionKinds": {
+          "place": 41,
+          "relocate": 19
+        },
+        "captures": 13,
+        "firstRelocationPly": 29,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.0218114187805,
+        "minimumPositiveVisitedQTopGap": 7.855999999999835e-05,
+        "minimumVisitedQTopGap": 7.855999999999835e-05,
+        "openingPlaceMoves": 16,
+        "plies": 60,
+        "qCoverage": 1.0169491525423728,
+        "qCoveredPositions": 60,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 56,
+        "winner": "dark",
+        "zeroGapMoves": 0
+      },
+      "priority": "medium",
+      "rationale": "Early placement-to-relocation transition stresses the phase boundary where the model has historically been weakest.",
+      "seed": 2026200004,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026200004.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "placement-transition",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "placement actions remain legal",
+        "phase transition is represented in metadata",
+        "Q coverage includes the transition position"
+      ],
+      "id": "placement-transition-03-2026200007",
+      "observed": {
+        "actionKinds": {
+          "place": 35,
+          "relocate": 22
+        },
+        "captures": 7,
+        "firstRelocationPly": 29,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.007375475154385965,
+        "minimumPositiveVisitedQTopGap": 0.000260301499999999,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 57,
+        "qCoverage": 1.0178571428571428,
+        "qCoveredPositions": 57,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 56,
+        "winner": "light",
+        "zeroGapMoves": 1
+      },
+      "priority": "medium",
+      "rationale": "Early placement-to-relocation transition stresses the phase boundary where the model has historically been weakest.",
+      "seed": 2026200007,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026200007.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "placement-transition",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "placement actions remain legal",
+        "phase transition is represented in metadata",
+        "Q coverage includes the transition position"
+      ],
+      "id": "placement-transition-04-2026200008",
+      "observed": {
+        "actionKinds": {
+          "place": 38,
+          "relocate": 23
+        },
+        "captures": 10,
+        "firstRelocationPly": 29,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.006037779097868852,
+        "minimumPositiveVisitedQTopGap": 2.6968000000002212e-05,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 61,
+        "qCoverage": 1.0166666666666666,
+        "qCoveredPositions": 61,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 59,
+        "winner": "light",
+        "zeroGapMoves": 1
+      },
+      "priority": "medium",
+      "rationale": "Early placement-to-relocation transition stresses the phase boundary where the model has historically been weakest.",
+      "seed": 2026200008,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026200008.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "placement-transition",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "placement actions remain legal",
+        "phase transition is represented in metadata",
+        "Q coverage includes the transition position"
+      ],
+      "id": "placement-transition-05-2026200009",
+      "observed": {
+        "actionKinds": {
+          "place": 30,
+          "relocate": 4
+        },
+        "captures": 2,
+        "firstRelocationPly": 29,
+        "maxCapture": 1,
+        "meanVisitedQTopGap": 0.01770203023352941,
+        "minimumPositiveVisitedQTopGap": 5.315750000000133e-05,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 34,
+        "qCoverage": 1.0303030303030303,
+        "qCoveredPositions": 34,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 33,
+        "winner": "dark",
+        "zeroGapMoves": 1
+      },
+      "priority": "medium",
+      "rationale": "Early placement-to-relocation transition stresses the phase boundary where the model has historically been weakest.",
+      "seed": 2026200009,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026200009.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "placement-transition",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "placement actions remain legal",
+        "phase transition is represented in metadata",
+        "Q coverage includes the transition position"
+      ],
+      "id": "placement-transition-06-2026200010",
+      "observed": {
+        "actionKinds": {
+          "place": 40,
+          "relocate": 24
+        },
+        "captures": 13,
+        "firstRelocationPly": 29,
+        "maxCapture": 1,
+        "meanVisitedQTopGap": 0.009786039178125,
+        "minimumPositiveVisitedQTopGap": 3.786299999999909e-05,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 64,
+        "qCoverage": 1.0158730158730158,
+        "qCoveredPositions": 64,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 60,
+        "winner": "dark",
+        "zeroGapMoves": 1
+      },
+      "priority": "medium",
+      "rationale": "Early placement-to-relocation transition stresses the phase boundary where the model has historically been weakest.",
+      "seed": 2026200010,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026200010.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "q-margin-ambiguity",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "Q/action alignment remains exact",
+        "ranking loss sees multiple visited actions",
+        "manual review records the selected move and runner-up"
+      ],
+      "id": "q-margin-ambiguity-05-2026201072",
+      "observed": {
+        "actionKinds": {
+          "place": 38,
+          "relocate": 19
+        },
+        "captures": 10,
+        "firstRelocationPly": 32,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.013983609885303571,
+        "minimumPositiveVisitedQTopGap": 5.8000000000696383e-08,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 57,
+        "qCoverage": 1.0178571428571428,
+        "qCoveredPositions": 57,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 51,
+        "winner": "light",
+        "zeroGapMoves": 1
+      },
+      "priority": "high",
+      "rationale": "Smallest observed Q top-gap creates a hard ranking example where nearby actions should not be treated as interchangeable noise.",
+      "seed": 2026201072,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026201072.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "q-margin-ambiguity",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "Q/action alignment remains exact",
+        "ranking loss sees multiple visited actions",
+        "manual review records the selected move and runner-up"
+      ],
+      "id": "q-margin-ambiguity-06-2026205319",
+      "observed": {
+        "actionKinds": {
+          "place": 39,
+          "relocate": 11
+        },
+        "captures": 11,
+        "firstRelocationPly": 30,
+        "maxCapture": 1,
+        "meanVisitedQTopGap": 0.0079679507472,
+        "minimumPositiveVisitedQTopGap": 6.000000000311312e-08,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 50,
+        "qCoverage": 1.0204081632653061,
+        "qCoveredPositions": 50,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 47,
+        "winner": "dark",
+        "zeroGapMoves": 1
+      },
+      "priority": "high",
+      "rationale": "Smallest observed Q top-gap creates a hard ranking example where nearby actions should not be treated as interchangeable noise.",
+      "seed": 2026205319,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026205319.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "q-margin-ambiguity",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "Q/action alignment remains exact",
+        "ranking loss sees multiple visited actions",
+        "manual review records the selected move and runner-up"
+      ],
+      "id": "q-margin-ambiguity-01-2026208262",
+      "observed": {
+        "actionKinds": {
+          "place": 39,
+          "relocate": 12
+        },
+        "captures": 12,
+        "firstRelocationPly": 35,
+        "maxCapture": 1,
+        "meanVisitedQTopGap": 0.028008649456274508,
+        "minimumPositiveVisitedQTopGap": 1.1199999999916138e-08,
+        "minimumVisitedQTopGap": 1.1199999999916138e-08,
+        "openingPlaceMoves": 16,
+        "plies": 51,
+        "qCoverage": 1.02,
+        "qCoveredPositions": 51,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 45,
+        "winner": "light",
+        "zeroGapMoves": 0
+      },
+      "priority": "high",
+      "rationale": "Smallest observed Q top-gap creates a hard ranking example where nearby actions should not be treated as interchangeable noise.",
+      "seed": 2026208262,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026208262.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "q-margin-ambiguity",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "Q/action alignment remains exact",
+        "ranking loss sees multiple visited actions",
+        "manual review records the selected move and runner-up"
+      ],
+      "id": "q-margin-ambiguity-04-2026208576",
+      "observed": {
+        "actionKinds": {
+          "place": 41,
+          "relocate": 21
+        },
+        "captures": 13,
+        "firstRelocationPly": 29,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.019902226358064514,
+        "minimumPositiveVisitedQTopGap": 3.000000000155656e-08,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 62,
+        "qCoverage": 1.0163934426229508,
+        "qCoveredPositions": 62,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 58,
+        "winner": "dark",
+        "zeroGapMoves": 1
+      },
+      "priority": "high",
+      "rationale": "Smallest observed Q top-gap creates a hard ranking example where nearby actions should not be treated as interchangeable noise.",
+      "seed": 2026208576,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026208576.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "q-margin-ambiguity",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "Q/action alignment remains exact",
+        "ranking loss sees multiple visited actions",
+        "manual review records the selected move and runner-up"
+      ],
+      "id": "q-margin-ambiguity-02-2026214393",
+      "observed": {
+        "actionKinds": {
+          "place": 41,
+          "relocate": 20
+        },
+        "captures": 13,
+        "firstRelocationPly": 32,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.0065247314006557375,
+        "minimumPositiveVisitedQTopGap": 1.3999999999569912e-08,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 61,
+        "qCoverage": 1.0166666666666666,
+        "qCoveredPositions": 61,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 57,
+        "winner": "light",
+        "zeroGapMoves": 1
+      },
+      "priority": "high",
+      "rationale": "Smallest observed Q top-gap creates a hard ranking example where nearby actions should not be treated as interchangeable noise.",
+      "seed": 2026214393,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026214393.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    },
+    {
+      "category": "q-margin-ambiguity",
+      "evaluationUse": "regression/manual review; exclude this seed from held-out metrics",
+      "expected": [
+        "Q/action alignment remains exact",
+        "ranking loss sees multiple visited actions",
+        "manual review records the selected move and runner-up"
+      ],
+      "id": "q-margin-ambiguity-03-2026216771",
+      "observed": {
+        "actionKinds": {
+          "place": 58,
+          "relocate": 40
+        },
+        "captures": 30,
+        "firstRelocationPly": 31,
+        "maxCapture": 2,
+        "meanVisitedQTopGap": 0.008449781090204082,
+        "minimumPositiveVisitedQTopGap": 2.6000000000192536e-08,
+        "minimumVisitedQTopGap": 0.0,
+        "openingPlaceMoves": 16,
+        "plies": 98,
+        "qCoverage": 1.0103092783505154,
+        "qCoveredPositions": 98,
+        "reason": "path",
+        "result": "win",
+        "uniqueActions": 78,
+        "winner": "dark",
+        "zeroGapMoves": 1
+      },
+      "priority": "high",
+      "rationale": "Smallest observed Q top-gap creates a hard ranking example where nearby actions should not be treated as interchangeable noise.",
+      "seed": 2026216771,
+      "source": "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games/game-2026216771.json",
+      "trainingUse": "hard-example; cap at one trajectory weight"
+    }
+  ],
+  "challengeProfiles": {
+    "long-horizon": {
+      "maxPlies": 196,
+      "openingMoves": 16,
+      "openingRandomness": 0.3,
+      "openingTemperature": 1.8,
+      "pathfinderGuidance": 0.5,
+      "placementGuidance": 0.3,
+      "purpose": "stress late-game Q/A targets and the 196-ply contract boundary",
+      "simulations": 128,
+      "tacticalSimulations": 512,
+      "temperatureMoves": 48
+    },
+    "placement-exploration": {
+      "openingMoves": 20,
+      "openingRandomness": 0.55,
+      "openingTemperature": 2.4,
+      "pathfinderGuidance": 0.45,
+      "placementGuidance": 0.2,
+      "purpose": "broaden early placement decisions while retaining Pathfinder as a light prior",
+      "simulations": 128,
+      "tacticalSimulations": 512,
+      "temperatureMoves": 64
+    },
+    "ranking-ambiguity": {
+      "openingMoves": 16,
+      "openingRandomness": 0.35,
+      "openingTemperature": 1.8,
+      "pathfinderGuidance": 0.35,
+      "placementGuidance": 0.25,
+      "policyTemperature": 1.35,
+      "purpose": "collect nearby-action Q/A rankings instead of only decisive argmax moves",
+      "simulations": 128,
+      "tacticalSimulations": 512,
+      "temperatureMoves": 64
+    }
+  },
+  "purpose": "Capped hard-example and regression cases for Q/Advantage training; never bulk-ingest this registry as a second corpus.",
+  "rulesVersion": "pathagon-rules-v1",
+  "schemaVersion": 1,
+  "selection": {
+    "categories": [
+      "engine-regression",
+      "long-horizon",
+      "capture-density",
+      "action-variety",
+      "q-margin-ambiguity",
+      "placement-transition"
+    ],
+    "maxCasesPerCategoryBeforeDeduplication": 6,
+    "method": "seed-level metrics mined from valid JSON records"
+  },
+  "sourceDirectories": [
+    "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/games",
+    "research/runs/gnn/benchmark-7x7/generated/batch-20260826-rust-lambda-20k-20260826/local-backup-20260826/games"
+  ],
+  "sourceSeedRange": {
+    "end": 2026217499,
+    "start": 2026200000
+  }
+}

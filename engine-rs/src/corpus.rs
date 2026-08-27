@@ -93,10 +93,16 @@ impl StrategyBook {
                 return invalid_data(line_number, "expected 10 tab-separated fields");
             }
             let state = decode_state(fields[0]).map_err(|error| {
-                io::Error::new(io::ErrorKind::InvalidData, format!("line {}: {error}", line_number + 1))
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("line {}: {error}", line_number + 1),
+                )
             })?;
             let action = decode_action(fields[2]).map_err(|error| {
-                io::Error::new(io::ErrorKind::InvalidData, format!("line {}: {error}", line_number + 1))
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("line {}: {error}", line_number + 1),
+                )
             })?;
             let entry = BookEntry {
                 completed_depth: parse_field(fields[3], line_number)?,
@@ -107,7 +113,14 @@ impl StrategyBook {
                 losses: parse_field(fields[8], line_number)?,
                 draws: parse_field(fields[9], line_number)?,
             };
-            book.entries.insert(BookKey { state, agent: fields[1].to_owned(), action }, entry);
+            book.entries.insert(
+                BookKey {
+                    state,
+                    agent: fields[1].to_owned(),
+                    action,
+                },
+                entry,
+            );
         }
         Ok(book)
     }
@@ -126,8 +139,12 @@ impl StrategyBook {
             .max_by(|left, right| {
                 let left_net = left.1.wins as i64 - left.1.losses as i64;
                 let right_net = right.1.wins as i64 - right.1.losses as i64;
-                left.1.completed_depth.cmp(&right.1.completed_depth)
-                    .then_with(|| (left_net * right.1.visits as i64).cmp(&(right_net * left.1.visits as i64)))
+                left.1
+                    .completed_depth
+                    .cmp(&right.1.completed_depth)
+                    .then_with(|| {
+                        (left_net * right.1.visits as i64).cmp(&(right_net * left.1.visits as i64))
+                    })
                     .then_with(|| left.1.visits.cmp(&right.1.visits))
                     .then_with(|| right.0.order().cmp(&left.0.order()))
             })
@@ -141,7 +158,8 @@ impl StrategyBook {
     }
 
     pub fn record_game(&mut self, game: &GameRecord) -> Result<(), String> {
-        let mut state = GameState::with_config(BoardConfig::new(game.board_size, game.reserve_per_player)?);
+        let mut state =
+            GameState::with_config(BoardConfig::new(game.board_size, game.reserve_per_player)?);
         for movement in &game.moves {
             if movement.completed_depth > 0 {
                 let agent = if movement.player == Player::Light {
@@ -149,19 +167,25 @@ impl StrategyBook {
                 } else {
                     &game.dark_agent
                 };
-                let entry = self.entries.entry(BookKey {
-                    state,
-                    agent: agent.clone(),
-                    action: movement.action,
-                }).or_default();
+                let entry = self
+                    .entries
+                    .entry(BookKey {
+                        state,
+                        agent: agent.clone(),
+                        action: movement.action,
+                    })
+                    .or_default();
                 entry.visits = entry.visits.saturating_add(1);
                 match game.winner {
-                    Some(winner) if winner == movement.player => entry.wins = entry.wins.saturating_add(1),
+                    Some(winner) if winner == movement.player => {
+                        entry.wins = entry.wins.saturating_add(1)
+                    }
                     Some(_) => entry.losses = entry.losses.saturating_add(1),
                     None => entry.draws = entry.draws.saturating_add(1),
                 }
                 if movement.completed_depth > entry.completed_depth
-                    || (movement.completed_depth == entry.completed_depth && movement.nodes > entry.prior_nodes)
+                    || (movement.completed_depth == entry.completed_depth
+                        && movement.nodes > entry.prior_nodes)
                 {
                     entry.completed_depth = movement.completed_depth;
                     entry.score = movement.score;
@@ -182,23 +206,29 @@ impl StrategyBook {
     }
 
     fn write(&self, path: &Path) -> io::Result<()> {
-        let mut lines = self.entries.iter().map(|(key, entry)| {
-            format!(
-                "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
-                encode_state(key.state),
-                safe_field(&key.agent),
-                encode_action(key.action),
-                entry.completed_depth,
-                entry.score,
-                entry.prior_nodes,
-                entry.visits,
-                entry.wins,
-                entry.losses,
-                entry.draws,
-            )
-        }).collect::<Vec<_>>();
+        let mut lines = self
+            .entries
+            .iter()
+            .map(|(key, entry)| {
+                format!(
+                    "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                    encode_state(key.state),
+                    safe_field(&key.agent),
+                    encode_action(key.action),
+                    entry.completed_depth,
+                    entry.score,
+                    entry.prior_nodes,
+                    entry.visits,
+                    entry.wins,
+                    entry.losses,
+                    entry.draws,
+                )
+            })
+            .collect::<Vec<_>>();
         lines.sort();
-        let mut output = String::from("# state\tagent\taction\tdepth\tscore\tprior_nodes\tvisits\twins\tlosses\tdraws\n");
+        let mut output = String::from(
+            "# state\tagent\taction\tdepth\tscore\tprior_nodes\tvisits\twins\tlosses\tdraws\n",
+        );
         output.push_str(&lines.join("\n"));
         output.push('\n');
         fs::write(path, output)
@@ -206,7 +236,10 @@ impl StrategyBook {
 }
 
 pub fn write_corpus(directory: &Path, records: &[GameRecord]) -> io::Result<CorpusSummary> {
-    if records.iter().any(|record| record.board_size != BoardConfig::DEFAULT.board_size || record.reserve_per_player != BoardConfig::DEFAULT.reserve_per_player) {
+    if records.iter().any(|record| {
+        record.board_size != BoardConfig::DEFAULT.board_size
+            || record.reserve_per_player != BoardConfig::DEFAULT.reserve_per_player
+    }) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "compact corpus export currently requires the default 7x7/14-reserve configuration",
@@ -229,14 +262,16 @@ pub fn write_corpus(directory: &Path, records: &[GameRecord]) -> io::Result<Corp
     }
     let mut sorted = lines.into_iter().collect::<Vec<_>>();
     sorted.sort();
-    let mut game_output = String::from("# p1\tseed64\tlight\tdark\twinner\treason\t2-char-actions\n");
+    let mut game_output =
+        String::from("# p1\tseed64\tlight\tdark\twinner\treason\t2-char-actions\n");
     game_output.push_str(&sorted.join("\n"));
     game_output.push('\n');
     fs::write(&games_path, game_output)?;
 
     let mut book = StrategyBook::load(&positions_path)?;
     for record in records {
-        book.record_game(record).map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+        book.record_game(record)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     }
     book.write(&positions_path)?;
     let manifest = format!(
@@ -245,11 +280,19 @@ pub fn write_corpus(directory: &Path, records: &[GameRecord]) -> io::Result<Corp
         book.len(),
     );
     fs::write(directory.join("manifest.json"), manifest)?;
-    Ok(CorpusSummary { games: sorted.len(), positions: book.len(), added_games: sorted.len() - before })
+    Ok(CorpusSummary {
+        games: sorted.len(),
+        positions: book.len(),
+        added_games: sorted.len() - before,
+    })
 }
 
 pub fn compact_game_line(record: &GameRecord) -> String {
-    let actions = record.moves.iter().map(|movement| encode_action(movement.action)).collect::<String>();
+    let actions = record
+        .moves
+        .iter()
+        .map(|movement| encode_action(movement.action))
+        .collect::<String>();
     format!(
         "p1\t{}\t{}\t{}\t{}\t{}\t{}",
         encode_radix(record.seed as u64),
@@ -266,7 +309,9 @@ pub fn parse_compact_game(line: &str) -> Result<CompactGame, String> {
     if fields.len() != 7 || fields[0] != "p1" {
         return Err("invalid compact game header".to_owned());
     }
-    let seed = decode_radix(fields[1])?.try_into().map_err(|_| "seed exceeds u32".to_owned())?;
+    let seed = decode_radix(fields[1])?
+        .try_into()
+        .map_err(|_| "seed exceeds u32".to_owned())?;
     let winner = match fields[4] {
         "L" => Some(Player::Light),
         "D" => Some(Player::Dark),
@@ -283,10 +328,14 @@ pub fn parse_compact_game(line: &str) -> Result<CompactGame, String> {
     if fields[6].len() % 2 != 0 {
         return Err("action stream must have an even byte count".to_owned());
     }
-    let actions = fields[6].as_bytes().chunks_exact(2).map(|pair| {
-        let token = std::str::from_utf8(pair).map_err(|_| "invalid action bytes".to_owned())?;
-        decode_action(token)
-    }).collect::<Result<Vec<_>, _>>()?;
+    let actions = fields[6]
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|pair| {
+            let token = std::str::from_utf8(pair).map_err(|_| "invalid action bytes".to_owned())?;
+            decode_action(token)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(CompactGame {
         seed,
         light_agent: fields[2].to_owned(),
@@ -300,9 +349,14 @@ pub fn parse_compact_game(line: &str) -> Result<CompactGame, String> {
 pub fn encode_action(action: Action) -> String {
     let code = match action {
         Action::Place { to } => to as u16,
-        Action::Relocate { from, to } => CELL_COUNT as u16 + from as u16 * CELL_COUNT as u16 + to as u16,
+        Action::Relocate { from, to } => {
+            CELL_COUNT as u16 + from as u16 * CELL_COUNT as u16 + to as u16
+        }
     };
-    let bytes = [ALPHABET[(code >> 6) as usize], ALPHABET[(code & 63) as usize]];
+    let bytes = [
+        ALPHABET[(code >> 6) as usize],
+        ALPHABET[(code & 63) as usize],
+    ];
     String::from_utf8(bytes.to_vec()).expect("base64url alphabet is UTF-8")
 }
 
@@ -321,7 +375,10 @@ pub fn decode_action(token: &str) -> Result<Action, String> {
     if from >= CELL_COUNT as u16 {
         return Err("relocation token is outside the board".to_owned());
     }
-    Ok(Action::Relocate { from: from as u8, to: to as u8 })
+    Ok(Action::Relocate {
+        from: from as u8,
+        to: to as u8,
+    })
 }
 
 pub fn encode_state(state: GameState) -> String {
@@ -357,7 +414,9 @@ pub fn decode_state(text: &str) -> Result<GameState, String> {
         last_capture: small_radix(fields[8])?,
         last_player: optional_player(fields[9])?,
         winner: None,
-        ply: decode_radix(fields[10])?.try_into().map_err(|_| "ply exceeds u16".to_owned())?,
+        ply: decode_radix(fields[10])?
+            .try_into()
+            .map_err(|_| "ply exceeds u16".to_owned())?,
     })
 }
 
@@ -380,14 +439,17 @@ fn decode_radix(text: &str) -> Result<u64, String> {
         return Err("empty radix value".to_owned());
     }
     text.bytes().try_fold(0_u64, |value, byte| {
-        value.checked_mul(64)
+        value
+            .checked_mul(64)
             .and_then(|value| value.checked_add(alphabet_index(byte).ok()? as u64))
             .ok_or_else(|| "radix value overflow".to_owned())
     })
 }
 
 fn alphabet_index(byte: u8) -> Result<u8, String> {
-    ALPHABET.iter().position(|candidate| *candidate == byte)
+    ALPHABET
+        .iter()
+        .position(|candidate| *candidate == byte)
         .map(|index| index as u8)
         .ok_or_else(|| format!("invalid base64url byte: {byte}"))
 }
@@ -418,7 +480,11 @@ fn option_square(square: Option<u8>) -> String {
 }
 
 fn optional_square(text: &str) -> Result<Option<u8>, String> {
-    if text == "-" { Ok(None) } else { Ok(Some(small_radix(text)?)) }
+    if text == "-" {
+        Ok(None)
+    } else {
+        Ok(Some(small_radix(text)?))
+    }
 }
 
 fn required_player(text: &str) -> Result<Player, String> {
@@ -435,18 +501,25 @@ fn optional_player(text: &str) -> Result<Option<Player>, String> {
 }
 
 fn small_radix(text: &str) -> Result<u8, String> {
-    decode_radix(text)?.try_into().map_err(|_| "small radix value exceeds u8".to_owned())
+    decode_radix(text)?
+        .try_into()
+        .map_err(|_| "small radix value exceeds u8".to_owned())
 }
 
 fn parse_field<T: std::str::FromStr>(text: &str, line_number: usize) -> io::Result<T> {
-    text.parse().map_err(|_| io::Error::new(
-        io::ErrorKind::InvalidData,
-        format!("line {}: invalid numeric field", line_number + 1),
-    ))
+    text.parse().map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("line {}: invalid numeric field", line_number + 1),
+        )
+    })
 }
 
 fn invalid_data<T>(line_number: usize, message: &str) -> io::Result<T> {
-    Err(io::Error::new(io::ErrorKind::InvalidData, format!("line {}: {message}", line_number + 1)))
+    Err(io::Error::new(
+        io::ErrorKind::InvalidData,
+        format!("line {}: {message}", line_number + 1),
+    ))
 }
 
 #[cfg(test)]
@@ -475,10 +548,22 @@ mod tests {
         let record = play_game(
             &light,
             &dark,
-            MatchOptions { seed: 17, max_plies: 80, opening_random_plies: 2, ..MatchOptions::default() },
+            MatchOptions {
+                seed: 17,
+                max_plies: 80,
+                opening_random_plies: 2,
+                ..MatchOptions::default()
+            },
         );
         let compact = parse_compact_game(&compact_game_line(&record)).unwrap();
-        assert_eq!(compact.actions, record.moves.iter().map(|movement| movement.action).collect::<Vec<_>>());
+        assert_eq!(
+            compact.actions,
+            record
+                .moves
+                .iter()
+                .map(|movement| movement.action)
+                .collect::<Vec<_>>()
+        );
         compact.replay().unwrap();
     }
 }

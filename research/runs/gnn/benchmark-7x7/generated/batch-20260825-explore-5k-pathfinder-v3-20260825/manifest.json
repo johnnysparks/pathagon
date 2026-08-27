@@ -1,0 +1,233 @@
+{
+  "boardSize": 7,
+  "completedGames": 5000,
+  "completedPositions": 336384,
+  "createdAtUtc": "2026-08-26T02:04:09.797151+00:00",
+  "gamesPerPlayer": 1000,
+  "generation": {
+    "maxPlies": 196,
+    "openingMoves": 16,
+    "openingRandomness": 0.3,
+    "openingTemperature": 1.8,
+    "pathfinderBeam": 8,
+    "pathfinderDepth": 2,
+    "pathfinderGuidance": 0.45,
+    "pathfinderNodes": 512,
+    "pathfinderTemperature": 1.15,
+    "placementGuidance": 0.3,
+    "policyTemperature": 1.15,
+    "selfplayDevice": "cpu",
+    "simulations": 128,
+    "tacticalCaptureThreshold": 2,
+    "tacticalSimulations": 512,
+    "temperatureMoves": 48,
+    "trainingUpdates": 0,
+    "workers": 8
+  },
+  "players": [
+    {
+      "agentId": "qadv-arbiter-7x7-v0.1.0",
+      "checkpoint": "research/runs/gnn/benchmark-7x7/generated/batch-20260825-qadv-deep-exploration-20260825/qadv-arbiter-7x7-v0.1.0-exploration-20260825.pt",
+      "configuration": {
+        "maxPlies": 196,
+        "openingMoves": 16,
+        "openingRandomness": 0.3,
+        "openingTemperature": 1.8,
+        "pathfinderBeam": 8,
+        "pathfinderDepth": 2,
+        "pathfinderGuidance": 0.45,
+        "pathfinderNodes": 512,
+        "pathfinderTemperature": 1.15,
+        "placementGuidance": 0.3,
+        "policyTemperature": 1.15,
+        "simulations": 128,
+        "tacticalCaptureThreshold": 2,
+        "tacticalSimulations": 512,
+        "temperatureMoves": 48,
+        "workers": 8
+      },
+      "games": 1000,
+      "label": "The Q-Arbiter \u00b7 Q/Advantage",
+      "modelHash": "sha256:8c548d06307572603b839755cc1e50393285365e10f82bcd90290ca65cd86266",
+      "name": "qadv",
+      "output": "research/runs/gnn/benchmark-7x7/generated/batch-20260825-explore-5k-pathfinder-v3-20260825/qadv-1000games-seed-2026089500.jsonl",
+      "positions": 64795,
+      "reasons": {
+        "max-plies": 20,
+        "path": 980
+      },
+      "results": {
+        "draw": 20,
+        "win": 980
+      },
+      "seedEnd": 2026090499,
+      "seedStart": 2026089500
+    },
+    {
+      "agentId": "python-gnn-puct-reval30k-v0.1.0",
+      "checkpoint": "research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-gnn-30k.pt",
+      "configuration": {
+        "maxPlies": 196,
+        "openingMoves": 16,
+        "openingRandomness": 0.3,
+        "openingTemperature": 1.8,
+        "pathfinderBeam": 8,
+        "pathfinderDepth": 2,
+        "pathfinderGuidance": 0.45,
+        "pathfinderNodes": 512,
+        "pathfinderTemperature": 1.15,
+        "placementGuidance": 0.3,
+        "policyTemperature": 1.15,
+        "simulations": 128,
+        "tacticalCaptureThreshold": 2,
+        "tacticalSimulations": 512,
+        "temperatureMoves": 48,
+        "workers": 8
+      },
+      "games": 1000,
+      "label": "Re-evaluated GNN 30k",
+      "modelHash": "sha256:6120be86fc469df71473c3de64e5e32f99694cd47d621fa5948f243dc51d3d21",
+      "name": "reval-gnn",
+      "output": "research/runs/gnn/benchmark-7x7/generated/batch-20260825-explore-5k-pathfinder-v3-20260825/reval-gnn-1000games-seed-2026090500.jsonl",
+      "positions": 67691,
+      "reasons": {
+        "max-plies": 26,
+        "path": 974
+      },
+      "results": {
+        "draw": 26,
+        "win": 974
+      },
+      "seedEnd": 2026091499,
+      "seedStart": 2026090500
+    },
+    {
+      "agentId": "python-cnn-puct-reval30k-v0.1.0",
+      "checkpoint": "research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-cnn-30k.pt",
+      "configuration": {
+        "maxPlies": 196,
+        "openingMoves": 16,
+        "openingRandomness": 0.3,
+        "openingTemperature": 1.8,
+        "pathfinderBeam": 8,
+        "pathfinderDepth": 2,
+        "pathfinderGuidance": 0.45,
+        "pathfinderNodes": 512,
+        "pathfinderTemperature": 1.15,
+        "placementGuidance": 0.3,
+        "policyTemperature": 1.15,
+        "simulations": 128,
+        "tacticalCaptureThreshold": 2,
+        "tacticalSimulations": 512,
+        "temperatureMoves": 48,
+        "workers": 8
+      },
+      "games": 1000,
+      "label": "Re-evaluated CNN 30k",
+      "modelHash": "sha256:eb2600a53e225a835455efdb2759c40e27c5cb3c16ab0688bc21b99290ed10ee",
+      "name": "reval-cnn",
+      "output": "research/runs/gnn/benchmark-7x7/generated/batch-20260825-explore-5k-pathfinder-v3-20260825/reval-cnn-1000games-seed-2026091500.jsonl",
+      "positions": 57712,
+      "reasons": {
+        "max-plies": 5,
+        "path": 995
+      },
+      "results": {
+        "draw": 5,
+        "win": 995
+      },
+      "seedEnd": 2026092499,
+      "seedStart": 2026091500
+    },
+    {
+      "agentId": "python-gnn-puct-learner-v0.1.0",
+      "checkpoint": "research/runs/gnn/benchmark-7x7/gnn-warmstart.pt",
+      "configuration": {
+        "maxPlies": 196,
+        "openingMoves": 16,
+        "openingRandomness": 0.3,
+        "openingTemperature": 1.8,
+        "pathfinderBeam": 8,
+        "pathfinderDepth": 2,
+        "pathfinderGuidance": 0.45,
+        "pathfinderNodes": 512,
+        "pathfinderTemperature": 1.15,
+        "placementGuidance": 0.3,
+        "policyTemperature": 1.15,
+        "simulations": 128,
+        "tacticalCaptureThreshold": 2,
+        "tacticalSimulations": 512,
+        "temperatureMoves": 48,
+        "workers": 8
+      },
+      "games": 1000,
+      "label": "GNN Learner",
+      "modelHash": "sha256:ab0f739cd33d66781faf60e27797c5ccba3c04ba684f8d9e32e9c2754f4e8956",
+      "name": "learner",
+      "output": "research/runs/gnn/benchmark-7x7/generated/batch-20260825-explore-5k-pathfinder-v3-20260825/learner-1000games-seed-2026092500.jsonl",
+      "positions": 78192,
+      "reasons": {
+        "max-plies": 83,
+        "path": 917
+      },
+      "results": {
+        "draw": 83,
+        "win": 917
+      },
+      "seedEnd": 2026093499,
+      "seedStart": 2026092500
+    },
+    {
+      "agentId": "python-gnn-puct-scout-v0.1.0",
+      "checkpoint": "research/runs/gnn/benchmark-7x7/small-gnn-warmstart.pt",
+      "configuration": {
+        "maxPlies": 196,
+        "openingMoves": 16,
+        "openingRandomness": 0.3,
+        "openingTemperature": 1.8,
+        "pathfinderBeam": 8,
+        "pathfinderDepth": 2,
+        "pathfinderGuidance": 0.45,
+        "pathfinderNodes": 512,
+        "pathfinderTemperature": 1.15,
+        "placementGuidance": 0.3,
+        "policyTemperature": 1.15,
+        "simulations": 128,
+        "tacticalCaptureThreshold": 2,
+        "tacticalSimulations": 512,
+        "temperatureMoves": 48,
+        "workers": 8
+      },
+      "games": 1000,
+      "label": "GNN Scout",
+      "modelHash": "sha256:b9f80706cc1f29076ee06fe06483697c749148a808c599579045d00a52573938",
+      "name": "scout",
+      "output": "research/runs/gnn/benchmark-7x7/generated/batch-20260825-explore-5k-pathfinder-v3-20260825/scout-1000games-seed-2026093500.jsonl",
+      "positions": 67994,
+      "reasons": {
+        "max-plies": 40,
+        "path": 960
+      },
+      "results": {
+        "draw": 40,
+        "win": 960
+      },
+      "seedEnd": 2026094499,
+      "seedStart": 2026093500
+    }
+  ],
+  "playersRequested": [
+    "qadv",
+    "reval-gnn",
+    "reval-cnn",
+    "learner",
+    "scout"
+  ],
+  "reservePerPlayer": 14,
+  "schemaVersion": 1,
+  "seedEnd": 2026094499,
+  "seedStart": 2026089500,
+  "status": "complete",
+  "totalGames": 5000,
+  "totalPositions": 336384
+}

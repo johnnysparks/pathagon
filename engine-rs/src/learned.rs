@@ -203,7 +203,7 @@ fn invalid_error(line_number: usize, message: &str) -> io::Error {
 mod tests {
     use super::*;
     use crate::corpus::compact_game_line;
-    use crate::selfplay::{Agent, MatchOptions, play_game};
+    use crate::selfplay::{play_game, Agent, MatchOptions};
 
     #[test]
     fn learned_book_round_trips_a_replay_corpus() {

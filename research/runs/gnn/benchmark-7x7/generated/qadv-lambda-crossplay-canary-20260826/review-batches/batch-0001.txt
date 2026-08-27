@@ -1,0 +1,22 @@
+Self-play audit: ['/Users/jsparks/dev/codex/projects/pathagon/research/runs/gnn/benchmark-7x7/generated/qadv-lambda-crossplay-canary-20260826/batches/batch-0001.jsonl']
+Games: 2 | positions: 41 | exact duplicate games: 0
+Length: {'min': 17.0, 'p50': 17.0, 'p95': 24.0, 'max': 24.0, 'mean': 20.5}
+Results: {"win": 2}
+Reasons: {"path": 2}
+Rule replay: 2 valid / 2 games; state-repeat games: 0
+
+Most common opening prefixes:
+     1x  P18 P11 P15 P8 P13 P6
+     1x  P1 P25 P21 P2 P8 P38
+
+Suspicious candidates:
+  seed=2026230000 plies=24 captures=2 flags=partial-q-coverage maxStateVisits=1 opening=P18 P11 P15 P8 P13 P6
+  seed=2026230001 plies=17 captures=0 flags=partial-q-coverage maxStateVisits=1 opening=P1 P25 P21 P2 P8 P38
+
+Interesting candidates:
+  seed=2026230000 plies=24 captures=2 uniqueActions=23 qSpread=0.268 opening=P18 P11 P15 P8 P13 P6
+  seed=2026230001 plies=17 captures=0 uniqueActions=17 qSpread=0.271 opening=P1 P25 P21 P2 P8 P38
+
+Manual-review sample:
+  seed=2026230000 plies=24 captures=2 flags=partial-q-coverage actions=P18 P11 P15 P8 P13 P6 P17 P7 P30 P5 P21 P4 P1 P10 P35 P28 P43 P29 P27 P24 P0 P8 P42 P9
+  seed=2026230001 plies=17 captures=0 flags=partial-q-coverage actions=P1 P25 P21 P2 P8 P38 P15 P16 P22 P41 P39 P4 P43 P5 P36 P23 P29
