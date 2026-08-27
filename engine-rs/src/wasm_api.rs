@@ -148,8 +148,16 @@ impl PathagonCnnModel {
         cpuct: f32,
     ) -> Result<String, JsValue> {
         let state = parse_position(position).map_err(js_error)?;
-        let result =
-            puct_search(&self.model, state, PuctConfig { simulations, cpuct }).map_err(js_error)?;
+        let result = puct_search(
+            &self.model,
+            state,
+            PuctConfig {
+                simulations,
+                cpuct,
+                use_action_value_seeds: false,
+            },
+        )
+        .map_err(js_error)?;
         let response = RuntimePuctResult {
             action: result.action.map(Into::into),
             value: result.value,

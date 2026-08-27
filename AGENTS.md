@@ -1,5 +1,7 @@
 # AWS Guidance for the new AWS experience
 
+help_level: HIGH
+
 This user has signed up for the new AWS experience. This experience lets you sign into AWS using a social provider and requires the following additional context.
 
 ## Context
@@ -68,3 +70,13 @@ Constraints for each level:
 - MUST suggest alternatives when a better approach exists
 - MUST flag best practices and explain trade-offs
 - MUST still execute the user's choice if they disagree with a suggestion
+
+# Research experiment and artifact guidance
+
+- MUST follow `docs/EXPERIMENTS.md` for serious agent-search, training, and evaluation runs.
+- MUST keep universal move history, outcomes, agent IDs, and model hashes in the content-addressed corpus under `research/corpora/` rather than copying games into agent/opponent directories.
+- MUST create or update a durable record under `research/experiments/<experiment-id>/` for serious successful, failed, inconclusive, or abandoned experiments. Record hypothesis, lineage, protocol, exact candidate/opponent/model identities, canonical game membership, result, and decision.
+- MUST retain enough information about failed attempts to prevent accidental repetition, but MUST NOT commit every failed checkpoint, optimizer state, repeated replay export, verbose log, or implementation-shaped tensor.
+- MAY promote architecture-independent training labels into a versioned, deterministic, game-keyed corpus sidecar when they have durable reuse value.
+- MUST place large experiment-specific artifacts in an appropriate external store when they are needed, recording a stable URI/key, SHA-256, byte size, purpose, and retention policy. MUST NOT record credentials or temporary signed URLs.
+- MUST link completed experiment games to the canonical corpus before treating the experiment as complete.

@@ -1,5 +1,9 @@
 # Research
 
+The canonical historical game dataset is the content-addressed, Rust-readable
+corpus under [`corpora/games-v1/`](corpora/games-v1/). Large legacy run files
+remain archival inputs rather than the durable game representation.
+
 This directory is the home for Pathagon research experiments and their
 reviewable artifacts.
 

@@ -56,7 +56,39 @@ def transform_state(state: GameState, transform, swaps_players: bool) -> GameSta
     return replace(state, light=light, dark=dark, turn=turn, winner=None, ply=20)
 
 
-def positions() -> list[tuple[str, str, GameState]]:
+def positions(suite: Path | None = None, limit: int | None = None) -> list[tuple[str, str, GameState]]:
+    if suite is not None:
+        result: list[tuple[str, str, GameState]] = []
+        with suite.open(encoding="utf-8") as handle:
+            header = json.loads(handle.readline())
+            if header.get("schema") != "pathagon-tactical-suite-v1":
+                raise RuntimeError(f"unsupported tactical suite schema: {header.get('schema')!r}")
+            for line in handle:
+                fixture = json.loads(line)
+                config_data = fixture["config"]
+                config = BoardConfig(
+                    config_data["boardSize"],
+                    config_data["reservePerPlayer"],
+                    config_data["maxPlies"],
+                )
+                state_data = fixture["state"]
+                turn = Player.LIGHT if state_data["turn"] == "light" else Player.DARK
+                state = GameState(
+                    config,
+                    state_data["light"],
+                    state_data["dark"],
+                    tuple(state_data["reserve"]),
+                    turn,
+                    forbidden=state_data.get("forbidden", 0),
+                    last_relocated_to=tuple(state_data.get("lastRelocatedTo", (None, None))),
+                    ply=state_data["ply"],
+                )
+                category = next(iter(fixture.get("categories", ("quiet-setup",))), "quiet-setup")
+                result.append((category, fixture["id"], state))
+                if limit is not None and len(result) >= limit:
+                    break
+        return result
+
     config = BoardConfig(4, 5, 64)
     bases = {
         "immediate": GameState(config, mask((4, 8, 12, 2, 10)), mask((1, 3, 6, 9, 14)), (0, 0), Player.LIGHT, ply=20),
@@ -105,6 +137,8 @@ def choose_visits(root, actions):
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT)
+    parser.add_argument("--suite", type=Path, help="solver-labelled JSONL suite from build-tactical-suite.py")
+    parser.add_argument("--max-positions", type=int, help="limit positions when using --suite")
     parser.add_argument("--budgets", type=parse_budgets, default=(0, 4, 8, 16, 32, 64, 128))
     parser.add_argument(
         "--solver-horizon",
@@ -119,7 +153,10 @@ def main() -> None:
     model = load_model(args.checkpoint.resolve(), torch.device("cpu"))
     model.eval()
     torch.set_num_threads(1)
-    test_positions = positions()
+    suite_path = args.suite.resolve() if args.suite else None
+    if suite_path is not None and not suite_path.is_file():
+        parser.error(f"tactical suite does not exist: {suite_path}")
+    test_positions = positions(suite_path, args.max_positions)
     solver = ExactSolver(max_size=4, horizon=args.solver_horizon)
     counts = defaultdict(lambda: defaultdict(lambda: {"policyCorrect": 0, "visitCorrect": 0, "total": 0}))
     tree = defaultdict(

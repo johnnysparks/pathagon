@@ -29,8 +29,8 @@ fn model() -> Result<Arc<OnnxQAdvModel>, Error> {
     let result = MODEL.get_or_init(|| {
         let path = env::var("QADV_MODEL_PATH")
             .unwrap_or_else(|_| "/var/task/qadv-arbiter.onnx".to_owned());
-        let bytes = fs::read(&path)
-            .map_err(|error| format!("cannot read QAdv model {path}: {error}"))?;
+        let bytes =
+            fs::read(&path).map_err(|error| format!("cannot read QAdv model {path}: {error}"))?;
         OnnxQAdvModel::from_bytes(&bytes).map(Arc::new)
     });
     match result {
@@ -272,10 +272,7 @@ fn score_position(
         1.0 - (target_rank - 1) as f64 / (target_q.len() - 1) as f64
     };
     metrics.q_spread += f64::from(
-        target_q
-            .iter()
-            .copied()
-            .fold(f32::NEG_INFINITY, f32::max)
+        target_q.iter().copied().fold(f32::NEG_INFINITY, f32::max)
             - target_q.iter().copied().fold(f32::INFINITY, f32::min),
     );
     let (agreements, pairs) = pairwise(predicted_q, target_q, &visited);
@@ -313,7 +310,11 @@ fn score_position(
     Ok(())
 }
 
-fn evaluate_record(record: &Value, model: &OnnxQAdvModel, summary: &mut EvaluationSummary) -> Result<(), String> {
+fn evaluate_record(
+    record: &Value,
+    model: &OnnxQAdvModel,
+    summary: &mut EvaluationSummary,
+) -> Result<(), String> {
     let config = record_config(record)?;
     let seed = record.get("seed").and_then(Value::as_u64).unwrap_or(0);
     let moves = record
@@ -328,11 +329,14 @@ fn evaluate_record(record: &Value, model: &OnnxQAdvModel, summary: &mut Evaluati
                 .get("action")
                 .ok_or_else(|| format!("seed {seed}: move has no action"))?,
         )?;
-        let has_q = movement.get("actionValues").is_some() && movement.get("actionVisits").is_some();
+        let has_q =
+            movement.get("actionValues").is_some() && movement.get("actionVisits").is_some();
         if has_q {
             let values = floats(movement, "actionValues")?;
             let visits = integers(movement, "actionVisits")?;
-            let evaluated = model.evaluate_qadv(state).map_err(|error| error.to_string())?;
+            let evaluated = model
+                .evaluate_qadv(state)
+                .map_err(|error| error.to_string())?;
             let legal_count = state.legal_actions().len();
             if evaluated.q_values.len() < legal_count {
                 return Err(format!(
@@ -355,12 +359,22 @@ fn evaluate_record(record: &Value, model: &OnnxQAdvModel, summary: &mut Evaluati
                 predicted_q,
             )?;
             // The all-phase bucket receives the same position exactly once.
-            score_position(&mut summary.all, state, action, &values, &visits, predicted_q)?;
+            score_position(
+                &mut summary.all,
+                state,
+                action,
+                &values,
+                &visits,
+                predicted_q,
+            )?;
             summary.q_positions += 1;
         } else {
             summary.missing_q_positions += 1;
         }
-        state = state.apply(action).map_err(|error| format!("seed {seed}: {error}"))?.state;
+        state = state
+            .apply(action)
+            .map_err(|error| format!("seed {seed}: {error}"))?
+            .state;
     }
     Ok(())
 }

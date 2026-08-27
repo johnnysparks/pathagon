@@ -51,6 +51,22 @@ pub trait PolicyValueModel {
     ) -> Result<PolicyValue, String> {
         self.evaluate_with_actions(state, actions)
     }
+
+    /// Evaluate the policy/value path and, when available, an action-value
+    /// vector aligned with `actions`. QAdv models override this to return the
+    /// action head from the same inference call. PUCT uses those values as
+    /// seeds for unvisited children; ordinary policy/value models retain the
+    /// previous zero/heuristic seed behavior.
+    fn evaluate_policy_value_and_action_values_with_actions(
+        &self,
+        state: GameState,
+        actions: &[crate::Action],
+    ) -> Result<(PolicyValue, Option<Vec<f32>>), String> {
+        Ok((
+            self.evaluate_policy_value_with_actions(state, actions)?,
+            None,
+        ))
+    }
 }
 
 pub struct OnnxPolicyValueModel {
@@ -350,6 +366,21 @@ impl PolicyValueModel for OnnxQAdvModel {
         actions: &[crate::Action],
     ) -> Result<PolicyValue, String> {
         self.evaluate_policy_value_only(state, actions)
+    }
+
+    fn evaluate_policy_value_and_action_values_with_actions(
+        &self,
+        state: GameState,
+        actions: &[crate::Action],
+    ) -> Result<(PolicyValue, Option<Vec<f32>>), String> {
+        let output = self.evaluate_qadv_with_actions(state, actions)?;
+        Ok((
+            PolicyValue {
+                policy_logits: output.policy_logits,
+                value: output.value,
+            },
+            Some(output.q_values),
+        ))
     }
 }
 

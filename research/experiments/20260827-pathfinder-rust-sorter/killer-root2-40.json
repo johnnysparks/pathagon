@@ -1,0 +1,36 @@
+{
+  "schema": "pathagon-rust-pathfinder-sorter-arena-v1",
+  "binary": "engine-rs/target/release/pathagon-selfplay",
+  "model": "research/experiments/20260827-pathfinder-rust-sorter/artifacts/compact-gnn-policy.onnx",
+  "gamesArchive": "research/experiments/20260827-pathfinder-rust-sorter/killer-root2-40.games.jsonl",
+  "elapsedSeconds": 11.714333,
+  "search": {
+    "depth": 4,
+    "beam": 8,
+    "nodes": 2000,
+    "sorterTopK": 2,
+    "sorterRootLimit": 2,
+    "sorterMinMargin": 0.0,
+    "sorterMaxHeuristicGap": 0,
+    "sorterKind": "policy",
+    "sorterAllActions": false
+  },
+  "summary": {
+    "schemaVersion": 2,
+    "engine": "rust",
+    "agent": "rust-pathfinder-onnx-sorter-v0.1.0",
+    "opponent": "rust-pathfinder-v0.3.0",
+    "seed": 2026087800,
+    "games": 40,
+    "wins": 16,
+    "losses": 24,
+    "draws": 0,
+    "plies": 1304,
+    "nodes": 985536,
+    "bookHits": 0,
+    "corpusGames": 0,
+    "corpusPositions": 0,
+    "seconds": 11.702228,
+    "gamesPerSecond": 3.418
+  }
+}

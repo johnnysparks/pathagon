@@ -1,4 +1,4 @@
-//! Generic shallow proof search for small-board tactical positions.
+//! Generic shallow proof search for bounded tactical positions.
 //!
 //! This is intentionally separate from the heuristic search. It evaluates
 //! only rule terminals, repetition draws, no-legal-action draws, and the
@@ -9,7 +9,9 @@ use std::collections::HashMap;
 
 use crate::{Action, GameState, Player};
 
-const MAX_SOLVER_BOARD_SIZE: u8 = 4;
+/// The solver is safe to invoke selectively on the canonical 7x7 board with a
+/// small horizon and node budget. It is not intended to be a full 7x7 solver.
+const MAX_SOLVER_BOARD_SIZE: u8 = 7;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TacticalProofConfig {
@@ -96,6 +98,8 @@ struct TableKey {
 
 struct Solver {
     config: TacticalProofConfig,
+    root_state: GameState,
+    root_order: Vec<Action>,
     table: HashMap<TableKey, TableEntry>,
     nodes: u64,
     cache_hits: u64,
@@ -103,9 +107,11 @@ struct Solver {
 }
 
 impl Solver {
-    fn new(config: TacticalProofConfig) -> Self {
+    fn new(config: TacticalProofConfig, root_state: GameState, root_order: &[Action]) -> Self {
         Self {
             config,
+            root_state,
+            root_order: root_order.to_vec(),
             table: HashMap::new(),
             nodes: 0,
             cache_hits: 0,
@@ -157,11 +163,19 @@ impl Solver {
         next
     }
 
-    fn ordered_actions(state: GameState) -> Vec<Action> {
+    fn ordered_actions(&self, state: GameState) -> Vec<Action> {
         let mut actions = state.legal_actions();
         actions.sort_by_key(|action| {
             let wins_now = state.apply_legal(*action).state.winner == Some(state.turn);
-            (!wins_now, action.order())
+            let root_rank = if state == self.root_state {
+                self.root_order
+                    .iter()
+                    .position(|preferred| preferred == action)
+                    .unwrap_or(usize::MAX)
+            } else {
+                usize::MAX
+            };
+            (!wins_now, root_rank, action.order())
         });
         actions
     }
@@ -214,7 +228,7 @@ impl Solver {
         } else if state.ply >= state.config.max_plies || depth_remaining == 0 {
             0
         } else {
-            let actions = Self::ordered_actions(state);
+            let actions = self.ordered_actions(state);
             if actions.is_empty() {
                 0
             } else {
@@ -257,7 +271,7 @@ pub fn analyze(
     state: GameState,
     config: TacticalProofConfig,
 ) -> Result<TacticalProofAnalysis, String> {
-    analyze_with_history(state, config, &[])
+    analyze_with_history_and_root_order(state, config, &[], &[])
 }
 
 pub fn analyze_with_history(
@@ -265,12 +279,25 @@ pub fn analyze_with_history(
     config: TacticalProofConfig,
     history: &[(EndgameRepetitionKey, u8)],
 ) -> Result<TacticalProofAnalysis, String> {
+    analyze_with_history_and_root_order(state, config, history, &[])
+}
+
+/// Analyze a position while preferring the supplied root action order. The
+/// order only affects alpha-beta traversal and tie-breaking; every legal root
+/// action is still labelled. This lets a neural action head find tactical
+/// proofs sooner without becoming part of the correctness oracle.
+pub fn analyze_with_history_and_root_order(
+    state: GameState,
+    config: TacticalProofConfig,
+    history: &[(EndgameRepetitionKey, u8)],
+    root_order: &[Action],
+) -> Result<TacticalProofAnalysis, String> {
     if state.config.board_size > MAX_SOLVER_BOARD_SIZE {
         return Err(format!(
             "tactical proof search is limited to boards up to {MAX_SOLVER_BOARD_SIZE}x{MAX_SOLVER_BOARD_SIZE}"
         ));
     }
-    let mut solver = Solver::new(config);
+    let mut solver = Solver::new(config, state, root_order);
     let mut counts = history.iter().copied().collect::<HashMap<_, _>>();
     let root_key = EndgameRepetitionKey::from(state);
     *counts.entry(root_key).or_default() += 1;
@@ -426,7 +453,57 @@ mod tests {
 
     #[test]
     fn solver_rejects_large_boards() {
-        let state = GameState::new();
+        let state = GameState::with_board_size(8);
         assert!(analyze(state, config()).is_err());
+    }
+
+    #[test]
+    fn bounded_solver_proves_a_seven_by_seven_immediate_win() {
+        let config = crate::BoardConfig::new(7, 14)
+            .expect("valid board config")
+            .with_max_plies(180)
+            .expect("valid ply limit");
+        let state = GameState {
+            config,
+            // Light has a vertical path from row 1 through row 6 and an
+            // off-path piece that can relocate to the missing row-0 square.
+            light: mask(&[7, 14, 21, 28, 35, 42, 48]),
+            dark: mask(&[1, 2, 3, 4, 5, 6]),
+            reserve: [0, 0],
+            turn: Player::Light,
+            forbidden: 0,
+            last_relocated_to: [None, None],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: 20,
+        };
+        let analysis = analyze(
+            state,
+            TacticalProofConfig {
+                horizon: 1,
+                max_nodes: 1_000,
+            },
+        )
+        .expect("solve 7x7 tactical fixture");
+        assert_eq!(analysis.outcome, 1);
+        assert!(analysis
+            .optimal_actions
+            .contains(&Action::Relocate { from: 48, to: 0 }));
+        assert!(!analysis.stats.exhausted);
+    }
+
+    #[test]
+    fn neural_root_order_preserves_proof_labels() {
+        let state = fixture(&[5, 7, 9, 11, 15], &[1, 2, 3, 6, 10]);
+        let actions = state.legal_actions();
+        let forward = analyze_with_history_and_root_order(state, config(), &[], &actions)
+            .expect("solve with forward order");
+        let mut reverse = actions;
+        reverse.reverse();
+        let reordered = analyze_with_history_and_root_order(state, config(), &[], &reverse)
+            .expect("solve with reverse order");
+        assert_eq!(forward.outcome, reordered.outcome);
+        assert_eq!(forward.optimal_actions, reordered.optimal_actions);
     }
 }

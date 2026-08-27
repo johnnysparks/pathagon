@@ -32,7 +32,39 @@ checkpoint. Export the shared policy/value artifact or the full QAdv artifact
 with `research.gnn.export_gnn`, then use `--eval-only` to cross-check numerical
 outputs before running matches. The guided mode carries the same temperature,
 opening-mix, and Pathfinder blend controls as Python; `--qadv-onnx` exercises
-the direct action-value head.
+the direct action-value head. QAdv-guided Rust PUCT also opts into action-value
+seeds for unvisited children at every expanded node; the plain policy/value and
+browser/WASM paths keep this mode disabled for a clean baseline comparison. For
+an explicit QAdv A/B baseline, pass `--no-qadv-tree-seeds`. On tactical roots,
+the native QAdv player can also run a bounded rule proof (for example, three
+plies and 50,000 nodes); pass `--tactical-proof-horizon 3` to enable it, or
+sweep it with `scripts/benchmark-rust-qadv-ablation.py`. Proof is disabled by
+default because it is an experimental latency trade-off. Set
+`--tactical-simulations` equal to `--simulations` when you want a strict
+fixed-budget ablation; the historical default remains 512 tactical simulations
+for self-play generation.
+
+The native Pathfinder sorter path is also ONNX-backed and keeps the game loop
+in Rust. Pass `--sorter-onnx <policy-value.onnx>` to run alpha-beta Pathfinder
+with the ONNX policy used only to reorder the bounded root beam; tune the
+number of reordered candidates with `--sorter-top-k`. The optional
+`--sorter-root-limit` caps the root candidates (zero defaults to twice the
+Pathfinder beam), while `--sorter-min-margin` and
+`--sorter-max-heuristic-gap` can require a confident, evaluator-compatible
+reorder. Add
+`--sorter-all-actions` to score the complete legal root set before taking that
+top-k hint (slower, but it can discover moves outside the heuristic head). Use
+`--opponent sorter` to place the same candidate on the other side of a match.
+This path requires the inference feature (the Rust `tract-onnx` runtime) and
+does not depend on Python at play time.
+
+The same root-ordering adapter accepts a QAdv artifact through
+`--sorter-qadv-onnx <qadv.onnx>`. In that mode the native engine uses the
+artifact's action-value head as the sorter signal while Pathfinder's
+alpha-beta evaluator remains authoritative. Use `--opponent qadv-sorter` for
+an explicit QAdv-sorter opponent, or run
+`python3 scripts/benchmark-rust-pathfinder-sorter.py --sorter-kind qadv` for
+the matched wrapper. This is an experiment, not a promoted strength claim.
 
 For a repeatable release-mode timing sample using the full guided recipe, run
 `python3 scripts/benchmark-rust-qadv.py`. It reports both engine time and wall
@@ -50,9 +82,11 @@ default 7x7 heuristic search is unchanged.
 npm run rust:corpus -- --games 100 --seed 20260823 --opponent search
 ```
 
-The compact corpus under [`research/corpora/rust-v1/`](../research/corpora/rust-v1/) is reviewable
-knowledge, not disposable output. Large experimental archives should remain
-outside Git until they earn promotion into a curated corpus.
+This command writes legacy compact output into the ignored run workspace. After
+a serious run completes, normalize its games into the reviewable canonical
+corpus under [`research/corpora/games-v1/`](../research/corpora/games-v1/) and
+link the resulting game keys from an experiment record. Large intermediate
+archives remain outside Git.
 
 ## Evaluator training
 

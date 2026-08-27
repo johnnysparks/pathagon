@@ -83,6 +83,34 @@ struct Budget {
     table_hits: u64,
 }
 
+/// Per-search move-ordering hints used by the hybrid root-limited search.
+///
+/// Pathfinder's static ordering is still the source of truth. These two
+/// quiet cut-off moves are only a cheap way to make alpha-beta encounter a
+/// previously successful refutation earlier on sibling nodes and during the
+/// next iterative-deepening pass. They never change the legal move set.
+#[derive(Default)]
+struct SearchHints {
+    killers: Vec<[Option<Action>; 2]>,
+}
+
+impl SearchHints {
+    fn killers_at(&self, ply: usize) -> [Option<Action>; 2] {
+        self.killers.get(ply).copied().unwrap_or([None, None])
+    }
+
+    fn record_killer(&mut self, ply: usize, action: Action) {
+        if self.killers.len() <= ply {
+            self.killers.resize(ply + 1, [None, None]);
+        }
+        let slot = &mut self.killers[ply];
+        if slot[0] != Some(action) {
+            slot[1] = slot[0];
+            slot[0] = Some(action);
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 enum Bound {
     Exact,
@@ -95,9 +123,75 @@ struct TableEntry {
     depth: u8,
     score: i32,
     bound: Bound,
+    best_action: Option<Action>,
 }
 
 pub fn search_best_action(state: GameState, config: SearchConfig) -> SearchResult {
+    search_best_action_with_root_order(state, config, &[])
+}
+
+/// Search for the best action while allowing an external policy/sorter to
+/// provide a root ordering. The recursive alpha-beta evaluator remains the
+/// authority; missing or illegal sorter actions fall back to Pathfinder's
+/// deterministic heuristic ordering.
+pub fn search_best_action_with_root_order(
+    state: GameState,
+    config: SearchConfig,
+    root_order: &[Action],
+) -> SearchResult {
+    search_best_action_with_root_order_and_options(state, config, root_order, false)
+}
+
+/// Search with an external root order and optional one-ply tactical extension
+/// at the normal depth horizon. The extension is deliberately opt-in so the
+/// incumbent Pathfinder remains an unchanged control in strength experiments.
+pub fn search_best_action_with_root_order_and_options(
+    state: GameState,
+    config: SearchConfig,
+    root_order: &[Action],
+    tactical_extension: bool,
+) -> SearchResult {
+    search_best_action_with_root_order_and_root_limit_internal(
+        state,
+        config,
+        root_order,
+        tactical_extension,
+        None,
+        false,
+    )
+}
+
+/// Search with a sorter-provided root order and an optional root candidate
+/// limit. A limited root is useful for hybrid Pathfinder agents: the sorter
+/// chooses a small candidate set, while the recursive alpha-beta evaluator
+/// spends the entire node budget comparing those candidates. The ordinary
+/// Pathfinder entry point leaves this unset so its baseline behavior is
+/// unchanged.
+pub fn search_best_action_with_root_order_and_root_limit(
+    state: GameState,
+    config: SearchConfig,
+    root_order: &[Action],
+    tactical_extension: bool,
+    root_limit: Option<usize>,
+) -> SearchResult {
+    search_best_action_with_root_order_and_root_limit_internal(
+        state,
+        config,
+        root_order,
+        tactical_extension,
+        root_limit,
+        true,
+    )
+}
+
+fn search_best_action_with_root_order_and_root_limit_internal(
+    state: GameState,
+    config: SearchConfig,
+    root_order: &[Action],
+    tactical_extension: bool,
+    root_limit: Option<usize>,
+    tt_move_order: bool,
+) -> SearchResult {
     if state.config.board_size <= 4 {
         if let Some(horizon) = config.tactical_proof_horizon {
             let result = crate::endgame::search_best_action(
@@ -123,7 +217,8 @@ pub fn search_best_action(state: GameState, config: SearchConfig) -> SearchResul
         }
     }
     let root_player = state.turn;
-    let initial_actions = ordered_actions(state, root_player, config.weights);
+    let mut initial_actions = root_ordered_actions(state, root_player, config.weights, root_order);
+    limit_root_actions(&mut initial_actions, root_limit);
     if initial_actions.is_empty() {
         return SearchResult {
             action: None,
@@ -137,12 +232,14 @@ pub fn search_best_action(state: GameState, config: SearchConfig) -> SearchResul
 
     let mut budget = Budget::default();
     let mut table = HashMap::new();
+    let mut hints = SearchHints::default();
     let mut best_action = initial_actions[0];
     let mut best_score = NEG_INF;
     let mut completed_depth = 0;
 
     for depth in 1..=config.depth {
-        let mut actions = ordered_actions(state, root_player, config.weights);
+        let mut actions = root_ordered_actions(state, root_player, config.weights, root_order);
+        limit_root_actions(&mut actions, root_limit);
         put_first(&mut actions, best_action);
         let mut iteration_action = actions[0];
         let mut iteration_score = NEG_INF;
@@ -164,8 +261,12 @@ pub fn search_best_action(state: GameState, config: SearchConfig) -> SearchResul
                 alpha,
                 POS_INF,
                 config,
+                tactical_extension,
+                tt_move_order,
+                1,
                 &mut budget,
                 &mut table,
+                &mut hints,
             );
             if score > iteration_score
                 || (score == iteration_score && action.order() < iteration_action.order())
@@ -204,6 +305,83 @@ pub fn search_best_action(state: GameState, config: SearchConfig) -> SearchResul
     }
 }
 
+/// Expose Pathfinder's cheap deterministic root ordering to hybrid agents.
+pub fn ordered_root_actions(
+    state: GameState,
+    root_player: Player,
+    weights: EvaluationWeights,
+) -> Vec<Action> {
+    ordered_actions(state, root_player, weights)
+}
+
+/// Pathfinder's deterministic ordering with a bounded tactical guard.
+///
+/// The ordinary evaluator already puts captures and wins first, but it can
+/// miss the quieter move that removes an opponent's immediate winning reply.
+/// When the position is small enough to inspect cheaply, move such forced
+/// blocks to the front of the root list. This is intentionally an ordering
+/// hint only: the alpha-beta search still evaluates every candidate in its
+/// configured beam and remains the authority on the result.
+pub fn ordered_root_actions_with_tactical_guard(
+    state: GameState,
+    root_player: Player,
+    weights: EvaluationWeights,
+) -> Vec<Action> {
+    let fallback = ordered_actions(state, root_player, weights);
+    if fallback.is_empty() || state.legal_action_count() > 512 {
+        return fallback;
+    }
+
+    let opponent = root_player.other();
+    let opponent_view = if state.turn == opponent {
+        state
+    } else {
+        GameState {
+            turn: opponent,
+            ..state
+        }
+    };
+    if immediate_winning_actions(opponent_view, opponent).is_empty() {
+        return fallback;
+    }
+
+    let mut guarded = Vec::with_capacity(fallback.len());
+    for action in fallback.iter().copied() {
+        let next = state.apply_legal(action).state;
+        let next_opponent_view = if next.turn == opponent {
+            next
+        } else {
+            GameState {
+                turn: opponent,
+                ..next
+            }
+        };
+        if immediate_winning_actions(next_opponent_view, opponent).is_empty() {
+            guarded.push(action);
+        }
+    }
+    if guarded.is_empty() {
+        return fallback;
+    }
+    for action in fallback {
+        if !guarded.contains(&action) {
+            guarded.push(action);
+        }
+    }
+    guarded
+}
+
+fn immediate_winning_actions(state: GameState, player: Player) -> Vec<Action> {
+    if state.winner.is_some() || state.turn != player {
+        return Vec::new();
+    }
+    state
+        .legal_actions()
+        .into_iter()
+        .filter(|action| state.apply_legal(*action).state.winner == Some(player))
+        .collect()
+}
+
 pub fn analyze_action(
     state: GameState,
     action: Action,
@@ -216,6 +394,7 @@ pub fn analyze_action(
     let before_score = evaluate(state, root_player, config.weights);
     let mut budget = Budget::default();
     let mut table = HashMap::new();
+    let mut hints = SearchHints::default();
     let next = state.apply_legal(action).state;
     budget.nodes += 1;
     let score = if next.winner.is_some() {
@@ -228,8 +407,12 @@ pub fn analyze_action(
             NEG_INF,
             POS_INF,
             config,
+            false,
+            false,
+            1,
             &mut budget,
             &mut table,
+            &mut hints,
         )
     };
     Ok(MoveEvaluation {
@@ -253,6 +436,7 @@ pub fn analyze_actions(
     let before_score = evaluate(state, root_player, config.weights);
     let mut budget = Budget::default();
     let mut table = HashMap::new();
+    let mut hints = SearchHints::default();
     let mut alpha = NEG_INF;
     let mut results = Vec::new();
     for action in ordered_actions(state, root_player, config.weights)
@@ -275,8 +459,12 @@ pub fn analyze_actions(
                 alpha,
                 POS_INF,
                 config,
+                false,
+                false,
+                1,
                 &mut budget,
                 &mut table,
+                &mut hints,
             )
         };
         results.push(MoveEvaluation {
@@ -383,10 +571,34 @@ fn minimax(
     mut alpha: i32,
     mut beta: i32,
     config: SearchConfig,
+    tactical_extension: bool,
+    tt_move_order: bool,
+    ply_from_root: usize,
     budget: &mut Budget,
     table: &mut HashMap<(GameState, Player), TableEntry>,
+    hints: &mut SearchHints,
 ) -> i32 {
-    if state.winner.is_some() || depth == 0 {
+    if state.winner.is_some() {
+        return evaluate(state, root_player, config.weights);
+    }
+    if depth == 0 {
+        if tactical_extension {
+            if let Some(action) = state
+                .legal_actions()
+                .into_iter()
+                .find(|action| state.apply_legal(*action).state.winner == Some(state.turn))
+            {
+                if budget.nodes < config.max_nodes {
+                    budget.nodes += 1;
+                    let score =
+                        evaluate(state.apply_legal(action).state, root_player, config.weights);
+                    if budget.nodes >= config.max_nodes {
+                        budget.exhausted = true;
+                    }
+                    return score;
+                }
+            }
+        }
         return evaluate(state, root_player, config.weights);
     }
     if budget.nodes >= config.max_nodes {
@@ -397,29 +609,42 @@ fn minimax(
     let key = (state, root_player);
     let original_alpha = alpha;
     let original_beta = beta;
-    if let Some(entry) = table
-        .get(&key)
-        .copied()
-        .filter(|entry| entry.depth >= depth)
-    {
-        budget.table_hits += 1;
-        match entry.bound {
-            Bound::Exact => return entry.score,
-            Bound::Lower => alpha = alpha.max(entry.score),
-            Bound::Upper => beta = beta.min(entry.score),
-        }
-        if alpha >= beta {
-            return entry.score;
+    let mut preferred_action = None;
+    if let Some(entry) = table.get(&key).copied() {
+        preferred_action = entry.best_action;
+        if entry.depth >= depth {
+            budget.table_hits += 1;
+            match entry.bound {
+                Bound::Exact => return entry.score,
+                Bound::Lower => alpha = alpha.max(entry.score),
+                Bound::Upper => beta = beta.min(entry.score),
+            }
+            if alpha >= beta {
+                return entry.score;
+            }
         }
     }
 
     let maximizing = state.turn == root_player;
     let mut actions = ordered_actions(state, root_player, config.weights);
+    if tt_move_order {
+        if let Some(preferred) = preferred_action {
+            put_first(&mut actions, preferred);
+        }
+        let [killer_one, killer_two] = hints.killers_at(ply_from_root);
+        if let Some(killer) = killer_two {
+            put_first(&mut actions, killer);
+        }
+        if let Some(killer) = killer_one {
+            put_first(&mut actions, killer);
+        }
+    }
     actions.truncate(config.beam_width);
     if actions.is_empty() {
         return evaluate(state, root_player, config.weights);
     }
     let mut best = if maximizing { NEG_INF } else { POS_INF };
+    let mut best_action = actions[0];
     for action in actions {
         let next = state.apply_legal(action).state;
         budget.nodes += 1;
@@ -430,17 +655,30 @@ fn minimax(
             alpha,
             beta,
             config,
+            tactical_extension,
+            tt_move_order,
+            ply_from_root + 1,
             budget,
             table,
+            hints,
         );
         if maximizing {
-            best = best.max(score);
+            if score > best || (score == best && action.order() < best_action.order()) {
+                best = score;
+                best_action = action;
+            }
             alpha = alpha.max(best);
         } else {
-            best = best.min(score);
+            if score < best || (score == best && action.order() < best_action.order()) {
+                best = score;
+                best_action = action;
+            }
             beta = beta.min(best);
         }
         if beta <= alpha || budget.nodes >= config.max_nodes {
+            if beta <= alpha && next.winner.is_none() && next.last_capture == 0 {
+                hints.record_killer(ply_from_root, action);
+            }
             break;
         }
     }
@@ -458,6 +696,7 @@ fn minimax(
                 depth,
                 score: best,
                 bound,
+                best_action: Some(best_action),
             },
         );
     }
@@ -496,6 +735,36 @@ fn ordered_actions(
         score_order.then_with(|| left.0.order().cmp(&right.0.order()))
     });
     scored.into_iter().map(|(action, _)| action).collect()
+}
+
+fn root_ordered_actions(
+    state: GameState,
+    root_player: Player,
+    weights: EvaluationWeights,
+    root_order: &[Action],
+) -> Vec<Action> {
+    let fallback = ordered_actions(state, root_player, weights);
+    if root_order.is_empty() {
+        return fallback;
+    }
+    let mut merged = Vec::with_capacity(fallback.len());
+    for action in root_order.iter().copied() {
+        if fallback.contains(&action) && !merged.contains(&action) {
+            merged.push(action);
+        }
+    }
+    for action in fallback {
+        if !merged.contains(&action) {
+            merged.push(action);
+        }
+    }
+    merged
+}
+
+fn limit_root_actions(actions: &mut Vec<Action>, root_limit: Option<usize>) {
+    if let Some(limit) = root_limit {
+        actions.truncate(limit.max(1));
+    }
 }
 
 pub(crate) fn connection_distance(state: GameState, player: Player) -> i32 {
@@ -719,6 +988,74 @@ mod tests {
         assert!(result.nodes <= 120);
         assert!(result.exhausted);
         assert!((1..5).contains(&result.completed_depth));
+    }
+
+    #[test]
+    fn external_root_order_is_respected_under_a_tiny_budget() {
+        let state = GameState::new();
+        let preferred = state
+            .legal_actions()
+            .last()
+            .copied()
+            .expect("opening position has legal actions");
+        let result = search_best_action_with_root_order(
+            state,
+            SearchConfig {
+                depth: 1,
+                max_nodes: 1,
+                beam_width: 1,
+                ..SearchConfig::default()
+            },
+            &[preferred],
+        );
+        assert_eq!(result.action, Some(preferred));
+        assert_eq!(result.nodes, 1);
+        assert!(result.exhausted);
+    }
+
+    #[test]
+    fn root_candidate_limit_restricts_hybrid_search_to_sorted_pool() {
+        let state = GameState::new();
+        let preferred = state
+            .legal_actions()
+            .last()
+            .copied()
+            .expect("opening position has legal actions");
+        let result = search_best_action_with_root_order_and_root_limit(
+            state,
+            SearchConfig {
+                depth: 1,
+                max_nodes: 100,
+                beam_width: 8,
+                ..SearchConfig::default()
+            },
+            &[preferred],
+            false,
+            Some(1),
+        );
+        assert_eq!(result.action, Some(preferred));
+        assert!(!result.exhausted);
+    }
+
+    #[test]
+    fn tactical_root_guard_preserves_legality_and_fallback_order() {
+        let state = GameState::new();
+        let guarded = ordered_root_actions_with_tactical_guard(
+            state,
+            state.turn,
+            EvaluationWeights::default(),
+        );
+        assert_eq!(guarded.len(), state.legal_actions().len());
+        assert!(guarded
+            .iter()
+            .all(|action| state.legal_actions().contains(action)));
+        assert_eq!(
+            guarded
+                .iter()
+                .copied()
+                .collect::<std::collections::HashSet<_>>(),
+            state.legal_actions().into_iter().collect()
+        );
     }
 
     #[test]

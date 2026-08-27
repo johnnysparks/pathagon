@@ -41,6 +41,8 @@ DEFAULT_JOB = {
     "qadv_weight": 1.0,
     "tactical_simulations": 512,
     "tactical_capture_threshold": 2,
+    "tactical_proof_horizon": None,
+    "tactical_proof_nodes": 50_000,
 }
 
 

@@ -9,7 +9,7 @@ Run it with:
 
 ```bash
 .venv-pathagon-gnn/bin/python scripts/evaluate-4x4-endgame.py \
-  --checkpoint research/runs/gnn/benchmark-7x7/generated/batch-20260824-neural-reval-20260824/reval-gnn-30k.pt \
+  --checkpoint research/runs/gnn/<campaign>/candidate.pt \
   --budgets 0,32,128 \
   --solver-horizon 3
 ```

@@ -43,6 +43,14 @@ fn main() {
     let pathfinder_beam = number(&args, "pathfinder-beam", 8_usize);
     let pathfinder_nodes = number(&args, "pathfinder-nodes", 1_000_u64);
     let qadv_weight = number(&args, "qadv-weight", 1.0_f32);
+    let qadv_tree_seeds = !args.contains_key("no-qadv-tree-seeds");
+    let sorter_top_k = number(&args, "sorter-top-k", 4_usize);
+    let sorter_all_actions = args.contains_key("sorter-all-actions");
+    let sorter_root_limit = number(&args, "sorter-root-limit", 0_usize);
+    let sorter_min_margin = number(&args, "sorter-min-margin", 0.0_f32);
+    let sorter_max_heuristic_gap = number(&args, "sorter-max-heuristic-gap", 0_i32);
+    let tactical_simulations = number(&args, "tactical-simulations", 512_u32);
+    let tactical_proof_nodes = number(&args, "tactical-proof-nodes", 50_000_u64);
     let guided = args.contains_key("guided")
         || args.contains_key("pathfinder-guidance")
         || args.contains_key("placement-guidance")
@@ -92,6 +100,25 @@ fn main() {
                 .unwrap_or_else(|error| fail(&format!("cannot load QAdv ONNX model: {error}"))),
         )
     });
+    #[cfg(feature = "inference")]
+    let sorter_model = args.get("sorter-onnx").map(|path| {
+        let bytes = fs::read(path)
+            .unwrap_or_else(|error| fail(&format!("cannot read sorter ONNX model: {error}")));
+        Arc::new(
+            OnnxGnnPolicyValueModel::from_bytes(&bytes)
+                .unwrap_or_else(|error| fail(&format!("cannot load sorter ONNX model: {error}"))),
+        )
+    });
+    #[cfg(feature = "inference")]
+    let qadv_sorter_model = args.get("sorter-qadv-onnx").map(|path| {
+        let bytes = fs::read(path)
+            .unwrap_or_else(|error| fail(&format!("cannot read QAdv sorter ONNX model: {error}")));
+        Arc::new(
+            OnnxQAdvModel::from_bytes(&bytes).unwrap_or_else(|error| {
+                fail(&format!("cannot load QAdv sorter ONNX model: {error}"))
+            }),
+        )
+    });
     #[cfg(not(feature = "inference"))]
     if args.contains_key("onnx") {
         fail("--onnx requires the inference feature; rebuild with --features inference");
@@ -99,6 +126,16 @@ fn main() {
     #[cfg(not(feature = "inference"))]
     if args.contains_key("qadv-onnx") {
         fail("--qadv-onnx requires the inference feature; rebuild with --features inference");
+    }
+    #[cfg(not(feature = "inference"))]
+    if args.contains_key("sorter-onnx") {
+        fail("--sorter-onnx requires the inference feature; rebuild with --features inference");
+    }
+    #[cfg(not(feature = "inference"))]
+    if args.contains_key("sorter-qadv-onnx") {
+        fail(
+            "--sorter-qadv-onnx requires the inference feature; rebuild with --features inference",
+        );
     }
 
     #[cfg(feature = "inference")]
@@ -178,12 +215,38 @@ fn main() {
         tactical_proof_horizon,
     };
     #[cfg(feature = "inference")]
-    let champion = if let Some(model) = qadv_model.as_ref() {
+    let champion = if let Some(model) = qadv_sorter_model.as_ref() {
+        Agent::qadv_sorter_with_pool(
+            "rust-pathfinder-onnx-qadv-sorter-v0.1.0",
+            config,
+            sorter_top_k,
+            sorter_all_actions,
+            sorter_root_limit,
+            sorter_min_margin,
+            sorter_max_heuristic_gap,
+            Arc::clone(model),
+        )
+    } else if let Some(model) = sorter_model.as_ref() {
+        Agent::gnn_sorter_with_pool(
+            "rust-pathfinder-onnx-sorter-v0.1.0",
+            config,
+            sorter_top_k,
+            sorter_all_actions,
+            sorter_root_limit,
+            sorter_min_margin,
+            sorter_max_heuristic_gap,
+            Arc::clone(model),
+        )
+    } else if let Some(model) = qadv_model.as_ref() {
         Agent::qadv(
             "qadv-arbiter-7x7-rust-qadv-v0.1.0",
             QAdvPlayConfig {
                 guided: GnnPlayConfig {
-                    puct: PuctConfig { simulations, cpuct },
+                    puct: PuctConfig {
+                        simulations,
+                        cpuct,
+                        use_action_value_seeds: qadv_tree_seeds,
+                    },
                     temperature_moves,
                     policy_temperature,
                     opening_moves,
@@ -197,8 +260,10 @@ fn main() {
                     pathfinder_nodes,
                 },
                 qadv_weight,
-                tactical_simulations: 512,
+                tactical_simulations,
                 tactical_capture_threshold: 2,
+                tactical_proof_horizon,
+                tactical_proof_nodes,
             },
             Arc::clone(model),
         )
@@ -207,7 +272,11 @@ fn main() {
             Agent::gnn_guided(
                 "qadv-arbiter-7x7-rust-policy-v0.1.0",
                 GnnPlayConfig {
-                    puct: PuctConfig { simulations, cpuct },
+                    puct: PuctConfig {
+                        simulations,
+                        cpuct,
+                        use_action_value_seeds: false,
+                    },
                     temperature_moves,
                     policy_temperature,
                     opening_moves,
@@ -225,7 +294,11 @@ fn main() {
         } else {
             Agent::gnn(
                 "qadv-arbiter-7x7-rust-policy-v0.1.0",
-                PuctConfig { simulations, cpuct },
+                PuctConfig {
+                    simulations,
+                    cpuct,
+                    use_action_value_seeds: false,
+                },
                 Arc::clone(model),
             )
         }
@@ -262,7 +335,11 @@ fn main() {
                     "qadv-arbiter-7x7-rust-qadv-v0.1.0",
                     QAdvPlayConfig {
                         guided: GnnPlayConfig {
-                            puct: PuctConfig { simulations, cpuct },
+                            puct: PuctConfig {
+                                simulations,
+                                cpuct,
+                                use_action_value_seeds: qadv_tree_seeds,
+                            },
                             temperature_moves,
                             policy_temperature,
                             opening_moves,
@@ -276,8 +353,10 @@ fn main() {
                             pathfinder_nodes,
                         },
                         qadv_weight,
-                        tactical_simulations: 512,
+                        tactical_simulations,
                         tactical_capture_threshold: 2,
+                        tactical_proof_horizon,
+                        tactical_proof_nodes,
                     },
                     Arc::clone(model),
                 )
@@ -289,7 +368,11 @@ fn main() {
                     Agent::gnn_guided(
                         "qadv-arbiter-7x7-rust-policy-v0.1.0",
                         GnnPlayConfig {
-                            puct: PuctConfig { simulations, cpuct },
+                            puct: PuctConfig {
+                                simulations,
+                                cpuct,
+                                use_action_value_seeds: false,
+                            },
                             temperature_moves,
                             policy_temperature,
                             opening_moves,
@@ -307,7 +390,11 @@ fn main() {
                 } else {
                     Agent::gnn(
                         "qadv-arbiter-7x7-rust-policy-v0.1.0",
-                        PuctConfig { simulations, cpuct },
+                        PuctConfig {
+                            simulations,
+                            cpuct,
+                            use_action_value_seeds: false,
+                        },
                         Arc::clone(model),
                     )
                 }
@@ -315,6 +402,46 @@ fn main() {
         }
         #[cfg(not(feature = "inference"))]
         fail("--opponent neural requires the inference feature; rebuild with --features inference")
+    } else if opponent_name == "qadv-sorter" {
+        #[cfg(feature = "inference")]
+        {
+            let model = qadv_sorter_model.as_ref().unwrap_or_else(|| {
+                fail("--opponent qadv-sorter requires --sorter-qadv-onnx <model>")
+            });
+            Agent::qadv_sorter_with_pool(
+                "rust-pathfinder-onnx-qadv-sorter-v0.1.0",
+                config,
+                sorter_top_k,
+                sorter_all_actions,
+                sorter_root_limit,
+                sorter_min_margin,
+                sorter_max_heuristic_gap,
+                Arc::clone(model),
+            )
+        }
+        #[cfg(not(feature = "inference"))]
+        fail("--opponent qadv-sorter requires the inference feature; rebuild with --features inference")
+    } else if opponent_name == "sorter" {
+        #[cfg(feature = "inference")]
+        {
+            let model = sorter_model
+                .as_ref()
+                .unwrap_or_else(|| fail("--opponent sorter requires --sorter-onnx <model>"));
+            Agent::gnn_sorter_with_pool(
+                "rust-pathfinder-onnx-sorter-v0.1.0",
+                config,
+                sorter_top_k,
+                sorter_all_actions,
+                sorter_root_limit,
+                sorter_min_margin,
+                sorter_max_heuristic_gap,
+                Arc::clone(model),
+            )
+        }
+        #[cfg(not(feature = "inference"))]
+        fail("--opponent sorter requires the inference feature; rebuild with --features inference")
+    } else if opponent_name == "deep-search" || opponent_name == "pathfinder" {
+        with_optional_book(Agent::search("rust-pathfinder-v0.3.0", config), &book)
     } else if opponent_name == "search" {
         with_optional_book(
             Agent::search(

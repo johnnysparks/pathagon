@@ -13,6 +13,10 @@ use crate::{Action, GameState};
 pub struct PuctConfig {
     pub simulations: u32,
     pub cpuct: f32,
+    /// Ask models with an action-value head (QAdv) to seed every expanded
+    /// node. Disabled by default so ordinary policy/value search keeps its
+    /// previous inference cost and behavior.
+    pub use_action_value_seeds: bool,
 }
 
 impl Default for PuctConfig {
@@ -20,6 +24,7 @@ impl Default for PuctConfig {
         Self {
             simulations: 64,
             cpuct: 1.5,
+            use_action_value_seeds: false,
         }
     }
 }
@@ -102,7 +107,9 @@ impl Node {
         &mut self,
         model: &M,
         root_output: Option<PolicyValue>,
+        root_action_values: Option<Vec<f32>>,
         actions: Option<Vec<Action>>,
+        use_action_value_seeds: bool,
     ) -> Result<f32, String> {
         if self.state.winner.is_some() || self.state.ply >= self.state.config.max_plies {
             self.expanded = true;
@@ -113,9 +120,14 @@ impl Node {
             self.expanded = true;
             return Ok(0.0);
         }
-        let output = match root_output {
-            Some(output) => output,
-            None => model.evaluate_policy_value_with_actions(self.state, &self.actions)?,
+        let (output, action_values) = match root_output {
+            Some(output) => (output, root_action_values),
+            None if use_action_value_seeds => model
+                .evaluate_policy_value_and_action_values_with_actions(self.state, &self.actions)?,
+            None => (
+                model.evaluate_policy_value_with_actions(self.state, &self.actions)?,
+                None,
+            ),
         };
         if output.policy_logits.len() < self.actions.len() {
             return Err(format!(
@@ -127,6 +139,21 @@ impl Node {
         self.priors = softmax(&output.policy_logits[..self.actions.len()]);
         self.children = (0..self.actions.len()).map(|_| None).collect();
         self.child_seeds = (0..self.actions.len()).map(|_| None).collect();
+        if let Some(action_values) = action_values {
+            if action_values.len() < self.actions.len() {
+                return Err(format!(
+                    "action-value model returned {} values for {} legal actions",
+                    action_values.len(),
+                    self.actions.len()
+                ));
+            }
+            // QAdv values are from the side-to-move perspective at this node.
+            // Children store values from their own side-to-move perspective,
+            // so negate the parent action value exactly as for root seeds.
+            for (index, value) in action_values.iter().take(self.actions.len()).enumerate() {
+                self.child_seeds[index] = Some(-value.clamp(-1.0, 1.0));
+            }
+        }
         self.expanded = true;
         Ok(output.value.clamp(-1.0, 1.0))
     }
@@ -187,7 +214,8 @@ pub fn search<M: PolicyValueModel>(
 ///
 /// Q/Advantage self-play already evaluates the root to obtain its action-value
 /// head. Reusing that policy/value pair avoids a second full ONNX invocation
-/// for the same state while keeping every deeper PUCT expansion unchanged.
+/// for the same state. When `PuctConfig::use_action_value_seeds` is enabled,
+/// the model's action values also seed unvisited children at deeper nodes.
 pub fn search_with_root_output<M: PolicyValueModel>(
     model: &M,
     state: GameState,
@@ -231,7 +259,13 @@ pub fn search_with_root_output_and_seeds_and_actions<M: PolicyValueModel>(
     let root_capacity = config.simulations as usize + crate::MAX_CELL_COUNT as usize + 1;
     let mut tree = Tree::with_capacity(root_capacity);
     let root_index = tree.push(state);
-    let root_value = tree.nodes[root_index].expand(model, root_output, root_actions)?;
+    let root_value = tree.nodes[root_index].expand(
+        model,
+        root_output,
+        None,
+        root_actions,
+        config.use_action_value_seeds,
+    )?;
     if tree.nodes[root_index].actions.is_empty() {
         return Ok(PuctResult {
             action: None,
@@ -243,7 +277,13 @@ pub fn search_with_root_output_and_seeds_and_actions<M: PolicyValueModel>(
     seed_root_afterstates(&mut tree, root_index, root_seeds.as_deref());
 
     for _ in 0..config.simulations {
-        simulate(&mut tree, root_index, model, config.cpuct)?;
+        simulate(
+            &mut tree,
+            root_index,
+            model,
+            config.cpuct,
+            config.use_action_value_seeds,
+        )?;
     }
 
     let root = &tree.nodes[root_index];
@@ -291,6 +331,16 @@ fn seed_root_afterstates(tree: &mut Tree, root_index: usize, root_seeds: Option<
         }
         return;
     }
+    // A QAdv model may have supplied seeds while expanding the root. Preserve
+    // those values; only the plain policy/value path needs the legacy
+    // heuristic afterstate fallback.
+    if tree.nodes[root_index]
+        .child_seeds
+        .iter()
+        .any(Option::is_some)
+    {
+        return;
+    }
     let root_player = tree.nodes[root_index].state.turn;
     let action_count = tree.nodes[root_index].actions.len();
     for index in 0..action_count {
@@ -316,9 +366,11 @@ fn simulate<M: PolicyValueModel>(
     node_index: usize,
     model: &M,
     cpuct: f32,
+    use_action_value_seeds: bool,
 ) -> Result<f32, String> {
     if !tree.nodes[node_index].expanded {
-        let value = tree.nodes[node_index].expand(model, None, None)?;
+        let value =
+            tree.nodes[node_index].expand(model, None, None, None, use_action_value_seeds)?;
         tree.nodes[node_index].visits += 1;
         tree.nodes[node_index].value_sum += value;
         return Ok(value);
@@ -345,7 +397,7 @@ fn simulate<M: PolicyValueModel>(
         tree.nodes[node_index].children[index] = Some(child_index);
         child_index
     };
-    let child_value = simulate(tree, child_index, model, cpuct)?;
+    let child_value = simulate(tree, child_index, model, cpuct, use_action_value_seeds)?;
     let value = -child_value;
     tree.nodes[node_index].visits += 1;
     tree.nodes[node_index].value_sum += value;
@@ -407,6 +459,7 @@ mod tests {
             PuctConfig {
                 simulations: 12,
                 cpuct: 1.5,
+                use_action_value_seeds: false,
             },
         )
         .expect("run PUCT");
@@ -435,7 +488,7 @@ mod tests {
         let mut tree = Tree::with_capacity(50);
         let root_index = tree.push(GameState::new());
         tree.nodes[root_index]
-            .expand(&TestModel, None, None)
+            .expand(&TestModel, None, None, None, false)
             .expect("expand root");
         let action_count = tree.nodes[root_index].actions.len();
 
@@ -466,6 +519,7 @@ mod tests {
             PuctConfig {
                 simulations: 12,
                 cpuct: 1.5,
+                use_action_value_seeds: false,
             },
         )
         .expect("run capped PUCT");
@@ -490,6 +544,7 @@ mod tests {
             PuctConfig {
                 simulations: 0,
                 cpuct: 1.5,
+                use_action_value_seeds: false,
             },
             Some(PolicyValue {
                 policy_logits: vec![0.0; crate::model::MAX_ACTIONS],
@@ -514,5 +569,61 @@ mod tests {
                 .sum::<u32>(),
             0
         );
+    }
+
+    struct QAdvTestModel;
+
+    impl PolicyValueModel for QAdvTestModel {
+        fn evaluate(&self, state: GameState) -> Result<PolicyValue, String> {
+            let actions = state.legal_actions();
+            Ok(PolicyValue {
+                policy_logits: vec![0.0; actions.len()],
+                value: 0.0,
+            })
+        }
+
+        fn evaluate_policy_value_and_action_values_with_actions(
+            &self,
+            _state: GameState,
+            actions: &[Action],
+        ) -> Result<(PolicyValue, Option<Vec<f32>>), String> {
+            Ok((
+                PolicyValue {
+                    policy_logits: vec![0.0; actions.len()],
+                    value: 0.0,
+                },
+                Some(
+                    actions
+                        .iter()
+                        .enumerate()
+                        .map(|(index, _)| if index == 0 { 1.0 } else { -1.0 })
+                        .collect(),
+                ),
+            ))
+        }
+    }
+
+    #[test]
+    fn qadv_values_seed_unvisited_nodes_beyond_the_root() {
+        let model = QAdvTestModel;
+        let mut tree = Tree::with_capacity(64);
+        let root_index = tree.push(GameState::new());
+        tree.nodes[root_index]
+            .expand(&model, None, None, None, true)
+            .expect("expand root");
+        seed_root_afterstates(&mut tree, root_index, None);
+
+        // The first root action has the only positive QAdv seed and should be
+        // selected before the remaining unvisited actions.
+        simulate(&mut tree, root_index, &model, 1.5, true).expect("simulate");
+        assert!(tree.nodes[root_index].children[0].is_some());
+
+        let child_index = tree.nodes[root_index].children[0].expect("first child");
+        assert!(tree.nodes[child_index]
+            .child_seeds
+            .iter()
+            .all(Option::is_some));
+        assert_eq!(tree.nodes[child_index].child_seeds[0], Some(-1.0));
+        assert_eq!(tree.nodes[child_index].select_action(&tree.nodes, 1.5), 0);
     }
 }

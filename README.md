@@ -57,6 +57,7 @@ the commands used to generate, archive, train, evaluate, and deploy, read
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — runtime ownership and data flow
 - [`docs/WORKFLOWS.md`](docs/WORKFLOWS.md) — development, self-play, training, and evaluation
 - [`docs/DATA.md`](docs/DATA.md) — archive, dataset, checkpoint, and Git policy
+- [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) — experiment lineage, failures, canonical games, and external artifacts
 - [`docs/ENGINE.md`](docs/ENGINE.md) — Rust/native/WASM engine details
 - [`docs/LEARNING.md`](docs/LEARNING.md) — learner families and promotion status
 - [`docs/GAME_ARCHIVE.md`](docs/GAME_ARCHIVE.md) — D1 archive and offline imports

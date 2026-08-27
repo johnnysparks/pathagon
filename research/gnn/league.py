@@ -17,6 +17,7 @@ from .contract import agent_manifest, agent_specification, engine_metadata, game
 from .evaluation import connection_distance, evaluate_position, normalize_heuristic, squares_from_mask
 from .mcts import PUCTSearch
 from .selfplay import _blend_probabilities, _mix_uniform, _softmax_scores, avoid_repeated_successors, run_match
+from .tactics import immediate_winning_actions
 from .train import choose_device, load_model
 
 
@@ -75,7 +76,7 @@ class HeuristicAgent:
         self.nodes = 0
 
     def choose_action(self, state: GameState, _rng: random.Random, _history: Set[tuple]) -> Action | None:
-        actions = self._ordered_actions(state, state.turn)[: self.beam_width]
+        actions = self._root_actions(state)
         if not actions:
             return None
         self.nodes = 0
@@ -92,6 +93,16 @@ class HeuristicAgent:
                 best_score = score
             alpha = max(alpha, best_score)
         return best_action
+
+    def _root_actions(self, state: GameState) -> List[Action]:
+        """Return the bounded root beam used by Pathfinder.
+
+        Keeping this as a separate hook lets learned sorters change only root
+        ordering/candidate selection while retaining Pathfinder's alpha-beta
+        evaluator and recursive move ordering.
+        """
+
+        return self._ordered_actions(state, state.turn)[: self.beam_width]
 
     def _search(self, state: GameState, root: Player, depth: int, alpha: float, beta: float) -> float:
         if state.winner is not None or depth <= 0 or self.nodes >= self.max_nodes:
@@ -125,6 +136,150 @@ class HeuristicAgent:
         maximizing = state.turn is root
         scored.sort(key=lambda item: (item[0], action_sort_key(item[1])), reverse=maximizing)
         return [action for _, action in scored]
+
+
+class SorterPathfinderAgent(HeuristicAgent):
+    """Use a compact policy model to order Pathfinder's root beam.
+
+    The model is deliberately a sorter, not a replacement evaluator. We
+    always retain Pathfinder's cheap heuristic candidates as a fallback and
+    preserve immediate wins before taking the model's top-k suggestions. The
+    candidate can additionally use a bounded transposition table and tactical
+    leaf extension; `SorterOnlyPathfinderAgent` isolates the ordering-only
+    effect at the same node budget.
+    """
+
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        depth: int,
+        beam_width: int,
+        max_nodes: int,
+        top_k: int,
+    ) -> None:
+        super().__init__(depth=depth, beam_width=beam_width, max_nodes=max_nodes)
+        if top_k < 1:
+            raise ValueError("sorter top_k must be positive")
+        self.model = model
+        self.top_k = top_k
+        self._table: Dict[tuple, float] = {}
+        self._best_moves: Dict[tuple, Action] = {}
+
+    def choose_action(self, state: GameState, rng: random.Random, history: Set[tuple]) -> Action | None:
+        # Search state is intentionally scoped to one move. Reusing entries
+        # across moves would require repetition history in the key and could
+        # turn a useful bound into an invalid one.
+        self._table = {}
+        self._best_moves = {}
+        return super().choose_action(state, rng, history)
+
+    def _search(self, state: GameState, root: Player, depth: int, alpha: float, beta: float) -> float:
+        if state.winner is not None:
+            return evaluate_position(state, root)
+        if self.nodes >= self.max_nodes:
+            return evaluate_position(state, root)
+
+        # A one-ply tactical extension prevents the normal depth horizon from
+        # overlooking an immediate win (including the opponent's win).
+        if depth <= 0:
+            winning = [
+                action
+                for action in state.legal_actions()
+                if state.apply_legal(action).winner is state.turn
+            ]
+            if not winning:
+                return evaluate_position(state, root)
+            self.nodes += 1
+            return evaluate_position(state.apply_legal(winning[0]), root)
+
+        key = (state, root, depth)
+        cached = self._table.get(key)
+        if cached is not None:
+            return cached
+        actions = self._ordered_actions(state, root)[: self.beam_width]
+        if not actions:
+            return evaluate_position(state, root)
+        preferred = self._best_moves.get(key)
+        if preferred in actions:
+            actions.remove(preferred)
+            actions.insert(0, preferred)
+
+        maximizing = state.turn is root
+        best = float("-inf") if maximizing else float("inf")
+        best_action = actions[0]
+        cut_off = False
+        for action in actions:
+            if self.nodes >= self.max_nodes:
+                break
+            self.nodes += 1
+            score = self._search(state.apply_legal(action), root, depth - 1, alpha, beta)
+            if maximizing:
+                if score > best or (score == best and action_sort_key(action) < action_sort_key(best_action)):
+                    best, best_action = score, action
+                alpha = max(alpha, best)
+            else:
+                if score < best or (score == best and action_sort_key(action) < action_sort_key(best_action)):
+                    best, best_action = score, action
+                beta = min(beta, best)
+            if beta <= alpha:
+                cut_off = True
+                break
+        if not cut_off and self.nodes < self.max_nodes:
+            self._table[key] = best
+            self._best_moves[key] = best_action
+        return best
+
+    def _root_actions(self, state: GameState) -> List[Action]:
+        actions = list(state.legal_actions())
+        if not actions:
+            return []
+        heuristic_actions = super()._root_actions(state)
+        # Keep the candidate set identical to Pathfinder's bounded beam. The
+        # compact model is a sorter only; it cannot spend its weaker policy
+        # estimate to replace a heuristic candidate and quietly change the
+        # search width.
+        sort_pool = heuristic_actions[: max(1, min(self.top_k, len(heuristic_actions)))]
+        with torch.no_grad():
+            if getattr(self.model, "qadv", False):
+                _logits, _value, sort_scores, _advantages = self.model.policy_value_q(state, sort_pool)
+            else:
+                sort_scores, _value = self.model.policy_value(state, sort_pool)
+        ranked = sorted(
+            zip(sort_pool, sort_scores.detach().cpu().tolist()),
+            key=lambda item: (float(item[1]), -action_sort_key(item[0])),
+            reverse=True,
+        )
+        model_actions = [action for action, _logit in ranked]
+        immediate_wins = [
+            action for action in actions if state.apply_legal(action).winner is state.turn
+        ]
+        forced_blocks: List[Action] = []
+        if not immediate_wins:
+            opponent_wins = immediate_winning_actions(state, state.turn.other())
+            if opponent_wins:
+                forced_blocks = [
+                    action
+                    for action in actions
+                    if not immediate_winning_actions(state.apply_legal(action), state.turn.other())
+                ]
+        # The result remains capped at Pathfinder's original beam width, so the
+        # comparison does not quietly purchase more search. Immediate wins are
+        # a correctness guard; the model reorders only the existing head and
+        # the untouched Pathfinder tail provides deterministic fallback.
+        ordered: List[Action] = []
+        for action in immediate_wins + forced_blocks + model_actions + heuristic_actions[len(sort_pool) :]:
+            if action not in ordered:
+                ordered.append(action)
+            if len(ordered) >= self.beam_width:
+                break
+        return ordered
+
+
+class SorterOnlyPathfinderAgent(SorterPathfinderAgent):
+    """Ablation: compact root ordering with the original Pathfinder search."""
+
+    def _search(self, state: GameState, root: Player, depth: int, alpha: float, beta: float) -> float:
+        return HeuristicAgent._search(self, state, root, depth, alpha, beta)
 
 
 class GNNAgent:
@@ -466,10 +621,18 @@ def build_roster(size: int, reserve: int, simulations: int, device: torch.device
     return roster
 
 
-def play_game(light: AgentSpec, dark: AgentSpec, config: BoardConfig, seed: int) -> dict:
+def play_game(
+    light: AgentSpec,
+    dark: AgentSpec,
+    config: BoardConfig,
+    seed: int,
+    opening_random_plies: int = 0,
+) -> dict:
     moves = []
 
-    def choose_action(state: GameState, _actions: Tuple[Action, ...], rng: random.Random, history: Set[tuple]) -> Action | None:
+    def choose_action(state: GameState, actions: Tuple[Action, ...], rng: random.Random, history: Set[tuple]) -> Action | None:
+        if state.ply < opening_random_plies:
+            return rng.choice(actions)
         agent = light if state.turn is Player.LIGHT else dark
         return agent.choose.choose_action(state, rng, history)
 

@@ -1,0 +1,569 @@
+{
+  "checkpoint": "retired:sha256-recorded-in-experiment-history",
+  "positions": 300,
+  "results": {
+    "guarded:capture": {
+      "0": {
+        "policyAccuracy": 0.8553459119496856,
+        "policyCorrect": 136,
+        "total": 159,
+        "visitAccuracy": 0.8553459119496856,
+        "visitCorrect": 136
+      },
+      "32": {
+        "policyAccuracy": 0.8805031446540881,
+        "policyCorrect": 140,
+        "total": 159,
+        "visitAccuracy": 0.8805031446540881,
+        "visitCorrect": 140
+      },
+      "64": {
+        "policyAccuracy": 0.8805031446540881,
+        "policyCorrect": 140,
+        "total": 159,
+        "visitAccuracy": 0.8805031446540881,
+        "visitCorrect": 140
+      }
+    },
+    "guarded:forced-defense": {
+      "0": {
+        "policyAccuracy": 0.8695652173913043,
+        "policyCorrect": 20,
+        "total": 23,
+        "visitAccuracy": 0.17391304347826086,
+        "visitCorrect": 4
+      },
+      "32": {
+        "policyAccuracy": 0.8695652173913043,
+        "policyCorrect": 20,
+        "total": 23,
+        "visitAccuracy": 0.43478260869565216,
+        "visitCorrect": 10
+      },
+      "64": {
+        "policyAccuracy": 0.8695652173913043,
+        "policyCorrect": 20,
+        "total": 23,
+        "visitAccuracy": 0.43478260869565216,
+        "visitCorrect": 10
+      }
+    },
+    "guarded:forced-fork": {
+      "0": {
+        "policyAccuracy": 1.0,
+        "policyCorrect": 21,
+        "total": 21,
+        "visitAccuracy": 0.0,
+        "visitCorrect": 0
+      },
+      "32": {
+        "policyAccuracy": 1.0,
+        "policyCorrect": 21,
+        "total": 21,
+        "visitAccuracy": 0.0,
+        "visitCorrect": 0
+      },
+      "64": {
+        "policyAccuracy": 1.0,
+        "policyCorrect": 21,
+        "total": 21,
+        "visitAccuracy": 0.0,
+        "visitCorrect": 0
+      }
+    },
+    "guarded:immediate-win": {
+      "0": {
+        "policyAccuracy": 1.0,
+        "policyCorrect": 31,
+        "total": 31,
+        "visitAccuracy": 0.06451612903225806,
+        "visitCorrect": 2
+      },
+      "32": {
+        "policyAccuracy": 1.0,
+        "policyCorrect": 31,
+        "total": 31,
+        "visitAccuracy": 1.0,
+        "visitCorrect": 31
+      },
+      "64": {
+        "policyAccuracy": 1.0,
+        "policyCorrect": 31,
+        "total": 31,
+        "visitAccuracy": 1.0,
+        "visitCorrect": 31
+      }
+    },
+    "guarded:relocation": {
+      "0": {
+        "policyAccuracy": 0.92,
+        "policyCorrect": 23,
+        "total": 25,
+        "visitAccuracy": 0.92,
+        "visitCorrect": 23
+      },
+      "32": {
+        "policyAccuracy": 0.92,
+        "policyCorrect": 23,
+        "total": 25,
+        "visitAccuracy": 0.92,
+        "visitCorrect": 23
+      },
+      "64": {
+        "policyAccuracy": 0.92,
+        "policyCorrect": 23,
+        "total": 25,
+        "visitAccuracy": 0.92,
+        "visitCorrect": 23
+      }
+    },
+    "guarded:repetition-avoidance": {
+      "0": {
+        "policyAccuracy": 0.975609756097561,
+        "policyCorrect": 40,
+        "total": 41,
+        "visitAccuracy": 0.975609756097561,
+        "visitCorrect": 40
+      },
+      "32": {
+        "policyAccuracy": 0.975609756097561,
+        "policyCorrect": 40,
+        "total": 41,
+        "visitAccuracy": 0.975609756097561,
+        "visitCorrect": 40
+      },
+      "64": {
+        "policyAccuracy": 1.0,
+        "policyCorrect": 41,
+        "total": 41,
+        "visitAccuracy": 1.0,
+        "visitCorrect": 41
+      }
+    },
+    "unguarded:capture": {
+      "0": {
+        "policyAccuracy": 0.8553459119496856,
+        "policyCorrect": 136,
+        "total": 159,
+        "visitAccuracy": 0.8553459119496856,
+        "visitCorrect": 136
+      },
+      "32": {
+        "policyAccuracy": 0.8805031446540881,
+        "policyCorrect": 140,
+        "total": 159,
+        "visitAccuracy": 0.8805031446540881,
+        "visitCorrect": 140
+      },
+      "64": {
+        "policyAccuracy": 0.8805031446540881,
+        "policyCorrect": 140,
+        "total": 159,
+        "visitAccuracy": 0.8805031446540881,
+        "visitCorrect": 140
+      }
+    },
+    "unguarded:forced-defense": {
+      "0": {
+        "policyAccuracy": 0.17391304347826086,
+        "policyCorrect": 4,
+        "total": 23,
+        "visitAccuracy": 0.17391304347826086,
+        "visitCorrect": 4
+      },
+      "32": {
+        "policyAccuracy": 0.43478260869565216,
+        "policyCorrect": 10,
+        "total": 23,
+        "visitAccuracy": 0.43478260869565216,
+        "visitCorrect": 10
+      },
+      "64": {
+        "policyAccuracy": 0.43478260869565216,
+        "policyCorrect": 10,
+        "total": 23,
+        "visitAccuracy": 0.43478260869565216,
+        "visitCorrect": 10
+      }
+    },
+    "unguarded:forced-fork": {
+      "0": {
+        "policyAccuracy": 0.0,
+        "policyCorrect": 0,
+        "total": 21,
+        "visitAccuracy": 0.0,
+        "visitCorrect": 0
+      },
+      "32": {
+        "policyAccuracy": 0.0,
+        "policyCorrect": 0,
+        "total": 21,
+        "visitAccuracy": 0.0,
+        "visitCorrect": 0
+      },
+      "64": {
+        "policyAccuracy": 0.0,
+        "policyCorrect": 0,
+        "total": 21,
+        "visitAccuracy": 0.0,
+        "visitCorrect": 0
+      }
+    },
+    "unguarded:immediate-win": {
+      "0": {
+        "policyAccuracy": 0.06451612903225806,
+        "policyCorrect": 2,
+        "total": 31,
+        "visitAccuracy": 0.06451612903225806,
+        "visitCorrect": 2
+      },
+      "32": {
+        "policyAccuracy": 1.0,
+        "policyCorrect": 31,
+        "total": 31,
+        "visitAccuracy": 1.0,
+        "visitCorrect": 31
+      },
+      "64": {
+        "policyAccuracy": 1.0,
+        "policyCorrect": 31,
+        "total": 31,
+        "visitAccuracy": 1.0,
+        "visitCorrect": 31
+      }
+    },
+    "unguarded:relocation": {
+      "0": {
+        "policyAccuracy": 0.92,
+        "policyCorrect": 23,
+        "total": 25,
+        "visitAccuracy": 0.92,
+        "visitCorrect": 23
+      },
+      "32": {
+        "policyAccuracy": 0.92,
+        "policyCorrect": 23,
+        "total": 25,
+        "visitAccuracy": 0.92,
+        "visitCorrect": 23
+      },
+      "64": {
+        "policyAccuracy": 0.92,
+        "policyCorrect": 23,
+        "total": 25,
+        "visitAccuracy": 0.92,
+        "visitCorrect": 23
+      }
+    },
+    "unguarded:repetition-avoidance": {
+      "0": {
+        "policyAccuracy": 0.975609756097561,
+        "policyCorrect": 40,
+        "total": 41,
+        "visitAccuracy": 0.975609756097561,
+        "visitCorrect": 40
+      },
+      "32": {
+        "policyAccuracy": 0.975609756097561,
+        "policyCorrect": 40,
+        "total": 41,
+        "visitAccuracy": 0.975609756097561,
+        "visitCorrect": 40
+      },
+      "64": {
+        "policyAccuracy": 1.0,
+        "policyCorrect": 41,
+        "total": 41,
+        "visitAccuracy": 1.0,
+        "visitCorrect": 41
+      }
+    }
+  },
+  "solver": {
+    "cacheHits": 2570,
+    "horizon": 3,
+    "nodes": 559105,
+    "outcomePerspective": "side-to-move",
+    "tableEntries": 542365
+  },
+  "tree": {
+    "capture": {
+      "guardOptimalPositions": 0,
+      "meanCorrectMoves": 22.855345911949687,
+      "positions": 159,
+      "replyEdges": [
+        360,
+        369,
+        370,
+        400,
+        405,
+        414,
+        448,
+        468,
+        472,
+        480,
+        488,
+        495,
+        496,
+        504,
+        518,
+        522,
+        525,
+        528,
+        539,
+        540,
+        544,
+        546,
+        549,
+        560,
+        576,
+        580,
+        588,
+        594,
+        600,
+        603,
+        608,
+        612,
+        621,
+        623,
+        648,
+        654,
+        657,
+        658,
+        672,
+        679,
+        693,
+        704,
+        707,
+        712,
+        720,
+        721,
+        728,
+        730,
+        756,
+        768,
+        776,
+        804,
+        810,
+        812,
+        832,
+        860,
+        864,
+        880,
+        896,
+        918,
+        952
+      ],
+      "rootActions": [
+        14,
+        16,
+        18,
+        20,
+        21,
+        24,
+        25,
+        27,
+        28,
+        30,
+        32,
+        35,
+        36,
+        40
+      ],
+      "solverOutcomes": [
+        0,
+        1
+      ]
+    },
+    "forced-defense": {
+      "guardOptimalPositions": 19,
+      "meanCorrectMoves": 3.782608695652174,
+      "positions": 23,
+      "replyEdges": [
+        504,
+        518,
+        560,
+        576,
+        588,
+        672,
+        720,
+        721,
+        728,
+        756,
+        768,
+        812,
+        896,
+        900,
+        952,
+        960,
+        1024
+      ],
+      "rootActions": [
+        14,
+        18,
+        21,
+        24,
+        28,
+        30,
+        32,
+        35
+      ],
+      "solverOutcomes": [
+        0,
+        1
+      ]
+    },
+    "forced-fork": {
+      "guardOptimalPositions": 21,
+      "meanCorrectMoves": 1.9523809523809523,
+      "positions": 21,
+      "replyEdges": [
+        408,
+        432,
+        488,
+        504,
+        528,
+        546,
+        608,
+        612,
+        684,
+        812
+      ],
+      "rootActions": [
+        20,
+        28,
+        30,
+        35,
+        40
+      ],
+      "solverOutcomes": [
+        1
+      ]
+    },
+    "immediate-win": {
+      "guardOptimalPositions": 31,
+      "meanCorrectMoves": 2.096774193548387,
+      "positions": 31,
+      "replyEdges": [
+        384,
+        427,
+        441,
+        476,
+        528,
+        536,
+        546,
+        552,
+        553,
+        581,
+        602,
+        603,
+        623,
+        630,
+        637,
+        664,
+        672,
+        690,
+        700,
+        720,
+        728,
+        756,
+        768,
+        774,
+        784,
+        832,
+        840,
+        891,
+        912,
+        945
+      ],
+      "rootActions": [
+        20,
+        24,
+        25,
+        28,
+        30,
+        32,
+        35,
+        36,
+        40
+      ],
+      "solverOutcomes": [
+        1
+      ]
+    },
+    "relocation": {
+      "guardOptimalPositions": 0,
+      "meanCorrectMoves": 30.84,
+      "positions": 25,
+      "replyEdges": [
+        640,
+        648,
+        720,
+        729,
+        735,
+        768,
+        784,
+        900,
+        960,
+        972,
+        1024
+      ],
+      "rootActions": [
+        24,
+        27,
+        28,
+        30,
+        32,
+        35,
+        36,
+        40
+      ],
+      "solverOutcomes": [
+        -1,
+        0
+      ]
+    },
+    "repetition-avoidance": {
+      "guardOptimalPositions": 0,
+      "meanCorrectMoves": 23.4390243902439,
+      "positions": 41,
+      "replyEdges": [
+        360,
+        448,
+        504,
+        512,
+        540,
+        560,
+        576,
+        588,
+        600,
+        630,
+        640,
+        648,
+        672,
+        720,
+        729,
+        735,
+        768,
+        810,
+        840,
+        864
+      ],
+      "rootActions": [
+        14,
+        16,
+        18,
+        20,
+        21,
+        24,
+        27,
+        32,
+        35
+      ],
+      "solverOutcomes": [
+        -1,
+        0
+      ]
+    }
+  }
+}

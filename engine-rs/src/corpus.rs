@@ -25,6 +25,27 @@ pub struct CompactGame {
     pub actions: Vec<Action>,
 }
 
+/// A game from the content-addressed, metadata-independent `g1` corpus.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UnifiedGame {
+    pub key: String,
+    pub rules_version: String,
+    pub config: BoardConfig,
+    pub repetition_limit: u8,
+    pub actions: Vec<Action>,
+}
+
+impl UnifiedGame {
+    /// Reconstruct every game state from the universal action sequence.
+    pub fn replay(&self) -> Result<GameState, String> {
+        let mut state = GameState::with_config(self.config);
+        for action in &self.actions {
+            state = state.apply(*action)?.state;
+        }
+        Ok(state)
+    }
+}
+
 impl CompactGame {
     pub fn replay(&self) -> Result<GameState, String> {
         let mut state = GameState::new();
@@ -346,6 +367,64 @@ pub fn parse_compact_game(line: &str) -> Result<CompactGame, String> {
     })
 }
 
+/// Parse one row from `research/corpora/games-v1/games/*.tsv`.
+pub fn parse_unified_game(line: &str) -> Result<UnifiedGame, String> {
+    let fields: Vec<&str> = line.split('\t').collect();
+    if fields.len() != 7 {
+        return Err("unified game row must have seven tab-separated fields".to_owned());
+    }
+    if !fields[0].starts_with("g1_") || fields[0].len() != 46 {
+        return Err("invalid unified game key".to_owned());
+    }
+    if fields[1].is_empty() {
+        return Err("missing rules version".to_owned());
+    }
+    let board_size = fields[2]
+        .parse::<u8>()
+        .map_err(|_| "invalid unified board size".to_owned())?;
+    let reserve = fields[3]
+        .parse::<u8>()
+        .map_err(|_| "invalid unified reserve".to_owned())?;
+    let config = BoardConfig::new(board_size, reserve)?;
+    let repetition_limit = fields[4]
+        .parse::<u8>()
+        .map_err(|_| "invalid unified repetition limit".to_owned())?;
+    if repetition_limit == 0 {
+        return Err("unified repetition limit must be positive".to_owned());
+    }
+    let plies = fields[5]
+        .parse::<usize>()
+        .map_err(|_| "invalid unified ply count".to_owned())?;
+    if fields[6].len() % 2 != 0 {
+        return Err("unified action stream must have an even byte count".to_owned());
+    }
+    let actions = fields[6]
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|pair| {
+            let token = std::str::from_utf8(pair).map_err(|_| "invalid action bytes".to_owned())?;
+            decode_action(token)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if actions.len() != plies {
+        return Err("unified ply count does not match action stream".to_owned());
+    }
+    let cells = config.cells();
+    if actions.iter().any(|action| match action {
+        Action::Place { to } => *to >= cells,
+        Action::Relocate { from, to } => *from >= cells || *to >= cells,
+    }) {
+        return Err("unified action is outside the configured board".to_owned());
+    }
+    Ok(UnifiedGame {
+        key: fields[0].to_owned(),
+        rules_version: fields[1].to_owned(),
+        config,
+        repetition_limit,
+        actions,
+    })
+}
+
 pub fn encode_action(action: Action) -> String {
     let code = match action {
         Action::Place { to } => to as u16,
@@ -565,5 +644,15 @@ mod tests {
                 .collect::<Vec<_>>()
         );
         compact.replay().unwrap();
+    }
+
+    #[test]
+    fn unified_game_parses_and_replays_without_python_metadata() {
+        let line = "g1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tpathagon-rules-v1\t5\t10\t3\t3\t00010O";
+        let game = parse_unified_game(line).unwrap();
+        assert_eq!(game.config.board_size, 5);
+        assert_eq!(game.config.reserve_per_player, 10);
+        assert_eq!(game.actions.len(), 3);
+        assert_eq!(game.replay().unwrap().ply, 3);
     }
 }

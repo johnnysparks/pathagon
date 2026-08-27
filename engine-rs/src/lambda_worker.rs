@@ -57,6 +57,10 @@ struct GameJob {
     tactical_simulations: u32,
     #[serde(default = "default_tactical_capture_threshold")]
     tactical_capture_threshold: u8,
+    #[serde(default = "default_tactical_proof_horizon")]
+    tactical_proof_horizon: Option<u8>,
+    #[serde(default = "default_tactical_proof_nodes")]
+    tactical_proof_nodes: u64,
 }
 
 static MODEL: OnceLock<Result<Arc<OnnxQAdvModel>, String>> = OnceLock::new();
@@ -82,6 +86,7 @@ async fn handler(event: LambdaEvent<GameJob>) -> Result<Value, Error> {
         puct: PuctConfig {
             simulations: job.simulations,
             cpuct: 1.5,
+            use_action_value_seeds: true,
         },
         temperature_moves: job.temperature_moves,
         policy_temperature: job.policy_temperature,
@@ -100,6 +105,8 @@ async fn handler(event: LambdaEvent<GameJob>) -> Result<Value, Error> {
         qadv_weight: job.qadv_weight,
         tactical_simulations: job.tactical_simulations,
         tactical_capture_threshold: job.tactical_capture_threshold,
+        tactical_proof_horizon: job.tactical_proof_horizon,
+        tactical_proof_nodes: job.tactical_proof_nodes,
     };
     let qadv = Agent::qadv("qadv-arbiter-7x7-v0.1.0", qadv_config, Arc::clone(&model));
     let opponent = match job.opponent.as_str() {
@@ -207,4 +214,10 @@ const fn default_tactical_simulations() -> u32 {
 }
 const fn default_tactical_capture_threshold() -> u8 {
     2
+}
+const fn default_tactical_proof_horizon() -> Option<u8> {
+    None
+}
+const fn default_tactical_proof_nodes() -> u64 {
+    50_000
 }

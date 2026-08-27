@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::contract::RootQTargets;
 use crate::corpus::StrategyBook;
 #[cfg(feature = "inference")]
-use crate::inference::{OnnxGnnPolicyValueModel, OnnxQAdvModel, PolicyValue};
+use crate::inference::{OnnxGnnPolicyValueModel, OnnxQAdvModel, PolicyValue, PolicyValueModel};
 use crate::learned::LearnedBook;
 #[cfg(feature = "inference")]
 use crate::pathfinder::{PathfinderConfig, PathfinderGuide};
@@ -15,6 +15,10 @@ use crate::puct::{
     PuctConfig,
 };
 use crate::search::{lunatic_action, search_best_action, SearchConfig};
+#[cfg(feature = "inference")]
+use crate::search::{
+    ordered_root_actions_with_tactical_guard, search_best_action_with_root_order_and_root_limit,
+};
 use crate::{bit_squares, Action, BoardConfig, GameState, Player};
 
 #[derive(Clone)]
@@ -29,6 +33,28 @@ pub enum Agent {
         id: String,
         config: SearchConfig,
         book: Option<Arc<StrategyBook>>,
+    },
+    #[cfg(feature = "inference")]
+    GnnSorter {
+        id: String,
+        config: SearchConfig,
+        top_k: usize,
+        sort_all_actions: bool,
+        root_limit: usize,
+        min_margin: f32,
+        max_heuristic_gap: i32,
+        model: Arc<OnnxGnnPolicyValueModel>,
+    },
+    #[cfg(feature = "inference")]
+    QAdvSorter {
+        id: String,
+        config: SearchConfig,
+        top_k: usize,
+        sort_all_actions: bool,
+        root_limit: usize,
+        min_margin: f32,
+        max_heuristic_gap: i32,
+        model: Arc<OnnxQAdvModel>,
     },
     Learned {
         id: String,
@@ -100,6 +126,10 @@ pub struct QAdvPlayConfig {
     pub qadv_weight: f32,
     pub tactical_simulations: u32,
     pub tactical_capture_threshold: u8,
+    /// Optional bounded proof extension for tactical states. The proof search
+    /// remains disabled when this is `None` or `Some(0)`.
+    pub tactical_proof_horizon: Option<u8>,
+    pub tactical_proof_nodes: u64,
 }
 
 #[cfg(feature = "inference")]
@@ -110,6 +140,8 @@ impl Default for QAdvPlayConfig {
             qadv_weight: 1.0,
             tactical_simulations: 0,
             tactical_capture_threshold: 1,
+            tactical_proof_horizon: None,
+            tactical_proof_nodes: 50_000,
         }
     }
 }
@@ -157,6 +189,74 @@ impl Agent {
     }
 
     #[cfg(feature = "inference")]
+    pub fn gnn_sorter(
+        id: impl Into<String>,
+        config: SearchConfig,
+        top_k: usize,
+        model: Arc<OnnxGnnPolicyValueModel>,
+    ) -> Self {
+        Self::gnn_sorter_with_pool(id, config, top_k, false, 0, 0.0, 0, model)
+    }
+
+    #[cfg(feature = "inference")]
+    pub fn gnn_sorter_with_pool(
+        id: impl Into<String>,
+        config: SearchConfig,
+        top_k: usize,
+        sort_all_actions: bool,
+        root_limit: usize,
+        min_margin: f32,
+        max_heuristic_gap: i32,
+        model: Arc<OnnxGnnPolicyValueModel>,
+    ) -> Self {
+        assert!(top_k > 0, "Pathfinder ONNX sorter top-k must be positive");
+        Self::GnnSorter {
+            id: id.into(),
+            config,
+            top_k,
+            sort_all_actions,
+            root_limit,
+            min_margin,
+            max_heuristic_gap,
+            model,
+        }
+    }
+
+    #[cfg(feature = "inference")]
+    pub fn qadv_sorter(
+        id: impl Into<String>,
+        config: SearchConfig,
+        top_k: usize,
+        model: Arc<OnnxQAdvModel>,
+    ) -> Self {
+        Self::qadv_sorter_with_pool(id, config, top_k, false, 0, 0.0, 0, model)
+    }
+
+    #[cfg(feature = "inference")]
+    pub fn qadv_sorter_with_pool(
+        id: impl Into<String>,
+        config: SearchConfig,
+        top_k: usize,
+        sort_all_actions: bool,
+        root_limit: usize,
+        min_margin: f32,
+        max_heuristic_gap: i32,
+        model: Arc<OnnxQAdvModel>,
+    ) -> Self {
+        assert!(top_k > 0, "Pathfinder QAdv sorter top-k must be positive");
+        Self::QAdvSorter {
+            id: id.into(),
+            config,
+            top_k,
+            sort_all_actions,
+            root_limit,
+            min_margin,
+            max_heuristic_gap,
+            model,
+        }
+    }
+
+    #[cfg(feature = "inference")]
     pub fn gnn(
         id: impl Into<String>,
         config: PuctConfig,
@@ -176,7 +276,7 @@ impl Agent {
             | Self::Search { id, .. }
             | Self::Learned { id, .. } => id,
             #[cfg(feature = "inference")]
-            Self::Gnn { id, .. } => id,
+            Self::Gnn { id, .. } | Self::GnnSorter { id, .. } | Self::QAdvSorter { id, .. } => id,
             #[cfg(feature = "inference")]
             Self::GnnGuided { id, .. } => id,
             #[cfg(feature = "inference")]
@@ -211,6 +311,7 @@ impl Agent {
         state: GameState,
         random: &mut Mulberry32,
         history: &HashSet<RepetitionKey>,
+        repetition_count: u8,
     ) -> Decision {
         match self {
             Self::Random { .. } => {
@@ -292,6 +393,46 @@ impl Agent {
                 }
             }
             #[cfg(feature = "inference")]
+            Self::GnnSorter {
+                config,
+                top_k,
+                sort_all_actions,
+                root_limit,
+                min_margin,
+                max_heuristic_gap,
+                model,
+                ..
+            } => choose_gnn_sorter(
+                state,
+                *config,
+                *top_k,
+                *sort_all_actions,
+                *root_limit,
+                *min_margin,
+                *max_heuristic_gap,
+                model.as_ref(),
+            ),
+            #[cfg(feature = "inference")]
+            Self::QAdvSorter {
+                config,
+                top_k,
+                sort_all_actions,
+                root_limit,
+                min_margin,
+                max_heuristic_gap,
+                model,
+                ..
+            } => choose_qadv_sorter(
+                state,
+                *config,
+                *top_k,
+                *sort_all_actions,
+                *root_limit,
+                *min_margin,
+                *max_heuristic_gap,
+                model.as_ref(),
+            ),
+            #[cfg(feature = "inference")]
             Self::Gnn { config, model, .. } => {
                 let result = puct_search(model.as_ref(), state, *config)
                     .unwrap_or_else(|error| panic!("native GNN PUCT failed: {error}"));
@@ -314,9 +455,14 @@ impl Agent {
                 choose_gnn_guided(state, random, history, *config, model.as_ref())
             }
             #[cfg(feature = "inference")]
-            Self::GnnQAdv { config, model, .. } => {
-                choose_qadv_guided(state, random, history, *config, model.as_ref())
-            }
+            Self::GnnQAdv { config, model, .. } => choose_qadv_guided(
+                state,
+                random,
+                history,
+                repetition_count,
+                *config,
+                model.as_ref(),
+            ),
         }
     }
 }
@@ -479,6 +625,26 @@ fn agent_spec_json(agent: &Agent) -> String {
             config.tactical_proof_horizon,
         ),
         #[cfg(feature = "inference")]
+        Agent::GnnSorter { config, .. } => (
+            "search",
+            "Pathfinder · ONNX root sorter",
+            u32::from(config.depth),
+            config.max_nodes,
+            config.beam_width as u32,
+            config.weights,
+            config.tactical_proof_horizon,
+        ),
+        #[cfg(feature = "inference")]
+        Agent::QAdvSorter { config, .. } => (
+            "search",
+            "Pathfinder · ONNX QAdv root sorter",
+            u32::from(config.depth),
+            config.max_nodes,
+            config.beam_width as u32,
+            config.weights,
+            config.tactical_proof_horizon,
+        ),
+        #[cfg(feature = "inference")]
         Agent::Gnn { config, .. } => (
             "neural",
             "The Q-Arbiter · Rust GNN policy",
@@ -533,10 +699,92 @@ fn agent_spec_json(agent: &Agent) -> String {
             "modelHash": serde_json::Value::Null,
         },
     });
+    let mut parameters = serde_json::Map::new();
+    #[cfg(feature = "inference")]
+    if let Agent::GnnQAdv { config, .. } = agent {
+        parameters.insert(
+            "qadvTreeSeeds".to_owned(),
+            serde_json::json!(config.guided.puct.use_action_value_seeds),
+        );
+        parameters.insert(
+            "tacticalProofHorizon".to_owned(),
+            serde_json::json!(config.tactical_proof_horizon),
+        );
+        parameters.insert(
+            "tacticalProofNodes".to_owned(),
+            serde_json::json!(config.tactical_proof_nodes),
+        );
+        parameters.insert(
+            "tacticalSimulations".to_owned(),
+            serde_json::json!(config.tactical_simulations),
+        );
+        parameters.insert(
+            "tacticalCaptureThreshold".to_owned(),
+            serde_json::json!(config.tactical_capture_threshold),
+        );
+    }
+    #[cfg(feature = "inference")]
+    if let Agent::GnnSorter {
+        top_k,
+        sort_all_actions,
+        root_limit,
+        min_margin,
+        max_heuristic_gap,
+        ..
+    } = agent
+    {
+        parameters.insert("sorterTopK".to_owned(), serde_json::json!(top_k));
+        parameters.insert("sorter".to_owned(), serde_json::json!("onnx-policy"));
+        parameters.insert(
+            "sorterPool".to_owned(),
+            serde_json::json!(if *sort_all_actions {
+                "all-legal"
+            } else {
+                "pathfinder-beam"
+            }),
+        );
+        parameters.insert("sorterRootLimit".to_owned(), serde_json::json!(root_limit));
+        parameters.insert("sorterMinMargin".to_owned(), serde_json::json!(min_margin));
+        parameters.insert(
+            "sorterMaxHeuristicGap".to_owned(),
+            serde_json::json!(max_heuristic_gap),
+        );
+    }
+    #[cfg(feature = "inference")]
+    if let Agent::QAdvSorter {
+        top_k,
+        sort_all_actions,
+        root_limit,
+        min_margin,
+        max_heuristic_gap,
+        ..
+    } = agent
+    {
+        parameters.insert("sorterTopK".to_owned(), serde_json::json!(top_k));
+        parameters.insert("sorter".to_owned(), serde_json::json!("onnx-qadv"));
+        parameters.insert(
+            "sorterPool".to_owned(),
+            serde_json::json!(if *sort_all_actions {
+                "all-legal"
+            } else {
+                "pathfinder-beam"
+            }),
+        );
+        parameters.insert("sorterRootLimit".to_owned(), serde_json::json!(root_limit));
+        parameters.insert("sorterMinMargin".to_owned(), serde_json::json!(min_margin));
+        parameters.insert(
+            "sorterMaxHeuristicGap".to_owned(),
+            serde_json::json!(max_heuristic_gap),
+        );
+    }
     if let Some(horizon) = tactical_proof_horizon {
-        specification["parameters"] = serde_json::json!({
-            "tacticalProofHorizon": horizon,
-        });
+        parameters.insert(
+            "tacticalProofHorizon".to_owned(),
+            serde_json::json!(horizon),
+        );
+    }
+    if !parameters.is_empty() {
+        specification["parameters"] = serde_json::Value::Object(parameters);
     }
     serde_json::to_string(&specification).expect("serialize Rust agent specification")
 }
@@ -551,9 +799,15 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
     let mut repetitions = HashMap::<RepetitionKey, u8>::new();
 
     while state.winner.is_none() && state.ply < options.max_plies {
-        let repeated = repetitions.entry(RepetitionKey::from(state)).or_default();
-        *repeated += 1;
-        if *repeated >= 3 {
+        let (repetition_count, history) = {
+            let repeated = repetitions.entry(RepetitionKey::from(state)).or_default();
+            *repeated += 1;
+            (
+                *repeated,
+                repetitions.keys().copied().collect::<HashSet<_>>(),
+            )
+        };
+        if repetition_count >= 3 {
             return record(
                 light,
                 dark,
@@ -586,9 +840,9 @@ pub fn play_game(light: &Agent, dark: &Agent, options: MatchOptions) -> GameReco
                 root_q: None,
             }
         } else if player == Player::Light {
-            light.choose(state, &mut random, &repetitions.keys().copied().collect())
+            light.choose(state, &mut random, &history, repetition_count)
         } else {
-            dark.choose(state, &mut random, &repetitions.keys().copied().collect())
+            dark.choose(state, &mut random, &history, repetition_count)
         };
         let Some(action) = decision.action else {
             return record(
@@ -731,6 +985,204 @@ impl Mulberry32 {
 }
 
 #[cfg(feature = "inference")]
+fn choose_gnn_sorter(
+    state: GameState,
+    config: SearchConfig,
+    top_k: usize,
+    sort_all_actions: bool,
+    root_limit: usize,
+    min_margin: f32,
+    max_heuristic_gap: i32,
+    model: &OnnxGnnPolicyValueModel,
+) -> Decision {
+    let fallback = ordered_root_actions_with_tactical_guard(state, state.turn, config.weights);
+    if fallback.is_empty() {
+        return Decision {
+            action: None,
+            score: 0,
+            nodes: 0,
+            completed_depth: 0,
+            table_hits: 0,
+            book_hit: false,
+            root_q: None,
+        };
+    }
+    let pool_len = top_k.min(config.beam_width.max(1)).min(fallback.len());
+    let sort_pool_len = if sort_all_actions {
+        fallback.len()
+    } else {
+        pool_len
+    };
+    let sort_pool = &fallback[..sort_pool_len];
+    let output = model
+        .evaluate_with_actions(state, sort_pool)
+        .unwrap_or_else(|error| panic!("native Pathfinder ONNX sorter failed: {error}"));
+    let mut ranked = sort_pool
+        .iter()
+        .copied()
+        .zip(output.policy_logits.into_iter().take(sort_pool_len))
+        .collect::<Vec<_>>();
+    ranked.sort_by(|left, right| {
+        right
+            .1
+            .total_cmp(&left.1)
+            .then_with(|| left.0.order().cmp(&right.0.order()))
+    });
+    let confidence_ok = min_margin <= 0.0
+        || ranked
+            .first()
+            .zip(ranked.iter().find(|(action, _)| *action == sort_pool[0]))
+            .is_some_and(|(best, original)| best.1 - original.1 >= min_margin);
+    let heuristic_gap_ok = max_heuristic_gap <= 0
+        || ranked.first().is_some_and(|(best, _)| {
+            let original_score = crate::search::evaluate(
+                state.apply_legal(sort_pool[0]).state,
+                state.turn,
+                config.weights,
+            );
+            let best_score =
+                crate::search::evaluate(state.apply_legal(*best).state, state.turn, config.weights);
+            (original_score - best_score).abs() <= max_heuristic_gap
+        });
+    let should_reorder = confidence_ok && heuristic_gap_ok;
+    let mut root_order = if should_reorder {
+        ranked
+            .into_iter()
+            .take(pool_len)
+            .map(|(action, _logit)| action)
+            .collect::<Vec<_>>()
+    } else {
+        sort_pool.iter().copied().take(pool_len).collect()
+    };
+    for action in fallback {
+        if !root_order.contains(&action) {
+            root_order.push(action);
+        }
+    }
+    // Keep the incumbent search horizon unchanged for the root-sorter
+    // treatment. The optional tactical leaf extension remains available to
+    // future ablations, but an isolated 120-game screen did not justify
+    // enabling it by default.
+    let result = search_best_action_with_root_order_and_root_limit(
+        state,
+        config,
+        &root_order,
+        false,
+        Some(if root_limit == 0 {
+            config.beam_width.saturating_mul(2)
+        } else {
+            root_limit
+        }),
+    );
+    Decision {
+        action: result.action,
+        score: result.score,
+        nodes: result.nodes,
+        completed_depth: result.completed_depth,
+        table_hits: result.table_hits,
+        book_hit: false,
+        root_q: None,
+    }
+}
+
+#[cfg(feature = "inference")]
+fn choose_qadv_sorter(
+    state: GameState,
+    config: SearchConfig,
+    top_k: usize,
+    sort_all_actions: bool,
+    root_limit: usize,
+    min_margin: f32,
+    max_heuristic_gap: i32,
+    model: &OnnxQAdvModel,
+) -> Decision {
+    let fallback = ordered_root_actions_with_tactical_guard(state, state.turn, config.weights);
+    if fallback.is_empty() {
+        return Decision {
+            action: None,
+            score: 0,
+            nodes: 0,
+            completed_depth: 0,
+            table_hits: 0,
+            book_hit: false,
+            root_q: None,
+        };
+    }
+    let pool_len = top_k.min(config.beam_width.max(1)).min(fallback.len());
+    let sort_pool_len = if sort_all_actions {
+        fallback.len()
+    } else {
+        pool_len
+    };
+    let sort_pool = &fallback[..sort_pool_len];
+    let output = model
+        .evaluate_qadv_with_actions(state, sort_pool)
+        .unwrap_or_else(|error| panic!("native Pathfinder QAdv sorter failed: {error}"));
+    let mut ranked = sort_pool
+        .iter()
+        .copied()
+        .zip(output.q_values.into_iter().take(sort_pool_len))
+        .collect::<Vec<_>>();
+    ranked.sort_by(|left, right| {
+        right
+            .1
+            .total_cmp(&left.1)
+            .then_with(|| left.0.order().cmp(&right.0.order()))
+    });
+    let confidence_ok = min_margin <= 0.0
+        || ranked
+            .first()
+            .zip(ranked.iter().find(|(action, _)| *action == sort_pool[0]))
+            .is_some_and(|(best, original)| best.1 - original.1 >= min_margin);
+    let heuristic_gap_ok = max_heuristic_gap <= 0
+        || ranked.first().is_some_and(|(best, _)| {
+            let original_score = crate::search::evaluate(
+                state.apply_legal(sort_pool[0]).state,
+                state.turn,
+                config.weights,
+            );
+            let best_score =
+                crate::search::evaluate(state.apply_legal(*best).state, state.turn, config.weights);
+            (original_score - best_score).abs() <= max_heuristic_gap
+        });
+    let should_reorder = confidence_ok && heuristic_gap_ok;
+    let mut root_order = if should_reorder {
+        ranked
+            .into_iter()
+            .take(pool_len)
+            .map(|(action, _q)| action)
+            .collect::<Vec<_>>()
+    } else {
+        sort_pool.iter().copied().take(pool_len).collect()
+    };
+    for action in fallback {
+        if !root_order.contains(&action) {
+            root_order.push(action);
+        }
+    }
+    let result = search_best_action_with_root_order_and_root_limit(
+        state,
+        config,
+        &root_order,
+        false,
+        Some(if root_limit == 0 {
+            config.beam_width.saturating_mul(2)
+        } else {
+            root_limit
+        }),
+    );
+    Decision {
+        action: result.action,
+        score: result.score,
+        nodes: result.nodes,
+        completed_depth: result.completed_depth,
+        table_hits: result.table_hits,
+        book_hit: false,
+        root_q: None,
+    }
+}
+
+#[cfg(feature = "inference")]
 fn choose_gnn_guided(
     state: GameState,
     random: &mut Mulberry32,
@@ -817,6 +1269,7 @@ fn choose_qadv_guided(
     state: GameState,
     random: &mut Mulberry32,
     history: &HashSet<RepetitionKey>,
+    repetition_count: u8,
     config: QAdvPlayConfig,
     model: &OnnxQAdvModel,
 ) -> Decision {
@@ -852,6 +1305,21 @@ fn choose_qadv_guided(
         .evaluate_qadv_with_actions(state, &actions)
         .unwrap_or_else(|error| panic!("native QAdv evaluation failed: {error}"));
     let q_values = output.q_values;
+    let tactical_proof_action = config
+        .tactical_proof_horizon
+        .filter(|horizon| *horizon > 0)
+        .and_then(|horizon| {
+            choose_tactical_proof_action(
+                state,
+                &actions,
+                &q_values,
+                &history,
+                repetition_count,
+                horizon,
+                config.tactical_proof_nodes,
+                config.tactical_capture_threshold,
+            )
+        });
     let root_output = PolicyValue {
         policy_logits: output.policy_logits,
         value: output.value,
@@ -915,6 +1383,8 @@ fn choose_qadv_guided(
     probabilities = avoid_repeated_successors(state, &actions, &probabilities, history);
     let action = if let Some(immediate_win) = immediate_wins {
         Some(immediate_win)
+    } else if let Some(proof_action) = tactical_proof_action {
+        Some(proof_action)
     } else if state.ply < config.guided.temperature_moves {
         random.weighted_choose(&actions, &probabilities)
     } else {
@@ -953,11 +1423,102 @@ fn choose_qadv_guided(
 
 #[cfg(feature = "inference")]
 fn is_tactical_state(state: GameState, capture_threshold: u8) -> bool {
-    state.legal_actions().iter().copied().any(|action| {
+    let own_tactic = state.legal_actions().iter().copied().any(|action| {
         let transition = state.apply_legal(action);
         transition.state.winner == Some(state.turn)
             || transition.captured.count_ones() >= u32::from(capture_threshold)
-    })
+    });
+    if own_tactic {
+        return true;
+    }
+    let mut opponent_view = state;
+    opponent_view.turn = state.turn.other();
+    opponent_view
+        .legal_actions()
+        .iter()
+        .copied()
+        .any(|action| opponent_view.apply_legal(action).state.winner == Some(opponent_view.turn))
+}
+
+#[cfg(feature = "inference")]
+fn choose_tactical_proof_action(
+    state: GameState,
+    actions: &[Action],
+    q_values: &[f32],
+    history: &HashSet<RepetitionKey>,
+    repetition_count: u8,
+    horizon: u8,
+    max_nodes: u64,
+    capture_threshold: u8,
+) -> Option<Action> {
+    if state.config.board_size > 7 || max_nodes == 0 || !is_tactical_state(state, capture_threshold)
+    {
+        return None;
+    }
+    let q_by_action = actions
+        .iter()
+        .enumerate()
+        .map(|(index, action)| (*action, q_values.get(index).copied().unwrap_or(0.0)))
+        .collect::<HashMap<_, _>>();
+    let mut root_order = actions.to_vec();
+    root_order.sort_by(|left, right| {
+        let left_q = q_by_action.get(left).copied().unwrap_or(0.0);
+        let right_q = q_by_action.get(right).copied().unwrap_or(0.0);
+        right_q
+            .total_cmp(&left_q)
+            .then_with(|| left.order().cmp(&right.order()))
+    });
+    let root_key = RepetitionKey::from(state);
+    let proof_history = history
+        .iter()
+        .filter_map(|key| {
+            let count = if *key == root_key {
+                repetition_count.saturating_sub(1)
+            } else {
+                1
+            };
+            (count > 0).then_some((key, count))
+        })
+        .map(|(key, count)| {
+            (
+                crate::endgame::EndgameRepetitionKey {
+                    light: key.light,
+                    dark: key.dark,
+                    reserve: key.reserve,
+                    turn: key.turn,
+                    forbidden: key.forbidden,
+                    last_relocated_to: key.last_relocated_to,
+                },
+                count,
+            )
+        })
+        .collect::<Vec<_>>();
+    let analysis = crate::endgame::analyze_with_history_and_root_order(
+        state,
+        crate::endgame::TacticalProofConfig { horizon, max_nodes },
+        &proof_history,
+        &root_order,
+    )
+    .ok()?;
+    if analysis.stats.exhausted
+        || analysis
+            .actions
+            .iter()
+            .all(|item| item.outcome == analysis.outcome)
+    {
+        return None;
+    }
+    analysis
+        .optimal_actions
+        .iter()
+        .copied()
+        .max_by(|left, right| {
+            let left_q = q_by_action.get(left).copied().unwrap_or(0.0);
+            let right_q = q_by_action.get(right).copied().unwrap_or(0.0);
+            left_q
+                .total_cmp(&right_q)
+                .then_with(|| right.order().cmp(&left.order()))
+        })
 }
 
 #[cfg(feature = "inference")]
@@ -1217,5 +1778,52 @@ mod tests {
         assert_eq!(random.next_u32(), 2_581_720_956);
         assert_eq!(random.next_u32(), 1_925_393_290);
         assert_eq!(random.next_u32(), 3_661_312_704);
+    }
+
+    #[cfg(feature = "inference")]
+    #[test]
+    fn qadv_ordered_proof_overrides_a_bad_q_on_a_seven_by_seven_win() {
+        let config = crate::BoardConfig::new(7, 14)
+            .expect("valid board config")
+            .with_max_plies(180)
+            .expect("valid ply limit");
+        let bits = |squares: &[u8]| {
+            squares
+                .iter()
+                .fold(0_u64, |mask, square| mask | (1_u64 << square))
+        };
+        let state = GameState {
+            config,
+            light: bits(&[7, 14, 21, 28, 35, 42, 48]),
+            dark: bits(&[1, 2, 3, 4, 5, 6]),
+            reserve: [0, 0],
+            turn: Player::Light,
+            forbidden: 0,
+            last_relocated_to: [None, None],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: 20,
+        };
+        let actions = state.legal_actions();
+        let winning = Action::Relocate { from: 48, to: 0 };
+        assert!(actions.contains(&winning));
+        // Make the evaluator rank the forced win last. The proof layer must
+        // still return it because QAdv only orders the rule-grounded search.
+        let q_values = actions
+            .iter()
+            .map(|action| if *action == winning { -1.0 } else { 1.0 })
+            .collect::<Vec<_>>();
+        let selected = choose_tactical_proof_action(
+            state,
+            &actions,
+            &q_values,
+            &HashSet::new(),
+            1,
+            1,
+            5_000,
+            1,
+        );
+        assert_eq!(selected, Some(winning));
     }
 }
