@@ -1,0 +1,51 @@
+{
+  "schema": "pathagon-git-eval-summary-v1",
+  "history": {
+    "file": "game-history-20260826.p1",
+    "games": 20000,
+    "deduplicatedRecords": 20000,
+    "bytes": 3981932,
+    "sha256": "3f6134671837519eba44b323e0b0c584136819e11c431cff6ba620a5722bdfea"
+  },
+  "campaigns": {
+    "rustLambda17k": {
+      "games": 17500,
+      "positions": 1093588,
+      "qCoveredPositions": 1093587,
+      "qCoverage": 1.0,
+      "ruleReplayGames": 17500,
+      "stateRepeatGames": 0,
+      "exactDuplicateGames": 0,
+      "estimatedComputeUsd": 73.23282568836973,
+      "region": "us-east-2",
+      "seedRange": [2026200000, 2026217499]
+    },
+    "qadvLambdaCrossplay": {
+      "games": 2500,
+      "positions": 66474,
+      "qCoveredPositions": 32861,
+      "qCoverage": 0.4943436531576255,
+      "ruleReplayGames": 2500,
+      "stateRepeatGames": 0,
+      "exactDuplicateGames": 0,
+      "region": "us-east-2",
+      "seedRange": [2026220000, 2026222499],
+      "opponents": {
+        "Pathfinder": {"games": 1000, "qadvWins": 0, "qadvLosses": 1000, "qadvDraws": 0},
+        "Surveyor": {"games": 500, "qadvWins": 0, "qadvLosses": 500, "qadvDraws": 0},
+        "Lunatic": {"games": 500, "qadvWins": 0, "qadvLosses": 500, "qadvDraws": 0},
+        "Coin Flip": {"games": 500, "qadvWins": 498, "qadvLosses": 2, "qadvDraws": 0}
+      }
+    }
+  },
+  "heldoutQadvEvaluation": {
+    "games": 3489,
+    "positions": 218909,
+    "qMae": 0.043493021158321335,
+    "qMse": 0.0048803218558767444,
+    "predictedPairwiseAccuracy": 0.6351431211736119,
+    "selectedActionIsQMax": 0.06994230479331594,
+    "selectedActionQPercentile": 0.584738014168236,
+    "modelHash": "sha256:7aff538ca2ddb08eb7b3541994905d0783202cdd630c179b8916575d3a0cf798"
+  }
+}
