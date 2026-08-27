@@ -65,6 +65,18 @@ export type SelfPlayQuery = SelfPlayFilters & {
   offset: number;
 };
 
+export type SelfPlayResult = {
+  id: string;
+  recordedAt: string;
+  engine: string;
+  mode: string;
+  runId: string | null;
+  seed: number;
+  lightAgent: string;
+  darkAgent: string;
+  winner: SelfPlayGameRecord["winner"];
+};
+
 type SelfPlayRow = {
   id: string;
   recorded_at: string;
@@ -72,6 +84,18 @@ type SelfPlayRow = {
   mode: string;
   run_id: string | null;
   record: string;
+};
+
+type SelfPlayResultRow = {
+  id: string;
+  recorded_at: string;
+  engine: string;
+  mode: string;
+  run_id: string | null;
+  seed: number;
+  light_agent: string;
+  dark_agent: string;
+  winner: SelfPlayGameRecord["winner"];
 };
 
 export async function querySelfPlayGames(query: SelfPlayQuery) {
@@ -82,6 +106,16 @@ export async function querySelfPlayGames(query: SelfPlayQuery) {
     .bind(...values, query.limit, query.offset)
     .all<SelfPlayRow>();
   return rows.results.map(toArchiveGame);
+}
+
+export async function querySelfPlayResults(query: SelfPlayQuery) {
+  const d1 = await database();
+  const { where, values } = buildWhere(query);
+  const rows = await d1.prepare(`SELECT id, recorded_at, engine, mode, run_id, seed, light_agent, dark_agent, winner
+    FROM selfplay_games ${where} ORDER BY recorded_at DESC, id DESC LIMIT ? OFFSET ?`)
+    .bind(...values, query.limit, query.offset)
+    .all<SelfPlayResultRow>();
+  return rows.results.map(toSelfPlayResult);
 }
 
 export async function countSelfPlayGames(query: SelfPlayFilters) {
@@ -108,6 +142,20 @@ function toArchiveGame(row: SelfPlayRow) {
     mode: row.mode,
     runId: row.run_id,
     record: JSON.parse(row.record) as SelfPlayArchiveEntry["record"],
+  };
+}
+
+function toSelfPlayResult(row: SelfPlayResultRow): SelfPlayResult {
+  return {
+    id: row.id,
+    recordedAt: row.recorded_at,
+    engine: row.engine,
+    mode: row.mode,
+    runId: row.run_id,
+    seed: row.seed,
+    lightAgent: row.light_agent,
+    darkAgent: row.dark_agent,
+    winner: row.winner,
   };
 }
 

@@ -1,4 +1,6 @@
-import { countSelfPlayGames, querySelfPlayGames } from "../../../db/selfplay-games";
+import { countSelfPlayGames, querySelfPlayGames, querySelfPlayResults } from "../../../db/selfplay-games";
+import type { SelfPlayGameRecord } from "../../selfplay-record";
+import type { SelfPlayResult } from "../../../db/selfplay-games";
 import { applyAction, createGame } from "../../pathagon";
 
 const MAX_QUERY_GAMES = 500;
@@ -54,18 +56,22 @@ export async function GET(request: Request) {
     if (url.searchParams.get("history") === "1") {
       return Response.json(await readHistoryPage(aggregate, runId, url), { headers: { "cache-control": "private, no-store" } });
     }
-    const records = aggregate ? await queryAllCrossPlayGames() : await queryRun(runId);
-    if (!records.length) return Response.json({ found: false, error: "No imported cross-play games yet" }, { status: 404 });
-    const standings = buildStandings(records);
-    const headToHead = buildHeadToHead(records);
+    const filters = aggregate
+      ? { mode: "cross-play", excludeEngine: WEB_GENERATED_ENGINE }
+      : { mode: "cross-play", excludeEngine: WEB_GENERATED_ENGINE, runId };
+    const results = await queryAllCrossPlayResults(filters);
+    if (!results.length) return Response.json({ found: false, error: "No imported cross-play games yet" }, { status: 404 });
+    const latestRecords = await querySelfPlayGames({ ...filters, limit: 5, offset: 0 });
+    const standings = buildStandings(results);
+    const headToHead = buildHeadToHead(results);
     return Response.json({
       runId,
-      targetGames: records.length,
-      games: records.length,
+      targetGames: results.length,
+      games: results.length,
       status: "complete",
       standings,
       headToHead,
-      latest: records.slice(-5).reverse().map(({ id, recordedAt, record }) => summarizeGame(id, recordedAt, record)),
+      latest: latestRecords.map(({ id, recordedAt, record }) => summarizeGame(id, recordedAt, record)),
     }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to read cross-play run";
@@ -96,41 +102,31 @@ async function readHistoryPage(aggregate: boolean, runId: string, url: URL) {
   };
 }
 
-async function queryRun(runId: string) {
-  const exactGames = await querySelfPlayGames({ runId, limit: MAX_QUERY_GAMES, offset: 0 });
-  const exactRecords = exactGames.filter(isImportedCrossPlay);
-  return sortRecords(exactRecords);
-}
-
-async function queryAllCrossPlayGames() {
-  const records = [];
+async function queryAllCrossPlayResults(filters: { mode: string; excludeEngine: string; runId?: string }) {
+  const results: SelfPlayResult[] = [];
   for (let offset = 0; ; offset += MAX_QUERY_GAMES) {
-    const games = await querySelfPlayGames({ mode: "cross-play", limit: MAX_QUERY_GAMES, offset });
-    records.push(...games.filter(isImportedCrossPlay));
-    if (games.length < MAX_QUERY_GAMES) break;
+    const page = await querySelfPlayResults({ ...filters, limit: MAX_QUERY_GAMES, offset });
+    results.push(...page);
+    if (page.length < MAX_QUERY_GAMES) break;
   }
-  return sortRecords(records);
+  return sortResults(results);
 }
 
-function isImportedCrossPlay(game: { mode: string; engine: string }) {
-  return game.mode === "cross-play" && game.engine !== WEB_GENERATED_ENGINE;
+function sortResults<T extends { recordedAt: string; id: string; seed: number }>(results: T[]) {
+  return results.sort((left, right) => left.recordedAt.localeCompare(right.recordedAt) || left.seed - right.seed || left.id.localeCompare(right.id));
 }
 
-function sortRecords<T extends { recordedAt: string; id: string; record: { seed: number } }>(records: T[]) {
-  return records.sort((left, right) => left.recordedAt.localeCompare(right.recordedAt) || left.record.seed - right.record.seed || left.id.localeCompare(right.id));
-}
-
-function buildStandings(records: Awaited<ReturnType<typeof queryRun>>) {
+function buildStandings(records: Awaited<ReturnType<typeof queryAllCrossPlayResults>>) {
   const ratings = new Map(Object.entries(BASELINE_RATINGS));
   const summaries = new Map(AGENTS.map((agent) => [agent.id, { games: 0, wins: 0, losses: 0, draws: 0, points: 0 }]));
-  for (const { record } of records) {
-    updateElo(ratings, record.agents.light, record.agents.dark, record.winner);
-    for (const agent of [record.agents.light, record.agents.dark]) {
+  for (const result of sortResults(records)) {
+    updateElo(ratings, result.lightAgent, result.darkAgent, result.winner);
+    for (const agent of [result.lightAgent, result.darkAgent]) {
       const summary = summaries.get(agent);
       if (!summary) continue;
       summary.games += 1;
-      if (!record.winner) summary.draws += 1;
-      else if (record.agents[record.winner] === agent) summary.wins += 1;
+      if (!result.winner) summary.draws += 1;
+      else if ((result.winner === "light" ? result.lightAgent : result.darkAgent) === agent) summary.wins += 1;
       else summary.losses += 1;
       summary.points = summary.wins + summary.draws * 0.5;
     }
@@ -144,7 +140,7 @@ function buildStandings(records: Awaited<ReturnType<typeof queryRun>>) {
   })).sort((left, right) => right.rating - left.rating || right.points - left.points);
 }
 
-function buildHeadToHead(records: Awaited<ReturnType<typeof queryRun>>) {
+function buildHeadToHead(records: Awaited<ReturnType<typeof queryAllCrossPlayResults>>) {
   const agentIndex = new Map(AGENTS.map((agent, index) => [agent.id, index]));
   const pairings = new Map<string, {
     leftId: string;
@@ -182,9 +178,9 @@ function buildHeadToHead(records: Awaited<ReturnType<typeof queryRun>>) {
     }
   }
 
-  for (const { record } of records) {
-    const lightIndex = agentIndex.get(record.agents.light);
-    const darkIndex = agentIndex.get(record.agents.dark);
+  for (const result of records) {
+    const lightIndex = agentIndex.get(result.lightAgent);
+    const darkIndex = agentIndex.get(result.darkAgent);
     if (lightIndex === undefined || darkIndex === undefined || lightIndex === darkIndex) continue;
     const leftIndex = Math.min(lightIndex, darkIndex);
     const rightIndex = Math.max(lightIndex, darkIndex);
@@ -193,15 +189,15 @@ function buildHeadToHead(records: Awaited<ReturnType<typeof queryRun>>) {
     const pairing = pairings.get(`${left.id}|${right.id}`);
     if (!pairing) continue;
     pairing.games += 1;
-    if (record.agents.light === left.id) pairing.leftLightGames += 1;
+    if (result.lightAgent === left.id) pairing.leftLightGames += 1;
     else pairing.rightLightGames += 1;
-    if (!record.winner) {
+    if (!result.winner) {
       pairing.draws += 1;
       pairing.leftPoints += 0.5;
       pairing.rightPoints += 0.5;
       continue;
     }
-    const winner = record.agents[record.winner];
+    const winner = result.winner === "light" ? result.lightAgent : result.darkAgent;
     if (winner === left.id) {
       pairing.leftWins += 1;
       pairing.leftPoints += 1;
@@ -223,7 +219,7 @@ function updateElo(ratings: Map<string, number>, light: string, dark: string, wi
   ratings.set(dark, darkRating + 24 * ((1 - actualLight) - (1 - expectedLight)));
 }
 
-function summarizeGame(id: string, recordedAt: string, record: Awaited<ReturnType<typeof queryRun>>[number]["record"]) {
+function summarizeGame(id: string, recordedAt: string, record: SelfPlayGameRecord) {
   const finalState = record.moves.reduce(
     (state, move) => applyAction(state, move.action),
     createGame(record.config),
