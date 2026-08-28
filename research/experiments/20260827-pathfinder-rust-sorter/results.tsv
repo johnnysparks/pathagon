@@ -1,4 +1,11 @@
 # run\truntime\tvariant\tgames\twins\tlosses\tdraws\ttop-k\tall-actions
+pathfinder-rust-native-tactical-root-filter-1160-20260827\trust\troot-filter\t1160\t659\t496\t5\t4\tfalse
+pathfinder-rust-native-tactical-root-filter-vs-depth5-800-20260827\trust\troot-filter-vs-depth5\t800\t629\t169\t2\t5\tfalse
+pathfinder-rust-native-tt-order-120-20260827\trust\tt-order\t120\t59\t61\t0\t4\tfalse
+pathfinder-rust-native-tt-history-120-20260827\trust\tt-history\t120\t60\t60\t0\t4\tfalse
+pathfinder-rust-native-tt-depth5-beam4-120-20260827\trust\tt-depth5-beam4\t120\t21\t99\t0\t5\tfalse
+pathfinder-rust-native-tt-depth5-beam6-120-20260827\trust\tt-depth5-beam6\t120\t33\t86\t1\t5\tfalse
+pathfinder-rust-native-tactical-root-guard-360-20260827\trust\troot-guard\t360\t181\t176\t3\t4\tfalse
 pathfinder-gnn-sorter-7x7-8-20260827\tpython\tpolicy\t8\t4\t4\t0\t4\tfalse
 pathfinder-qadv-sorter-7x7-8-20260827\tpython\tqadv\t8\t3\t5\t0\t4\tfalse
 pathfinder-sorter-20-20260827\tpython\tpolicy\t20\t10\t10\t0\t4\tfalse
@@ -40,3 +47,25 @@ pathfinder-rust-sorter-killer-root4-40-20260827\trust\tpolicy\t40\t19\t21\t0\t2\
 pathfinder-rust-sorter-killer-root8-40-20260827\trust\tpolicy\t40\t11\t29\t0\t2\tfalse
 pathfinder-rust-sorter-killer-root2-top1-40-20260827\trust\tpolicy\t40\t12\t28\t0\t2\tfalse
 pathfinder-rust-sorter-order-only-120-20260827\trust\tpolicy\t120\t48\t71\t1\t2\tfalse
+pathfinder-rust-native-target-sorter-root16-120-20260827\trust\tpolicy\t120\t59\t61\t0\t2\tfalse
+pathfinder-rust-native-target-sorter-all-root16-120-20260827\trust\tpolicy\t120\t54\t66\t0\t2\ttrue
+pathfinder-rust-native-soft-sorter-root16-120-20260827\trust\tpolicy\t120\t64\t56\t0\t2\tfalse
+pathfinder-rust-native-soft-sorter-all-root16-120-20260827\trust\tpolicy\t120\t43\t77\t0\t2\ttrue
+pathfinder-rust-native-soft-sorter-root16-120b-20260827\trust\tpolicy\t120\t51\t69\t0\t2\tfalse
+pathfinder-rust-native-soft-sorter-root16-120c-20260827\trust\tpolicy\t120\t64\t55\t1\t2\tfalse
+pathfinder-rust-native-soft-sorter-top4-root16-120-20260827\trust\tpolicy\t120\t59\t61\t0\t4\tfalse
+pathfinder-rust-native-soft-sorter-pvs-root16-120-20260827\trust\tpolicy\t120\t52\t68\t0\t2\tfalse
+pathfinder-rust-native-soft-sorter-400-root16-120a-20260827\trust\tpolicy\t120\t60\t60\t0\t2\tfalse
+pathfinder-rust-native-soft-sorter-400-root16-120b-20260827\trust\tpolicy\t120\t60\t60\t0\t2\tfalse
+pathfinder-rust-native-soft-sorter-400-root16-120c-20260827\trust\tpolicy\t120\t64\t55\t1\t2\tfalse
+pathfinder-rust-native-soft-sorter-policy-only-root16-120-20260827\trust\tpolicy-only\t120\t63\t57\t0\t2\tfalse
+pathfinder-rust-native-soft-sorter-policy-only-root16-120b-20260827\trust\tpolicy-only\t120\t50\t70\t0\t2\tfalse
+pathfinder-rust-native-soft-sorter-policy-only-root16-120c-20260827\trust\tpolicy-only\t120\t61\t59\t0\t2\tfalse
+pathfinder-rust-native-soft-sorter-400-uncapped-120-20260827\trust\tpolicy\t120\t50\t69\t1\t2\tfalse
+pathfinder-rust-native-rank-sorter-root16-360-20260827\trust\trank-top8\t360\t161\t197\t2\t4\tfalse
+pathfinder-rust-native-rank-sorter-top8-120-20260827\trust\trank-top8\t120\t56\t64\t0\t4\tfalse
+pathfinder-rust-native-rank-sorter-margin05-360-20260827\trust\trank-top8-margin05\t360\t169\t189\t2\t4\tfalse
+pathfinder-rust-native-rank-top2-sorter-root16-360-20260827\trust\trank-top2\t360\t180\t179\t1\t4\tfalse
+pathfinder-rust-native-root-probe-d2-n256-a8-120-20260827\trust\root-probe\t120\t59\t61\t0\t4\tfalse
+pathfinder-rust-native-root-probe-d1-n64-a8-120-20260827\trust\root-probe\t120\t55\t65\t0\t4\tfalse
+pathfinder-rust-native-root-probe-d2-n512-a16-120-20260827\trust\root-probe\t120\t51\t69\t0\t4\tfalse

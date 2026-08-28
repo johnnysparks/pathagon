@@ -116,7 +116,70 @@ but is disabled in the default sorter after a matched 120-game screen fell to
 49–71. The tactical root guard remains bounded and ordering-only. This keeps
 the native candidate's current comparison focused on the ONNX root signal.
 
-The follow-up native screens kept the sorter unpromoted. Heuristic-gap guards
+The next native iteration now emits exact Pathfinder targets directly from
+Rust with `engine-rs/src/bin/pathfinder_targets.rs`. One-hot targets from 400
+native baseline games (11,357 positions) produced 59–61 in a 120-game screen.
+Soft targets at temperature 750 trained on that same corpus produced
+64–56, 51–69, and 64–55–1 across three fresh screens (184–175–1 aggregate),
+which is directionally positive but below the promotion gate. Scoring every
+legal action fell 43–77, and a temporary PVS ablation fell 52–68 without
+reducing node count, so neither is retained as the default. These results keep
+the exact-target loop active while preserving Pathfinder as the search
+authority.
+
+The matching policy-only optimizer ablation (value-loss weight 0) scored
+63–57, 50–70, and 61–59 (174–186 aggregate), so removing the value head's
+training signal did not provide a reliable sorter improvement.
+
+Finally, retaining the learned order while lifting the root cap to all legal
+actions scored 50–69–1 and used about 23% more nodes. The capped top-k search
+therefore remains the active compute/strength control.
+
+The rank-focused follow-up is implemented end to end. Rust can emit
+independent per-action Pathfinder rankings (`rankActions`/`rankScores`) with
+the cumulative budget metadata, and the learner applies a pairwise ranking
+loss to those targets. The 400-game, 11,357-position top-8 corpus reached
+41.3% rank top-1 and 66.9% pairwise accuracy offline, but its fresh native
+screens were 161–197–2 in aggregate; a top-2 target variant was 180–179–1.
+These are useful diagnostics, not a reason to promote a model.
+
+There is also a pure-Rust `search_best_action_with_root_probe` control. It
+spends a bounded shallow alpha-beta scout on Pathfinder's first root actions,
+charges those nodes against the same total budget, and feeds the resulting
+order into the full search. Against the unmodified depth-4 Pathfinder at the
+same 2,000-node ceiling, depth-2/256-node/8-action probing scored 59–61,
+depth-1/64-node/8-action probing scored 55–65, and depth-2/512-node/16-action
+probing scored 51–69. The probe is therefore available as an opt-in search
+experiment, while the ordinary Pathfinder path remains the incumbent.
+
+The same native search now exposes two additional ordering controls without
+changing the evaluator: full-root transposition-table/killer/history ordering
+and the bounded immediate-threat root guard. The former was exactly even at
+60–60, while depth-5 selective variants (beam 4 and 6) regressed 21–99 and
+33–86. The guard's first 120-game screen was 65–54–1, but two fresh screens
+were 60–59–1 and 56–63–1 (181–176–3 aggregate). That initial spike was noise;
+the guard remains an opt-in tactical experiment and Pathfinder remains the
+incumbent.
+
+The next iteration adds a hard, rule-grounded tactical-safe root filter. When
+the root contains both risky and safe moves, it removes moves that allow the
+opponent an immediate winning reply; if there is no safe/risky split it falls
+back to the complete legal root set. This preserves Pathfinder's evaluator and
+alpha-beta authority while preventing a directly refutable root choice. At the
+same 2,000-node ceiling and equal depth, five screens totaled 659–496–5 over
+1,160 games. More importantly, a shallower depth-4 filter candidate against
+unmodified depth-5 Pathfinder scored 313–86–1 and 316–83–1 (629–169–2 over 800
+games, 78.8% of decisive games). The native filter is now the default
+model-free Pathfinder variant (`rust-pathfinder-v0.4.0-tactical-filter`), with
+`--no-tactical-root-filter` retaining the unfiltered control for A/B tests.
+
+The stronger search is also feeding the next training loop. The Rust target
+emitter accepts `--tactical-filter` and writes the same one-hot/soft policy and
+pairwise rank metadata from the filtered root. A fresh 400-game archive yielded
+13,759 replayable positions with eight rank targets each; the resulting JSONL
+loads through the existing learner without a second rules implementation.
+
+The follow-up native screens kept the learned sorter unpromoted. Heuristic-gap guards
 of 100, 250, and 500 Pathfinder score points were even or negative in 40-game
 chunks. Root caps of 1–8 learned candidates also regressed, and the uncapped
 ordering-only control finished 48–71 over 120 games. A killer-move ordering

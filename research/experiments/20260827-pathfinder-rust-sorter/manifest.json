@@ -17,6 +17,13 @@
     "agentId": "rust-pathfinder-v0.3.0",
     "role": "north-star evaluator and search baseline"
   },
+  "promotedSearch": {
+    "agentId": "rust-pathfinder-v0.4.0-tactical-filter",
+    "role": "pure-Rust tactical-safe root filter",
+    "runtime": "rust",
+    "modelArtifact": null,
+    "evidence": "629-169-2 over 800 paired games versus unmodified depth-5 Pathfinder"
+  },
   "configuration": {
     "rulesVersion": "pathagon-rules-v1",
     "boardSize": 7,
@@ -60,13 +67,14 @@
     "nativeMoveHistoryGap": "historical summary-only screens only"
   },
   "latestResult": {
-    "run": "pathfinder-rust-sorter-order-only-120-20260827",
-    "seed": 2026088000,
-    "games": 120,
-    "wins": 48,
-    "losses": 71,
-    "draws": 1,
-    "decision": "inconclusive"
+    "run": "pathfinder-rust-native-tactical-root-filter-vs-depth5-800-20260827",
+    "seed": 2026104800,
+    "screenSeeds": [2026104800, 2026105200],
+    "games": 800,
+    "wins": 629,
+    "losses": 169,
+    "draws": 2,
+    "decision": "promoted-native"
   },
   "artifacts": [
     {
@@ -76,7 +84,31 @@
       "sha256": "2e403c351396f876ba32f487acd6d53e1b0aaa34d59d28a46ed5e93a26342520",
       "bytes": 187458,
       "retention": "keep while experiment is active or used as a historical baseline"
+    },
+    {
+      "role": "unpromoted native soft-target sorter",
+      "storage": "git",
+      "path": "research/experiments/20260827-pathfinder-rust-sorter/artifacts/native-soft-sorter-depth5-small-400.onnx",
+      "sha256": "abfb62355891c914c43d33801391e79ec0ed30ae4d9578fe96919671f60cf6",
+      "bytes": 186698,
+      "retention": "keep while the exact-target experiment is active"
+    },
+    {
+      "role": "unpromoted native rank-target sorter",
+      "storage": "git",
+      "path": "research/experiments/20260827-pathfinder-rust-sorter/artifacts/native-rank-sorter-400.onnx",
+      "sha256": "2d4b393e084aa1d28b0cc2eba9bae835f0afdc39ac1e61e8c50941a86d4b9bab",
+      "bytes": 186698,
+      "retention": "keep while the rank-target experiment is active"
+    },
+    {
+      "role": "unpromoted native top-2 rank-target sorter",
+      "storage": "git",
+      "path": "research/experiments/20260827-pathfinder-rust-sorter/artifacts/native-rank-top2-sorter-400.onnx",
+      "sha256": "11fbde47ac2c960929837344ae0145d6217fbb736596415f587d0a960250983f",
+      "bytes": 186698,
+      "retention": "keep while the rank-target experiment is active"
     }
   ],
-  "decision": "Keep active but unpromoted; require canonical move output and larger paired Rust samples."
+  "decision": "Promote the pure-Rust tactical-safe filter as the model-free Pathfinder default; keep learned sorter/rank variants unpromoted and continue the paired Rust experiment."
 }

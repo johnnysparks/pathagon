@@ -145,7 +145,10 @@ def tensor_inputs(state: GameState) -> Tuple[torch.Tensor, torch.Tensor, torch.T
 
 
 def export_checkpoint(checkpoint: Path, output: Path, device: torch.device) -> Dict[str, object]:
-    model = load_model(checkpoint, device, qadv=True)
+    # Preserve the checkpoint's declared head set.  Policy/value sorters should
+    # not silently grow an untrained QAdv head merely because this module also
+    # supports the separate ``--include-qadv`` export path.
+    model = load_model(checkpoint, device)
     if not isinstance(model, PathagonGNN):
         raise ValueError("GNN export requires a GNN checkpoint")
     model.eval()

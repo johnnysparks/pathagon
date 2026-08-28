@@ -66,6 +66,35 @@ an explicit QAdv-sorter opponent, or run
 `python3 scripts/benchmark-rust-pathfinder-sorter.py --sorter-kind qadv` for
 the matched wrapper. This is an experiment, not a promoted strength claim.
 
+The play-time source of truth is now entirely Rust: rules, action generation,
+Pathfinder ordering, alpha-beta search, tactical proof, self-play, and native
+ONNX execution all live under `engine-rs/`. Build with no features for the
+model-free pure-Rust Pathfinder, or enable `inference` to add the optional
+`tract-onnx` sorter/QAdv runtime. Python remains an offline training/export
+toolchain and benchmark launcher; it is not required to choose or validate a
+move during native play.
+
+For a pure-Rust search experiment, `--root-probe-depth`,
+`--root-probe-nodes`, and `--root-probe-actions` enable a bounded shallow
+alpha-beta scout whose nodes are charged against the same total budget before
+the normal Pathfinder search. The benchmark wrapper exposes this as
+`--candidate probe-search` and keeps it separate from the unmodified
+`deep-search` opponent.
+
+Two additional opt-in controls are available for search ablations:
+`--tt-order` enables full-root transposition-table/killer/history ordering, and
+`--tactical-root-guard` promotes moves that remove an opponent's immediate
+winning reply before alpha-beta search. Both preserve the full legal root set;
+neither changes the default Pathfinder configuration.
+
+The promoted model-free Pathfinder uses a stricter tactical-safe root filter by
+default (`rust-pathfinder-v0.4.0-tactical-filter`). When a position has both
+safe and immediately refutable root choices, it searches the safe subset; if
+there is no such split it falls back to every legal action. This is still pure
+Rust and rule-grounded, with Pathfinder's evaluator and alpha-beta search
+authoritative. Use `--no-tactical-root-filter` to restore the unfiltered control,
+or `--tactical-root-filter` to make the choice explicit in scripts.
+
 For a repeatable release-mode timing sample using the full guided recipe, run
 `python3 scripts/benchmark-rust-qadv.py`. It reports both engine time and wall
 time, along with the exact game/node totals, so engine changes can be compared

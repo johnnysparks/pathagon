@@ -23,6 +23,8 @@ class ReplayExample:
     action_values: Optional[tuple[float, ...]] = None
     action_visits: Optional[tuple[int, ...]] = None
     action_value_actions: Optional[tuple[Action, ...]] = None
+    rank_scores: Optional[tuple[float, ...]] = None
+    rank_actions: Optional[tuple[Action, ...]] = None
 
 
 def iter_records(path: Path) -> Iterable[dict]:
@@ -66,6 +68,9 @@ def load_replay_examples(
             action_values, action_visits = parse_action_values(
                 move.get("actionValues"), move.get("actionVisits"), legal, seed, state.ply
             )
+            rank_actions, rank_scores = parse_rank_targets(
+                move.get("rankActions"), move.get("rankScores"), legal, seed, state.ply
+            )
             if action_values is not None and move.get("actionValueSource") != ROOT_Q_SOURCE:
                 raise ValueError(f"seed {seed}: unsupported action value source at ply {state.ply}")
             if action_values is None and "actionValueSource" in move:
@@ -81,6 +86,8 @@ def load_replay_examples(
                     action_values,
                     action_visits,
                     tuple(legal) if action_values is not None else None,
+                    rank_scores,
+                    rank_actions,
                 )
             )
             state = state.apply_legal(action)
@@ -130,6 +137,32 @@ def parse_action_values(
     if any(not isinstance(value, int) or isinstance(value, bool) or value < 0 for value in raw_visits):
         raise ValueError(f"seed {seed}: action visits contain an invalid count at ply {ply}")
     return values, tuple(raw_visits)
+
+
+def parse_rank_targets(
+    raw_actions: Any,
+    raw_scores: Any,
+    legal: tuple[Action, ...],
+    seed: int,
+    ply: int,
+) -> tuple[Optional[tuple[Action, ...]], Optional[tuple[float, ...]]]:
+    """Validate a partial Pathfinder score vector used for sorter ranking."""
+
+    if raw_actions is None and raw_scores is None:
+        return None, None
+    if not isinstance(raw_actions, list) or not isinstance(raw_scores, list):
+        raise ValueError(f"seed {seed}: rank actions and scores must be lists at ply {ply}")
+    if len(raw_actions) != len(raw_scores) or not raw_actions:
+        raise ValueError(f"seed {seed}: rank target length mismatch at ply {ply}")
+    actions = tuple(action_from_record(value) for value in raw_actions)
+    if any(action not in legal for action in actions):
+        raise ValueError(f"seed {seed}: rank target contains an illegal action at ply {ply}")
+    if len(set(actions)) != len(actions):
+        raise ValueError(f"seed {seed}: rank target contains duplicate actions at ply {ply}")
+    scores = tuple(float(value) for value in raw_scores)
+    if any(not math.isfinite(value) for value in scores):
+        raise ValueError(f"seed {seed}: rank target contains a non-finite score at ply {ply}")
+    return actions, scores
 
 
 def winner_value_for_record(record: dict, state: GameState) -> float:

@@ -62,8 +62,8 @@ export const LUNATIC_OPPONENT: Opponent = {
 export const PATHFINDER_OPPONENT: Opponent = {
   id: "pathfinder-v0",
   name: "The Pathfinder",
-  version: "0.3.0",
-  engine: "4-ply iterative",
+  version: "0.4.0",
+  engine: "4-ply iterative · tactical-safe",
   elo: "Unrated · expert",
   personality: "Builds quietly. Punishes shortcuts.",
   searchDepth: 4,
@@ -106,7 +106,9 @@ export function chooseOpponentAction(engine: RustEngine, opponent: Opponent, sta
   const config = opponent.id === PATHFINDER_OPPONENT.id
     ? PATHFINDER_SEARCH
     : SURVEYOR_SEARCH;
-  return engine.searchBestAction(state, config).action;
+  return opponent.id === PATHFINDER_OPPONENT.id
+    ? engine.searchBestTacticalAction(state, config).action
+    : engine.searchBestAction(state, config).action;
 }
 
 export function chooseLunaticAction(state: GameState): Action | null {

@@ -13,7 +13,11 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 
-use pathagon_engine::search::{search_best_action, SearchConfig};
+use pathagon_engine::search::{
+    analyze_action, analyze_actions, ordered_root_actions, search_best_action,
+    search_best_action_with_tactical_filter, tactical_root_safe_actions, MoveEvaluation,
+    SearchConfig, SearchResult,
+};
 use pathagon_engine::{Action, BoardConfig, GameState, Player};
 use serde_json::{json, Value};
 
@@ -32,8 +36,19 @@ fn main() {
     let beam_width = number(&args, "beam", 8_usize);
     let max_games = number(&args, "max-games", 0_usize);
     let max_positions = number(&args, "max-positions", 0_usize);
-    if depth == 0 || max_nodes == 0 || beam_width == 0 {
-        fail("--depth, --nodes, and --beam must be positive");
+    let target_temperature = number(&args, "target-temperature", 0.0_f32);
+    let rank_actions = number(&args, "rank-actions", 0_usize);
+    let rank_nodes = number(&args, "rank-nodes", max_nodes);
+    let tactical_filter = args.contains_key("tactical-filter");
+    if depth == 0
+        || max_nodes == 0
+        || beam_width == 0
+        || target_temperature < 0.0
+        || (rank_actions > 0 && rank_nodes == 0)
+    {
+        fail(
+            "--depth, --nodes, and --beam must be positive; target temperature cannot be negative; rank nodes must be positive",
+        );
     }
 
     let reader = BufReader::new(
@@ -80,9 +95,29 @@ fn main() {
                     line_number + 1
                 ))
             });
-            emit_record(&parsed, &mut writer, config, &mut positions, max_positions);
+            emit_record(
+                &parsed,
+                &mut writer,
+                config,
+                &mut positions,
+                max_positions,
+                target_temperature,
+                rank_actions,
+                rank_nodes,
+                tactical_filter,
+            );
         } else {
-            emit_record(record, &mut writer, config, &mut positions, max_positions);
+            emit_record(
+                record,
+                &mut writer,
+                config,
+                &mut positions,
+                max_positions,
+                target_temperature,
+                rank_actions,
+                rank_nodes,
+                tactical_filter,
+            );
         }
         games += 1;
     }
@@ -101,6 +136,10 @@ fn main() {
                 "depth": depth,
                 "beam": beam_width,
                 "nodes": max_nodes,
+                "temperature": target_temperature,
+            "rankActions": rank_actions,
+            "rankNodes": rank_nodes,
+            "tacticalFilter": tactical_filter,
             },
         })
     );
@@ -112,6 +151,10 @@ fn emit_record(
     config: SearchConfig,
     positions: &mut usize,
     max_positions: usize,
+    target_temperature: f32,
+    rank_actions: usize,
+    rank_nodes: u64,
+    tactical_filter: bool,
 ) {
     let moves = record
         .get("moves")
@@ -150,21 +193,128 @@ fn emit_record(
         if !legal.contains(&action) {
             fail(&format!("archived action is illegal at ply {}", state.ply));
         }
-        let result = search_best_action(state, config);
-        let target = result.action.unwrap_or(action);
-        let target_index = legal.iter().position(|candidate| *candidate == target);
-        let Some(target_index) = target_index else {
-            fail("Pathfinder target is not legal in the replayed state");
+        let rankings = if rank_actions == 0 {
+            Vec::new()
+        } else {
+            independent_rankings(
+                state,
+                SearchConfig {
+                    max_nodes: rank_nodes,
+                    ..config
+                },
+                rank_actions,
+                tactical_filter,
+            )
         };
-        let mut policy = vec![0.0_f32; legal.len()];
-        policy[target_index] = 1.0;
+        let (target, policy, target_score, target_nodes, target_depth) = if target_temperature > 0.0
+        {
+            let analyses = if rankings.is_empty() {
+                if tactical_filter {
+                    independent_rankings(state, config, legal.len(), true)
+                } else {
+                    analyze_actions(state, config, legal.len())
+                }
+            } else {
+                rankings.clone()
+            };
+            let best = analyses.first().copied();
+            let target = best.map(|result| result.action).unwrap_or(action);
+            let maximum = analyses
+                .iter()
+                .map(|result| result.score)
+                .max()
+                .unwrap_or(0) as f32;
+            let mut policy = vec![0.0_f32; legal.len()];
+            let mut total = 0.0_f32;
+            for result in analyses {
+                let weight = ((result.score as f32 - maximum) / target_temperature).exp();
+                if let Some(index) = legal
+                    .iter()
+                    .position(|candidate| *candidate == result.action)
+                {
+                    policy[index] = weight;
+                    total += weight;
+                }
+            }
+            if total > 0.0 {
+                for value in &mut policy {
+                    *value /= total;
+                }
+            }
+            let Some(best) = best else {
+                fail("Pathfinder did not score a legal target action");
+            };
+            (target, policy, best.score, best.nodes, best.completed_depth)
+        } else {
+            let result = rankings.first().copied().map_or_else(
+                || {
+                    if tactical_filter {
+                        search_best_action_with_tactical_filter(state, config)
+                    } else {
+                        search_best_action(state, config)
+                    }
+                },
+                |ranking| SearchResult {
+                    action: Some(ranking.action),
+                    score: ranking.score,
+                    nodes: ranking.nodes,
+                    exhausted: ranking.exhausted,
+                    completed_depth: ranking.completed_depth,
+                    table_hits: ranking.table_hits,
+                },
+            );
+            let target = result.action.unwrap_or(action);
+            let target_index = legal.iter().position(|candidate| *candidate == target);
+            let Some(target_index) = target_index else {
+                fail("Pathfinder target is not legal in the replayed state");
+            };
+            let mut policy = vec![0.0_f32; legal.len()];
+            policy[target_index] = 1.0;
+            (
+                target,
+                policy,
+                result.score,
+                result.nodes,
+                result.completed_depth,
+            )
+        };
         let mut output_move = movement.clone();
         if let Some(object) = output_move.as_object_mut() {
             object.insert("policy".to_owned(), json!(policy));
             object.insert("targetAction".to_owned(), action_value_json(target));
-            object.insert("targetScore".to_owned(), json!(result.score));
-            object.insert("targetNodes".to_owned(), json!(result.nodes));
-            object.insert("targetDepth".to_owned(), json!(result.completed_depth));
+            object.insert("targetScore".to_owned(), json!(target_score));
+            object.insert("targetNodes".to_owned(), json!(target_nodes));
+            object.insert("targetDepth".to_owned(), json!(target_depth));
+            if !rankings.is_empty() {
+                object.insert(
+                    "rankActions".to_owned(),
+                    json!(rankings
+                        .iter()
+                        .map(|result| action_value_json(result.action))
+                        .collect::<Vec<_>>()),
+                );
+                object.insert(
+                    "rankScores".to_owned(),
+                    json!(rankings
+                        .iter()
+                        .map(|result| result.score)
+                        .collect::<Vec<_>>()),
+                );
+                object.insert(
+                    "rankExhausted".to_owned(),
+                    json!(rankings
+                        .iter()
+                        .map(|result| result.exhausted)
+                        .collect::<Vec<_>>()),
+                );
+                object.insert(
+                    "rankNodesUsed".to_owned(),
+                    json!(rankings
+                        .iter()
+                        .map(|result| result.nodes)
+                        .collect::<Vec<_>>()),
+                );
+            }
         }
         target_moves.push(output_move);
         *positions += 1;
@@ -202,6 +352,26 @@ fn emit_record(
     writer
         .write_all(b"\n")
         .unwrap_or_else(|error| fail(&format!("cannot write target record: {error}")));
+}
+
+fn independent_rankings(
+    state: GameState,
+    config: SearchConfig,
+    max_actions: usize,
+    tactical_filter: bool,
+) -> Vec<MoveEvaluation> {
+    let actions = if tactical_filter {
+        tactical_root_safe_actions(state, state.turn, config.weights)
+    } else {
+        ordered_root_actions(state, state.turn, config.weights)
+    };
+    let mut results = actions
+        .into_iter()
+        .take(max_actions)
+        .filter_map(|action| analyze_action(state, action, config).ok())
+        .collect::<Vec<_>>();
+    results.sort_by_key(|result| (-result.score, result.action.order()));
+    results
 }
 
 fn parse_action(value: &Value) -> Action {
@@ -251,6 +421,8 @@ fn parse_args() -> HashMap<String, String> {
             {
                 parsed.insert(option.to_owned(), values[index + 1].clone());
                 index += 1;
+            } else {
+                parsed.insert(option.to_owned(), "true".to_owned());
             }
         }
         index += 1;

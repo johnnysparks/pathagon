@@ -14,7 +14,11 @@ use crate::puct::{
     search_with_root_output_and_seeds_and_actions as puct_search_with_root_output_and_seeds_and_actions,
     PuctConfig,
 };
-use crate::search::{lunatic_action, search_best_action, SearchConfig};
+use crate::search::{
+    lunatic_action, search_best_action, search_best_action_with_root_probe,
+    search_best_action_with_tactical_filter, search_best_action_with_tactical_guard,
+    search_best_action_with_tt_order, SearchConfig,
+};
 #[cfg(feature = "inference")]
 use crate::search::{
     ordered_root_actions_with_tactical_guard, search_best_action_with_root_order_and_root_limit,
@@ -33,6 +37,29 @@ pub enum Agent {
         id: String,
         config: SearchConfig,
         book: Option<Arc<StrategyBook>>,
+    },
+    /// Pathfinder with a bounded exact root scout used only for experiments.
+    SearchProbe {
+        id: String,
+        config: SearchConfig,
+        probe_depth: u8,
+        probe_nodes: u64,
+        probe_actions: usize,
+    },
+    /// Pathfinder with table/killer move ordering enabled for all roots.
+    SearchTtOrder {
+        id: String,
+        config: SearchConfig,
+    },
+    /// Pathfinder with the bounded immediate-threat root ordering guard.
+    SearchTacticalGuard {
+        id: String,
+        config: SearchConfig,
+    },
+    /// Pathfinder restricted to roots without an immediate losing reply.
+    SearchTacticalFilter {
+        id: String,
+        config: SearchConfig,
     },
     #[cfg(feature = "inference")]
     GnnSorter {
@@ -159,6 +186,55 @@ impl Agent {
         }
     }
 
+    pub fn search_probe(
+        id: impl Into<String>,
+        config: SearchConfig,
+        probe_depth: u8,
+        probe_nodes: u64,
+        probe_actions: usize,
+    ) -> Self {
+        assert!(
+            probe_depth > 0,
+            "Pathfinder root probe depth must be positive"
+        );
+        assert!(
+            probe_nodes > 0,
+            "Pathfinder root probe nodes must be positive"
+        );
+        assert!(
+            probe_actions > 0,
+            "Pathfinder root probe actions must be positive"
+        );
+        Self::SearchProbe {
+            id: id.into(),
+            config,
+            probe_depth,
+            probe_nodes,
+            probe_actions,
+        }
+    }
+
+    pub fn search_tt_order(id: impl Into<String>, config: SearchConfig) -> Self {
+        Self::SearchTtOrder {
+            id: id.into(),
+            config,
+        }
+    }
+
+    pub fn search_tactical_guard(id: impl Into<String>, config: SearchConfig) -> Self {
+        Self::SearchTacticalGuard {
+            id: id.into(),
+            config,
+        }
+    }
+
+    pub fn search_tactical_filter(id: impl Into<String>, config: SearchConfig) -> Self {
+        Self::SearchTacticalFilter {
+            id: id.into(),
+            config,
+        }
+    }
+
     pub fn lunatic(id: impl Into<String>) -> Self {
         Self::Lunatic { id: id.into() }
     }
@@ -274,6 +350,10 @@ impl Agent {
             Self::Random { id }
             | Self::Lunatic { id }
             | Self::Search { id, .. }
+            | Self::SearchProbe { id, .. }
+            | Self::SearchTtOrder { id, .. }
+            | Self::SearchTacticalGuard { id, .. }
+            | Self::SearchTacticalFilter { id, .. }
             | Self::Learned { id, .. } => id,
             #[cfg(feature = "inference")]
             Self::Gnn { id, .. } | Self::GnnSorter { id, .. } | Self::QAdvSorter { id, .. } => id,
@@ -322,6 +402,66 @@ impl Agent {
                     nodes: u64::from(!actions.is_empty()),
                     completed_depth: 0,
                     table_hits: 0,
+                    book_hit: false,
+                    root_q: None,
+                }
+            }
+            Self::SearchProbe {
+                config,
+                probe_depth,
+                probe_nodes,
+                probe_actions,
+                ..
+            } => {
+                let result = search_best_action_with_root_probe(
+                    state,
+                    *config,
+                    *probe_depth,
+                    *probe_nodes,
+                    *probe_actions,
+                );
+                Decision {
+                    action: result.action,
+                    score: result.score,
+                    nodes: result.nodes,
+                    completed_depth: result.completed_depth,
+                    table_hits: result.table_hits,
+                    book_hit: false,
+                    root_q: None,
+                }
+            }
+            Self::SearchTtOrder { config, .. } => {
+                let result = search_best_action_with_tt_order(state, *config);
+                Decision {
+                    action: result.action,
+                    score: result.score,
+                    nodes: result.nodes,
+                    completed_depth: result.completed_depth,
+                    table_hits: result.table_hits,
+                    book_hit: false,
+                    root_q: None,
+                }
+            }
+            Self::SearchTacticalGuard { config, .. } => {
+                let result = search_best_action_with_tactical_guard(state, *config);
+                Decision {
+                    action: result.action,
+                    score: result.score,
+                    nodes: result.nodes,
+                    completed_depth: result.completed_depth,
+                    table_hits: result.table_hits,
+                    book_hit: false,
+                    root_q: None,
+                }
+            }
+            Self::SearchTacticalFilter { config, .. } => {
+                let result = search_best_action_with_tactical_filter(state, *config);
+                Decision {
+                    action: result.action,
+                    score: result.score,
+                    nodes: result.nodes,
+                    completed_depth: result.completed_depth,
+                    table_hits: result.table_hits,
                     book_hit: false,
                     root_q: None,
                 }
@@ -615,6 +755,42 @@ fn agent_spec_json(agent: &Agent) -> String {
             config.weights,
             config.tactical_proof_horizon,
         ),
+        Agent::SearchProbe { config, .. } => (
+            "search",
+            "Rust Pathfinder · root probe",
+            u32::from(config.depth),
+            config.max_nodes,
+            config.beam_width as u32,
+            config.weights,
+            config.tactical_proof_horizon,
+        ),
+        Agent::SearchTtOrder { config, .. } => (
+            "search",
+            "Rust Pathfinder · TT ordering",
+            u32::from(config.depth),
+            config.max_nodes,
+            config.beam_width as u32,
+            config.weights,
+            config.tactical_proof_horizon,
+        ),
+        Agent::SearchTacticalGuard { config, .. } => (
+            "search",
+            "Rust Pathfinder · tactical root guard",
+            u32::from(config.depth),
+            config.max_nodes,
+            config.beam_width as u32,
+            config.weights,
+            config.tactical_proof_horizon,
+        ),
+        Agent::SearchTacticalFilter { config, .. } => (
+            "search",
+            "Rust Pathfinder · tactical root filter",
+            u32::from(config.depth),
+            config.max_nodes,
+            config.beam_width as u32,
+            config.weights,
+            config.tactical_proof_horizon,
+        ),
         Agent::Learned { config, .. } => (
             "learned",
             "Learned",
@@ -721,6 +897,20 @@ fn agent_spec_json(agent: &Agent) -> String {
         parameters.insert(
             "tacticalCaptureThreshold".to_owned(),
             serde_json::json!(config.tactical_capture_threshold),
+        );
+    }
+    if let Agent::SearchProbe {
+        probe_depth,
+        probe_nodes,
+        probe_actions,
+        ..
+    } = agent
+    {
+        parameters.insert("rootProbeDepth".to_owned(), serde_json::json!(probe_depth));
+        parameters.insert("rootProbeNodes".to_owned(), serde_json::json!(probe_nodes));
+        parameters.insert(
+            "rootProbeActions".to_owned(),
+            serde_json::json!(probe_actions),
         );
     }
     #[cfg(feature = "inference")]

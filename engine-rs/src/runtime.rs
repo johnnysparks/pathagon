@@ -13,8 +13,8 @@ use crate::contract::{
     CONTRACT_VERSION,
 };
 use crate::search::{
-    analyze_action, analyze_actions, lunatic_action, search_best_action, MoveEvaluation,
-    SearchConfig, SearchResult,
+    analyze_action, analyze_actions, lunatic_action, search_best_action,
+    search_best_action_with_tactical_filter, MoveEvaluation, SearchConfig, SearchResult,
 };
 use crate::{Action, BoardConfig, GameState, Player};
 
@@ -279,6 +279,22 @@ pub fn search_best_action_json(state_json: &str, config_json: &str) -> Result<St
     let config: RuntimeSearchConfig =
         serde_json::from_str(config_json).map_err(|error| error.to_string())?;
     let result = search_best_action(state, config.into());
+    let response = RuntimeSearchResult::from(result);
+    serde_json::to_string(&response).map_err(|error| error.to_string())
+}
+
+/// Browser-facing promoted Pathfinder entry point. The underlying evaluator
+/// and alpha-beta search are unchanged; the tactical-safe root filter only
+/// removes moves that hand the opponent an immediate win when a safe
+/// alternative exists.
+pub fn search_best_action_with_tactical_filter_json(
+    state_json: &str,
+    config_json: &str,
+) -> Result<String, String> {
+    let state = parse_position(state_json)?;
+    let config: RuntimeSearchConfig =
+        serde_json::from_str(config_json).map_err(|error| error.to_string())?;
+    let result = search_best_action_with_tactical_filter(state, config.into());
     let response = RuntimeSearchResult::from(result);
     serde_json::to_string(&response).map_err(|error| error.to_string())
 }

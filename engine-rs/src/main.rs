@@ -49,6 +49,16 @@ fn main() {
     let sorter_root_limit = number(&args, "sorter-root-limit", 0_usize);
     let sorter_min_margin = number(&args, "sorter-min-margin", 0.0_f32);
     let sorter_max_heuristic_gap = number(&args, "sorter-max-heuristic-gap", 0_i32);
+    let root_probe_depth = number(&args, "root-probe-depth", 0_u8);
+    let root_probe_nodes = number(&args, "root-probe-nodes", 0_u64);
+    let root_probe_actions = number(&args, "root-probe-actions", 0_usize);
+    let root_probe_enabled = root_probe_depth > 0 && root_probe_nodes > 0 && root_probe_actions > 0;
+    let tt_order = args.contains_key("tt-order");
+    let tactical_root_guard = args.contains_key("tactical-root-guard");
+    let tactical_root_filter =
+        args.contains_key("tactical-root-filter") || !args.contains_key("no-tactical-root-filter");
+    let opponent_name = args.get("opponent").map(String::as_str).unwrap_or("random");
+    let opponent_probe_enabled = root_probe_enabled && opponent_name == "probe-search";
     let tactical_simulations = number(&args, "tactical-simulations", 512_u32);
     let tactical_proof_nodes = number(&args, "tactical-proof-nodes", 50_000_u64);
     let guided = args.contains_key("guided")
@@ -62,7 +72,6 @@ fn main() {
     let tactical_proof_horizon = args
         .get("tactical-proof-horizon")
         .and_then(|value| value.parse().ok());
-    let opponent_name = args.get("opponent").map(String::as_str).unwrap_or("random");
     let jsonl = args.contains_key("jsonl");
     let progress_every = number(&args, "progress-every", (games / 20).max(1));
     let workers = number(&args, "workers", 1_usize).max(1);
@@ -214,11 +223,17 @@ fn main() {
         weights: EvaluationWeights::default(),
         tactical_proof_horizon,
     };
+    let candidate_config = SearchConfig {
+        depth: number(&args, "candidate-depth", depth),
+        max_nodes: number(&args, "candidate-nodes", max_nodes),
+        beam_width: number(&args, "candidate-beam", beam_width),
+        ..config
+    };
     #[cfg(feature = "inference")]
     let champion = if let Some(model) = qadv_sorter_model.as_ref() {
         Agent::qadv_sorter_with_pool(
             "rust-pathfinder-onnx-qadv-sorter-v0.1.0",
-            config,
+            candidate_config,
             sorter_top_k,
             sorter_all_actions,
             sorter_root_limit,
@@ -229,7 +244,7 @@ fn main() {
     } else if let Some(model) = sorter_model.as_ref() {
         Agent::gnn_sorter_with_pool(
             "rust-pathfinder-onnx-sorter-v0.1.0",
-            config,
+            candidate_config,
             sorter_top_k,
             sorter_all_actions,
             sorter_root_limit,
@@ -302,6 +317,23 @@ fn main() {
                 Arc::clone(model),
             )
         }
+    } else if root_probe_enabled {
+        Agent::search_probe(
+            "rust-pathfinder-v0.3.0-root-probe",
+            candidate_config,
+            root_probe_depth,
+            root_probe_nodes,
+            root_probe_actions,
+        )
+    } else if tt_order {
+        Agent::search_tt_order("rust-pathfinder-v0.3.0-tt-order", candidate_config)
+    } else if tactical_root_guard {
+        Agent::search_tactical_guard(
+            "rust-pathfinder-v0.3.0-tactical-root-guard",
+            candidate_config,
+        )
+    } else if tactical_root_filter && learned_book.is_none() {
+        Agent::search_tactical_filter("rust-pathfinder-v0.4.0-tactical-filter", candidate_config)
     } else {
         learned_book.as_ref().map_or_else(
             || with_optional_book(Agent::search("rust-pathfinder-v0.1.0", config), &book),
@@ -316,17 +348,34 @@ fn main() {
         )
     };
     #[cfg(not(feature = "inference"))]
-    let champion = learned_book.as_ref().map_or_else(
-        || with_optional_book(Agent::search("rust-pathfinder-v0.1.0", config), &book),
-        |book| {
-            Agent::learned(
-                "rust-learned-tabular-v0.1.0",
-                config,
-                Arc::clone(book),
-                learned_minimum_visits,
-            )
-        },
-    );
+    let champion = if root_probe_enabled {
+        Agent::search_probe(
+            "rust-pathfinder-v0.3.0-root-probe",
+            candidate_config,
+            root_probe_depth,
+            root_probe_nodes,
+            root_probe_actions,
+        )
+    } else if tactical_root_filter && learned_book.is_none() {
+        Agent::search_tactical_filter("rust-pathfinder-v0.4.0-tactical-filter", candidate_config)
+    } else {
+        learned_book.as_ref().map_or_else(
+            || {
+                with_optional_book(
+                    Agent::search("rust-pathfinder-v0.1.0", candidate_config),
+                    &book,
+                )
+            },
+            |book| {
+                Agent::learned(
+                    "rust-learned-tabular-v0.1.0",
+                    candidate_config,
+                    Arc::clone(book),
+                    learned_minimum_visits,
+                )
+            },
+        )
+    };
     let opponent = if opponent_name == "neural" {
         #[cfg(feature = "inference")]
         {
@@ -440,6 +489,35 @@ fn main() {
         }
         #[cfg(not(feature = "inference"))]
         fail("--opponent sorter requires the inference feature; rebuild with --features inference")
+    } else if opponent_name == "probe-search" {
+        if !opponent_probe_enabled {
+            fail("--opponent probe-search requires --root-probe-depth, --root-probe-nodes, and --root-probe-actions");
+        }
+        with_optional_book(
+            Agent::search_probe(
+                "rust-pathfinder-v0.3.0-root-probe",
+                config,
+                root_probe_depth,
+                root_probe_nodes,
+                root_probe_actions,
+            ),
+            &book,
+        )
+    } else if opponent_name == "tt-search" {
+        with_optional_book(
+            Agent::search_tt_order("rust-pathfinder-v0.3.0-tt-order", config),
+            &book,
+        )
+    } else if opponent_name == "guard-search" {
+        with_optional_book(
+            Agent::search_tactical_guard("rust-pathfinder-v0.3.0-tactical-root-guard", config),
+            &book,
+        )
+    } else if opponent_name == "filter-search" {
+        with_optional_book(
+            Agent::search_tactical_filter("rust-pathfinder-v0.4.0-tactical-filter", config),
+            &book,
+        )
     } else if opponent_name == "deep-search" || opponent_name == "pathfinder" {
         with_optional_book(Agent::search("rust-pathfinder-v0.3.0", config), &book)
     } else if opponent_name == "search" {

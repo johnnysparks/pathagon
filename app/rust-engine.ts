@@ -29,6 +29,7 @@ type RustWasmModule = {
   pathagon_legal_actions(position: string): string;
   pathagon_apply_action(position: string, action: string): string;
   pathagon_search_best_action(position: string, config: string): string;
+  pathagon_search_best_action_with_tactical_filter(position: string, config: string): string;
   pathagon_lunatic_action(position: string): string;
   pathagon_analyze_action(position: string, action: string, config: string): string;
   pathagon_analyze_actions(position: string, config: string, maxActions: number): string;
@@ -40,6 +41,7 @@ export type RustEngine = {
   legalActions(state: GameState): Action[];
   applyAction(state: GameState, action: Action): GameState;
   searchBestAction(state: GameState, config: SearchConfig): RuntimeSearchResult;
+  searchBestTacticalAction(state: GameState, config: SearchConfig): RuntimeSearchResult;
   lunaticAction(state: GameState): RuntimeSearchResult;
   analyzeAction(state: GameState, action: Action, config: SearchConfig): MoveEvaluation;
   analyzeActions(state: GameState, config: SearchConfig, maxActions: number): MoveEvaluation[];
@@ -62,6 +64,9 @@ export function loadRustEngine(): Promise<RustEngine> {
     },
     searchBestAction(state, config) {
       return JSON.parse(wasm.pathagon_search_best_action(JSON.stringify(toRuntimePosition(state)), JSON.stringify(config))) as RuntimeSearchResult;
+    },
+    searchBestTacticalAction(state, config) {
+      return JSON.parse(wasm.pathagon_search_best_action_with_tactical_filter(JSON.stringify(toRuntimePosition(state)), JSON.stringify(config))) as RuntimeSearchResult;
     },
     lunaticAction(state) {
       return JSON.parse(wasm.pathagon_lunatic_action(JSON.stringify(toRuntimePosition(state)))) as RuntimeSearchResult;

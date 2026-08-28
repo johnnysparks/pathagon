@@ -92,6 +92,7 @@ struct Budget {
 #[derive(Default)]
 struct SearchHints {
     killers: Vec<[Option<Action>; 2]>,
+    history: HashMap<(usize, Action, bool), i32>,
 }
 
 impl SearchHints {
@@ -108,6 +109,19 @@ impl SearchHints {
             slot[1] = slot[0];
             slot[0] = Some(action);
         }
+    }
+
+    fn history_at(&self, ply: usize, action: Action, maximizing: bool) -> i32 {
+        self.history
+            .get(&(ply, action, maximizing))
+            .copied()
+            .unwrap_or(0)
+    }
+
+    fn record_history(&mut self, ply: usize, action: Action, maximizing: bool, depth: u8) {
+        let bonus = i32::from(depth).saturating_mul(i32::from(depth)).max(1);
+        let entry = self.history.entry((ply, action, maximizing)).or_default();
+        *entry = entry.saturating_add(bonus).min(1_000_000);
     }
 }
 
@@ -128,6 +142,57 @@ struct TableEntry {
 
 pub fn search_best_action(state: GameState, config: SearchConfig) -> SearchResult {
     search_best_action_with_root_order(state, config, &[])
+}
+
+/// Run the ordinary Pathfinder search while enabling the transposition-table
+/// best-move and killer-move ordering hints. The legal root set and evaluator
+/// are unchanged; this is a search-only ablation for measuring whether the
+/// incumbent's conservative ordering leaves useful pruning unused.
+pub fn search_best_action_with_tt_order(state: GameState, config: SearchConfig) -> SearchResult {
+    search_best_action_with_root_order_and_root_limit_internal(
+        state,
+        config,
+        &[],
+        false,
+        None,
+        true,
+    )
+}
+
+/// Apply Pathfinder's bounded immediate-threat guard to the root order while
+/// preserving the complete legal root set and normal alpha-beta budget.
+pub fn search_best_action_with_tactical_guard(
+    state: GameState,
+    config: SearchConfig,
+) -> SearchResult {
+    let root_order = ordered_root_actions_with_tactical_guard(state, state.turn, config.weights);
+    search_best_action_with_root_order_and_root_limit_internal(
+        state,
+        config,
+        &root_order,
+        false,
+        None,
+        true,
+    )
+}
+
+/// Restrict the root search to moves that do not hand the opponent an
+/// immediate winning action. This is safe because the opponent's next move is
+/// terminal whenever such an action exists; if every move is unsafe, retain
+/// the complete fallback set so the engine still returns a legal move.
+pub fn search_best_action_with_tactical_filter(
+    state: GameState,
+    config: SearchConfig,
+) -> SearchResult {
+    let fallback = ordered_root_actions(state, state.turn, config.weights);
+    if fallback.is_empty() {
+        return search_best_action(state, config);
+    }
+    let safe = tactical_root_safe_actions(state, state.turn, config.weights);
+    let root_limit = (safe.len() < fallback.len()).then_some(safe.len());
+    search_best_action_with_root_order_and_root_limit_internal(
+        state, config, &safe, false, root_limit, true,
+    )
 }
 
 /// Search for the best action while allowing an external policy/sorter to
@@ -182,6 +247,90 @@ pub fn search_best_action_with_root_order_and_root_limit(
         root_limit,
         true,
     )
+}
+
+/// Spend a bounded scout budget on the first root actions, then run the normal
+/// Pathfinder search over the full root set ordered by those scout scores.
+///
+/// The scout is deliberately separate from the main search budget: its nodes
+/// are charged against the same total ceiling, and the returned result reports
+/// the combined count. This gives a pure-Rust control for testing whether a
+/// shallow exact root probe is a better ordering signal than a learned sorter.
+pub fn search_best_action_with_root_probe(
+    state: GameState,
+    config: SearchConfig,
+    probe_depth: u8,
+    probe_nodes: u64,
+    probe_actions: usize,
+) -> SearchResult {
+    if probe_depth == 0 || probe_nodes == 0 || probe_actions == 0 {
+        return search_best_action(state, config);
+    }
+    let probe_config = SearchConfig {
+        depth: probe_depth,
+        max_nodes: probe_nodes.min(config.max_nodes),
+        ..config
+    };
+    let fallback = ordered_root_actions(state, state.turn, config.weights);
+    if fallback.is_empty() {
+        return search_best_action(state, config);
+    }
+    let analyses = analyze_actions(state, probe_config, probe_actions.min(fallback.len()));
+    let consumed = analyses
+        .last()
+        .map_or(0, |result| result.nodes)
+        .min(config.max_nodes);
+    if analyses.is_empty() || consumed >= config.max_nodes {
+        let best = analyses.first().copied().unwrap_or(MoveEvaluation {
+            action: fallback[0],
+            before_score: evaluate(state, state.turn, config.weights),
+            score: evaluate(
+                state.apply_legal(fallback[0]).state,
+                state.turn,
+                config.weights,
+            ),
+            delta: 0,
+            nodes: consumed,
+            exhausted: consumed >= config.max_nodes,
+            completed_depth: probe_depth,
+            table_hits: 0,
+        });
+        return SearchResult {
+            action: Some(best.action),
+            score: best.score,
+            nodes: consumed,
+            exhausted: consumed >= config.max_nodes,
+            completed_depth: best.completed_depth,
+            table_hits: best.table_hits,
+        };
+    }
+    let mut root_order = analyses
+        .iter()
+        .map(|result| result.action)
+        .collect::<Vec<_>>();
+    for action in fallback {
+        if !root_order.contains(&action) {
+            root_order.push(action);
+        }
+    }
+    let result = search_best_action_with_root_order_and_root_limit(
+        state,
+        SearchConfig {
+            max_nodes: config.max_nodes - consumed,
+            ..config
+        },
+        &root_order,
+        false,
+        None,
+    );
+    SearchResult {
+        action: result.action,
+        score: result.score,
+        nodes: consumed.saturating_add(result.nodes),
+        exhausted: result.exhausted,
+        completed_depth: result.completed_depth,
+        table_hits: result.table_hits,
+    }
 }
 
 fn search_best_action_with_root_order_and_root_limit_internal(
@@ -314,6 +463,50 @@ pub fn ordered_root_actions(
     ordered_actions(state, root_player, weights)
 }
 
+/// Return Pathfinder's ordered root actions after removing moves that allow
+/// the opponent to win immediately on the next turn. If there is no safe move
+/// (a forced loss) or no risky move, the complete deterministic order is
+/// returned so callers can retain the ordinary search behavior.
+pub fn tactical_root_safe_actions(
+    state: GameState,
+    root_player: Player,
+    weights: EvaluationWeights,
+) -> Vec<Action> {
+    let fallback = ordered_actions(state, root_player, weights);
+    if fallback.is_empty() || state.legal_action_count() > 512 {
+        return fallback;
+    }
+    let opponent = root_player.other();
+    let mut safe = Vec::with_capacity(fallback.len());
+    let mut risky = false;
+    for action in fallback.iter().copied() {
+        let next = state.apply_legal(action).state;
+        let allows_win = if next.winner == Some(root_player) {
+            false
+        } else {
+            let opponent_view = if next.turn == opponent {
+                next
+            } else {
+                GameState {
+                    turn: opponent,
+                    ..next
+                }
+            };
+            !immediate_winning_actions(opponent_view, opponent).is_empty()
+        };
+        if allows_win {
+            risky = true;
+        } else {
+            safe.push(action);
+        }
+    }
+    if safe.is_empty() || !risky {
+        fallback
+    } else {
+        safe
+    }
+}
+
 /// Pathfinder's deterministic ordering with a bounded tactical guard.
 ///
 /// The ordinary evaluator already puts captures and wins first, but it can
@@ -341,11 +534,10 @@ pub fn ordered_root_actions_with_tactical_guard(
             ..state
         }
     };
-    if immediate_winning_actions(opponent_view, opponent).is_empty() {
-        return fallback;
-    }
+    let baseline_threats = immediate_winning_actions(opponent_view, opponent);
 
     let mut guarded = Vec::with_capacity(fallback.len());
+    let mut has_threat = !baseline_threats.is_empty();
     for action in fallback.iter().copied() {
         let next = state.apply_legal(action).state;
         let next_opponent_view = if next.turn == opponent {
@@ -356,11 +548,17 @@ pub fn ordered_root_actions_with_tactical_guard(
                 ..next
             }
         };
-        if immediate_winning_actions(next_opponent_view, opponent).is_empty() {
+        let threats = immediate_winning_actions(next_opponent_view, opponent);
+        if threats.is_empty() {
             guarded.push(action);
+        } else {
+            has_threat = true;
         }
     }
-    if guarded.is_empty() {
+    // Keep the incumbent order exactly when no root move creates or leaves an
+    // immediate opponent win. Otherwise, put all threat-free moves first and
+    // retain the original order for the risky suffix.
+    if !has_threat || guarded.is_empty() {
         return fallback;
     }
     for action in fallback {
@@ -638,6 +836,11 @@ fn minimax(
         if let Some(killer) = killer_one {
             put_first(&mut actions, killer);
         }
+        actions.sort_by(|left, right| {
+            hints
+                .history_at(ply_from_root, *right, maximizing)
+                .cmp(&hints.history_at(ply_from_root, *left, maximizing))
+        });
     }
     actions.truncate(config.beam_width);
     if actions.is_empty() {
@@ -677,6 +880,7 @@ fn minimax(
         }
         if beta <= alpha || budget.nodes >= config.max_nodes {
             if beta <= alpha && next.winner.is_none() && next.last_capture == 0 {
+                hints.record_history(ply_from_root, action, maximizing, depth);
                 hints.record_killer(ply_from_root, action);
             }
             break;
@@ -988,6 +1192,127 @@ mod tests {
         assert!(result.nodes <= 120);
         assert!(result.exhausted);
         assert!((1..5).contains(&result.completed_depth));
+    }
+
+    #[test]
+    fn root_probe_respects_the_shared_budget() {
+        let state = GameState::new();
+        let result = search_best_action_with_root_probe(
+            state,
+            SearchConfig {
+                depth: 4,
+                max_nodes: 120,
+                beam_width: 8,
+                ..SearchConfig::default()
+            },
+            2,
+            24,
+            8,
+        );
+        assert!(result.action.is_some());
+        assert!(result
+            .action
+            .is_some_and(|action| state.legal_actions().contains(&action)));
+        assert!(result.nodes <= 120);
+    }
+
+    #[test]
+    fn tt_order_preserves_the_full_root_set() {
+        let state = GameState::new();
+        let result = search_best_action_with_tt_order(
+            state,
+            SearchConfig {
+                depth: 3,
+                max_nodes: 120,
+                beam_width: 8,
+                ..SearchConfig::default()
+            },
+        );
+        assert!(result.action.is_some());
+        assert!(result
+            .action
+            .is_some_and(|action| state.legal_actions().contains(&action)));
+        assert!(result.nodes <= 120);
+    }
+
+    #[test]
+    fn tactical_guard_preserves_the_full_root_set() {
+        let state = GameState::new();
+        let result = search_best_action_with_tactical_guard(
+            state,
+            SearchConfig {
+                depth: 3,
+                max_nodes: 120,
+                beam_width: 8,
+                ..SearchConfig::default()
+            },
+        );
+        assert!(result.action.is_some());
+        assert!(result
+            .action
+            .is_some_and(|action| state.legal_actions().contains(&action)));
+        assert!(result.nodes <= 120);
+    }
+
+    #[test]
+    fn tactical_filter_keeps_a_legal_safe_root_or_falls_back() {
+        let state = GameState::new();
+        let result = search_best_action_with_tactical_filter(
+            state,
+            SearchConfig {
+                depth: 3,
+                max_nodes: 120,
+                beam_width: 8,
+                ..SearchConfig::default()
+            },
+        );
+        assert!(result.action.is_some());
+        assert!(result
+            .action
+            .is_some_and(|action| state.legal_actions().contains(&action)));
+        assert!(result.nodes <= 120);
+    }
+
+    #[test]
+    fn tactical_filter_keeps_the_forced_block_fixture() {
+        let config = crate::BoardConfig::new(4, 5)
+            .expect("valid board config")
+            .with_max_plies(64)
+            .expect("valid ply limit");
+        let state = GameState {
+            config,
+            light: [5_u8, 7, 9, 11, 15]
+                .into_iter()
+                .fold(0, |mask, square| mask | (1_u64 << square)),
+            dark: [1_u8, 2, 3, 6, 10]
+                .into_iter()
+                .fold(0, |mask, square| mask | (1_u64 << square)),
+            reserve: [0, 0],
+            turn: Player::Light,
+            forbidden: 0,
+            last_relocated_to: [None, None],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: 20,
+        };
+        let result = search_best_action_with_tactical_filter(
+            state,
+            SearchConfig {
+                depth: 3,
+                max_nodes: 10_000,
+                beam_width: 8,
+                ..SearchConfig::default()
+            },
+        );
+        assert!([
+            Action::Relocate { from: 5, to: 0 },
+            Action::Relocate { from: 7, to: 0 },
+            Action::Relocate { from: 9, to: 0 },
+            Action::Relocate { from: 11, to: 0 },
+            Action::Relocate { from: 15, to: 0 },
+        ]
+        .contains(&result.action.expect("filter returns an action")));
     }
 
     #[test]

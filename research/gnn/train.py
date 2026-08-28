@@ -79,6 +79,10 @@ def transform_replay_example(example: ReplayExample, symmetry: Symmetry) -> Repl
         action_value_actions=None
         if example.action_value_actions is None
         else tuple(transform_action(action, example.state.config, symmetry) for action in example.action_value_actions),
+        rank_scores=example.rank_scores,
+        rank_actions=None
+        if example.rank_actions is None
+        else tuple(transform_action(action, example.state.config, symmetry) for action in example.rank_actions),
     )
 
 
@@ -149,9 +153,15 @@ def train_replay(
     seed: int,
     progress: Optional[TrainingProgress] = None,
     symmetry_augmentation: bool = True,
+    value_weight: float = 1.0,
+    rank_weight: float = 0.0,
 ) -> Tuple[float, float]:
     if not examples:
         raise ValueError("replay dataset is empty")
+    if value_weight < 0.0:
+        raise ValueError("value_weight must be non-negative")
+    if rank_weight < 0.0:
+        raise ValueError("rank_weight must be non-negative")
     rng = random.Random(seed)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-4)
     model.train()
@@ -179,7 +189,17 @@ def train_replay(
             target_policy = target_policy / target_policy.sum()
             policy_loss = -(target_policy * F.log_softmax(logits, dim=0)).sum()
         value_loss = F.mse_loss(value, expected_value)
-        loss = policy_loss + value_loss
+        if (example.rank_scores is None) != (example.rank_actions is None):
+            raise ValueError("rank targets require actions and scores together")
+        if example.rank_scores is None:
+            rank_loss = logits.sum() * 0.0
+        else:
+            rank_indices = [actions.index(action) for action in example.rank_actions]
+            ranked_logits = logits[rank_indices]
+            rank_target = torch.tensor(example.rank_scores, dtype=logits.dtype, device=logits.device)
+            rank_weights = torch.ones_like(rank_target)
+            rank_loss = pairwise_rank_loss(ranked_logits, rank_target, rank_weights)
+        loss = policy_loss + value_weight * value_loss + rank_weight * rank_loss
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -525,6 +545,8 @@ def run_warmstart(args: argparse.Namespace) -> None:
         args.seed,
         progress=training_progress("warmstart"),
         symmetry_augmentation=args.symmetry_augmentation,
+        value_weight=args.value_weight,
+        rank_weight=args.sorter_rank_weight,
     )
     metadata = {
         "mode": "replay-warmstart",
@@ -534,6 +556,8 @@ def run_warmstart(args: argparse.Namespace) -> None:
         "board_size": args.size,
         "reserve_per_player": config.reserve_per_player,
         "symmetry_augmentation": args.symmetry_augmentation,
+        "value_weight": args.value_weight,
+        "rank_weight": args.sorter_rank_weight,
         "policy_loss": policy_loss,
         "value_loss": value_loss,
     }
@@ -880,6 +904,18 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--cnn-blocks", type=int, default=4, help="residual blocks for the fixed-7x7 CNN")
     result.add_argument("--steps", type=int, default=200)
     result.add_argument("--learning-rate", type=float, default=3e-4)
+    result.add_argument(
+        "--value-weight",
+        type=float,
+        default=1.0,
+        help="warm-start value-loss weight; set to 0 for a policy-only sorter",
+    )
+    result.add_argument(
+        "--sorter-rank-weight",
+        type=float,
+        default=0.0,
+        help="warm-start pairwise Pathfinder-rank loss weight; requires rank targets",
+    )
     result.add_argument("--max-examples", type=int, default=0)
     result.add_argument("--seed-start", type=int, help="include only replay records at or after this seed")
     result.add_argument("--seed-end", type=int, help="include only replay records at or before this seed")
