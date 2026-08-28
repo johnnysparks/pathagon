@@ -150,6 +150,15 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .rating-card .stat-label { color: rgba(255,255,255,.65); }
 .rating-card strong { font-family: Georgia, serif; font-size: 25px; font-weight: 500; }
 .engine-pill { border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 5px 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.lookahead-control { margin-top: 14px; padding: 13px 14px 12px; border: 1px solid #c9d8cc; border-radius: 12px; background: #edf4ed; }
+.lookahead-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.lookahead-heading > div { display: flex; flex-direction: column; gap: 4px; }
+.lookahead-heading strong { color: #294a3b; font-size: 15px; }
+.lookahead-speed { padding: 4px 7px; border: 1px solid #b6cbb9; border-radius: 999px; color: #35614a; background: rgba(255,255,255,.54); font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: .06em; }
+.lookahead-slider { display: block; width: 100%; margin: 13px 0 7px; accent-color: var(--green); cursor: pointer; }
+.lookahead-slider:focus-visible { outline: 3px solid rgba(56,95,76,.28); outline-offset: 3px; }
+.lookahead-scale { display: flex; justify-content: space-between; gap: 8px; color: #6c7e70; font-size: 10px; font-weight: 750; }
+.lookahead-control p { margin: 9px 0 0; color: #5e7162; font-size: 11px; line-height: 1.4; }
 .telemetry { margin: 18px 0; }
 .telemetry div { display: flex; justify-content: space-between; padding: 10px 2px; border-bottom: 1px solid var(--line); }
 .telemetry dt { color: var(--muted); font-size: 13px; }

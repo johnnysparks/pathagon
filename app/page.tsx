@@ -12,13 +12,35 @@ import {
   playerLabel,
 } from "./pathagon";
 import { createGameId } from "./game-record";
-import { chooseOpponentAction, CNN_OPPONENT, CNN_SEARCH, OPPONENTS, SURVEYOR_OPPONENT, getOpponent } from "./opponents";
-import { COACHING_SEARCH, type MoveEvaluation } from "./ai";
+import {
+  chooseOpponentAction,
+  CNN_OPPONENT,
+  CNN_SEARCH,
+  OPPONENTS,
+  PATHFINDER_DEPTH_OPTIONS,
+  PATHFINDER_OPPONENT,
+  SURVEYOR_OPPONENT,
+  getOpponent,
+  pathfinderSearchAtDepth,
+} from "./opponents";
+import { COACHING_SEARCH, PATHFINDER_SEARCH, type MoveEvaluation } from "./ai";
 import { loadRustEngine, type RustEngine } from "./rust-engine";
 import { loadCnnEngine, type CnnEngine } from "./cnn-engine";
 
 const HUMAN: Player = "light";
 const AI: Player = "dark";
+
+function initialPathfinderDepth(): number {
+  if (typeof window === "undefined") return PATHFINDER_SEARCH.depth;
+  try {
+    const stored = Number(window.localStorage.getItem("pathagon:pathfinder-depth"));
+    return PATHFINDER_DEPTH_OPTIONS.includes(stored as (typeof PATHFINDER_DEPTH_OPTIONS)[number])
+      ? stored
+      : PATHFINDER_SEARCH.depth;
+  } catch {
+    return PATHFINDER_SEARCH.depth;
+  }
+}
 
 export default function Home() {
   const [game, setGame] = useState<GameState>(() => createGame());
@@ -35,6 +57,7 @@ export default function Home() {
   const [coachingEvaluation, setCoachingEvaluation] = useState<MoveEvaluation | null>(null);
   const [coachingStatus, setCoachingStatus] = useState<"idle" | "searching" | "ready">("idle");
   const [opponentId, setOpponentId] = useState(SURVEYOR_OPPONENT.id);
+  const [pathfinderDepth, setPathfinderDepth] = useState<number>(initialPathfinderDepth);
   const [rustEngine, setRustEngine] = useState<RustEngine | null>(null);
   const [engineError, setEngineError] = useState<string | null>(null);
   const [cnnEngine, setCnnEngine] = useState<CnnEngine | null>(null);
@@ -103,7 +126,7 @@ export default function Home() {
     aiTimer.current = setTimeout(() => {
       setGame((current) => {
         if (current.turn !== AI || current.winner) return current;
-        const decision = chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined);
+        const decision = chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined, pathfinderDepth);
         if (!decision) return current;
         setHistory((items) => [...items, current]);
         setMoveHistory((items) => [...items, decision]);
@@ -113,7 +136,15 @@ export default function Home() {
     return () => {
       if (aiTimer.current) clearTimeout(aiTimer.current);
     };
-  }, [cnnEngine, cnnReady, game, opponent, rustEngine]);
+  }, [cnnEngine, cnnReady, game, opponent, pathfinderDepth, rustEngine]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("pathagon:pathfinder-depth", String(pathfinderDepth));
+    } catch {
+      // Device storage can be disabled; the in-memory control still works.
+    }
+  }, [pathfinderDepth]);
 
   useEffect(() => {
     coachingRequest.current += 1;
@@ -308,6 +339,11 @@ export default function Home() {
     recordable.current = true;
   }
 
+  function changePathfinderDepth(depth: number) {
+    const tuned = pathfinderSearchAtDepth(depth).depth;
+    setPathfinderDepth(tuned);
+  }
+
   async function copyGameId() {
     if (!gameId) return;
     try {
@@ -459,13 +495,36 @@ export default function Home() {
           </div>
           <div className="rating-card">
             <div><span className="stat-label">Estimated Elo</span><strong>{opponent.elo}</strong></div>
-            <span className="engine-pill">{opponent.engine}</span>
+            <span className="engine-pill">{opponent.id === PATHFINDER_OPPONENT.id ? `${pathfinderDepth}-ply · tactical-safe` : opponent.engine}</span>
           </div>
+          {opponent.id === PATHFINDER_OPPONENT.id && (
+            <section className="lookahead-control" aria-labelledby="pathfinder-lookahead-title">
+              <div className="lookahead-heading">
+                <div>
+                  <span className="stat-label">Pathfinder control</span>
+                  <strong id="pathfinder-lookahead-title">{pathfinderDepth}-ply look-ahead</strong>
+                </div>
+                <span className="lookahead-speed">{pathfinderDepth <= 3 ? "Quick" : pathfinderDepth === 4 ? "Balanced" : "Deep"}</span>
+              </div>
+              <input
+                aria-label="Pathfinder look-ahead depth"
+                className="lookahead-slider"
+                type="range"
+                min={PATHFINDER_DEPTH_OPTIONS[0]}
+                max={PATHFINDER_DEPTH_OPTIONS[PATHFINDER_DEPTH_OPTIONS.length - 1]}
+                step="1"
+                value={pathfinderDepth}
+                onChange={(event) => changePathfinderDepth(Number(event.target.value))}
+              />
+              <div className="lookahead-scale" aria-hidden="true"><span>2 · Quick</span><span>4 · Balanced</span><span>6 · Deep</span></div>
+              <p>More ply lets the Pathfinder answer farther ahead. Deeper settings spend more time on the next dark turn.</p>
+            </section>
+          )}
           <dl className="telemetry">
             <div><dt>Legal actions</dt><dd>{actions.length}</dd></div>
             <div><dt>Phase</dt><dd>{game.winner ? "Complete" : game.reserve[game.turn] ? "Placement" : "Movement"}</dd></div>
             <div><dt>Captured last turn</dt><dd>{game.lastAction?.captured.length ?? 0}</dd></div>
-            <div><dt>{opponent.searchDepth === null ? "Search budget" : "Search depth"}</dt><dd>{opponent.searchDepth === null ? `${CNN_SEARCH.simulations} PUCT simulations` : `${opponent.searchDepth} ply`}</dd></div>
+            <div><dt>{opponent.searchDepth === null ? "Search budget" : "Search depth"}</dt><dd>{opponent.id === PATHFINDER_OPPONENT.id ? `${pathfinderDepth} ply` : opponent.searchDepth === null ? `${CNN_SEARCH.simulations} PUCT simulations` : `${opponent.searchDepth} ply`}</dd></div>
           </dl>
           <div className="event-log"><span className="stat-label">Latest event</span><p>{game.lastAction ? describeAction(game.lastAction) : "The board is empty. You have the first move."}</p></div>
           <div className="rules-note"><strong>{engineError || cnnError ? "Engine unavailable" : !rustEngine ? "Loading Rust engine…" : opponent.id === CNN_OPPONENT.id && !cnnEngine ? "Loading CNN model…" : "Rust/WASM engine"}</strong><p>{engineError ?? cnnError ?? "Light connects near-to-far; dark connects side-to-side. Orthogonal paths. Automatic A–B–A captures."}</p></div>

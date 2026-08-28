@@ -1,4 +1,4 @@
-import { connectionDistance, PATHFINDER_SEARCH, searchBestAction, SURVEYOR_SEARCH } from "./ai.ts";
+import { connectionDistance, PATHFINDER_SEARCH, searchBestAction, SURVEYOR_SEARCH, type SearchConfig } from "./ai.ts";
 import { applyLegalAction, legalActions, otherPlayer } from "./pathagon.ts";
 import type { Action, GameState } from "./pathagon.ts";
 import type { CnnEngine } from "./cnn-engine.ts";
@@ -14,6 +14,43 @@ export type Opponent = {
   searchDepth: number | null;
   chooseAction(state: GameState): Action | null;
 };
+
+/**
+ * Browser-safe Pathfinder horizons. The centre value preserves the shipped
+ * baseline; the outer values make the speed/strength trade-off explicit
+ * without allowing an accidental unbounded search in the UI.
+ */
+export const PATHFINDER_DEPTH_OPTIONS = [2, 3, 4, 5, 6] as const;
+export type PathfinderDepth = typeof PATHFINDER_DEPTH_OPTIONS[number];
+
+const PATHFINDER_BUDGETS: Record<PathfinderDepth, number> = {
+  2: 32_000,
+  3: 58_000,
+  4: PATHFINDER_SEARCH.maxNodes,
+  5: 124_000,
+  6: 164_000,
+};
+
+const PATHFINDER_BEAMS: Record<PathfinderDepth, number> = {
+  2: 48,
+  3: 44,
+  4: PATHFINDER_SEARCH.beamWidth,
+  5: 36,
+  6: 32,
+};
+
+export function pathfinderSearchAtDepth(depth: number): SearchConfig {
+  const safeDepth = PATHFINDER_DEPTH_OPTIONS.reduce<PathfinderDepth>(
+    (closest, option) => Math.abs(option - depth) < Math.abs(closest - depth) ? option : closest,
+    PATHFINDER_SEARCH.depth as PathfinderDepth,
+  );
+  return {
+    ...PATHFINDER_SEARCH,
+    depth: safeDepth,
+    maxNodes: PATHFINDER_BUDGETS[safeDepth],
+    beamWidth: PATHFINDER_BEAMS[safeDepth],
+  };
+}
 
 export const RANDOM_OPPONENT: Opponent = {
   id: "coin-flip-v0",
@@ -68,7 +105,7 @@ export const PATHFINDER_OPPONENT: Opponent = {
   personality: "Builds quietly. Punishes shortcuts.",
   searchDepth: 4,
   chooseAction(state) {
-    return searchBestAction(state, PATHFINDER_SEARCH).action;
+    return searchBestAction(state, pathfinderSearchAtDepth(PATHFINDER_SEARCH.depth)).action;
   },
 };
 
@@ -94,7 +131,13 @@ export function getOpponent(id: string): Opponent {
 }
 
 /** Choose the browser opponent move through the Rust/WASM engine boundary. */
-export function chooseOpponentAction(engine: RustEngine, opponent: Opponent, state: GameState, cnnEngine?: CnnEngine): Action | null {
+export function chooseOpponentAction(
+  engine: RustEngine,
+  opponent: Opponent,
+  state: GameState,
+  cnnEngine?: CnnEngine,
+  pathfinderDepth: number = PATHFINDER_SEARCH.depth,
+): Action | null {
   if (opponent.id === RANDOM_OPPONENT.id) {
     const actions = engine.legalActions(state);
     return actions.length ? actions[Math.floor(Math.random() * actions.length)] : null;
@@ -104,7 +147,7 @@ export function chooseOpponentAction(engine: RustEngine, opponent: Opponent, sta
   }
   if (opponent.id === LUNATIC_OPPONENT.id) return engine.lunaticAction(state).action;
   const config = opponent.id === PATHFINDER_OPPONENT.id
-    ? PATHFINDER_SEARCH
+    ? pathfinderSearchAtDepth(pathfinderDepth)
     : SURVEYOR_SEARCH;
   return opponent.id === PATHFINDER_OPPONENT.id
     ? engine.searchBestTacticalAction(state, config).action

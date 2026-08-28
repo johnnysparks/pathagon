@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { COACHING_SEARCH, DEFAULT_WEIGHTS, analyzeAction, analyzeActions, searchBestAction } from "../app/ai.ts";
-import { LUNATIC_OPPONENT, SURVEYOR_OPPONENT } from "../app/opponents.ts";
+import {
+  LUNATIC_OPPONENT,
+  PATHFINDER_DEPTH_OPTIONS,
+  PATHFINDER_OPPONENT,
+  pathfinderSearchAtDepth,
+  SURVEYOR_OPPONENT,
+} from "../app/opponents.ts";
 import { applyAction, createGame, legalActions } from "../app/pathagon.ts";
 import type { GameState, Player } from "../app/pathagon.ts";
 
@@ -46,6 +52,20 @@ test("The Surveyor sees the right-edge rush and blocks before the capture ladder
   );
   const action = SURVEYOR_OPPONENT.chooseAction(state);
   assert.deepEqual(action, { kind: "place", to: 20 });
+});
+
+test("Pathfinder look-ahead stays within the browser-safe tuning envelope", () => {
+  const quick = pathfinderSearchAtDepth(PATHFINDER_DEPTH_OPTIONS[0]);
+  const balanced = pathfinderSearchAtDepth(PATHFINDER_OPPONENT.searchDepth!);
+  const deep = pathfinderSearchAtDepth(PATHFINDER_DEPTH_OPTIONS.at(-1)!);
+  assert.equal(quick.depth, 2);
+  assert.equal(balanced.depth, 4);
+  assert.equal(deep.depth, 6);
+  assert.ok(quick.maxNodes < balanced.maxNodes);
+  assert.ok(balanced.maxNodes < deep.maxNodes);
+  assert.ok(quick.beamWidth > deep.beamWidth);
+  assert.equal(pathfinderSearchAtDepth(99).depth, 6);
+  assert.equal(pathfinderSearchAtDepth(-10).depth, 2);
 });
 
 test("Lunatic takes an obvious automatic capture", () => {

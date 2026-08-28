@@ -138,6 +138,10 @@ build command emits browser artifacts under `public/engine/` and
 npm run build:engine
 ```
 
-The browser engine should not be switched by default until the WASM boundary
-passes contract and generated parity tests. This keeps a faster implementation
-from changing game semantics or leaderboard agent identity unexpectedly.
+The game exposes Pathfinder's look-ahead as a bounded browser control. The
+default is the promoted four-ply tactical-safe search; players can choose
+between two and six ply. Each setting keeps the same Rust rules, evaluator,
+alpha-beta search, and tactical root filter while scaling its node budget and
+beam width to make the speed/strength trade-off visible. The selected value is
+stored as a device-local preference and does not change the other opponents or
+the game contract.
