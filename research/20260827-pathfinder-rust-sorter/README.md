@@ -87,7 +87,7 @@ the resulting JSONL remains consumable by the existing learner.
   1,160 games. Against unmodified depth-5 Pathfinder with the same 2,000-node
   ceiling, a depth-4 filter candidate scored 313–86–1 and 316–83–1, or
   629–169–2 over 800 games. This is strong evidence for the pure-Rust
-  `rust-pathfinder-v0.4.0-tactical-filter` default, while the learned sorter and
+  `pathfinder-v0.4.0-tactical-filter` default, while the learned sorter and
   rank models remain unpromoted.
 - The Rust target emitter now accepts `--tactical-filter`. The 400-game filtered
   archive produced 13,759 replayable positions with eight independent rank
@@ -115,8 +115,8 @@ intermediate, not a new game identity.
 
 ## Artifacts
 
-The selected 187 KB ONNX sorter and its manifest are checked in under
-`artifacts/`. The newer native-target and native-soft checkpoints/exports are
-kept as unpromoted experiment artifacts while this screen is active. Other
-optimizer state, materialized datasets, and temporary export variants are
-disposable legacy data.
+The selected 187 KB ONNX sorter and the newer native-target/native-soft
+exports remain as ignored local artifacts under `artifacts/`; they are not
+present in the current Git tree. The selected sorter can be recovered from
+the pre-refactor Git snapshot recorded in `manifest.json`. Keep a local or
+external backup before deleting the ignored files.

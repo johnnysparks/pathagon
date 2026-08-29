@@ -20,7 +20,10 @@ evaluator weights evolved against the tactical-filter baseline. Its durable
 configuration and evidence are recorded in
 [`pathfinder-v0.5.0-trained-evaluator.json`](pathfinder-v0.5.0-trained-evaluator.json).
 The 120-game held-out screen scored 70–47–3 against
-`rust-pathfinder-v0.4.0-tactical-filter` with paired colors and two randomized
+`pathfinder-v0.4.0-tactical-filter` with paired colors and two randomized
 opening plies. Browser/WASM integration, native identity smoke tests, focused
 web tests, and replay review are complete. The opponent is promoted with a
-provisional rating pending a longer post-deployment ladder.
+provisional rating pending a longer post-deployment ladder. A reproduction
+after the alpha-beta sentinel-bound fix scored 70–48–2 with 5,886,532 nodes;
+the original 70–47–3 evidence remains recorded in the opponent manifest, with
+the difference explained in the budgeted Pathfinder research record.

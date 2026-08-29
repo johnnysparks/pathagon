@@ -556,7 +556,7 @@ mod tests {
     #[test]
     fn runtime_search_config_exposes_optional_tactical_proof_horizon() {
         let config: RuntimeSearchConfig = serde_json::from_str(
-            r#"{"depth":4,"maxNodes":90000,"beamWidth":40,"weights":{"path":240,"material":110,"capture":700,"structure":55,"threat":130,"edge":80},"tacticalProofHorizon":3}"#,
+            r#"{"depth":4,"maxNodes":2000,"beamWidth":8,"weights":{"path":240,"material":110,"capture":700,"structure":55,"threat":130,"edge":80},"tacticalProofHorizon":3}"#,
         )
         .expect("decode tactical proof search config");
         assert_eq!(SearchConfig::from(config).tactical_proof_horizon, Some(3));

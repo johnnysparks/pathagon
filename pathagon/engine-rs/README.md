@@ -15,6 +15,10 @@ cross-runtime fixtures where applicable, and inspection of representative game
 outputs. Stable interchange types live in [`../contracts/`](../contracts/);
 durable fixtures and corpora live in [`../../data/`](../../data/).
 
+The promoted Pathfinder profile is depth 4 with a 2,000-node budget and beam
+width 8. The browser and native defaults use this same envelope; larger
+profiles must be requested explicitly.
+
 The runtime boundary keeps `apply_action_json` as a position-only compatibility
 API and also exposes `apply_action_transition_json` (and the corresponding
 WASM export) for auditable moves. The transition result includes the acting

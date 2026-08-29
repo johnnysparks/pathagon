@@ -2013,7 +2013,10 @@ mod tests {
 
     #[test]
     fn generated_records_include_manifest_backed_agent_identity() {
-        let light = Agent::search("rust-pathfinder-v0.1.0", SearchConfig::default());
+        let light = Agent::search_tactical_filter(
+            "pathfinder-v0.4.0-tactical-filter",
+            SearchConfig::default(),
+        );
         let dark = Agent::random("coin-flip-seeded");
         let record = play_game(
             &light,
@@ -2031,7 +2034,7 @@ mod tests {
         assert_eq!(replay.agent_specifications.light.manifest.runtime, "rust");
         assert_eq!(
             replay.agent_specifications.light.manifest.node_budget,
-            90_000
+            2_000
         );
     }
 

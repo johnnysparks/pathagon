@@ -50,8 +50,8 @@ impl Default for SearchConfig {
     fn default() -> Self {
         Self {
             depth: 4,
-            max_nodes: 90_000,
-            beam_width: 40,
+            max_nodes: 2_000,
+            beam_width: 8,
             weights: EvaluationWeights::default(),
             tactical_proof_horizon: None,
         }

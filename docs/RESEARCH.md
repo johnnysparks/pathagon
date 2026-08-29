@@ -16,6 +16,30 @@ ladder candidates remained below their parent. The next useful work should
 change one major variable at a time, use paired colors and held-out positions,
 and preserve the tactical filter as a frozen control.
 
+## Pathfinder improvement line
+
+The current strength line is:
+
+1. The 20260827 sorter study found that learned root ordering was not reliably
+   stronger, but a pure-Rust tactical-safe root filter was: 629–169–2 over 800
+   paired games. That became `pathfinder-v0.4.0-tactical-filter`, the frozen
+   control.
+2. The 20260828 budgeted evaluator study evolved the evaluator under the same
+   depth-4 / 2,000-node / beam-8 envelope and promoted
+   `pathfinder-v0.5.0-trained-evaluator` after a 70–47–3 held-out screen.
+3. Proof-guided and seeded-position follow-ups improved selected offline
+   measures but did not beat the frozen control. A longer three-generation
+   evaluator run from the handcrafted seed also produced no promotion; its best
+   held-out result was 13–11–0 over 24 games.
+4. A rerun after the alpha-beta sentinel-bound correction in `42e89299` scored
+   70–48–2. This preserves the strength signal while explaining why the old
+   summary is not bit-for-bit reproducible.
+
+The durable product state is therefore a trained Pathfinder default, a
+tactical-safe control for all future screens, and a single canonical search
+envelope. The detailed protocols, negative results, and artifact provenance
+remain in the linked dated paths below.
+
 Current questions:
 
 1. Can the trained evaluator hold its advantage on a larger post-deployment

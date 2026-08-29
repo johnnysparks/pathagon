@@ -12,7 +12,7 @@ must never silently increase the ordinary search budget.
 
 ## Starting point
 
-The current supported baseline is `rust-pathfinder-v0.4.0-tactical-filter` on
+The current supported baseline is `pathfinder-v0.4.0-tactical-filter` on
 `pathagon-rules-v1`, 7×7, 14 reserves per player. Its latest paired screen beat
 unmodified depth-5 Pathfinder 629–169–2 over 800 games. Learned sorters and
 seeded-position curricula improved selected offline metrics but did not exceed

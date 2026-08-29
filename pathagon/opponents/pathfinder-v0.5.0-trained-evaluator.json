@@ -31,7 +31,7 @@
     "evaluationPairs": 12
   },
   "evidence": {
-    "control": "rust-pathfinder-v0.4.0-tactical-filter",
+    "control": "pathfinder-v0.4.0-tactical-filter",
     "games": 120,
     "wins": 70,
     "losses": 47,
@@ -40,6 +40,19 @@
     "maxPlies": 120,
     "seed": 20260899,
     "nodes": 5926568
+  },
+  "reproduction": {
+    "commit": "42e89299",
+    "games": 120,
+    "wins": 70,
+    "losses": 48,
+    "draws": 2,
+    "openingRandomPlies": 2,
+    "maxPlies": 120,
+    "seed": 20260899,
+    "nodes": 5886532,
+    "seconds": 100.42873,
+    "notes": "Same strength signal after alpha-beta sentinel-bound hardening; node count and one result bucket changed because the earlier run used the pre-fix search bounds."
   },
   "modelHash": null
 }

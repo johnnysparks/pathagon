@@ -20,7 +20,6 @@ import {
   PATHFINDER_DEPTH_OPTIONS,
   PATHFINDER_OPPONENT,
   TRAINED_PATHFINDER_OPPONENT,
-  SURVEYOR_OPPONENT,
   getOpponent,
   pathfinderSearchAtDepth,
 } from "./opponents";
@@ -58,7 +57,7 @@ export default function Home() {
   const [coachingAction, setCoachingAction] = useState<Action | null>(null);
   const [coachingEvaluation, setCoachingEvaluation] = useState<MoveEvaluation | null>(null);
   const [coachingStatus, setCoachingStatus] = useState<"idle" | "searching" | "ready">("idle");
-  const [opponentId, setOpponentId] = useState(SURVEYOR_OPPONENT.id);
+  const [opponentId, setOpponentId] = useState(TRAINED_PATHFINDER_OPPONENT.id);
   const [pathfinderDepth, setPathfinderDepth] = useState<number>(initialPathfinderDepth);
   const [rustEngine, setRustEngine] = useState<RustEngine | null>(null);
   const [engineError, setEngineError] = useState<string | null>(null);

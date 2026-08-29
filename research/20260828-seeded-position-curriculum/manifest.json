@@ -13,7 +13,7 @@
     "role": "seeded-position curriculum generator and learner"
   },
   "baseline": {
-    "agentId": "rust-pathfinder-v0.4.0-tactical-filter",
+    "agentId": "pathfinder-v0.4.0-tactical-filter",
     "role": "frozen search authority and arena baseline"
   },
   "configuration": {

@@ -4,13 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { applyAction, createGame, type GameState } from "../pathagon";
 import type { ContractMove, ContractReplayRecord } from "../contract";
+import { PATHFINDER_TACTICAL_FILTER_ID, TRAINED_PATHFINDER_ID } from "../agent-ids";
 
 const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
 const GAME_THUMBNAIL_RESOLUTION = 256;
 
 const MODELS = [
   {
-    id: "pathfinder-v0.5.0-trained-evaluator",
+    id: TRAINED_PATHFINDER_ID,
     name: "The Pathfinder · Trained",
     family: "4-ply iterative · trained evaluator",
     role: "playable opponent",
@@ -21,9 +22,9 @@ const MODELS = [
     disabled: false,
   },
   {
-    id: "pathfinder-v0.3.0",
+    id: PATHFINDER_TACTICAL_FILTER_ID,
     name: "The Pathfinder",
-    family: "4-ply iterative search",
+    family: "4-ply iterative · tactical-safe",
     role: "playable opponent",
     budget: "",
     tone: "green",

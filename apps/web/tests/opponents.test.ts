@@ -13,6 +13,7 @@ import {
 } from "../app/opponents.ts";
 import { applyAction, createGame, legalActions } from "../app/pathagon.ts";
 import type { GameState, Player } from "../app/pathagon.ts";
+import { PATHFINDER_TACTICAL_FILTER_ID, TRAINED_PATHFINDER_ID } from "../app/agent-ids.ts";
 
 function position(pieces: Partial<Record<number, Player>>, options: Partial<GameState> = {}) {
   const state = createGame();
@@ -73,11 +74,12 @@ test("Pathfinder look-ahead stays within the browser-safe tuning envelope", () =
 
 test("trained Pathfinder keeps its promoted search envelope and evaluator weights", () => {
   const config = trainedPathfinderSearchAtDepth(TRAINED_PATHFINDER_OPPONENT.searchDepth!);
-  assert.equal(TRAINED_PATHFINDER_OPPONENT.id, "pathfinder-v0.5.0-trained-evaluator");
+  assert.equal(PATHFINDER_OPPONENT.id, PATHFINDER_TACTICAL_FILTER_ID);
+  assert.equal(TRAINED_PATHFINDER_OPPONENT.id, TRAINED_PATHFINDER_ID);
   assert.deepEqual(config.weights, TRAINED_PATHFINDER_WEIGHTS);
   assert.equal(config.depth, 4);
-  assert.equal(config.maxNodes, 90_000);
-  assert.equal(config.beamWidth, 40);
+  assert.equal(config.maxNodes, 2_000);
+  assert.equal(config.beamWidth, 8);
 });
 
 test("Lunatic takes an obvious automatic capture", () => {

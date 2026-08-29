@@ -11,7 +11,7 @@ and value calibration without sacrificing whole-game 7x7 strength.
 ## Lineage
 
 - Parent experiment: `20260827-pathfinder-rust-sorter`
-- Parent/baseline agent: `rust-pathfinder-v0.4.0-tactical-filter`
+- Parent/baseline agent: `pathfinder-v0.4.0-tactical-filter`
 - Candidate family: `seeded-gnn-puct-v0.1.0`
 - Git revision at setup: `a97b09ab`
 

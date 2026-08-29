@@ -12,7 +12,7 @@ runtime remains acceptable.
 
 ## Starting point
 
-The frozen control is `rust-pathfinder-v0.4.0-tactical-filter` on 7×7 boards
+The frozen control is `pathfinder-v0.4.0-tactical-filter` on 7×7 boards
 with 14 reserves per player. Recent evidence supports the filter over the
 unmodified depth-5 search, while learned sorters and seeded curricula remain
 below the parent. The proof-guided experiment in the sibling research path was
@@ -44,7 +44,7 @@ pairs. The promoted weights are:
 The final 120-game held-out arena used paired colors, two randomized opening
 plies, the same depth-4/2,000-node/beam-8 envelope, and a 120-ply cap. The
 candidate scored 70 wins, 47 losses, and 3 draws against
-`rust-pathfinder-v0.4.0-tactical-filter` (59.6% game points; 5,926,568 total
+`pathfinder-v0.4.0-tactical-filter` (59.6% game points; 5,926,568 total
 nodes; 78.9 seconds). The 8-game post-build smoke confirmed the distinct
 stable Rust identity and paired-color wiring.
 
@@ -53,6 +53,15 @@ zero illegal records, two threefold repetitions, one max-ply draw, and one
 duplicate trajectory. The reviewed set included short tactical wins, a
 capture-heavy 94-ply win, a control win, and the max-ply draw; no illegal or
 capture-corrupt behavior was found.
+
+### Reproduction after search-bound hardening
+
+The same command envelope was rerun after commit `42e89299` corrected the
+alpha-beta sentinel bounds. It scored 70 wins, 48 losses, and 2 draws with
+5,886,532 nodes in 100.43 seconds. The unchanged 70-win count preserves the
+strength signal; the one-game bucket shift and lower node count are expected
+consequences of the corrected pruning bounds, not evidence that the evaluator
+or tactical filter was lost in the refactor.
 
 ## Data and artifacts
 
@@ -63,7 +72,7 @@ Only canonical replay-bearing games or other reusable labels may be promoted to
 ## Project impact
 
 The promoted Rust identity is
-`rust-pathfinder-v0.5.0-trained-evaluator`, with its deployable manifest in
+`pathfinder-v0.5.0-trained-evaluator`, with its deployable manifest in
 `pathagon/opponents/pathfinder-v0.5.0-trained-evaluator.json`. The browser
 catalog, cross-play roster, lab model list, WASM engine assets, and focused web
 tests now expose the opponent as The Pathfinder · Trained. Generated games and

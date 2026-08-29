@@ -1,4 +1,5 @@
 import { connectionDistance, PATHFINDER_SEARCH, searchBestAction, SURVEYOR_SEARCH, type SearchConfig } from "./ai.ts";
+import { PATHFINDER_TACTICAL_FILTER_ID, TRAINED_PATHFINDER_ID } from "./agent-ids.ts";
 import { applyLegalAction, legalActions, otherPlayer } from "./pathagon.ts";
 import type { Action, GameState } from "./pathagon.ts";
 import type { CnnEngine } from "./cnn-engine.ts";
@@ -24,19 +25,19 @@ export const PATHFINDER_DEPTH_OPTIONS = [2, 3, 4, 5, 6] as const;
 export type PathfinderDepth = typeof PATHFINDER_DEPTH_OPTIONS[number];
 
 const PATHFINDER_BUDGETS: Record<PathfinderDepth, number> = {
-  2: 32_000,
-  3: 58_000,
+  2: 512,
+  3: 1_024,
   4: PATHFINDER_SEARCH.maxNodes,
-  5: 124_000,
-  6: 164_000,
+  5: 4_000,
+  6: 8_000,
 };
 
 const PATHFINDER_BEAMS: Record<PathfinderDepth, number> = {
-  2: 48,
-  3: 44,
+  2: 16,
+  3: 12,
   4: PATHFINDER_SEARCH.beamWidth,
-  5: 36,
-  6: 32,
+  5: 6,
+  6: 4,
 };
 
 export function pathfinderSearchAtDepth(depth: number): SearchConfig {
@@ -115,7 +116,7 @@ export const LUNATIC_OPPONENT: Opponent = {
 };
 
 export const PATHFINDER_OPPONENT: Opponent = {
-  id: "pathfinder-v0",
+  id: PATHFINDER_TACTICAL_FILTER_ID,
   name: "The Pathfinder",
   version: "0.4.0",
   engine: "4-ply iterative · tactical-safe",
@@ -128,7 +129,7 @@ export const PATHFINDER_OPPONENT: Opponent = {
 };
 
 export const TRAINED_PATHFINDER_OPPONENT: Opponent = {
-  id: "pathfinder-v0.5.0-trained-evaluator",
+  id: TRAINED_PATHFINDER_ID,
   name: "The Pathfinder · Trained",
   version: "0.5.0",
   engine: "4-ply iterative · trained evaluator",

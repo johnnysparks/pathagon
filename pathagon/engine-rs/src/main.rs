@@ -27,8 +27,8 @@ fn main() {
     let board_size = number(&args, "board-size", 7_u8);
     let reserve_per_player = number(&args, "reserve", board_size.saturating_mul(2));
     let depth = number(&args, "depth", 4_u8);
-    let max_nodes = number(&args, "nodes", 90_000_u64);
-    let beam_width = number(&args, "beam", 40_usize);
+    let max_nodes = number(&args, "nodes", 2_000_u64);
+    let beam_width = number(&args, "beam", 8_usize);
     let simulations = number(&args, "simulations", 64_u32);
     let cpuct = number(&args, "cpuct", 1.5_f32);
     let temperature_moves = number(&args, "temperature-moves", 8_u16);
@@ -251,9 +251,9 @@ fn main() {
         ..config
     };
     let candidate_filter_id = if candidate_weights == weights {
-        "rust-pathfinder-v0.4.0-tactical-filter"
+        "pathfinder-v0.4.0-tactical-filter"
     } else {
-        "rust-pathfinder-v0.5.0-trained-evaluator"
+        "pathfinder-v0.5.0-trained-evaluator"
     };
     #[cfg(feature = "inference")]
     let champion = if let Some(model) = qadv_sorter_model.as_ref() {
@@ -565,7 +565,7 @@ fn main() {
         )
     } else if opponent_name == "filter-search" {
         with_optional_book(
-            Agent::search_tactical_filter("rust-pathfinder-v0.4.0-tactical-filter", config),
+            Agent::search_tactical_filter("pathfinder-v0.4.0-tactical-filter", config),
             &book,
         )
     } else if opponent_name == "deep-search" || opponent_name == "pathfinder" {
