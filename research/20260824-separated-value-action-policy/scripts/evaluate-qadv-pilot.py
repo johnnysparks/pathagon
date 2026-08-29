@@ -13,11 +13,11 @@ from typing import Iterable
 import torch
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "research/20260824-gnn-cnn-lab"))
 
-from research.gnn.data import ReplayExample
-from research.gnn.game import Action, BoardConfig
-from research.gnn.train import choose_device, load_model, load_replay_source, split_replay_examples
+from python.data import ReplayExample
+from python.game import Action, BoardConfig
+from python.train import choose_device, load_model, load_replay_source, split_replay_examples
 
 
 def phase_name(example: ReplayExample) -> str:
