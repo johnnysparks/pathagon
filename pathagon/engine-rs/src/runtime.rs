@@ -16,7 +16,7 @@ use crate::search::{
     analyze_action, analyze_actions, lunatic_action, search_best_action,
     search_best_action_with_tactical_filter, MoveEvaluation, SearchConfig, SearchResult,
 };
-use crate::{Action, BoardConfig, GameState, Player};
+use crate::{bit_squares, Action, BoardConfig, GameState, Player};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct RuntimePosition {
@@ -37,6 +37,17 @@ pub struct RuntimePosition {
     #[serde(rename = "winningPath", default)]
     pub winning_path: Vec<u8>,
     pub ply: u16,
+}
+
+/// The complete result of applying one action at the runtime boundary.
+/// `position` is the post-move state; the other fields make the transition
+/// auditable without replaying the action or inferring captures from boards.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RuntimeActionResult {
+    pub player: ContractPlayer,
+    pub action: ContractAction,
+    pub captured: Vec<u8>,
+    pub position: RuntimePosition,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -274,6 +285,21 @@ pub fn apply_action_json(state_json: &str, action_json: &str) -> Result<String, 
     position_json(transition.state)
 }
 
+pub fn apply_action_transition_json(state_json: &str, action_json: &str) -> Result<String, String> {
+    let state = parse_position(state_json)?;
+    let action: ContractAction =
+        serde_json::from_str(action_json).map_err(|error| error.to_string())?;
+    let player = state.turn;
+    let transition = state.apply(action.clone().into()).map_err(str::to_owned)?;
+    let response = RuntimeActionResult {
+        player: player.into(),
+        action,
+        captured: bit_squares(transition.captured),
+        position: RuntimePosition::from(transition.state),
+    };
+    serde_json::to_string(&response).map_err(|error| error.to_string())
+}
+
 pub fn search_best_action_json(state_json: &str, config_json: &str) -> Result<String, String> {
     let state = parse_position(state_json)?;
     let config: RuntimeSearchConfig =
@@ -338,6 +364,14 @@ pub fn analyze_actions_json(
 mod tests {
     use super::*;
 
+    fn apply_transition(state: GameState, action: ContractAction) -> RuntimeActionResult {
+        let state_json = position_json(state).expect("serialize transition position");
+        let action_json = serde_json::to_string(&action).expect("encode transition action");
+        let transition = apply_action_transition_json(&state_json, &action_json)
+            .expect("apply transition at runtime boundary");
+        serde_json::from_str(&transition).expect("decode transition result")
+    }
+
     #[test]
     fn runtime_position_round_trips_rule_state() {
         let mut state = GameState::new();
@@ -361,6 +395,132 @@ mod tests {
         )
         .expect("apply action");
         assert_eq!(parse_position(&next).expect("parse next state").ply, 1);
+    }
+
+    #[test]
+    fn runtime_action_transition_reports_ordinary_placement() {
+        let transition = apply_transition(GameState::new(), ContractAction::Place { to: 24 });
+
+        assert_eq!(transition.player, ContractPlayer::Light);
+        assert_eq!(transition.action, ContractAction::Place { to: 24 });
+        assert!(transition.captured.is_empty());
+        assert_eq!(transition.position.board[24], Some(ContractPlayer::Light));
+        assert_eq!(transition.position.reserve.light, 13);
+        assert_eq!(transition.position.reserve.dark, 14);
+        assert!(transition.position.forbidden.is_empty());
+        assert_eq!(transition.position.last_capture, 0);
+        assert_eq!(transition.position.last_player, Some(ContractPlayer::Light));
+        assert_eq!(transition.position.turn, ContractPlayer::Dark);
+        assert_eq!(transition.position.winner, None);
+        assert_eq!(transition.position.ply, 1);
+    }
+
+    #[test]
+    fn runtime_action_transition_reports_capture_and_post_state() {
+        let mut state = GameState::new();
+        state.light = 1_u64 << 21;
+        state.dark = 1_u64 << 22;
+        state.turn = Player::Light;
+        let state_json = position_json(state).expect("serialize capture position");
+        let action_json = serde_json::to_string(&ContractAction::Place { to: 23 })
+            .expect("encode capture action");
+        let transition =
+            apply_action_transition_json(&state_json, &action_json).expect("apply transition");
+        let transition: RuntimeActionResult =
+            serde_json::from_str(&transition).expect("decode transition");
+        assert_eq!(transition.player, ContractPlayer::Light);
+        assert_eq!(transition.action, ContractAction::Place { to: 23 });
+        assert_eq!(transition.captured, vec![22]);
+        assert_eq!(transition.position.forbidden, vec![22]);
+        assert_eq!(transition.position.reserve.dark, 15);
+        assert_eq!(transition.position.board[21], Some(ContractPlayer::Light));
+        assert_eq!(transition.position.board[22], None);
+        assert_eq!(transition.position.board[23], Some(ContractPlayer::Light));
+        assert_eq!(transition.position.last_capture, 1);
+        assert_eq!(transition.position.last_player, Some(ContractPlayer::Light));
+        assert_eq!(transition.position.turn, ContractPlayer::Dark);
+        assert_eq!(transition.position.ply, 1);
+    }
+
+    #[test]
+    fn runtime_action_transition_reports_relocation_capture() {
+        let mut state = GameState::new();
+        state.light = (1_u64 << 21) | (1_u64 << 30);
+        state.dark = 1_u64 << 22;
+        state.reserve = [0, 0];
+        state.turn = Player::Light;
+
+        let transition = apply_transition(state, ContractAction::Relocate { from: 30, to: 23 });
+
+        assert_eq!(transition.player, ContractPlayer::Light);
+        assert_eq!(
+            transition.action,
+            ContractAction::Relocate { from: 30, to: 23 }
+        );
+        assert_eq!(transition.captured, vec![22]);
+        assert_eq!(transition.position.board[21], Some(ContractPlayer::Light));
+        assert_eq!(transition.position.board[22], None);
+        assert_eq!(transition.position.board[23], Some(ContractPlayer::Light));
+        assert_eq!(transition.position.board[30], None);
+        assert_eq!(transition.position.forbidden, vec![22]);
+        assert_eq!(transition.position.last_relocated_to.light, Some(23));
+        assert_eq!(transition.position.last_capture, 1);
+        assert_eq!(transition.position.reserve.light, 0);
+        assert_eq!(transition.position.reserve.dark, 1);
+        assert_eq!(transition.position.turn, ContractPlayer::Dark);
+        assert_eq!(transition.position.ply, 1);
+    }
+
+    #[test]
+    fn runtime_action_transition_reports_all_four_direction_captures() {
+        let mut state = GameState::new();
+        // Target 24 has an opposing stone on each orthogonal near square and
+        // a Light stone two squares away to support each capture ray.
+        state.light = (1_u64 << 10) | (1_u64 << 22) | (1_u64 << 26) | (1_u64 << 38) | (1_u64 << 40);
+        state.dark = (1_u64 << 17) | (1_u64 << 23) | (1_u64 << 25) | (1_u64 << 31);
+        state.reserve = [0, 0];
+        state.turn = Player::Light;
+
+        let transition = apply_transition(state, ContractAction::Relocate { from: 40, to: 24 });
+
+        assert_eq!(transition.captured, vec![17, 23, 25, 31]);
+        assert_eq!(transition.position.forbidden, vec![17, 23, 25, 31]);
+        assert_eq!(transition.position.last_capture, 4);
+        assert_eq!(transition.position.reserve.dark, 4);
+        assert_eq!(transition.position.board[24], Some(ContractPlayer::Light));
+        assert_eq!(transition.position.board[40], None);
+        for square in [17, 23, 25, 31] {
+            assert_eq!(transition.position.board[square], None);
+        }
+        assert_eq!(transition.position.winner, None);
+        assert_eq!(transition.position.turn, ContractPlayer::Dark);
+    }
+
+    #[test]
+    fn runtime_action_transition_reports_terminal_winner_and_path() {
+        let mut state = GameState::new();
+        // Light already spans rows 1 through 6 in column 0; P0 completes the
+        // top-to-bottom path and must be reported as a terminal transition.
+        state.light = (1_u64 << 7)
+            | (1_u64 << 14)
+            | (1_u64 << 21)
+            | (1_u64 << 28)
+            | (1_u64 << 35)
+            | (1_u64 << 42);
+        state.dark = 1_u64 << 1;
+        state.reserve = [8, 13];
+        state.turn = Player::Light;
+
+        let transition = apply_transition(state, ContractAction::Place { to: 0 });
+
+        assert_eq!(transition.captured, Vec::<u8>::new());
+        assert_eq!(transition.position.board[0], Some(ContractPlayer::Light));
+        assert_eq!(transition.position.winner, Some(ContractPlayer::Light));
+        assert_eq!(transition.position.winning_path.len(), 7);
+        assert!(transition.position.winning_path.contains(&0));
+        assert!(transition.position.winning_path.contains(&42));
+        assert_eq!(transition.position.turn, ContractPlayer::Dark);
+        assert_eq!(transition.position.ply, 1);
     }
 
     #[test]

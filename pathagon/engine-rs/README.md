@@ -14,3 +14,10 @@ Changes to rules, records, or opponents require focused unit coverage,
 cross-runtime fixtures where applicable, and inspection of representative game
 outputs. Stable interchange types live in [`../contracts/`](../contracts/);
 durable fixtures and corpora live in [`../../data/`](../../data/).
+
+The runtime boundary keeps `apply_action_json` as a position-only compatibility
+API and also exposes `apply_action_transition_json` (and the corresponding
+WASM export) for auditable moves. The transition result includes the acting
+player, action, captured squares, and the complete post-move position. Run
+`npm run build:engine` to regenerate the checked-in browser bundle after
+consumers adopt that endpoint.

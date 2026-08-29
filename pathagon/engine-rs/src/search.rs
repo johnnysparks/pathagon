@@ -7,8 +7,12 @@ use crate::{
 };
 
 const WIN_SCORE: i32 = 1_000_000_000;
-const NEG_INF: i32 = i32::MIN / 4;
-const POS_INF: i32 = i32::MAX / 4;
+// Search bounds must strictly contain every value returned by `evaluate`.
+// Terminal scores are intentionally close to +/-WIN_SCORE, so i32::MAX/4 is
+// not a valid infinity: a minimizing node could leave its accumulator at
+// POS_INF when every child is a terminal win (> POS_INF).
+const NEG_INF: i32 = -WIN_SCORE - 1;
+const POS_INF: i32 = WIN_SCORE + 1;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct EvaluationWeights {
@@ -1279,6 +1283,31 @@ mod tests {
         assert!(result.nodes <= 120);
         assert!(result.exhausted);
         assert!((1..5).contains(&result.completed_depth));
+    }
+
+    #[test]
+    fn completed_search_never_exposes_internal_bound_as_a_score() {
+        // This is the first Extra High game position where the referee
+        // previously published POS_INF (536_870_911) as Pathfinder's score.
+        let mut state = GameState::new();
+        for to in [
+            44_u8, 9, 10, 2, 3, 8, 17, 11, 7, 10, 13, 6, 20, 5, 1, 15, 14, 0, 16, 2, 4, 18,
+        ] {
+            let action = Action::Place { to };
+            assert!(state.legal_actions().contains(&action));
+            state = state.apply_legal(action).state;
+        }
+        let result = search_best_action(
+            state,
+            SearchConfig {
+                depth: 5,
+                max_nodes: 2_000,
+                beam_width: 8,
+                ..SearchConfig::default()
+            },
+        );
+        assert_ne!(result.score, NEG_INF);
+        assert_ne!(result.score, POS_INF);
     }
 
     #[test]
