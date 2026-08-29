@@ -5,7 +5,10 @@ import {
   LUNATIC_OPPONENT,
   PATHFINDER_DEPTH_OPTIONS,
   PATHFINDER_OPPONENT,
+  TRAINED_PATHFINDER_OPPONENT,
+  TRAINED_PATHFINDER_WEIGHTS,
   pathfinderSearchAtDepth,
+  trainedPathfinderSearchAtDepth,
   SURVEYOR_OPPONENT,
 } from "../app/opponents.ts";
 import { applyAction, createGame, legalActions } from "../app/pathagon.ts";
@@ -66,6 +69,15 @@ test("Pathfinder look-ahead stays within the browser-safe tuning envelope", () =
   assert.ok(quick.beamWidth > deep.beamWidth);
   assert.equal(pathfinderSearchAtDepth(99).depth, 6);
   assert.equal(pathfinderSearchAtDepth(-10).depth, 2);
+});
+
+test("trained Pathfinder keeps its promoted search envelope and evaluator weights", () => {
+  const config = trainedPathfinderSearchAtDepth(TRAINED_PATHFINDER_OPPONENT.searchDepth!);
+  assert.equal(TRAINED_PATHFINDER_OPPONENT.id, "pathfinder-v0.5.0-trained-evaluator");
+  assert.deepEqual(config.weights, TRAINED_PATHFINDER_WEIGHTS);
+  assert.equal(config.depth, 4);
+  assert.equal(config.maxNodes, 90_000);
+  assert.equal(config.beamWidth, 40);
 });
 
 test("Lunatic takes an obvious automatic capture", () => {

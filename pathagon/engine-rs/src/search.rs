@@ -195,6 +195,75 @@ pub fn search_best_action_with_tactical_filter(
     )
 }
 
+/// Use the bounded rule-grounded proof solver only for positions with a cheap
+/// tactical signal, then fall back to the promoted tactical-safe Pathfinder.
+///
+/// The proof solver is horizon-limited and may return an unknown result when
+/// its budget is exhausted. In that case, or when every root action receives
+/// the same proof outcome, the incumbent remains authoritative. The proof
+/// history is supplied by self-play so repetition draws are not mislabelled.
+pub fn search_best_action_with_tactical_proof(
+    state: GameState,
+    config: SearchConfig,
+    proof_horizon: u8,
+    proof_nodes: u64,
+    proof_history: &[(crate::endgame::EndgameRepetitionKey, u8)],
+) -> SearchResult {
+    if proof_horizon == 0
+        || proof_nodes == 0
+        || state.config.board_size > 7
+        || state.legal_action_count() > 512
+        || !has_tactical_signal(state)
+    {
+        return search_best_action_with_tactical_filter(state, config);
+    }
+
+    let root_order = ordered_root_actions(state, state.turn, config.weights);
+    let analysis = crate::endgame::analyze_with_history_and_root_order(
+        state,
+        crate::endgame::TacticalProofConfig {
+            horizon: proof_horizon,
+            max_nodes: proof_nodes,
+        },
+        proof_history,
+        &root_order,
+    );
+    let Ok(analysis) = analysis else {
+        return search_best_action_with_tactical_filter(state, config);
+    };
+    if analysis.stats.exhausted
+        || analysis.outcome != 1
+        || analysis.actions.is_empty()
+        || analysis
+            .actions
+            .iter()
+            .all(|item| item.outcome == analysis.outcome)
+    {
+        return search_best_action_with_tactical_filter(state, config);
+    }
+
+    let action = root_order
+        .iter()
+        .copied()
+        .find(|action| analysis.optimal_actions.contains(action));
+    let Some(action) = action else {
+        return search_best_action_with_tactical_filter(state, config);
+    };
+    let score = match analysis.outcome {
+        1 => WIN_SCORE - state.ply as i32,
+        -1 => -WIN_SCORE + state.ply as i32,
+        _ => 0,
+    };
+    SearchResult {
+        action: Some(action),
+        score,
+        nodes: analysis.stats.nodes,
+        exhausted: false,
+        completed_depth: proof_horizon,
+        table_hits: analysis.stats.cache_hits,
+    }
+}
+
 /// Search for the best action while allowing an external policy/sorter to
 /// provide a root ordering. The recursive alpha-beta evaluator remains the
 /// authority; missing or illegal sorter actions fall back to Pathfinder's
@@ -578,6 +647,24 @@ fn immediate_winning_actions(state: GameState, player: Player) -> Vec<Action> {
         .into_iter()
         .filter(|action| state.apply_legal(*action).state.winner == Some(player))
         .collect()
+}
+
+fn has_tactical_signal(state: GameState) -> bool {
+    let own_tactic = state.legal_actions().iter().copied().any(|action| {
+        let transition = state.apply_legal(action);
+        transition.state.winner == Some(state.turn)
+            || transition.captured.count_ones() >= 2
+    });
+    if own_tactic {
+        return true;
+    }
+    let mut opponent_view = state;
+    opponent_view.turn = state.turn.other();
+    opponent_view
+        .legal_actions()
+        .iter()
+        .copied()
+        .any(|action| opponent_view.apply_legal(action).state.winner == Some(opponent_view.turn))
 }
 
 pub fn analyze_action(
@@ -1313,6 +1400,48 @@ mod tests {
             Action::Relocate { from: 15, to: 0 },
         ]
         .contains(&result.action.expect("filter returns an action")));
+    }
+
+    #[test]
+    fn proof_guided_search_selects_a_bounded_seven_by_seven_win() {
+        let config = crate::BoardConfig::new(7, 14)
+            .expect("valid board config")
+            .with_max_plies(180)
+            .expect("valid ply limit");
+        let bits = |squares: &[u8]| {
+            squares
+                .iter()
+                .fold(0_u64, |mask, square| mask | (1_u64 << square))
+        };
+        let state = GameState {
+            config,
+            light: bits(&[7, 14, 21, 28, 35, 42, 48]),
+            dark: bits(&[1, 2, 3, 4, 5, 6]),
+            reserve: [0, 0],
+            turn: Player::Light,
+            forbidden: 0,
+            last_relocated_to: [None, None],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: 20,
+        };
+        let result = search_best_action_with_tactical_proof(
+            state,
+            SearchConfig {
+                depth: 4,
+                max_nodes: 2_000,
+                beam_width: 8,
+                ..SearchConfig::default()
+            },
+            1,
+            1_000,
+            &[],
+        );
+        assert_eq!(result.action, Some(Action::Relocate { from: 48, to: 0 }));
+        assert_eq!(result.score, WIN_SCORE - state.ply as i32);
+        assert_eq!(result.completed_depth, 1);
+        assert!(!result.exhausted);
     }
 
     #[test]

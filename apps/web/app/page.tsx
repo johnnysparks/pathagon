@@ -19,6 +19,7 @@ import {
   OPPONENTS,
   PATHFINDER_DEPTH_OPTIONS,
   PATHFINDER_OPPONENT,
+  TRAINED_PATHFINDER_OPPONENT,
   SURVEYOR_OPPONENT,
   getOpponent,
   pathfinderSearchAtDepth,
@@ -495,9 +496,9 @@ export default function Home() {
           </div>
           <div className="rating-card">
             <div><span className="stat-label">Estimated Elo</span><strong>{opponent.elo}</strong></div>
-            <span className="engine-pill">{opponent.id === PATHFINDER_OPPONENT.id ? `${pathfinderDepth}-ply · tactical-safe` : opponent.engine}</span>
+            <span className="engine-pill">{isPathfinderOpponent(opponent.id) ? `${pathfinderDepth}-ply · tactical-safe` : opponent.engine}</span>
           </div>
-          {opponent.id === PATHFINDER_OPPONENT.id && (
+          {isPathfinderOpponent(opponent.id) && (
             <section className="lookahead-control" aria-labelledby="pathfinder-lookahead-title">
               <div className="lookahead-heading">
                 <div>
@@ -524,7 +525,7 @@ export default function Home() {
             <div><dt>Legal actions</dt><dd>{actions.length}</dd></div>
             <div><dt>Phase</dt><dd>{game.winner ? "Complete" : game.reserve[game.turn] ? "Placement" : "Movement"}</dd></div>
             <div><dt>Captured last turn</dt><dd>{game.lastAction?.captured.length ?? 0}</dd></div>
-            <div><dt>{opponent.searchDepth === null ? "Search budget" : "Search depth"}</dt><dd>{opponent.id === PATHFINDER_OPPONENT.id ? `${pathfinderDepth} ply` : opponent.searchDepth === null ? `${CNN_SEARCH.simulations} PUCT simulations` : `${opponent.searchDepth} ply`}</dd></div>
+            <div><dt>{opponent.searchDepth === null ? "Search budget" : "Search depth"}</dt><dd>{isPathfinderOpponent(opponent.id) ? `${pathfinderDepth} ply` : opponent.searchDepth === null ? `${CNN_SEARCH.simulations} PUCT simulations` : `${opponent.searchDepth} ply`}</dd></div>
           </dl>
           <div className="event-log"><span className="stat-label">Latest event</span><p>{game.lastAction ? describeAction(game.lastAction) : "The board is empty. You have the first move."}</p></div>
           <div className="rules-note"><strong>{engineError || cnnError ? "Engine unavailable" : !rustEngine ? "Loading Rust engine…" : opponent.id === CNN_OPPONENT.id && !cnnEngine ? "Loading CNN model…" : "Rust/WASM engine"}</strong><p>{engineError ?? cnnError ?? "Light connects near-to-far; dark connects side-to-side. Orthogonal paths. Automatic A–B–A captures."}</p></div>
@@ -592,6 +593,10 @@ export default function Home() {
       )}
     </main>
   );
+}
+
+function isPathfinderOpponent(id: string) {
+  return id === PATHFINDER_OPPONENT.id || id === TRAINED_PATHFINDER_OPPONENT.id;
 }
 
 function PieceTray({ label, player, count, active }: { label: string; player: Player; count: number; active: boolean }) {

@@ -24,6 +24,7 @@ fn main() {
         ),
         max_plies: number(&args, "max-plies", defaults.max_plies),
         opening_random_plies: number(&args, "opening-random-plies", defaults.opening_random_plies),
+        tactical_filter: args.contains_key("tactical-filter"),
         search: SearchConfig {
             depth: number(&args, "depth", defaults.search.depth),
             max_nodes: number(&args, "nodes", defaults.search.max_nodes),
@@ -71,6 +72,8 @@ fn parse_args() -> HashMap<String, String> {
             {
                 parsed.insert(option.to_owned(), values[index + 1].clone());
                 index += 1;
+            } else {
+                parsed.insert(option.to_owned(), "true".to_owned());
             }
         }
         index += 1;

@@ -10,6 +10,17 @@ const GAME_THUMBNAIL_RESOLUTION = 256;
 
 const MODELS = [
   {
+    id: "pathfinder-v0.5.0-trained-evaluator",
+    name: "The Pathfinder · Trained",
+    family: "4-ply iterative · trained evaluator",
+    role: "playable opponent",
+    budget: "",
+    tone: "green",
+    glyph: "T",
+    planned: false,
+    disabled: false,
+  },
+  {
     id: "pathfinder-v0.3.0",
     name: "The Pathfinder",
     family: "4-ply iterative search",

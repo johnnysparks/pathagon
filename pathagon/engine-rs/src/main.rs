@@ -55,12 +55,32 @@ fn main() {
     let root_probe_enabled = root_probe_depth > 0 && root_probe_nodes > 0 && root_probe_actions > 0;
     let tt_order = args.contains_key("tt-order");
     let tactical_root_guard = args.contains_key("tactical-root-guard");
+    let tactical_proof_search = args.contains_key("proof-search");
     let tactical_root_filter =
         args.contains_key("tactical-root-filter") || !args.contains_key("no-tactical-root-filter");
     let opponent_name = args.get("opponent").map(String::as_str).unwrap_or("random");
     let opponent_probe_enabled = root_probe_enabled && opponent_name == "probe-search";
     let tactical_simulations = number(&args, "tactical-simulations", 512_u32);
     let tactical_proof_nodes = number(&args, "tactical-proof-nodes", 50_000_u64);
+    let proof_horizon = number(&args, "proof-horizon", 3_u8);
+    let proof_nodes = number(&args, "proof-nodes", 50_000_u64);
+    let default_weights = EvaluationWeights::default();
+    let weights = EvaluationWeights {
+        path: number(&args, "weight-path", default_weights.path),
+        material: number(&args, "weight-material", default_weights.material),
+        capture: number(&args, "weight-capture", default_weights.capture),
+        structure: number(&args, "weight-structure", default_weights.structure),
+        threat: number(&args, "weight-threat", default_weights.threat),
+        edge: number(&args, "weight-edge", default_weights.edge),
+    };
+    let candidate_weights = EvaluationWeights {
+        path: number(&args, "candidate-weight-path", weights.path),
+        material: number(&args, "candidate-weight-material", weights.material),
+        capture: number(&args, "candidate-weight-capture", weights.capture),
+        structure: number(&args, "candidate-weight-structure", weights.structure),
+        threat: number(&args, "candidate-weight-threat", weights.threat),
+        edge: number(&args, "candidate-weight-edge", weights.edge),
+    };
     let guided = args.contains_key("guided")
         || args.contains_key("pathfinder-guidance")
         || args.contains_key("placement-guidance")
@@ -208,7 +228,7 @@ fn main() {
             _ => state.turn,
         };
         let score =
-            pathagon_engine::search::evaluate(state, perspective, EvaluationWeights::default());
+            pathagon_engine::search::evaluate(state, perspective, weights);
         println!(
             "{{\"perspective\":\"{}\",\"score\":{score}}}",
             perspective.as_str()
@@ -220,14 +240,20 @@ fn main() {
         depth,
         max_nodes,
         beam_width,
-        weights: EvaluationWeights::default(),
+        weights,
         tactical_proof_horizon,
     };
     let candidate_config = SearchConfig {
         depth: number(&args, "candidate-depth", depth),
         max_nodes: number(&args, "candidate-nodes", max_nodes),
         beam_width: number(&args, "candidate-beam", beam_width),
+        weights: candidate_weights,
         ..config
+    };
+    let candidate_filter_id = if candidate_weights == weights {
+        "rust-pathfinder-v0.4.0-tactical-filter"
+    } else {
+        "rust-pathfinder-v0.5.0-trained-evaluator"
     };
     #[cfg(feature = "inference")]
     let champion = if let Some(model) = qadv_sorter_model.as_ref() {
@@ -325,6 +351,13 @@ fn main() {
             root_probe_nodes,
             root_probe_actions,
         )
+    } else if tactical_proof_search {
+        Agent::search_tactical_proof(
+            "rust-pathfinder-v0.5.0-proof-guided",
+            candidate_config,
+            proof_horizon,
+            proof_nodes,
+        )
     } else if tt_order {
         Agent::search_tt_order("rust-pathfinder-v0.3.0-tt-order", candidate_config)
     } else if tactical_root_guard {
@@ -333,7 +366,7 @@ fn main() {
             candidate_config,
         )
     } else if tactical_root_filter && learned_book.is_none() {
-        Agent::search_tactical_filter("rust-pathfinder-v0.4.0-tactical-filter", candidate_config)
+        Agent::search_tactical_filter(candidate_filter_id, candidate_config)
     } else {
         learned_book.as_ref().map_or_else(
             || with_optional_book(Agent::search("rust-pathfinder-v0.1.0", config), &book),
@@ -356,8 +389,15 @@ fn main() {
             root_probe_nodes,
             root_probe_actions,
         )
+    } else if tactical_proof_search {
+        Agent::search_tactical_proof(
+            "rust-pathfinder-v0.5.0-proof-guided",
+            candidate_config,
+            proof_horizon,
+            proof_nodes,
+        )
     } else if tactical_root_filter && learned_book.is_none() {
-        Agent::search_tactical_filter("rust-pathfinder-v0.4.0-tactical-filter", candidate_config)
+        Agent::search_tactical_filter(candidate_filter_id, candidate_config)
     } else {
         learned_book.as_ref().map_or_else(
             || {
@@ -500,6 +540,16 @@ fn main() {
                 root_probe_depth,
                 root_probe_nodes,
                 root_probe_actions,
+            ),
+            &book,
+        )
+    } else if opponent_name == "proof-search" {
+        with_optional_book(
+            Agent::search_tactical_proof(
+                "rust-pathfinder-v0.5.0-proof-guided",
+                config,
+                proof_horizon,
+                proof_nodes,
             ),
             &book,
         )

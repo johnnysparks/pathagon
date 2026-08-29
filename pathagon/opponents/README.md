@@ -11,3 +11,16 @@ to the browser through WASM. Their user-facing catalog remains in
 metadata. Experimental checkpoints and Python agents stay with their dated
 research path; promotion means porting behavior to Rust and recording only
 high-value deployable artifacts here.
+
+## `pathfinder-v0.5.0-trained-evaluator`
+
+The Pathfinder · Trained is a Rust tactical-filter search opponent using the
+same 4-ply, 2,000-node, beam-8 search envelope as the research control, with
+evaluator weights evolved against the tactical-filter baseline. Its durable
+configuration and evidence are recorded in
+[`pathfinder-v0.5.0-trained-evaluator.json`](pathfinder-v0.5.0-trained-evaluator.json).
+The 120-game held-out screen scored 70–47–3 against
+`rust-pathfinder-v0.4.0-tactical-filter` with paired colors and two randomized
+opening plies. Browser/WASM integration, native identity smoke tests, focused
+web tests, and replay review are complete. The opponent is promoted with a
+provisional rating pending a longer post-deployment ladder.

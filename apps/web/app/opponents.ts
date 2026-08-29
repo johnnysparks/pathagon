@@ -40,6 +40,23 @@ const PATHFINDER_BEAMS: Record<PathfinderDepth, number> = {
 };
 
 export function pathfinderSearchAtDepth(depth: number): SearchConfig {
+  return pathfinderSearchAtDepthWithWeights(depth, PATHFINDER_SEARCH.weights);
+}
+
+export const TRAINED_PATHFINDER_WEIGHTS = {
+  path: 241,
+  material: 112,
+  capture: 887,
+  structure: 40,
+  threat: 154,
+  edge: 74,
+} as const;
+
+export function trainedPathfinderSearchAtDepth(depth: number): SearchConfig {
+  return pathfinderSearchAtDepthWithWeights(depth, TRAINED_PATHFINDER_WEIGHTS);
+}
+
+function pathfinderSearchAtDepthWithWeights(depth: number, weights: SearchConfig["weights"]): SearchConfig {
   const safeDepth = PATHFINDER_DEPTH_OPTIONS.reduce<PathfinderDepth>(
     (closest, option) => Math.abs(option - depth) < Math.abs(closest - depth) ? option : closest,
     PATHFINDER_SEARCH.depth as PathfinderDepth,
@@ -49,6 +66,7 @@ export function pathfinderSearchAtDepth(depth: number): SearchConfig {
     depth: safeDepth,
     maxNodes: PATHFINDER_BUDGETS[safeDepth],
     beamWidth: PATHFINDER_BEAMS[safeDepth],
+    weights,
   };
 }
 
@@ -109,6 +127,19 @@ export const PATHFINDER_OPPONENT: Opponent = {
   },
 };
 
+export const TRAINED_PATHFINDER_OPPONENT: Opponent = {
+  id: "pathfinder-v0.5.0-trained-evaluator",
+  name: "The Pathfinder · Trained",
+  version: "0.5.0",
+  engine: "4-ply iterative · trained evaluator",
+  elo: "Provisional · trained",
+  personality: "Keeps the path, weighs the traps more carefully.",
+  searchDepth: 4,
+  chooseAction(state) {
+    return searchBestAction(state, trainedPathfinderSearchAtDepth(PATHFINDER_SEARCH.depth)).action;
+  },
+};
+
 export const CNN_OPPONENT: Opponent = {
   id: "cnn-puct-v0",
   name: "The Convolutionist",
@@ -124,7 +155,7 @@ export const CNN_OPPONENT: Opponent = {
 
 export const CNN_SEARCH = { simulations: 64, cpuct: 1.5 } as const;
 
-export const OPPONENTS = [CNN_OPPONENT, PATHFINDER_OPPONENT, LUNATIC_OPPONENT, SURVEYOR_OPPONENT, RANDOM_OPPONENT] as const;
+export const OPPONENTS = [CNN_OPPONENT, TRAINED_PATHFINDER_OPPONENT, PATHFINDER_OPPONENT, LUNATIC_OPPONENT, SURVEYOR_OPPONENT, RANDOM_OPPONENT] as const;
 
 export function getOpponent(id: string): Opponent {
   return OPPONENTS.find((opponent) => opponent.id === id) ?? SURVEYOR_OPPONENT;
@@ -146,10 +177,13 @@ export function chooseOpponentAction(
     return cnnEngine?.selectAction(state, CNN_SEARCH).action ?? null;
   }
   if (opponent.id === LUNATIC_OPPONENT.id) return engine.lunaticAction(state).action;
-  const config = opponent.id === PATHFINDER_OPPONENT.id
-    ? pathfinderSearchAtDepth(pathfinderDepth)
+  const isPathfinder = opponent.id === PATHFINDER_OPPONENT.id || opponent.id === TRAINED_PATHFINDER_OPPONENT.id;
+  const config = isPathfinder
+    ? opponent.id === TRAINED_PATHFINDER_OPPONENT.id
+      ? trainedPathfinderSearchAtDepth(pathfinderDepth)
+      : pathfinderSearchAtDepth(pathfinderDepth)
     : SURVEYOR_SEARCH;
-  return opponent.id === PATHFINDER_OPPONENT.id
+  return isPathfinder
     ? engine.searchBestTacticalAction(state, config).action
     : engine.searchBestAction(state, config).action;
 }

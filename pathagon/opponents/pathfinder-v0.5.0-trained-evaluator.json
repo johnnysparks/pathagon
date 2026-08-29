@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "pathfinder-v0.5.0-trained-evaluator",
+  "name": "The Pathfinder · Trained",
+  "version": "0.5.0",
+  "kind": "search",
+  "runtime": "rust",
+  "rulesVersion": "pathagon-rules-v1",
+  "boardSize": 7,
+  "reservePerPlayer": 14,
+  "search": {
+    "depth": 4,
+    "nodeBudget": 2000,
+    "beam": 8,
+    "tacticalRootFilter": true
+  },
+  "evaluatorWeights": {
+    "path": 241,
+    "material": 112,
+    "capture": 887,
+    "structure": 40,
+    "threat": 154,
+    "edge": 74
+  },
+  "training": {
+    "method": "deterministic evaluator evolution",
+    "seed": 20260879,
+    "generations": 2,
+    "population": 8,
+    "trainingPairs": 4,
+    "evaluationPairs": 12
+  },
+  "evidence": {
+    "control": "rust-pathfinder-v0.4.0-tactical-filter",
+    "games": 120,
+    "wins": 70,
+    "losses": 47,
+    "draws": 3,
+    "openingRandomPlies": 2,
+    "maxPlies": 120,
+    "seed": 20260899,
+    "nodes": 5926568
+  },
+  "modelHash": null
+}

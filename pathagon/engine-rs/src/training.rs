@@ -20,6 +20,7 @@ pub struct TrainingConfig {
     pub promotion_rate_per_mille: u16,
     pub max_plies: u16,
     pub opening_random_plies: u16,
+    pub tactical_filter: bool,
     pub search: SearchConfig,
 }
 
@@ -35,6 +36,7 @@ impl Default for TrainingConfig {
             promotion_rate_per_mille: 550,
             max_plies: 120,
             opening_random_plies: 4,
+            tactical_filter: false,
             search: SearchConfig {
                 depth: 2,
                 max_nodes: 12_000,
@@ -237,7 +239,7 @@ impl TrainingResult {
             .collect::<Vec<_>>()
             .join(",");
         format!(
-            "{{\"schemaVersion\":1,\"seed\":{},\"config\":{{\"generations\":{},\"population\":{},\"trainingPairs\":{},\"evaluationPairs\":{},\"mutationPerMille\":{},\"promotionRatePerMille\":{},\"maxPlies\":{},\"openingRandomPlies\":{},\"search\":{}}},\"initial\":{},\"champion\":{},\"promotions\":{},\"trials\":[{}]}}\n",
+            "{{\"schemaVersion\":1,\"seed\":{},\"config\":{{\"generations\":{},\"population\":{},\"trainingPairs\":{},\"evaluationPairs\":{},\"mutationPerMille\":{},\"promotionRatePerMille\":{},\"maxPlies\":{},\"openingRandomPlies\":{},\"tacticalFilter\":{},\"search\":{}}},\"initial\":{},\"champion\":{},\"promotions\":{},\"trials\":[{}]}}\n",
             self.config.seed,
             self.config.generations,
             self.config.population,
@@ -247,6 +249,7 @@ impl TrainingResult {
             self.config.promotion_rate_per_mille,
             self.config.max_plies,
             self.config.opening_random_plies,
+            self.config.tactical_filter,
             search_json(self.config.search),
             champion_json(&self.initial).trim(),
             champion_json(&self.champion).trim(),
@@ -264,20 +267,24 @@ fn paired_series(
     seed: u32,
     pairs: u16,
 ) -> Vec<GameRecord> {
-    let candidate = Agent::search(
-        candidate_id,
-        SearchConfig {
-            weights: candidate_weights,
-            ..config.search
-        },
-    );
-    let incumbent_agent = Agent::search(
-        &incumbent.id,
-        SearchConfig {
-            weights: incumbent.weights,
-            ..config.search
-        },
-    );
+    let candidate_config = SearchConfig {
+        weights: candidate_weights,
+        ..config.search
+    };
+    let incumbent_config = SearchConfig {
+        weights: incumbent.weights,
+        ..config.search
+    };
+    let candidate = if config.tactical_filter {
+        Agent::search_tactical_filter(candidate_id, candidate_config)
+    } else {
+        Agent::search(candidate_id, candidate_config)
+    };
+    let incumbent_agent = if config.tactical_filter {
+        Agent::search_tactical_filter(&incumbent.id, incumbent_config)
+    } else {
+        Agent::search(&incumbent.id, incumbent_config)
+    };
     let mut records = Vec::with_capacity(pairs as usize * 2);
     for pair in 0..pairs {
         let options = MatchOptions {

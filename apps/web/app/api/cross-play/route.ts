@@ -10,6 +10,7 @@ const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
 const RUN_ID_PATTERN = /^[a-zA-Z0-9._:-]{1,120}$/;
 const WEB_GENERATED_ENGINE = "typescript-live-cross-play";
 const AGENTS = [
+  { id: "pathfinder-v0.5.0-trained-evaluator", label: "The Pathfinder · Trained", kind: "heuristic" as const, tone: "green" },
   { id: "pathfinder-v0.3.0", label: "The Pathfinder", kind: "heuristic" as const, tone: "green" },
   { id: "surveyor-v0.2.0", label: "The Surveyor", kind: "heuristic" as const, tone: "violet" },
   { id: "lunatic-v0.1.0", label: "Lunatic", kind: "heuristic" as const, tone: "gold" },
@@ -29,6 +30,7 @@ const AGENTS = [
 ] as const;
 
 const BASELINE_RATINGS: Record<string, number> = {
+  "pathfinder-v0.5.0-trained-evaluator": 1_160,
   "pathfinder-v0.3.0": 1_142,
   "surveyor-v0.2.0": 1_085,
   "lunatic-v0.1.0": 1_059,

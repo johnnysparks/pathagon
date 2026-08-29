@@ -17,7 +17,7 @@ use crate::puct::{
 use crate::search::{
     lunatic_action, search_best_action, search_best_action_with_root_probe,
     search_best_action_with_tactical_filter, search_best_action_with_tactical_guard,
-    search_best_action_with_tt_order, SearchConfig,
+    search_best_action_with_tactical_proof, search_best_action_with_tt_order, SearchConfig,
 };
 #[cfg(feature = "inference")]
 use crate::search::{
@@ -60,6 +60,13 @@ pub enum Agent {
     SearchTacticalFilter {
         id: String,
         config: SearchConfig,
+    },
+    /// Pathfinder with a selective, bounded rule-grounded tactical proof.
+    SearchTacticalProof {
+        id: String,
+        config: SearchConfig,
+        proof_horizon: u8,
+        proof_nodes: u64,
     },
     #[cfg(feature = "inference")]
     GnnSorter {
@@ -235,6 +242,22 @@ impl Agent {
         }
     }
 
+    pub fn search_tactical_proof(
+        id: impl Into<String>,
+        config: SearchConfig,
+        proof_horizon: u8,
+        proof_nodes: u64,
+    ) -> Self {
+        assert!(proof_horizon > 0, "tactical proof horizon must be positive");
+        assert!(proof_nodes > 0, "tactical proof node budget must be positive");
+        Self::SearchTacticalProof {
+            id: id.into(),
+            config,
+            proof_horizon,
+            proof_nodes,
+        }
+    }
+
     pub fn lunatic(id: impl Into<String>) -> Self {
         Self::Lunatic { id: id.into() }
     }
@@ -354,6 +377,7 @@ impl Agent {
             | Self::SearchTtOrder { id, .. }
             | Self::SearchTacticalGuard { id, .. }
             | Self::SearchTacticalFilter { id, .. }
+            | Self::SearchTacticalProof { id, .. }
             | Self::Learned { id, .. } => id,
             #[cfg(feature = "inference")]
             Self::Gnn { id, .. } | Self::GnnSorter { id, .. } | Self::QAdvSorter { id, .. } => id,
@@ -456,6 +480,30 @@ impl Agent {
             }
             Self::SearchTacticalFilter { config, .. } => {
                 let result = search_best_action_with_tactical_filter(state, *config);
+                Decision {
+                    action: result.action,
+                    score: result.score,
+                    nodes: result.nodes,
+                    completed_depth: result.completed_depth,
+                    table_hits: result.table_hits,
+                    book_hit: false,
+                    root_q: None,
+                }
+            }
+            Self::SearchTacticalProof {
+                config,
+                proof_horizon,
+                proof_nodes,
+                ..
+            } => {
+                let proof_history = endgame_proof_history(&history, state, repetition_count);
+                let result = search_best_action_with_tactical_proof(
+                    state,
+                    *config,
+                    *proof_horizon,
+                    *proof_nodes,
+                    &proof_history,
+                );
                 Decision {
                     action: result.action,
                     score: result.score,
@@ -791,6 +839,15 @@ fn agent_spec_json(agent: &Agent) -> String {
             config.weights,
             config.tactical_proof_horizon,
         ),
+        Agent::SearchTacticalProof { config, .. } => (
+            "search",
+            "Rust Pathfinder · proof-guided tactical search",
+            u32::from(config.depth),
+            config.max_nodes,
+            config.beam_width as u32,
+            config.weights,
+            config.tactical_proof_horizon,
+        ),
         Agent::Learned { config, .. } => (
             "learned",
             "Learned",
@@ -912,6 +969,18 @@ fn agent_spec_json(agent: &Agent) -> String {
             "rootProbeActions".to_owned(),
             serde_json::json!(probe_actions),
         );
+    }
+    if let Agent::SearchTacticalProof {
+        proof_horizon,
+        proof_nodes,
+        ..
+    } = agent
+    {
+        parameters.insert(
+            "proofHorizon".to_owned(),
+            serde_json::json!(proof_horizon),
+        );
+        parameters.insert("proofNodes".to_owned(), serde_json::json!(proof_nodes));
     }
     #[cfg(feature = "inference")]
     if let Agent::GnnSorter {
@@ -1122,6 +1191,38 @@ impl From<GameState> for RepetitionKey {
             last_relocated_to: state.last_relocated_to,
         }
     }
+}
+
+fn endgame_proof_history(
+    history: &HashSet<RepetitionKey>,
+    state: GameState,
+    repetition_count: u8,
+) -> Vec<(crate::endgame::EndgameRepetitionKey, u8)> {
+    let root_key = RepetitionKey::from(state);
+    history
+        .iter()
+        .filter_map(|key| {
+            let count = if *key == root_key {
+                repetition_count.saturating_sub(1)
+            } else {
+                1
+            };
+            (count > 0).then_some((key, count))
+        })
+        .map(|(key, count)| {
+            (
+                crate::endgame::EndgameRepetitionKey {
+                    light: key.light,
+                    dark: key.dark,
+                    reserve: key.reserve,
+                    turn: key.turn,
+                    forbidden: key.forbidden,
+                    last_relocated_to: key.last_relocated_to,
+                },
+                count,
+            )
+        })
+        .collect()
 }
 
 #[derive(Clone, Copy, Debug)]
