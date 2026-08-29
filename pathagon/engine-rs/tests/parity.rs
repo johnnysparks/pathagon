@@ -5,7 +5,8 @@ use pathagon_engine::{bit_squares, parse_action, GameState, Player};
 
 #[test]
 fn shared_rule_fixtures_match_rust_engine() {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/fixtures/rules-parity.tsv");
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/fixtures/rules-parity.tsv");
     let fixture = fs::read_to_string(path).expect("read shared parity fixture");
     for (line_number, line) in fixture.lines().enumerate() {
         if line.is_empty() || line.starts_with('#') {

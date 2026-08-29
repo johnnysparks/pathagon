@@ -16,8 +16,9 @@ use crate::puct::{
 };
 use crate::search::{
     lunatic_action, search_best_action, search_best_action_with_root_probe,
-    search_best_action_with_tactical_filter, search_best_action_with_tactical_guard,
-    search_best_action_with_tactical_proof, search_best_action_with_tt_order, SearchConfig,
+    search_best_action_with_tactical_filter, search_best_action_with_tactical_filter_deadline,
+    search_best_action_with_tactical_guard, search_best_action_with_tactical_proof,
+    search_best_action_with_tt_order, SearchConfig,
 };
 #[cfg(feature = "inference")]
 use crate::search::{
@@ -60,6 +61,7 @@ pub enum Agent {
     SearchTacticalFilter {
         id: String,
         config: SearchConfig,
+        deadline_ms: Option<u32>,
     },
     /// Pathfinder with a selective, bounded rule-grounded tactical proof.
     SearchTacticalProof {
@@ -239,6 +241,20 @@ impl Agent {
         Self::SearchTacticalFilter {
             id: id.into(),
             config,
+            deadline_ms: None,
+        }
+    }
+
+    pub fn search_tactical_filter_with_deadline(
+        id: impl Into<String>,
+        config: SearchConfig,
+        deadline_ms: u32,
+    ) -> Self {
+        assert!(deadline_ms > 0, "tactical filter deadline must be positive");
+        Self::SearchTacticalFilter {
+            id: id.into(),
+            config,
+            deadline_ms: Some(deadline_ms),
         }
     }
 
@@ -249,7 +265,10 @@ impl Agent {
         proof_nodes: u64,
     ) -> Self {
         assert!(proof_horizon > 0, "tactical proof horizon must be positive");
-        assert!(proof_nodes > 0, "tactical proof node budget must be positive");
+        assert!(
+            proof_nodes > 0,
+            "tactical proof node budget must be positive"
+        );
         Self::SearchTacticalProof {
             id: id.into(),
             config,
@@ -478,8 +497,21 @@ impl Agent {
                     root_q: None,
                 }
             }
-            Self::SearchTacticalFilter { config, .. } => {
-                let result = search_best_action_with_tactical_filter(state, *config);
+            Self::SearchTacticalFilter {
+                config,
+                deadline_ms,
+                ..
+            } => {
+                let result = deadline_ms.map_or_else(
+                    || search_best_action_with_tactical_filter(state, *config),
+                    |deadline_ms| {
+                        search_best_action_with_tactical_filter_deadline(
+                            state,
+                            *config,
+                            deadline_ms,
+                        )
+                    },
+                );
                 Decision {
                     action: result.action,
                     score: result.score,
@@ -976,11 +1008,15 @@ fn agent_spec_json(agent: &Agent) -> String {
         ..
     } = agent
     {
-        parameters.insert(
-            "proofHorizon".to_owned(),
-            serde_json::json!(proof_horizon),
-        );
+        parameters.insert("proofHorizon".to_owned(), serde_json::json!(proof_horizon));
         parameters.insert("proofNodes".to_owned(), serde_json::json!(proof_nodes));
+    }
+    if let Agent::SearchTacticalFilter {
+        deadline_ms: Some(deadline_ms),
+        ..
+    } = agent
+    {
+        parameters.insert("deadlineMs".to_owned(), serde_json::json!(deadline_ms));
     }
     #[cfg(feature = "inference")]
     if let Agent::GnnSorter {

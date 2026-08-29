@@ -298,7 +298,10 @@ impl GameState {
             || light.count_ones() as u16 + reserve[0] != u16::from(config.reserve_per_player)
             || dark.count_ones() as u16 + reserve[1] != u16::from(config.reserve_per_player)
         {
-            return Err("seeded position violates board, forbidden-square, or inventory invariants".to_owned());
+            return Err(
+                "seeded position violates board, forbidden-square, or inventory invariants"
+                    .to_owned(),
+            );
         }
         let state = Self {
             config,
@@ -310,7 +313,10 @@ impl GameState {
                 crate::contract::ContractPlayer::Dark => Player::Dark,
             },
             forbidden,
-            last_relocated_to: [position.last_relocated_to.light, position.last_relocated_to.dark],
+            last_relocated_to: [
+                position.last_relocated_to.light,
+                position.last_relocated_to.dark,
+            ],
             last_capture: 0,
             last_player: None,
             winner: None,

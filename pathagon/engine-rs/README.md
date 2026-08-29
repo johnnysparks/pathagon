@@ -25,3 +25,10 @@ WASM export) for auditable moves. The transition result includes the acting
 player, action, captured squares, and the complete post-move position. Run
 `npm run build:engine` to regenerate the checked-in browser bundle after
 consumers adopt that endpoint.
+
+The browser adapter also exposes a deadline-bounded tactical search export.
+It checks the browser clock during iterative deepening and returns the last
+fully completed iteration, preserving a legal fallback move when the deadline
+is reached. The web app runs this search in a cancelable Worker; the historical
+depth-4 / 2,000-node / beam-8 profile remains the supported default until a
+later strength study clears the three-second research gate.

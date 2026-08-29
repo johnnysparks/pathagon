@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "schema": "pathagon-curriculum-portfolio-v1",
+  "id": "20260829-can-curriculum-prevent-collapse",
+  "status": "frozen",
+  "sourceRevision": "85aef83fa2049862b63208e45ea218836156bb60",
+  "rules": {
+    "rulesVersion": "pathagon-rules-v1",
+    "boardSize": 7,
+    "reservePerPlayer": 14,
+    "maxPlies": 196,
+    "repetitionLimit": 3
+  },
+  "comparison": {
+    "control": {
+      "id": "seeded-policy-value-0pct",
+      "checkpoint": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-0pct/policy-value.pt",
+      "checkpointModelStateHash": "sha256:c43aa91a5e5158d1cefbd263f892c2316dc26379fabc5dc2356a6b27861c199f",
+      "protocol": "ordinary roots only"
+    },
+    "portfolio": {
+      "id": "seeded-policy-value-50pct",
+      "checkpoint": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-50pct/policy-value.pt",
+      "checkpointModelStateHash": "sha256:dce1ba4f5aa488a824b34c89c497a9e860a0a52eb22eeb3f3a71ea46f83a8ba0",
+      "protocol": "50% seeded roots, 40:30:30 reachable/parity/asymmetric within seeded roots"
+    },
+    "learner": {
+      "architecture": "residual-mean-message-passing",
+      "hiddenSize": 32,
+      "messageLayers": 4,
+      "puctSimulations": 8,
+      "trainingSteps": 400,
+      "symmetryAugmentation": true,
+      "targetEmitter": "pathfinder depth 4 / 1,500 nodes / beam 8 / tactical filter"
+    },
+    "arena": {
+      "searchProfile": "historical-2k",
+      "depth": 4,
+      "nodes": 2000,
+      "beam": 8,
+      "openingRandomPlies": 2,
+      "pairedColors": true,
+      "finalGames": 400,
+      "commonSeedStart": 2026083200,
+      "commonSeedEnd": 2026083599,
+      "curriculumComparisonSeedStart": 2026083600,
+      "curriculumComparisonSeedEnd": 2026083839
+    }
+  },
+  "partitions": {
+    "train-control": {
+      "purpose": "old protocol training corpus",
+      "seedRange": [2026082800, 2026082895],
+      "rootFamilyRule": "one family per generated game"
+    },
+    "train-portfolio": {
+      "purpose": "candidate portfolio training corpus",
+      "seedRange": [2026083000, 2026083095],
+      "rootFamilyRule": "one family per generated game"
+    },
+    "selection": {
+      "purpose": "untouched condition used only for selection diagnostics",
+      "seedRange": [2026082900, 2026082995],
+      "rootFamilyRule": "one family per generated game"
+    },
+    "final": {
+      "purpose": "untouched common-seed arenas",
+      "seedRange": [2026083200, 2026083839],
+      "pairedNamespace": "curriculum-final-common-seeds-v1"
+    }
+  },
+  "sources": [
+    {
+      "id": "control-games",
+      "path": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-0pct/games.jsonl",
+      "partition": "train-control",
+      "role": "training-games",
+      "families": ["ordinary"],
+      "validateReplay": true
+    },
+    {
+      "id": "portfolio-games",
+      "path": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-50pct/games.jsonl",
+      "partition": "train-portfolio",
+      "role": "training-games",
+      "families": ["ordinary", "reachable", "parity", "asymmetric"],
+      "validateReplay": true
+    },
+    {
+      "id": "selection-games",
+      "path": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-25pct/games.jsonl",
+      "partition": "selection",
+      "role": "selection-games",
+      "families": ["ordinary", "reachable", "parity", "asymmetric"],
+      "validateReplay": true
+    },
+    {
+      "id": "ranked-ladder-diagnostic",
+      "path": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/ranked-ladder.json",
+      "partition": null,
+      "role": "prior-diagnostic-ladder",
+      "validateReplay": true
+    },
+    {
+      "id": "portfolio-root-scores",
+      "path": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-50pct/root-scores.jsonl",
+      "partition": null,
+      "role": "root-metadata",
+      "forSource": "portfolio-games"
+    },
+    {
+      "id": "random-midgame-diagnostic",
+      "path": "research/20260828-random-phase-datasets/workspace/smoke-full/midgame.jsonl",
+      "partition": null,
+      "role": "diagnostic-only-movement-coverage"
+    },
+    {
+      "id": "random-late-game-diagnostic",
+      "path": "research/20260828-random-phase-datasets/workspace/smoke-full/lategame.jsonl",
+      "partition": null,
+      "role": "diagnostic-only-late-game-coverage"
+    }
+  ],
+  "families": {
+    "ordinary": {"phase": "opening", "reachable": true},
+    "reachable": {"phase": "randomized-legal-opening", "reachable": true},
+    "parity": {"phase": "midgame", "reachable": false},
+    "asymmetric": {"phase": "midgame", "reachable": false},
+    "movement": {"phase": "movement", "reachable": true},
+    "late-game": {"phase": "late-game", "reachable": false}
+  },
+  "opponentPortfolio": [
+    "pathfinder-v0.4.0-tactical-filter",
+    "pathfinder-v0.5.0-trained-evaluator",
+    "surveyor-v0.2.0",
+    "lunatic-v0.1.0",
+    "coin-flip-v0.0.1"
+  ],
+  "decisionRules": {
+    "maxDuplicateFraction": 0.05,
+    "minimumFamiliesAt15Percent": 4,
+    "minimumMovementPositionFraction": 0.1,
+    "requireReplayValid": true,
+    "requireFinalStrength": true,
+    "productEnvelopeAvailable": false
+  }
+}

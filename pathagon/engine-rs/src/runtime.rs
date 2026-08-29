@@ -14,7 +14,8 @@ use crate::contract::{
 };
 use crate::search::{
     analyze_action, analyze_actions, lunatic_action, search_best_action,
-    search_best_action_with_tactical_filter, MoveEvaluation, SearchConfig, SearchResult,
+    search_best_action_with_tactical_filter, search_best_action_with_tactical_filter_deadline,
+    MoveEvaluation, SearchConfig, SearchResult,
 };
 use crate::{bit_squares, Action, BoardConfig, GameState, Player};
 
@@ -321,6 +322,20 @@ pub fn search_best_action_with_tactical_filter_json(
     let config: RuntimeSearchConfig =
         serde_json::from_str(config_json).map_err(|error| error.to_string())?;
     let result = search_best_action_with_tactical_filter(state, config.into());
+    let response = RuntimeSearchResult::from(result);
+    serde_json::to_string(&response).map_err(|error| error.to_string())
+}
+
+pub fn search_best_action_with_tactical_filter_deadline_json(
+    state_json: &str,
+    config_json: &str,
+    deadline_ms: u32,
+) -> Result<String, String> {
+    let state = parse_position(state_json)?;
+    let config: RuntimeSearchConfig =
+        serde_json::from_str(config_json).map_err(|error| error.to_string())?;
+    let result =
+        search_best_action_with_tactical_filter_deadline(state, config.into(), deadline_ms);
     let response = RuntimeSearchResult::from(result);
     serde_json::to_string(&response).map_err(|error| error.to_string())
 }

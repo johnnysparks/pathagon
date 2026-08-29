@@ -13,12 +13,12 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 
+use pathagon_engine::contract::Position;
 use pathagon_engine::search::{
     analyze_action, analyze_actions, ordered_root_actions, search_best_action,
     search_best_action_with_tactical_filter, tactical_root_safe_actions, MoveEvaluation,
     SearchConfig, SearchResult,
 };
-use pathagon_engine::contract::Position;
 use pathagon_engine::{Action, BoardConfig, GameState, Player};
 use serde_json::{json, Value};
 

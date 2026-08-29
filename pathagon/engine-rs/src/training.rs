@@ -4,6 +4,8 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
+use serde::Deserialize;
+
 use crate::corpus::{write_corpus, CorpusSummary};
 use crate::search::{EvaluationWeights, SearchConfig};
 use crate::selfplay::{play_game, Agent, GameRecord, MatchOptions, Mulberry32};
@@ -63,6 +65,87 @@ impl Champion {
             weights,
         }
     }
+
+    pub fn from_manifest_file(path: &Path) -> io::Result<Self> {
+        let contents = fs::read_to_string(path)?;
+        Self::from_manifest_json(&contents)
+    }
+
+    pub fn from_manifest_json(contents: &str) -> io::Result<Self> {
+        let document: InitialChampionDocument =
+            serde_json::from_str(contents).map_err(|error| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("invalid evaluator manifest: {error}"),
+                )
+            })?;
+        let weights = document
+            .weights
+            .or(document.evaluator_weights)
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "evaluator manifest is missing weights or evaluatorWeights",
+                )
+            })?;
+        Ok(Self {
+            id: document
+                .id
+                .unwrap_or_else(|| "rust-initial-evaluator".to_owned()),
+            generation: document.generation.unwrap_or(0),
+            weights,
+        })
+    }
+}
+
+#[derive(Deserialize)]
+struct InitialChampionDocument {
+    id: Option<String>,
+    generation: Option<u8>,
+    weights: Option<EvaluationWeights>,
+    #[serde(rename = "evaluatorWeights")]
+    evaluator_weights: Option<EvaluationWeights>,
+}
+
+pub fn parse_weights_spec(spec: &str) -> Result<EvaluationWeights, String> {
+    if spec.trim_start().starts_with('{') {
+        return serde_json::from_str(spec)
+            .map_err(|error| format!("invalid JSON weights: {error}"));
+    }
+
+    let mut weights = [None; 6];
+    for assignment in spec.split(',').filter(|part| !part.trim().is_empty()) {
+        let (key, value) = assignment.split_once('=').ok_or_else(|| {
+            format!("invalid weight assignment {assignment:?}; expected key=value")
+        })?;
+        let index = match key.trim() {
+            "path" => 0,
+            "material" => 1,
+            "capture" => 2,
+            "structure" => 3,
+            "threat" => 4,
+            "edge" => 5,
+            other => return Err(format!("unknown evaluator weight {other:?}")),
+        };
+        let value = value
+            .trim()
+            .parse::<i32>()
+            .map_err(|error| format!("invalid value for {key:?}: {error}"))?;
+        if value <= 0 {
+            return Err(format!("evaluator weight {key:?} must be positive"));
+        }
+        weights[index] = Some(value);
+    }
+
+    let [path, material, capture, structure, threat, edge] = weights;
+    Ok(EvaluationWeights {
+        path: path.ok_or("missing path weight")?,
+        material: material.ok_or("missing material weight")?,
+        capture: capture.ok_or("missing capture weight")?,
+        structure: structure.ok_or("missing structure weight")?,
+        threat: threat.ok_or("missing threat weight")?,
+        edge: edge.ok_or("missing edge weight")?,
+    })
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -447,5 +530,44 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn initial_manifest_supports_opponent_and_training_shapes() {
+        let opponent = Champion::from_manifest_json(
+            r#"{"id":"pathfinder-v0.5.0-trained-evaluator","generation":2,"evaluatorWeights":{"path":241,"material":112,"capture":887,"structure":40,"threat":154,"edge":74}}"#,
+        )
+        .expect("supported opponent manifest parses");
+        assert_eq!(opponent.id, "pathfinder-v0.5.0-trained-evaluator");
+        assert_eq!(opponent.generation, 2);
+        assert_eq!(opponent.weights.capture, 887);
+
+        let training = Champion::from_manifest_json(
+            r#"{"id":"rust-evo-g2-c0","weights":{"path":242,"material":113,"capture":888,"structure":41,"threat":155,"edge":75}}"#,
+        )
+        .expect("training champion parses");
+        assert_eq!(training.generation, 0);
+        assert_eq!(training.weights.path, 242);
+    }
+
+    #[test]
+    fn explicit_weight_specs_are_complete_and_positive() {
+        assert_eq!(
+            parse_weights_spec("path=241,material=112,capture=887,structure=40,threat=154,edge=74")
+                .expect("named weights parse"),
+            EvaluationWeights {
+                path: 241,
+                material: 112,
+                capture: 887,
+                structure: 40,
+                threat: 154,
+                edge: 74,
+            }
+        );
+        assert!(parse_weights_spec(
+            "path=0,material=112,capture=887,structure=40,threat=154,edge=74"
+        )
+        .is_err());
+        assert!(parse_weights_spec("path=241").is_err());
     }
 }

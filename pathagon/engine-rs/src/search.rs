@@ -1,6 +1,35 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::{Duration, Instant};
+
+#[cfg(target_arch = "wasm32")]
+type Deadline = f64;
+
+#[cfg(not(target_arch = "wasm32"))]
+type Deadline = Instant;
+
+#[cfg(target_arch = "wasm32")]
+fn deadline_after_ms(milliseconds: u32) -> Deadline {
+    js_sys::Date::now() + f64::from(milliseconds)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn deadline_after_ms(milliseconds: u32) -> Deadline {
+    Instant::now() + Duration::from_millis(u64::from(milliseconds))
+}
+
+#[cfg(target_arch = "wasm32")]
+fn deadline_reached(deadline: Deadline) -> bool {
+    js_sys::Date::now() >= deadline
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn deadline_reached(deadline: Deadline) -> bool {
+    Instant::now() >= deadline
+}
+
 use crate::{
     bit, captures_from, column_mask, neighbor_mask_for, row_mask, squares, Action, GameState,
     Player, MAX_CELL_COUNT,
@@ -85,6 +114,25 @@ struct Budget {
     nodes: u64,
     exhausted: bool,
     table_hits: u64,
+    deadline: Option<Deadline>,
+}
+
+impl Budget {
+    fn with_deadline(deadline: Option<Deadline>) -> Self {
+        Self {
+            deadline,
+            ..Self::default()
+        }
+    }
+
+    fn reached(&mut self, max_nodes: u64) -> bool {
+        if self.nodes >= max_nodes || self.deadline.is_some_and(deadline_reached) {
+            self.exhausted = true;
+            true
+        } else {
+            false
+        }
+    }
 }
 
 /// Per-search move-ordering hints used by the hybrid root-limited search.
@@ -188,14 +236,39 @@ pub fn search_best_action_with_tactical_filter(
     state: GameState,
     config: SearchConfig,
 ) -> SearchResult {
+    search_best_action_with_tactical_filter_until(state, config, None)
+}
+
+/// Search through the tactical-safe Pathfinder root with a wall-clock
+/// deadline. The recursive search checks the deadline before expanding each
+/// node, so the returned move is always the last legal move from a fully
+/// completed iterative-deepening pass (or the deterministic root fallback if
+/// the first pass cannot finish).
+pub fn search_best_action_with_tactical_filter_deadline(
+    state: GameState,
+    config: SearchConfig,
+    deadline_ms: u32,
+) -> SearchResult {
+    search_best_action_with_tactical_filter_until(
+        state,
+        config,
+        Some(deadline_after_ms(deadline_ms.max(1))),
+    )
+}
+
+fn search_best_action_with_tactical_filter_until(
+    state: GameState,
+    config: SearchConfig,
+    deadline: Option<Deadline>,
+) -> SearchResult {
     let fallback = ordered_root_actions(state, state.turn, config.weights);
     if fallback.is_empty() {
         return search_best_action(state, config);
     }
     let safe = tactical_root_safe_actions(state, state.turn, config.weights);
     let root_limit = (safe.len() < fallback.len()).then_some(safe.len());
-    search_best_action_with_root_order_and_root_limit_internal(
-        state, config, &safe, false, root_limit, true,
+    search_best_action_with_root_order_and_root_limit_internal_deadline(
+        state, config, &safe, false, root_limit, true, deadline,
     )
 }
 
@@ -414,6 +487,26 @@ fn search_best_action_with_root_order_and_root_limit_internal(
     root_limit: Option<usize>,
     tt_move_order: bool,
 ) -> SearchResult {
+    search_best_action_with_root_order_and_root_limit_internal_deadline(
+        state,
+        config,
+        root_order,
+        tactical_extension,
+        root_limit,
+        tt_move_order,
+        None,
+    )
+}
+
+fn search_best_action_with_root_order_and_root_limit_internal_deadline(
+    state: GameState,
+    config: SearchConfig,
+    root_order: &[Action],
+    tactical_extension: bool,
+    root_limit: Option<usize>,
+    tt_move_order: bool,
+    deadline: Option<Deadline>,
+) -> SearchResult {
     if state.config.board_size <= 4 {
         if let Some(horizon) = config.tactical_proof_horizon {
             let result = crate::endgame::search_best_action(
@@ -452,7 +545,7 @@ fn search_best_action_with_root_order_and_root_limit_internal(
         };
     }
 
-    let mut budget = Budget::default();
+    let mut budget = Budget::with_deadline(deadline);
     let mut table = HashMap::new();
     let mut hints = SearchHints::default();
     let mut best_action = initial_actions[0];
@@ -469,8 +562,7 @@ fn search_best_action_with_root_order_and_root_limit_internal(
         let mut complete = true;
 
         for action in actions {
-            if budget.nodes >= config.max_nodes {
-                budget.exhausted = true;
+            if budget.reached(config.max_nodes) {
                 complete = false;
                 break;
             }
@@ -656,8 +748,7 @@ fn immediate_winning_actions(state: GameState, player: Player) -> Vec<Action> {
 fn has_tactical_signal(state: GameState) -> bool {
     let own_tactic = state.legal_actions().iter().copied().any(|action| {
         let transition = state.apply_legal(action);
-        transition.state.winner == Some(state.turn)
-            || transition.captured.count_ones() >= 2
+        transition.state.winner == Some(state.turn) || transition.captured.count_ones() >= 2
     });
     if own_tactic {
         return true;
@@ -728,12 +819,15 @@ pub fn analyze_actions(
     let mut hints = SearchHints::default();
     let mut alpha = NEG_INF;
     let mut results = Vec::new();
+    let mut complete = true;
     for action in ordered_actions(state, root_player, config.weights)
         .into_iter()
         .take(max_actions)
     {
-        if budget.nodes >= config.max_nodes {
-            budget.exhausted = true;
+        if budget.reached(config.max_nodes) {
+            complete = false;
+        }
+        if !complete {
             break;
         }
         let next = state.apply_legal(action).state;
@@ -877,21 +971,18 @@ fn minimax(
                 .into_iter()
                 .find(|action| state.apply_legal(*action).state.winner == Some(state.turn))
             {
-                if budget.nodes < config.max_nodes {
+                if !budget.reached(config.max_nodes) {
                     budget.nodes += 1;
                     let score =
                         evaluate(state.apply_legal(action).state, root_player, config.weights);
-                    if budget.nodes >= config.max_nodes {
-                        budget.exhausted = true;
-                    }
+                    budget.reached(config.max_nodes);
                     return score;
                 }
             }
         }
         return evaluate(state, root_player, config.weights);
     }
-    if budget.nodes >= config.max_nodes {
-        budget.exhausted = true;
+    if budget.reached(config.max_nodes) {
         return evaluate(state, root_player, config.weights);
     }
 
@@ -940,6 +1031,9 @@ fn minimax(
     let mut best = if maximizing { NEG_INF } else { POS_INF };
     let mut best_action = actions[0];
     for action in actions {
+        if budget.reached(config.max_nodes) {
+            break;
+        }
         let next = state.apply_legal(action).state;
         budget.nodes += 1;
         let score = minimax(
@@ -969,7 +1063,7 @@ fn minimax(
             }
             beta = beta.min(best);
         }
-        if beta <= alpha || budget.nodes >= config.max_nodes {
+        if beta <= alpha || budget.reached(config.max_nodes) {
             if beta <= alpha && next.winner.is_none() && next.last_capture == 0 {
                 hints.record_history(ply_from_root, action, maximizing, depth);
                 hints.record_killer(ply_from_root, action);
@@ -995,9 +1089,7 @@ fn minimax(
             },
         );
     }
-    if budget.nodes >= config.max_nodes {
-        budget.exhausted = true;
-    }
+    budget.reached(config.max_nodes);
     best
 }
 
@@ -1387,6 +1479,44 @@ mod tests {
             .action
             .is_some_and(|action| state.legal_actions().contains(&action)));
         assert!(result.nodes <= 120);
+    }
+
+    #[test]
+    fn deadline_returns_a_legal_last_completed_move() {
+        let bits = |squares: &[u8]| {
+            squares
+                .iter()
+                .fold(0_u64, |mask, square| mask | (1_u64 << square))
+        };
+        let state = GameState {
+            config: crate::BoardConfig::DEFAULT,
+            light: bits(&[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26]),
+            dark: bits(&[28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 29, 31, 33]),
+            reserve: [0, 0],
+            turn: Player::Light,
+            forbidden: 0,
+            last_relocated_to: [None, None],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: 40,
+        };
+        let result = search_best_action_with_tactical_filter_deadline(
+            state,
+            SearchConfig {
+                depth: 8,
+                max_nodes: 1_500_000,
+                beam_width: 48,
+                ..SearchConfig::default()
+            },
+            1,
+        );
+        assert!(result.exhausted);
+        assert!(result
+            .action
+            .is_some_and(|action| state.legal_actions().contains(&action)));
+        assert!(result.completed_depth <= 8);
+        assert!(result.nodes <= 1_500_000);
     }
 
     #[test]

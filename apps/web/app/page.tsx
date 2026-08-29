@@ -17,6 +17,7 @@ import {
   CNN_OPPONENT,
   CNN_SEARCH,
   OPPONENTS,
+  PATHFINDER_DEADLINE_MS,
   PATHFINDER_DEPTH_OPTIONS,
   PATHFINDER_OPPONENT,
   TRAINED_PATHFINDER_OPPONENT,
@@ -25,6 +26,7 @@ import {
 } from "./opponents";
 import { COACHING_SEARCH, PATHFINDER_SEARCH, type MoveEvaluation } from "./ai";
 import { loadRustEngine, type RustEngine } from "./rust-engine";
+import { createRustSearchClient, type RustSearchClient } from "./rust-search-client";
 import { loadCnnEngine, type CnnEngine } from "./cnn-engine";
 
 const HUMAN: Player = "light";
@@ -60,10 +62,14 @@ export default function Home() {
   const [opponentId, setOpponentId] = useState(TRAINED_PATHFINDER_OPPONENT.id);
   const [pathfinderDepth, setPathfinderDepth] = useState<number>(initialPathfinderDepth);
   const [rustEngine, setRustEngine] = useState<RustEngine | null>(null);
+  const [searchClient] = useState<RustSearchClient | null>(() =>
+    typeof window === "undefined" ? null : createRustSearchClient(),
+  );
   const [engineError, setEngineError] = useState<string | null>(null);
   const [cnnEngine, setCnnEngine] = useState<CnnEngine | null>(null);
   const [cnnError, setCnnError] = useState<string | null>(null);
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aiRequest = useRef<number | null>(null);
   const resultRef = useRef<HTMLDivElement | null>(null);
   const coachingRequest = useRef(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -97,6 +103,11 @@ export default function Home() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => () => {
+    aiRequest.current = null;
+    searchClient?.terminate();
+  }, [searchClient]);
+
   useEffect(() => {
     if (opponent.id !== CNN_OPPONENT.id) return;
     let cancelled = false;
@@ -124,20 +135,42 @@ export default function Home() {
 
   useEffect(() => {
     if (!rustEngine || !cnnReady || game.winner || game.turn !== AI) return;
+    let cancelled = false;
+    const current = game;
+    const isPathfinder = opponent.id === PATHFINDER_OPPONENT.id || opponent.id === TRAINED_PATHFINDER_OPPONENT.id;
+    const commitDecision = (decision: Action | null) => {
+      if (!decision || cancelled) return;
+      setHistory((items) => [...items, current]);
+      setMoveHistory((items) => [...items, decision]);
+      setGame((latest) => latest === current ? rustEngine.applyAction(current, decision) : latest);
+    };
     aiTimer.current = setTimeout(() => {
-      setGame((current) => {
-        if (current.turn !== AI || current.winner) return current;
-        const decision = chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined, pathfinderDepth);
-        if (!decision) return current;
-        setHistory((items) => [...items, current]);
-        setMoveHistory((items) => [...items, decision]);
-        return rustEngine.applyAction(current, decision);
-      });
+      if (isPathfinder && searchClient) {
+        const request = searchClient.search(current, opponent.id, pathfinderDepth, PATHFINDER_DEADLINE_MS);
+        aiRequest.current = request.requestId;
+        void request.promise.then((decision) => {
+          if (cancelled || aiRequest.current !== request.requestId) return;
+          aiRequest.current = null;
+          commitDecision(decision);
+        }).catch((error: unknown) => {
+          if (cancelled || aiRequest.current !== request.requestId) return;
+          aiRequest.current = null;
+          console.error("Rust search worker failed; using the local fallback:", error);
+          commitDecision(chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined, pathfinderDepth));
+        });
+        return;
+      }
+      commitDecision(chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined, pathfinderDepth));
     }, 420);
     return () => {
+      cancelled = true;
       if (aiTimer.current) clearTimeout(aiTimer.current);
+      if (aiRequest.current !== null && searchClient) {
+        searchClient.cancel(aiRequest.current);
+        aiRequest.current = null;
+      }
     };
-  }, [cnnEngine, cnnReady, game, opponent, pathfinderDepth, rustEngine]);
+  }, [cnnEngine, cnnReady, game, opponent, pathfinderDepth, rustEngine, searchClient]);
 
   useEffect(() => {
     try {

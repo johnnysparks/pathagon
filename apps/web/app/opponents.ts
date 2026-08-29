@@ -155,6 +155,7 @@ export const CNN_OPPONENT: Opponent = {
 };
 
 export const CNN_SEARCH = { simulations: 64, cpuct: 1.5 } as const;
+export const PATHFINDER_DEADLINE_MS = 2_800;
 
 export const OPPONENTS = [CNN_OPPONENT, TRAINED_PATHFINDER_OPPONENT, PATHFINDER_OPPONENT, LUNATIC_OPPONENT, SURVEYOR_OPPONENT, RANDOM_OPPONENT] as const;
 
@@ -169,6 +170,7 @@ export function chooseOpponentAction(
   state: GameState,
   cnnEngine?: CnnEngine,
   pathfinderDepth: number = PATHFINDER_SEARCH.depth,
+  deadlineMs?: number,
 ): Action | null {
   if (opponent.id === RANDOM_OPPONENT.id) {
     const actions = engine.legalActions(state);
@@ -185,7 +187,9 @@ export function chooseOpponentAction(
       : pathfinderSearchAtDepth(pathfinderDepth)
     : SURVEYOR_SEARCH;
   return isPathfinder
-    ? engine.searchBestTacticalAction(state, config).action
+    ? deadlineMs === undefined
+      ? engine.searchBestTacticalAction(state, config).action
+      : engine.searchBestTacticalActionWithDeadline(state, config, deadlineMs).action
     : engine.searchBestAction(state, config).action;
 }
 

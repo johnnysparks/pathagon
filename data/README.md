@@ -14,3 +14,8 @@ Do not use `data/` as a landing zone for a new experiment. Generate locally in
 the dated research path, then deliberately promote only reusable, reviewable
 data. Files over 5 MiB fail the durable-data check and should be regenerated or
 kept outside Git unless the project explicitly revises that policy.
+
+The fixed 7×7 Pathfinder browser/WASM benchmark suite is stored as
+[`fixtures/pathfinder-browser-suite-v1.jsonl`](fixtures/pathfinder-browser-suite-v1.jsonl).
+Its compact positions are shared by latency, legality, and cross-runtime
+checks; timing samples remain in the originating research workspace.

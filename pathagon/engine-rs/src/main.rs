@@ -227,8 +227,7 @@ fn main() {
             "dark" => Player::Dark,
             _ => state.turn,
         };
-        let score =
-            pathagon_engine::search::evaluate(state, perspective, weights);
+        let score = pathagon_engine::search::evaluate(state, perspective, weights);
         println!(
             "{{\"perspective\":\"{}\",\"score\":{score}}}",
             perspective.as_str()
@@ -250,11 +249,19 @@ fn main() {
         weights: candidate_weights,
         ..config
     };
+    let candidate_deadline_ms = args
+        .get("candidate-deadline-ms")
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|deadline_ms| *deadline_ms > 0);
     let candidate_filter_id = if candidate_weights == weights {
         "pathfinder-v0.4.0-tactical-filter"
     } else {
         "pathfinder-v0.5.0-trained-evaluator"
     };
+    let candidate_id = args
+        .get("candidate-id")
+        .map(String::as_str)
+        .unwrap_or(candidate_filter_id);
     #[cfg(feature = "inference")]
     let champion = if let Some(model) = qadv_sorter_model.as_ref() {
         Agent::qadv_sorter_with_pool(
@@ -366,7 +373,16 @@ fn main() {
             candidate_config,
         )
     } else if tactical_root_filter && learned_book.is_none() {
-        Agent::search_tactical_filter(candidate_filter_id, candidate_config)
+        candidate_deadline_ms.map_or_else(
+            || Agent::search_tactical_filter(candidate_id, candidate_config),
+            |deadline_ms| {
+                Agent::search_tactical_filter_with_deadline(
+                    candidate_id,
+                    candidate_config,
+                    deadline_ms,
+                )
+            },
+        )
     } else {
         learned_book.as_ref().map_or_else(
             || with_optional_book(Agent::search("rust-pathfinder-v0.1.0", config), &book),
@@ -397,7 +413,16 @@ fn main() {
             proof_nodes,
         )
     } else if tactical_root_filter && learned_book.is_none() {
-        Agent::search_tactical_filter(candidate_filter_id, candidate_config)
+        candidate_deadline_ms.map_or_else(
+            || Agent::search_tactical_filter(candidate_id, candidate_config),
+            |deadline_ms| {
+                Agent::search_tactical_filter_with_deadline(
+                    candidate_id,
+                    candidate_config,
+                    deadline_ms,
+                )
+            },
+        )
     } else {
         learned_book.as_ref().map_or_else(
             || {

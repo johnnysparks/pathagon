@@ -40,6 +40,34 @@ tactical-safe control for all future screens, and a single canonical search
 envelope. The detailed protocols, negative results, and artifact provenance
 remain in the linked dated paths below.
 
+The depth-4 / 2,000-node / beam-8 envelope is now the frozen historical
+comparison profile, not an assumption about the ideal product budget. A direct
+WASM probe shows enough headroom to investigate a few-seconds-per-turn default
+before more learning work is promoted.
+
+The 20260829 three-second study is complete. Its deadline-bounded depth-6 /
+100k / beam-16 candidate remained responsive in a cancelable Worker but scored
+49.9% game points in the final 400-game paired arena, so no deeper profile was
+promoted. The deadline export, Worker boundary, and durable benchmark fixture
+remain reusable infrastructure while the supported v0.5 default stays frozen.
+
+## Proposed next paths, ranked
+
+1. [`What fits in three seconds?`](../research/20260829-what-fits-three-seconds/)
+   — completed without a profile promotion; the responsive browser execution
+   boundary and durable benchmark remain available for a later attempt.
+2. [`Can v0.5 evolve further?`](../research/20260829-can-v05-evolve-further/)
+   — restart evaluator evolution from the promoted weights at the selected
+   product envelope.
+3. [`Can root regret train the evaluator?`](../research/20260829-can-root-regret-train-evaluator/)
+   — pilot complete; held-out regret gain was 0.00113%, so no candidate was
+   promoted and the path is inconclusive pending a stronger teacher.
+4. [`Can curriculum prevent collapse?`](../research/20260829-can-curriculum-prevent-collapse/)
+   — test whether a frozen opponent/opening/phase portfolio produces more
+   general candidates.
+5. [`Can a gated sorter help?`](../research/20260829-can-gated-sorter-help/)
+   — completed calibration audit; no useful activation region, so not promoted.
+
 Current questions:
 
 1. Can the trained evaluator hold its advantage on a larger post-deployment
@@ -57,6 +85,7 @@ Historical evidence and detailed outcomes live with the research paths:
 - [`../research/20260828-budgeted-pathfinder/`](../research/20260828-budgeted-pathfinder/)
 - [`../research/20260828-proof-guided-pathfinder/`](../research/20260828-proof-guided-pathfinder/)
 - [`../research/20260828-seeded-position-curriculum/`](../research/20260828-seeded-position-curriculum/)
+- [`../research/20260829-can-root-regret-train-evaluator/`](../research/20260829-can-root-regret-train-evaluator/)
 - [`../research/20260825-selfplay-corpus-audit/`](../research/20260825-selfplay-corpus-audit/)
 - [`../research/20260824-4x4-endgame-tactics/`](../research/20260824-4x4-endgame-tactics/)
 

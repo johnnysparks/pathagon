@@ -10,6 +10,7 @@ use wasm_bindgen::prelude::*;
 use crate::runtime::{
     analyze_action_json, analyze_actions_json, apply_action_json, apply_action_transition_json,
     legal_actions_json, lunatic_action_json, position_json, search_best_action_json,
+    search_best_action_with_tactical_filter_deadline_json,
     search_best_action_with_tactical_filter_json,
 };
 use crate::{BoardConfig, GameState};
@@ -69,6 +70,16 @@ pub fn pathagon_search_best_action_with_tactical_filter(
     config: &str,
 ) -> Result<String, JsValue> {
     search_best_action_with_tactical_filter_json(position, config).map_err(js_error)
+}
+
+#[wasm_bindgen]
+pub fn pathagon_search_best_action_with_tactical_filter_deadline(
+    position: &str,
+    config: &str,
+    deadline_ms: u32,
+) -> Result<String, JsValue> {
+    search_best_action_with_tactical_filter_deadline_json(position, config, deadline_ms)
+        .map_err(js_error)
 }
 
 #[wasm_bindgen]

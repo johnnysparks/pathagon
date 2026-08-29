@@ -44,6 +44,8 @@ dist/
 /work/
 /training/
 /research/**/workspace/
+/research/**/target/
+/research/**/rust/target/
 /research/**/*.jsonl
 /research/**/*.pt
 /research/**/artifacts/*.onnx

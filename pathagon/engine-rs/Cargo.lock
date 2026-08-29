@@ -608,6 +608,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e0c1080212aad755ea003d18543e8768dd432c48819efd73a7bf1e39b7a5a3a"
 dependencies = [
  "cfg-if",
+ "futures-util",
  "wasm-bindgen",
 ]
 
@@ -872,6 +873,7 @@ name = "pathagon-engine"
 version = "0.1.0"
 dependencies = [
  "getrandom",
+ "js-sys",
  "lambda_runtime",
  "serde",
  "serde_json",
