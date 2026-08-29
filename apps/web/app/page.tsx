@@ -52,6 +52,7 @@ export default function Home() {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
   const [resultDismissed, setResultDismissed] = useState(false);
   const [archiveStatus, setArchiveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [archiveError, setArchiveError] = useState<string | null>(null);
   const [captureNoticeDismissedPly, setCaptureNoticeDismissedPly] = useState<number | null>(null);
   const [coachingMoves, setCoachingMoves] = useState<MoveEvaluation[]>([]);
   const [coachingAction, setCoachingAction] = useState<Action | null>(null);
@@ -186,14 +187,29 @@ export default function Home() {
     if (recordedGame.current === key) return;
     recordedGame.current = key;
     setArchiveStatus("saving");
-    void fetch("/api/games", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: gameId, opponentId: opponent.id, winner: game.winner, actions: moveHistory }),
-    }).then((response) => {
-      if (!response.ok) throw new Error("archive rejected");
-      setArchiveStatus("saved");
-    }).catch(() => setArchiveStatus("error"));
+    setArchiveError(null);
+    void (async () => {
+      try {
+        const response = await fetch("/api/games", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id: gameId, opponentId: opponent.id, winner: game.winner, actions: moveHistory }),
+        });
+        const payload = await response.json().catch(() => null) as { error?: unknown } | null;
+        if (!response.ok) {
+          const detail = payload && typeof payload.error === "string"
+            ? payload.error
+            : `Archive request failed (HTTP ${response.status})`;
+          throw new Error(detail);
+        }
+        setArchiveStatus("saved");
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Unable to archive this game";
+        console.error("Human game archive failed:", message);
+        setArchiveError(message);
+        setArchiveStatus("error");
+      }
+    })();
   }, [game.winner, game.ply, moveHistory, opponent.id, gameId]);
 
   useEffect(() => {
@@ -304,6 +320,7 @@ export default function Home() {
     setCaptureNoticeDismissedPly(null);
     clearCoaching();
     setArchiveStatus("idle");
+    setArchiveError(null);
     recordedGame.current = null;
     recordable.current = true;
   }
@@ -320,6 +337,7 @@ export default function Home() {
     setCaptureNoticeDismissedPly(null);
     clearCoaching();
     setArchiveStatus("idle");
+    setArchiveError(null);
     recordedGame.current = null;
   }
 
@@ -573,7 +591,7 @@ export default function Home() {
             <p className={`archive-status ${archiveStatus}`} role="status">
               {archiveStatus === "saving" && "Adding this game to the human strategy archive…"}
               {archiveStatus === "saved" && "Game added to the replay-validated human strategy archive."}
-              {archiveStatus === "error" && "This game could not be archived. The result still counts on this board."}
+              {archiveStatus === "error" && `This game could not be archived${archiveError ? `: ${archiveError}` : ""}. The result still counts on this board.`}
             </p>
             {gameId && (
               <div className="result-game-id">

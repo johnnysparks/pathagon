@@ -19,6 +19,15 @@ test("completed human games replay before compact encoding", () => {
   assert.match(compact, /^h1\tsurveyor-v0\tL\t[0-9A-Za-z_-]{26}$/);
 });
 
+test("human archive accepts versioned opponent IDs", () => {
+  const game = validateHumanGame({
+    opponentId: "pathfinder-v0.5.0-trained-evaluator",
+    winner: "light",
+    actions: winningActions,
+  });
+  assert.equal(game.opponentId, "pathfinder-v0.5.0-trained-evaluator");
+});
+
 test("human archive rejects a result that replay does not prove", () => {
   assert.throws(
     () => validateHumanGame({ opponentId: "surveyor-v0", winner: "dark", actions: winningActions }),

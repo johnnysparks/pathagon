@@ -3,6 +3,7 @@ import type { Action, Player } from "./pathagon.ts";
 
 const ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
 const GAME_ID_PATTERN = /^(?:[0-9a-f]{24}|[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
+const OPPONENT_ID_PATTERN = /^[a-z0-9][a-z0-9.-]{0,63}$/;
 
 export type HumanGameSubmission = {
   opponentId: string;
@@ -23,7 +24,7 @@ export function validateGameId(value: unknown): asserts value is string {
 export function validateHumanGame(value: unknown): HumanGameSubmission {
   if (!value || typeof value !== "object") throw new Error("Game record must be an object");
   const input = value as Partial<HumanGameSubmission>;
-  if (typeof input.opponentId !== "string" || !/^[a-z0-9-]{1,64}$/.test(input.opponentId)) {
+  if (typeof input.opponentId !== "string" || !OPPONENT_ID_PATTERN.test(input.opponentId)) {
     throw new Error("Invalid opponent");
   }
   if (input.winner !== "light" && input.winner !== "dark") throw new Error("Invalid winner");
