@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "id": "20260827-pathfinder-rust-sorter",
+  "status": "running",
+  "startedOn": "2026-08-27",
+  "hypothesis": "A compact learned sorter can improve bounded Rust Pathfinder search without replacing Pathfinder's evaluator.",
+  "northStarAgent": "rust-pathfinder-v0.3.0",
+  "sourceRevision": "e6e72f9692967147a82e696d26b7add73f31a828",
+  "candidate": {
+    "agentId": "rust-pathfinder-onnx-sorter-v0.1.0",
+    "modelArtifact": "artifacts/compact-gnn-policy.onnx",
+    "artifactHash": "sha256:2e403c351396f876ba32f487acd6d53e1b0aaa34d59d28a46ed5e93a26342520",
+    "sourceModelHash": "sha256:5e1de60645e7b94b2d0921f73cd6287db8a9e8a1bb85c5960ce1f098509f29e3",
+    "role": "root move sorter"
+  },
+  "baseline": {
+    "agentId": "rust-pathfinder-v0.3.0",
+    "role": "north-star evaluator and search baseline"
+  },
+  "promotedSearch": {
+    "agentId": "rust-pathfinder-v0.4.0-tactical-filter",
+    "role": "pure-Rust tactical-safe root filter",
+    "runtime": "rust",
+    "modelArtifact": null,
+    "evidence": "629-169-2 over 800 paired games versus unmodified depth-5 Pathfinder"
+  },
+  "configuration": {
+    "rulesVersion": "pathagon-rules-v1",
+    "boardSize": 7,
+    "reservePerPlayer": 14,
+    "depth": 4,
+    "beam": 8,
+    "nodeBudget": 2000,
+    "openingRandomPlies": 2,
+    "pairedColors": true
+  },
+  "canonicalCorpus": {
+    "path": "data/corpora/games-v1",
+    "schemaVersion": 1,
+    "observationSourceIds": [
+      "s1_-iAnU6rQb3wvVzM8v5f_28bWx6eCtSJrbNJgQo9OrvI",
+      "s1_6oGuTftsPqUqz781dg5Lsx9-bPSq2T4u5ksfMoJ6W_g",
+      "s1_8VgqIasU5y7GQc_ChLeaaS9GBjQ11YzlZBTjjnxjdVU",
+      "s1_RSpkaJ8Dcy0aRPLAsggAw3-uYT-1JXfq1PHz_8-Pqvc",
+      "s1_SDw6JFd2xgRuyD3gRrOvuQzHLTXW2l5M_oTTB4QVo7g",
+      "s1_UgwErWufj1q5bjwOulyxRwyu3pE7d38Zn917RT_v7iY",
+      "s1_XQY2MuF7gi5VNG-rhC_WgQQ1k4jH6uphUQnTQyJD9Hg",
+      "s1_ZcmnmE2VeI8AzbiAt9MM-B95dJ5Z1ncWijZcevm4UOU",
+      "s1__po-EJnMLfpjp3Y8E5qXxvozFYUJx-9-k5SGf-OEUwY",
+      "s1_bx2lSrCuKYWdS4h5YK45sQUlZ09yy2bU_ibgaBKA2N0",
+      "s1_k4M4Y9Scu2FJqbEio40jCdNiAjRygJ0RVEdNJ7Fqaf4",
+      "s1_k6EUrvlzNohPHTkTilVweJ540nVXE6Rt3gz3SQiQL28",
+      "s1_na9pioc9rmTYV0oYjsySY9xbw9p0W81BWJVOwCcZTok",
+      "s1_WpYQrS3Y5EBPp4KoxQeXdmkSNGGu7uzGmTP-APlIkYU",
+      "s1_AZROcZHF5REFiDAFoebaQXkVL-WQTzMJdPFnogSD8mw",
+      "s1_BplgEe6s02bgeTulT2-kiiNjodelEXDgdUZoVr3feZA",
+      "s1_CYF_dJLEfRbiQGfOnwHVlS330wUwUsWmmHmv9zRFZqQ",
+      "s1_Pw9n-eQGqVgzkoKq87SU94hsJkPfkJYpcSyanm-uljY",
+      "s1_YAH7Qx4BtziTvTRseEyMM2NFaWOuPBlX0AUTxREk7h8",
+      "s1__rRTA-AaFjjKnl4BH3_qAjg6NMkVNNSX6GZZvAuolCw",
+      "s1_cAJveNerl8U1QVXIr9nRQ8UL3PVoePd9cCaPuBP75NY",
+      "s1_cxWoHGAOV3oFvCQ0XuQrJ0DgfOyIwxC8-1JeuT-MQoI",
+      "s1_vPZrYOJuT7VUrK44cqwfBpRYruYDl-QnLxI_n4qryK4",
+      "s1_yylEi3_nmT0rCukeYOe50mTdwYFXaHx7kh2447XVleM",
+      "s1_zUY5khepfp3cZvanaO8G0weK4iXcIrwgiKc07FrJ3Pk"
+    ],
+    "nativeMoveHistoryGap": "historical summary-only screens only"
+  },
+  "latestResult": {
+    "run": "pathfinder-rust-native-tactical-root-filter-vs-depth5-800-20260827",
+    "seed": 2026104800,
+    "screenSeeds": [2026104800, 2026105200],
+    "games": 800,
+    "wins": 629,
+    "losses": 169,
+    "draws": 2,
+    "decision": "promoted-native"
+  },
+  "artifacts": [
+    {
+      "role": "selected sorter model",
+      "storage": "git",
+      "path": "research/20260827-pathfinder-rust-sorter/artifacts/compact-gnn-policy.onnx",
+      "sha256": "2e403c351396f876ba32f487acd6d53e1b0aaa34d59d28a46ed5e93a26342520",
+      "bytes": 187458,
+      "retention": "keep while experiment is active or used as a historical baseline"
+    },
+    {
+      "role": "unpromoted native soft-target sorter",
+      "storage": "git",
+      "path": "research/20260827-pathfinder-rust-sorter/artifacts/native-soft-sorter-depth5-small-400.onnx",
+      "sha256": "abfb62355891c914c43d33801391e79ec0ed30ae4d9578fe96919671f60cf6",
+      "bytes": 186698,
+      "retention": "keep while the exact-target experiment is active"
+    },
+    {
+      "role": "unpromoted native rank-target sorter",
+      "storage": "git",
+      "path": "research/20260827-pathfinder-rust-sorter/artifacts/native-rank-sorter-400.onnx",
+      "sha256": "2d4b393e084aa1d28b0cc2eba9bae835f0afdc39ac1e61e8c50941a86d4b9bab",
+      "bytes": 186698,
+      "retention": "keep while the rank-target experiment is active"
+    },
+    {
+      "role": "unpromoted native top-2 rank-target sorter",
+      "storage": "git",
+      "path": "research/20260827-pathfinder-rust-sorter/artifacts/native-rank-top2-sorter-400.onnx",
+      "sha256": "11fbde47ac2c960929837344ae0145d6217fbb736596415f587d0a960250983f",
+      "bytes": 186698,
+      "retention": "keep while the rank-target experiment is active"
+    }
+  ],
+  "decision": "Promote the pure-Rust tactical-safe filter as the model-free Pathfinder default; keep learned sorter/rank variants unpromoted and continue the paired Rust experiment."
+}

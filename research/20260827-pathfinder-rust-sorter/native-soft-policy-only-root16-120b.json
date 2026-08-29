@@ -1,0 +1,36 @@
+{
+  "schema": "pathagon-rust-pathfinder-sorter-arena-v1",
+  "binary": "pathagon/engine-rs/target/release/pathagon-selfplay",
+  "model": "research/20260827-pathfinder-rust-sorter/artifacts/native-soft-sorter-policy-only-400.onnx",
+  "gamesArchive": "research/20260827-pathfinder-rust-sorter/native-soft-policy-only-root16-120b.games.jsonl",
+  "elapsedSeconds": 33.281802,
+  "search": {
+    "depth": 4,
+    "beam": 8,
+    "nodes": 2000,
+    "sorterTopK": 2,
+    "sorterRootLimit": 16,
+    "sorterMinMargin": 0.0,
+    "sorterMaxHeuristicGap": 0,
+    "sorterKind": "policy",
+    "sorterAllActions": false
+  },
+  "summary": {
+    "schemaVersion": 2,
+    "engine": "rust",
+    "agent": "rust-pathfinder-onnx-sorter-v0.1.0",
+    "opponent": "rust-pathfinder-v0.3.0",
+    "seed": 2026096800,
+    "games": 120,
+    "wins": 50,
+    "losses": 70,
+    "draws": 0,
+    "plies": 3670,
+    "nodes": 3701991,
+    "bookHits": 0,
+    "corpusGames": 0,
+    "corpusPositions": 0,
+    "seconds": 33.268745,
+    "gamesPerSecond": 3.607
+  }
+}

@@ -1,2314 +1,0 @@
-
-pytorch2.13.0:¥¸
-¦
-node_features
-val_0val_1node_MatMul_1"MatMulJm
-	namespace`: __main__.ExportableGNN/model.input: torch.nn.modules.linear.Linear/linear: aten.linear.defaultJu
-pkg.torch.onnx.class_hierarchyS['__main__.ExportableGNN', 'torch.nn.modules.linear.Linear', 'aten.linear.default']Jº
-pkg.torch.onnx.fx_nodeŸ%linear : [num_users=3] = call_function[target=torch.ops.aten.linear.default](args = (%node_features, %p_model_input_weight, %p_model_input_bias), kwargs = {})J;
-pkg.torch.onnx.name_scopes['', 'model.input', 'linear']J
-pkg.torch.onnx.stack_traceğFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-¥
-val_1
-model.input.biaslinearnode_linear"AddJm
-	namespace`: __main__.ExportableGNN/model.input: torch.nn.modules.linear.Linear/linear: aten.linear.defaultJu
-pkg.torch.onnx.class_hierarchyS['__main__.ExportableGNN', 'torch.nn.modules.linear.Linear', 'aten.linear.default']Jº
-pkg.torch.onnx.fx_nodeŸ%linear : [num_users=3] = call_function[target=torch.ops.aten.linear.default](args = (%node_features, %p_model_input_weight, %p_model_input_bias), kwargs = {})J;
-pkg.torch.onnx.name_scopes['', 'model.input', 'linear']J
-pkg.torch.onnx.stack_traceğFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-·
-expand
-linearbmmnode_bmm"MatMulJ;
-	namespace.: __main__.ExportableGNN/bmm: aten.bmm.defaultJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.bmm.default']J‰
-pkg.torch.onnx.fx_nodeo%bmm : [num_users=1] = call_function[target=torch.ops.aten.bmm.default](args = (%expand, %linear), kwargs = {})J)
-pkg.torch.onnx.name_scopes['', 'bmm']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-Í
-linear
-bmmcatnode_cat"Concat*
-axisÿÿÿÿÿÿÿÿÿ J;
-	namespace.: __main__.ExportableGNN/cat: aten.cat.defaultJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.cat.default']JŒ
-pkg.torch.onnx.fx_noder%cat : [num_users=1] = call_function[target=torch.ops.aten.cat.default](args = ([%linear, %bmm], -1), kwargs = {})J)
-pkg.torch.onnx.name_scopes['', 'cat']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-À
-cat
-val_8val_9node_MatMul_9"MatMulJy
-	namespacel: __main__.ExportableGNN/model.layers.0.update: torch.nn.modules.linear.Linear/linear_1: aten.linear.defaultJu
-pkg.torch.onnx.class_hierarchyS['__main__.ExportableGNN', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÆ
-pkg.torch.onnx.fx_node«%linear_1 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat, %p_model_layers_0_update_weight, %p_model_layers_0_update_bias), kwargs = {})JG
-pkg.torch.onnx.name_scopes)['', 'model.layers.0.update', 'linear_1']J
-pkg.torch.onnx.stack_traceğFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-×
-val_9
-model.layers.0.update.biaslinear_1node_linear_1"AddJy
-	namespacel: __main__.ExportableGNN/model.layers.0.update: torch.nn.modules.linear.Linear/linear_1: aten.linear.defaultJu
-pkg.torch.onnx.class_hierarchyS['__main__.ExportableGNN', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÆ
-pkg.torch.onnx.fx_node«%linear_1 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat, %p_model_layers_0_update_weight, %p_model_layers_0_update_bias), kwargs = {})JG
-pkg.torch.onnx.name_scopes)['', 'model.layers.0.update', 'linear_1']J
-pkg.torch.onnx.stack_traceğFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-¼
-linear_1
-val_10val_11node_Div_11"DivJ=
-	namespace0: __main__.ExportableGNN/gelu: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J…
-pkg.torch.onnx.fx_nodek%gelu : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_1,), kwargs = {})J*
-pkg.torch.onnx.name_scopes['', 'gelu']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-²
-val_11val_12node_Erf_12"ErfJ=
-	namespace0: __main__.ExportableGNN/gelu: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J…
-pkg.torch.onnx.fx_nodek%gelu : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_1,), kwargs = {})J*
-pkg.torch.onnx.name_scopes['', 'gelu']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-º
-val_12
-val_13val_14node_Add_14"AddJ=
-	namespace0: __main__.ExportableGNN/gelu: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J…
-pkg.torch.onnx.fx_nodek%gelu : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_1,), kwargs = {})J*
-pkg.torch.onnx.name_scopes['', 'gelu']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-º
-val_15
-val_14val_16node_Mul_16"MulJ=
-	namespace0: __main__.ExportableGNN/gelu: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J…
-pkg.torch.onnx.fx_nodek%gelu : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_1,), kwargs = {})J*
-pkg.torch.onnx.name_scopes['', 'gelu']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-¸
-linear_1
-val_16gelu	node_gelu"MulJ=
-	namespace0: __main__.ExportableGNN/gelu: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J…
-pkg.torch.onnx.fx_nodek%gelu : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_1,), kwargs = {})J*
-pkg.torch.onnx.name_scopes['', 'gelu']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-­
-linear
-geluaddnode_add"AddJ:
-	namespace-: __main__.ExportableGNN/add: aten.add.TensorJO
-pkg.torch.onnx.class_hierarchy-['__main__.ExportableGNN', 'aten.add.Tensor']J†
-pkg.torch.onnx.fx_nodel%add : [num_users=1] = call_function[target=torch.ops.aten.add.Tensor](args = (%linear, %gelu), kwargs = {})J)
-pkg.torch.onnx.name_scopes['', 'add']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-ß
-add
-model.layers.0.norm.weight
-model.layers.0.norm.bias
-layer_normnode_layer_norm"LayerNormalization*
-
-stash_type *
-epsilon¬Å'7 *
-axisÿÿÿÿÿÿÿÿÿ J‡
-	namespacez: __main__.ExportableGNN/model.layers.0.norm: torch.nn.modules.normalization.LayerNorm/layer_norm: aten.layer_norm.defaultJƒ
-pkg.torch.onnx.class_hierarchya['__main__.ExportableGNN', 'torch.nn.modules.normalization.LayerNorm', 'aten.layer_norm.default']JÜ
-pkg.torch.onnx.fx_nodeÁ%layer_norm : [num_users=3] = call_function[target=torch.ops.aten.layer_norm.default](args = (%add, [32], %p_model_layers_0_norm_weight, %p_model_layers_0_norm_bias, 1e-05, False), kwargs = {})JG
-pkg.torch.onnx.name_scopes)['', 'model.layers.0.norm', 'layer_norm']Jü
-pkg.torch.onnx.stack_traceİFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/normalization.py", line 228, in forward
-    return F.layer_norm(
-É
-expand
-
-layer_normbmm_1
-node_bmm_1"MatMulJ=
-	namespace0: __main__.ExportableGNN/bmm_1: aten.bmm.defaultJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.bmm.default']J
-pkg.torch.onnx.fx_nodeu%bmm_1 : [num_users=1] = call_function[target=torch.ops.aten.bmm.default](args = (%expand, %layer_norm), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'bmm_1']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-ã
-
-layer_norm
-bmm_1cat_1
-node_cat_1"Concat*
-axisÿÿÿÿÿÿÿÿÿ J=
-	namespace0: __main__.ExportableGNN/cat_1: aten.cat.defaultJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.cat.default']J”
-pkg.torch.onnx.fx_nodez%cat_1 : [num_users=1] = call_function[target=torch.ops.aten.cat.default](args = ([%layer_norm, %bmm_1], -1), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'cat_1']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-Ç
-cat_1
-val_19val_20node_MatMul_18"MatMulJy
-	namespacel: __main__.ExportableGNN/model.layers.1.update: torch.nn.modules.linear.Linear/linear_2: aten.linear.defaultJu
-pkg.torch.onnx.class_hierarchyS['__main__.ExportableGNN', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÈ
-pkg.torch.onnx.fx_node­%linear_2 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat_1, %p_model_layers_1_update_weight, %p_model_layers_1_update_bias), kwargs = {})JG
-pkg.torch.onnx.name_scopes)['', 'model.layers.1.update', 'linear_2']J
-pkg.torch.onnx.stack_traceğFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-Ú
-val_20
-model.layers.1.update.biaslinear_2node_linear_2"AddJy
-	namespacel: __main__.ExportableGNN/model.layers.1.update: torch.nn.modules.linear.Linear/linear_2: aten.linear.defaultJu
-pkg.torch.onnx.class_hierarchyS['__main__.ExportableGNN', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÈ
-pkg.torch.onnx.fx_node­%linear_2 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat_1, %p_model_layers_1_update_weight, %p_model_layers_1_update_bias), kwargs = {})JG
-pkg.torch.onnx.name_scopes)['', 'model.layers.1.update', 'linear_2']J
-pkg.torch.onnx.stack_traceğFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-Â
-linear_2
-val_10val_22node_Div_20"DivJ?
-	namespace2: __main__.ExportableGNN/gelu_1: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_1 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_2,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_1']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-¸
-val_22val_23node_Erf_21"ErfJ?
-	namespace2: __main__.ExportableGNN/gelu_1: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_1 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_2,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_1']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-À
-val_23
-val_13val_25node_Add_23"AddJ?
-	namespace2: __main__.ExportableGNN/gelu_1: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_1 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_2,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_1']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-À
-val_15
-val_25val_27node_Mul_25"MulJ?
-	namespace2: __main__.ExportableGNN/gelu_1: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_1 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_2,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_1']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-Â
-linear_2
-val_27gelu_1node_gelu_1"MulJ?
-	namespace2: __main__.ExportableGNN/gelu_1: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_1 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_2,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_1']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-Ã
-
-layer_norm
-gelu_1add_1
-node_add_1"AddJ<
-	namespace/: __main__.ExportableGNN/add_1: aten.add.TensorJO
-pkg.torch.onnx.class_hierarchy-['__main__.ExportableGNN', 'aten.add.Tensor']J
-pkg.torch.onnx.fx_nodet%add_1 : [num_users=1] = call_function[target=torch.ops.aten.add.Tensor](args = (%layer_norm, %gelu_1), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'add_1']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-í
-add_1
-model.layers.1.norm.weight
-model.layers.1.norm.biaslayer_norm_1node_layer_norm_1"LayerNormalization*
-
-stash_type *
-epsilon¬Å'7 *
-axisÿÿÿÿÿÿÿÿÿ J‰
-	namespace|: __main__.ExportableGNN/model.layers.1.norm: torch.nn.modules.normalization.LayerNorm/layer_norm_1: aten.layer_norm.defaultJƒ
-pkg.torch.onnx.class_hierarchya['__main__.ExportableGNN', 'torch.nn.modules.normalization.LayerNorm', 'aten.layer_norm.default']Jà
-pkg.torch.onnx.fx_nodeÅ%layer_norm_1 : [num_users=3] = call_function[target=torch.ops.aten.layer_norm.default](args = (%add_1, [32], %p_model_layers_1_norm_weight, %p_model_layers_1_norm_bias, 1e-05, False), kwargs = {})JI
-pkg.torch.onnx.name_scopes+['', 'model.layers.1.norm', 'layer_norm_1']Jü
-pkg.torch.onnx.stack_traceİFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/normalization.py", line 228, in forward
-    return F.layer_norm(
-Í
-expand
-layer_norm_1bmm_2
-node_bmm_2"MatMulJ=
-	namespace0: __main__.ExportableGNN/bmm_2: aten.bmm.defaultJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.bmm.default']J‘
-pkg.torch.onnx.fx_nodew%bmm_2 : [num_users=1] = call_function[target=torch.ops.aten.bmm.default](args = (%expand, %layer_norm_1), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'bmm_2']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-ç
-layer_norm_1
-bmm_2cat_2
-node_cat_2"Concat*
-axisÿÿÿÿÿÿÿÿÿ J=
-	namespace0: __main__.ExportableGNN/cat_2: aten.cat.defaultJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.cat.default']J–
-pkg.torch.onnx.fx_node|%cat_2 : [num_users=1] = call_function[target=torch.ops.aten.cat.default](args = ([%layer_norm_1, %bmm_2], -1), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'cat_2']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-Ç
-cat_2
-val_30val_31node_MatMul_27"MatMulJy
-	namespacel: __main__.ExportableGNN/model.layers.2.update: torch.nn.modules.linear.Linear/linear_3: aten.linear.defaultJu
-pkg.torch.onnx.class_hierarchyS['__main__.ExportableGNN', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÈ
-pkg.torch.onnx.fx_node­%linear_3 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat_2, %p_model_layers_2_update_weight, %p_model_layers_2_update_bias), kwargs = {})JG
-pkg.torch.onnx.name_scopes)['', 'model.layers.2.update', 'linear_3']J
-pkg.torch.onnx.stack_traceğFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-Ú
-val_31
-model.layers.2.update.biaslinear_3node_linear_3"AddJy
-	namespacel: __main__.ExportableGNN/model.layers.2.update: torch.nn.modules.linear.Linear/linear_3: aten.linear.defaultJu
-pkg.torch.onnx.class_hierarchyS['__main__.ExportableGNN', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÈ
-pkg.torch.onnx.fx_node­%linear_3 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat_2, %p_model_layers_2_update_weight, %p_model_layers_2_update_bias), kwargs = {})JG
-pkg.torch.onnx.name_scopes)['', 'model.layers.2.update', 'linear_3']J
-pkg.torch.onnx.stack_traceğFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-Â
-linear_3
-val_10val_33node_Div_29"DivJ?
-	namespace2: __main__.ExportableGNN/gelu_2: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_2 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_3,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_2']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-¸
-val_33val_34node_Erf_30"ErfJ?
-	namespace2: __main__.ExportableGNN/gelu_2: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_2 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_3,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_2']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-À
-val_34
-val_13val_36node_Add_32"AddJ?
-	namespace2: __main__.ExportableGNN/gelu_2: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_2 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_3,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_2']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-À
-val_15
-val_36val_38node_Mul_34"MulJ?
-	namespace2: __main__.ExportableGNN/gelu_2: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_2 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_3,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_2']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-Â
-linear_3
-val_38gelu_2node_gelu_2"MulJ?
-	namespace2: __main__.ExportableGNN/gelu_2: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_2 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_3,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_2']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-Ç
-layer_norm_1
-gelu_2add_2
-node_add_2"AddJ<
-	namespace/: __main__.ExportableGNN/add_2: aten.add.TensorJO
-pkg.torch.onnx.class_hierarchy-['__main__.ExportableGNN', 'aten.add.Tensor']J
-pkg.torch.onnx.fx_nodev%add_2 : [num_users=1] = call_function[target=torch.ops.aten.add.Tensor](args = (%layer_norm_1, %gelu_2), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'add_2']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-í
-add_2
-model.layers.2.norm.weight
-model.layers.2.norm.biaslayer_norm_2node_layer_norm_2"LayerNormalization*
-
-stash_type *
-epsilon¬Å'7 *
-axisÿÿÿÿÿÿÿÿÿ J‰
-	namespace|: __main__.ExportableGNN/model.layers.2.norm: torch.nn.modules.normalization.LayerNorm/layer_norm_2: aten.layer_norm.defaultJƒ
-pkg.torch.onnx.class_hierarchya['__main__.ExportableGNN', 'torch.nn.modules.normalization.LayerNorm', 'aten.layer_norm.default']Jà
-pkg.torch.onnx.fx_nodeÅ%layer_norm_2 : [num_users=3] = call_function[target=torch.ops.aten.layer_norm.default](args = (%add_2, [32], %p_model_layers_2_norm_weight, %p_model_layers_2_norm_bias, 1e-05, False), kwargs = {})JI
-pkg.torch.onnx.name_scopes+['', 'model.layers.2.norm', 'layer_norm_2']Jü
-pkg.torch.onnx.stack_traceİFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/normalization.py", line 228, in forward
-    return F.layer_norm(
-Í
-expand
-layer_norm_2bmm_3
-node_bmm_3"MatMulJ=
-	namespace0: __main__.ExportableGNN/bmm_3: aten.bmm.defaultJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.bmm.default']J‘
-pkg.torch.onnx.fx_nodew%bmm_3 : [num_users=1] = call_function[target=torch.ops.aten.bmm.default](args = (%expand, %layer_norm_2), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'bmm_3']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-ç
-layer_norm_2
-bmm_3cat_3
-node_cat_3"Concat*
-axisÿÿÿÿÿÿÿÿÿ J=
-	namespace0: __main__.ExportableGNN/cat_3: aten.cat.defaultJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.cat.default']J–
-pkg.torch.onnx.fx_node|%cat_3 : [num_users=1] = call_function[target=torch.ops.aten.cat.default](args = ([%layer_norm_2, %bmm_3], -1), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'cat_3']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-Ç
-cat_3
-val_41val_42node_MatMul_36"MatMulJy
-	namespacel: __main__.ExportableGNN/model.layers.3.update: torch.nn.modules.linear.Linear/linear_4: aten.linear.defaultJu
-pkg.torch.onnx.class_hierarchyS['__main__.ExportableGNN', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÈ
-pkg.torch.onnx.fx_node­%linear_4 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat_3, %p_model_layers_3_update_weight, %p_model_layers_3_update_bias), kwargs = {})JG
-pkg.torch.onnx.name_scopes)['', 'model.layers.3.update', 'linear_4']J
-pkg.torch.onnx.stack_traceğFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-Ú
-val_42
-model.layers.3.update.biaslinear_4node_linear_4"AddJy
-	namespacel: __main__.ExportableGNN/model.layers.3.update: torch.nn.modules.linear.Linear/linear_4: aten.linear.defaultJu
-pkg.torch.onnx.class_hierarchyS['__main__.ExportableGNN', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÈ
-pkg.torch.onnx.fx_node­%linear_4 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat_3, %p_model_layers_3_update_weight, %p_model_layers_3_update_bias), kwargs = {})JG
-pkg.torch.onnx.name_scopes)['', 'model.layers.3.update', 'linear_4']J
-pkg.torch.onnx.stack_traceğFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-Â
-linear_4
-val_10val_44node_Div_38"DivJ?
-	namespace2: __main__.ExportableGNN/gelu_3: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_3 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_4,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_3']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-¸
-val_44val_45node_Erf_39"ErfJ?
-	namespace2: __main__.ExportableGNN/gelu_3: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_3 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_4,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_3']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-À
-val_45
-val_13val_47node_Add_41"AddJ?
-	namespace2: __main__.ExportableGNN/gelu_3: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_3 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_4,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_3']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-À
-val_15
-val_47val_49node_Mul_43"MulJ?
-	namespace2: __main__.ExportableGNN/gelu_3: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_3 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_4,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_3']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-Â
-linear_4
-val_49gelu_3node_gelu_3"MulJ?
-	namespace2: __main__.ExportableGNN/gelu_3: aten.gelu.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_3 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_4,), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gelu_3']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-Ç
-layer_norm_2
-gelu_3add_3
-node_add_3"AddJ<
-	namespace/: __main__.ExportableGNN/add_3: aten.add.TensorJO
-pkg.torch.onnx.class_hierarchy-['__main__.ExportableGNN', 'aten.add.Tensor']J
-pkg.torch.onnx.fx_nodev%add_3 : [num_users=1] = call_function[target=torch.ops.aten.add.Tensor](args = (%layer_norm_2, %gelu_3), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'add_3']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-í
-add_3
-model.layers.3.norm.weight
-model.layers.3.norm.biaslayer_norm_3node_layer_norm_3"LayerNormalization*
-
-stash_type *
-epsilon¬Å'7 *
-axisÿÿÿÿÿÿÿÿÿ J‰
-	namespace|: __main__.ExportableGNN/model.layers.3.norm: torch.nn.modules.normalization.LayerNorm/layer_norm_3: aten.layer_norm.defaultJƒ
-pkg.torch.onnx.class_hierarchya['__main__.ExportableGNN', 'torch.nn.modules.normalization.LayerNorm', 'aten.layer_norm.default']Jà
-pkg.torch.onnx.fx_nodeÅ%layer_norm_3 : [num_users=3] = call_function[target=torch.ops.aten.layer_norm.default](args = (%add_3, [32], %p_model_layers_3_norm_weight, %p_model_layers_3_norm_bias, 1e-05, False), kwargs = {})JI
-pkg.torch.onnx.name_scopes+['', 'model.layers.3.norm', 'layer_norm_3']Jü
-pkg.torch.onnx.stack_traceİFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/normalization.py", line 228, in forward
-    return F.layer_norm(
-í
-layer_norm_3
-val_54mean	node_mean"
-ReduceMean*
-noop_with_empty_axes  *
-keepdims  J9
-	namespace,: __main__.ExportableGNN/mean: aten.mean.dimJM
-pkg.torch.onnx.class_hierarchy+['__main__.ExportableGNN', 'aten.mean.dim']J‰
-pkg.torch.onnx.fx_nodeo%mean : [num_users=1] = call_function[target=torch.ops.aten.mean.dim](args = (%layer_norm_3, [1]), kwargs = {})J*
-pkg.torch.onnx.name_scopes['', 'mean']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-Ô
-layer_norm_3
-val_54amaxn0"	ReduceMax*
-keepdims  J=
-	namespace0: __main__.ExportableGNN/amax: aten.amax.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.amax.default']J
-pkg.torch.onnx.fx_nodes%amax : [num_users=1] = call_function[target=torch.ops.aten.amax.default](args = (%layer_norm_3, [1]), kwargs = {})J*
-pkg.torch.onnx.name_scopes['', 'amax']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-ù
-mean
-amax
-global_featurescat_4
-node_cat_4"Concat*
-axisÿÿÿÿÿÿÿÿÿ J=
-	namespace0: __main__.ExportableGNN/cat_4: aten.cat.defaultJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.cat.default']J 
-pkg.torch.onnx.fx_node…%cat_4 : [num_users=1] = call_function[target=torch.ops.aten.cat.default](args = ([%mean, %amax, %global_features], -1), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'cat_4']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-·
-
-cat_4
-model.context.0.weight
-model.context.0.biaslinear_5node_linear_5"Gemm*
-beta  €? *
-transB *
-alpha  €? *
-transA  J©
-	namespace›: __main__.ExportableGNN/model.context: torch.nn.modules.container.Sequential/model.context.0: torch.nn.modules.linear.Linear/linear_5: aten.linear.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.linear.default']J¼
-pkg.torch.onnx.fx_node¡%linear_5 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat_4, %p_model_context_0_weight, %p_model_context_0_bias), kwargs = {})JR
-pkg.torch.onnx.name_scopes4['', 'model.context', 'model.context.0', 'linear_5']JÁ
-pkg.torch.onnx.stack_trace¢File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-Ÿ	
-linear_5
-val_10val_56node_Div_48"DivJ§
-	namespace™: __main__.ExportableGNN/model.context: torch.nn.modules.container.Sequential/model.context.1: torch.nn.modules.activation.GELU/gelu_4: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_4 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_5,), kwargs = {})JP
-pkg.torch.onnx.name_scopes2['', 'model.context', 'model.context.1', 'gelu_4']JÉ
-pkg.torch.onnx.stack_traceªFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-•	
-val_56val_57node_Erf_49"ErfJ§
-	namespace™: __main__.ExportableGNN/model.context: torch.nn.modules.container.Sequential/model.context.1: torch.nn.modules.activation.GELU/gelu_4: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_4 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_5,), kwargs = {})JP
-pkg.torch.onnx.name_scopes2['', 'model.context', 'model.context.1', 'gelu_4']JÉ
-pkg.torch.onnx.stack_traceªFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-	
-val_57
-val_13val_59node_Add_51"AddJ§
-	namespace™: __main__.ExportableGNN/model.context: torch.nn.modules.container.Sequential/model.context.1: torch.nn.modules.activation.GELU/gelu_4: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_4 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_5,), kwargs = {})JP
-pkg.torch.onnx.name_scopes2['', 'model.context', 'model.context.1', 'gelu_4']JÉ
-pkg.torch.onnx.stack_traceªFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-	
-val_15
-val_59val_61node_Mul_53"MulJ§
-	namespace™: __main__.ExportableGNN/model.context: torch.nn.modules.container.Sequential/model.context.1: torch.nn.modules.activation.GELU/gelu_4: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_4 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_5,), kwargs = {})JP
-pkg.torch.onnx.name_scopes2['', 'model.context', 'model.context.1', 'gelu_4']JÉ
-pkg.torch.onnx.stack_traceªFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-Ÿ	
-linear_5
-val_61gelu_4node_gelu_4"MulJ§
-	namespace™: __main__.ExportableGNN/model.context: torch.nn.modules.container.Sequential/model.context.1: torch.nn.modules.activation.GELU/gelu_4: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_4 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_5,), kwargs = {})JP
-pkg.torch.onnx.name_scopes2['', 'model.context', 'model.context.1', 'gelu_4']JÉ
-pkg.torch.onnx.stack_traceªFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-ú
-
-gelu_4
-model.context.2.weight
-model.context.2.biaslayer_norm_4node_layer_norm_4"LayerNormalization*
-
-stash_type *
-epsilon¬Å'7 *
-axisÿÿÿÿÿÿÿÿÿ J»
-	namespace­: __main__.ExportableGNN/model.context: torch.nn.modules.container.Sequential/model.context.2: torch.nn.modules.normalization.LayerNorm/layer_norm_4: aten.layer_norm.defaultJ­
-pkg.torch.onnx.class_hierarchyŠ['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.normalization.LayerNorm', 'aten.layer_norm.default']JÙ
-pkg.torch.onnx.fx_node¾%layer_norm_4 : [num_users=2] = call_function[target=torch.ops.aten.layer_norm.default](args = (%gelu_4, [32], %p_model_context_2_weight, %p_model_context_2_bias, 1e-05, False), kwargs = {})JV
-pkg.torch.onnx.name_scopes8['', 'model.context', 'model.context.2', 'layer_norm_4']J®
-pkg.torch.onnx.stack_traceFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/normalization.py", line 228, in forward
-    return F.layer_norm(
-ò
-layer_norm_3
-val_67
-val_71
-val_54
-val_54slice_1node_slice_1"SliceJ@
-	namespace3: __main__.ExportableGNN/slice_1: aten.slice.TensorJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.slice.Tensor']J•
-pkg.torch.onnx.fx_node{%slice_1 : [num_users=2] = call_function[target=torch.ops.aten.slice.Tensor](args = (%layer_norm_3, 1, 0, 49), kwargs = {})J-
-pkg.torch.onnx.name_scopes['', 'slice_1']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 73, in forward
-    board_nodes, context = self.encode(node_features, global_features)
-“
-action_specs
-val_54
-val_83
-val_87
-val_54slice_2node_slice_2"SliceJ@
-	namespace3: __main__.ExportableGNN/slice_2: aten.slice.TensorJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.slice.Tensor']J§
-pkg.torch.onnx.fx_nodeŒ%slice_2 : [num_users=1] = call_function[target=torch.ops.aten.slice.Tensor](args = (%action_specs, 2, 1, 9223372036854775807), kwargs = {})J-
-pkg.torch.onnx.name_scopes['', 'slice_2']JÖ
-pkg.torch.onnx.stack_trace·File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 74, in forward
-    action_indices = action_specs[:, :, 1:].clamp(0, BOARD_NODES - 1).to(torch.int64)
-É
-slice_2
-slice_2_min
-slice_2_maxclampnode_Clip_141"ClipJ>
-	namespace1: __main__.ExportableGNN/clamp: aten.clamp.TensorJ5
-!pkg.onnxscript.rewriter.rule_nameFuseMaxMinToClipJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.clamp.Tensor']J·
-pkg.torch.onnx.fx_nodeœ%clamp : [num_users=1] = call_function[target=torch.ops.aten.clamp.Tensor](args = (%slice_2, %scalar_tensor_default, %scalar_tensor_default_1), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'clamp']JÖ
-pkg.torch.onnx.stack_trace·File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 74, in forward
-    action_indices = action_specs[:, :, 1:].clamp(0, BOARD_NODES - 1).to(torch.int64)
-ø
-clamp_to_copynode__to_copy"Cast*	
-to JE
-	namespace8: __main__.ExportableGNN/_to_copy: aten._to_copy.defaultJU
-pkg.torch.onnx.class_hierarchy3['__main__.ExportableGNN', 'aten._to_copy.default']J
-pkg.torch.onnx.fx_node‚%_to_copy : [num_users=2] = call_function[target=torch.ops.aten._to_copy.default](args = (%clamp,), kwargs = {dtype: torch.int64})J.
-pkg.torch.onnx.name_scopes['', '_to_copy']JÖ
-pkg.torch.onnx.stack_trace·File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 74, in forward
-    action_indices = action_specs[:, :, 1:].clamp(0, BOARD_NODES - 1).to(torch.int64)
-ç
-_to_copy
-val_64selectnode_select"Gather*
-axis J=
-	namespace0: __main__.ExportableGNN/select: aten.select.intJO
-pkg.torch.onnx.class_hierarchy-['__main__.ExportableGNN', 'aten.select.int']JŠ
-pkg.torch.onnx.fx_nodep%select : [num_users=1] = call_function[target=torch.ops.aten.select.int](args = (%_to_copy, 2, 0), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'select']Jİ
-pkg.torch.onnx.stack_trace¾File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 75, in forward
-    from_index = action_indices[:, :, 0].unsqueeze(-1).expand(-1, -1, board_nodes.shape[-1])
-…
-select
-val_93unsqueeze_1node_unsqueeze_1"	UnsqueezeJI
-	namespace<: __main__.ExportableGNN/unsqueeze_1: aten.unsqueeze.defaultJV
-pkg.torch.onnx.class_hierarchy4['__main__.ExportableGNN', 'aten.unsqueeze.default']J’
-pkg.torch.onnx.fx_nodex%unsqueeze_1 : [num_users=1] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%select, -1), kwargs = {})J1
-pkg.torch.onnx.name_scopes['', 'unsqueeze_1']Jİ
-pkg.torch.onnx.stack_trace¾File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 75, in forward
-    from_index = action_indices[:, :, 0].unsqueeze(-1).expand(-1, -1, board_nodes.shape[-1])
-ÿ
-unsqueeze_1
-val_98expand_1node_expand_1"ExpandJC
-	namespace6: __main__.ExportableGNN/expand_1: aten.expand.defaultJS
-pkg.torch.onnx.class_hierarchy1['__main__.ExportableGNN', 'aten.expand.default']Jœ
-pkg.torch.onnx.fx_node%expand_1 : [num_users=1] = call_function[target=torch.ops.aten.expand.default](args = (%unsqueeze_1, [-1, -1, 32]), kwargs = {})J.
-pkg.torch.onnx.name_scopes['', 'expand_1']Jİ
-pkg.torch.onnx.stack_trace¾File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 75, in forward
-    from_index = action_indices[:, :, 0].unsqueeze(-1).expand(-1, -1, board_nodes.shape[-1])
-ï
-_to_copy
-val_72select_1node_select_1"Gather*
-axis J?
-	namespace2: __main__.ExportableGNN/select_1: aten.select.intJO
-pkg.torch.onnx.class_hierarchy-['__main__.ExportableGNN', 'aten.select.int']JŒ
-pkg.torch.onnx.fx_noder%select_1 : [num_users=1] = call_function[target=torch.ops.aten.select.int](args = (%_to_copy, 2, 1), kwargs = {})J.
-pkg.torch.onnx.name_scopes['', 'select_1']JÛ
-pkg.torch.onnx.stack_trace¼File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 76, in forward
-    to_index = action_indices[:, :, 1].unsqueeze(-1).expand(-1, -1, board_nodes.shape[-1])
-‡
-select_1
-val_93unsqueeze_2node_unsqueeze_2"	UnsqueezeJI
-	namespace<: __main__.ExportableGNN/unsqueeze_2: aten.unsqueeze.defaultJV
-pkg.torch.onnx.class_hierarchy4['__main__.ExportableGNN', 'aten.unsqueeze.default']J”
-pkg.torch.onnx.fx_nodez%unsqueeze_2 : [num_users=1] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%select_1, -1), kwargs = {})J1
-pkg.torch.onnx.name_scopes['', 'unsqueeze_2']JÛ
-pkg.torch.onnx.stack_trace¼File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 76, in forward
-    to_index = action_indices[:, :, 1].unsqueeze(-1).expand(-1, -1, board_nodes.shape[-1])
-ı
-unsqueeze_2
-val_98expand_2node_expand_2"ExpandJC
-	namespace6: __main__.ExportableGNN/expand_2: aten.expand.defaultJS
-pkg.torch.onnx.class_hierarchy1['__main__.ExportableGNN', 'aten.expand.default']Jœ
-pkg.torch.onnx.fx_node%expand_2 : [num_users=1] = call_function[target=torch.ops.aten.expand.default](args = (%unsqueeze_2, [-1, -1, 32]), kwargs = {})J.
-pkg.torch.onnx.name_scopes['', 'expand_2']JÛ
-pkg.torch.onnx.stack_trace¼File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 76, in forward
-    to_index = action_indices[:, :, 1].unsqueeze(-1).expand(-1, -1, board_nodes.shape[-1])
-à
-slice_1
-expand_1gathernode_gather"GatherElements*
-axis JA
-	namespace4: __main__.ExportableGNN/gather: aten.gather.defaultJS
-pkg.torch.onnx.class_hierarchy1['__main__.ExportableGNN', 'aten.gather.default']J•
-pkg.torch.onnx.fx_node{%gather : [num_users=1] = call_function[target=torch.ops.aten.gather.default](args = (%slice_1, 1, %expand_1), kwargs = {})J,
-pkg.torch.onnx.name_scopes['', 'gather']Jº
-pkg.torch.onnx.stack_trace›File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 77, in forward
-    from_nodes = torch.gather(board_nodes, 1, from_index)
-æ
-slice_1
-expand_2gather_1node_gather_1"GatherElements*
-axis JC
-	namespace6: __main__.ExportableGNN/gather_1: aten.gather.defaultJS
-pkg.torch.onnx.class_hierarchy1['__main__.ExportableGNN', 'aten.gather.default']J—
-pkg.torch.onnx.fx_node}%gather_1 : [num_users=2] = call_function[target=torch.ops.aten.gather.default](args = (%slice_1, 1, %expand_2), kwargs = {})J.
-pkg.torch.onnx.name_scopes['', 'gather_1']J¶
-pkg.torch.onnx.stack_trace—File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 78, in forward
-    to_nodes = torch.gather(board_nodes, 1, to_index)
-ú
-layer_norm_4
-val_54unsqueeze_3node_unsqueeze_3"	UnsqueezeJI
-	namespace<: __main__.ExportableGNN/unsqueeze_3: aten.unsqueeze.defaultJV
-pkg.torch.onnx.class_hierarchy4['__main__.ExportableGNN', 'aten.unsqueeze.default']J—
-pkg.torch.onnx.fx_node}%unsqueeze_3 : [num_users=1] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%layer_norm_4, 1), kwargs = {})J1
-pkg.torch.onnx.name_scopes['', 'unsqueeze_3']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 79, in forward
-    context_actions = context.unsqueeze(1).expand(-1, MAX_ACTIONS, -1)
-ì
-unsqueeze_3
-val_110expand_3node_expand_3"ExpandJC
-	namespace6: __main__.ExportableGNN/expand_3: aten.expand.defaultJS
-pkg.torch.onnx.class_hierarchy1['__main__.ExportableGNN', 'aten.expand.default']J
-pkg.torch.onnx.fx_nodeƒ%expand_3 : [num_users=2] = call_function[target=torch.ops.aten.expand.default](args = (%unsqueeze_3, [-1, 2401, -1]), kwargs = {})J.
-pkg.torch.onnx.name_scopes['', 'expand_3']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 79, in forward
-    context_actions = context.unsqueeze(1).expand(-1, MAX_ACTIONS, -1)
-â
-gather_1
-expand_3cat_5
-node_cat_5"Concat*
-axisÿÿÿÿÿÿÿÿÿ J=
-	namespace0: __main__.ExportableGNN/cat_5: aten.cat.defaultJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.cat.default']J•
-pkg.torch.onnx.fx_node{%cat_5 : [num_users=1] = call_function[target=torch.ops.aten.cat.default](args = ([%gather_1, %expand_3], -1), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'cat_5']JÄ
-pkg.torch.onnx.stack_trace¥File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 80, in forward
-    place_features = torch.cat((to_nodes, context_actions), dim=-1)
-ƒ
-gather
-gather_1
-expand_3cat_6
-node_cat_6"Concat*
-axisÿÿÿÿÿÿÿÿÿ J=
-	namespace0: __main__.ExportableGNN/cat_6: aten.cat.defaultJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.cat.default']JŸ
-pkg.torch.onnx.fx_node„%cat_6 : [num_users=1] = call_function[target=torch.ops.aten.cat.default](args = ([%gather, %gather_1, %expand_3], -1), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'cat_6']JÓ
-pkg.torch.onnx.stack_trace´File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 81, in forward
-    relocate_features = torch.cat((from_nodes, to_nodes, context_actions), dim=-1)
-æ	
-cat_5
-val_111val_112node_MatMul_102"MatMulJ¯
-	namespace¡: __main__.ExportableGNN/model.place_head: torch.nn.modules.container.Sequential/model.place_head.0: torch.nn.modules.linear.Linear/linear_6: aten.linear.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÂ
-pkg.torch.onnx.fx_node§%linear_6 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat_5, %p_model_place_head_0_weight, %p_model_place_head_0_bias), kwargs = {})JX
-pkg.torch.onnx.name_scopes:['', 'model.place_head', 'model.place_head.0', 'linear_6']J¿
-pkg.torch.onnx.stack_trace File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 82, in forward
-    place_logits = self.model.place_head(place_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-ô	
-val_112
-model.place_head.0.biaslinear_6node_linear_6"AddJ¯
-	namespace¡: __main__.ExportableGNN/model.place_head: torch.nn.modules.container.Sequential/model.place_head.0: torch.nn.modules.linear.Linear/linear_6: aten.linear.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÂ
-pkg.torch.onnx.fx_node§%linear_6 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat_5, %p_model_place_head_0_weight, %p_model_place_head_0_bias), kwargs = {})JX
-pkg.torch.onnx.name_scopes:['', 'model.place_head', 'model.place_head.0', 'linear_6']J¿
-pkg.torch.onnx.stack_trace File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 82, in forward
-    place_logits = self.model.place_head(place_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-«	
-linear_6
-val_10val_114node_Div_104"DivJ­
-	namespaceŸ: __main__.ExportableGNN/model.place_head: torch.nn.modules.container.Sequential/model.place_head.1: torch.nn.modules.activation.GELU/gelu_5: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_5 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_6,), kwargs = {})JV
-pkg.torch.onnx.name_scopes8['', 'model.place_head', 'model.place_head.1', 'gelu_5']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 82, in forward
-    place_logits = self.model.place_head(place_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-¢	
-val_114val_115node_Erf_105"ErfJ­
-	namespaceŸ: __main__.ExportableGNN/model.place_head: torch.nn.modules.container.Sequential/model.place_head.1: torch.nn.modules.activation.GELU/gelu_5: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_5 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_6,), kwargs = {})JV
-pkg.torch.onnx.name_scopes8['', 'model.place_head', 'model.place_head.1', 'gelu_5']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 82, in forward
-    place_logits = self.model.place_head(place_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-ª	
-val_115
-val_13val_117node_Add_107"AddJ­
-	namespaceŸ: __main__.ExportableGNN/model.place_head: torch.nn.modules.container.Sequential/model.place_head.1: torch.nn.modules.activation.GELU/gelu_5: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_5 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_6,), kwargs = {})JV
-pkg.torch.onnx.name_scopes8['', 'model.place_head', 'model.place_head.1', 'gelu_5']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 82, in forward
-    place_logits = self.model.place_head(place_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-ª	
-val_15
-val_117val_119node_Mul_109"MulJ­
-	namespaceŸ: __main__.ExportableGNN/model.place_head: torch.nn.modules.container.Sequential/model.place_head.1: torch.nn.modules.activation.GELU/gelu_5: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_5 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_6,), kwargs = {})JV
-pkg.torch.onnx.name_scopes8['', 'model.place_head', 'model.place_head.1', 'gelu_5']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 82, in forward
-    place_logits = self.model.place_head(place_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-ª	
-linear_6
-val_119gelu_5node_gelu_5"MulJ­
-	namespaceŸ: __main__.ExportableGNN/model.place_head: torch.nn.modules.container.Sequential/model.place_head.1: torch.nn.modules.activation.GELU/gelu_5: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_5 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_6,), kwargs = {})JV
-pkg.torch.onnx.name_scopes8['', 'model.place_head', 'model.place_head.1', 'gelu_5']JÇ
-pkg.torch.onnx.stack_trace¨File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 82, in forward
-    place_logits = self.model.place_head(place_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-è	
-gelu_5
-val_120val_121node_MatMul_111"MatMulJ¯
-	namespace¡: __main__.ExportableGNN/model.place_head: torch.nn.modules.container.Sequential/model.place_head.2: torch.nn.modules.linear.Linear/linear_7: aten.linear.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÃ
-pkg.torch.onnx.fx_node¨%linear_7 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%gelu_5, %p_model_place_head_2_weight, %p_model_place_head_2_bias), kwargs = {})JX
-pkg.torch.onnx.name_scopes:['', 'model.place_head', 'model.place_head.2', 'linear_7']J¿
-pkg.torch.onnx.stack_trace File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 82, in forward
-    place_logits = self.model.place_head(place_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-õ	
-val_121
-model.place_head.2.biaslinear_7node_linear_7"AddJ¯
-	namespace¡: __main__.ExportableGNN/model.place_head: torch.nn.modules.container.Sequential/model.place_head.2: torch.nn.modules.linear.Linear/linear_7: aten.linear.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÃ
-pkg.torch.onnx.fx_node¨%linear_7 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%gelu_5, %p_model_place_head_2_weight, %p_model_place_head_2_bias), kwargs = {})JX
-pkg.torch.onnx.name_scopes:['', 'model.place_head', 'model.place_head.2', 'linear_7']J¿
-pkg.torch.onnx.stack_trace File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 82, in forward
-    place_logits = self.model.place_head(place_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-É
-linear_7
-val_93squeezenode_squeeze"SqueezeJ?
-	namespace2: __main__.ExportableGNN/squeeze: aten.squeeze.dimJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.squeeze.dim']JŠ
-pkg.torch.onnx.fx_nodep%squeeze : [num_users=1] = call_function[target=torch.ops.aten.squeeze.dim](args = (%linear_7, -1), kwargs = {})J-
-pkg.torch.onnx.name_scopes['', 'squeeze']JÅ
-pkg.torch.onnx.stack_trace¦File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 82, in forward
-    place_logits = self.model.place_head(place_features).squeeze(-1)
-
-
-cat_6
-val_122val_123node_MatMul_113"MatMulJµ
-	namespace§: __main__.ExportableGNN/model.relocate_head: torch.nn.modules.container.Sequential/model.relocate_head.0: torch.nn.modules.linear.Linear/linear_8: aten.linear.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÈ
-pkg.torch.onnx.fx_node­%linear_8 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat_6, %p_model_relocate_head_0_weight, %p_model_relocate_head_0_bias), kwargs = {})J^
-pkg.torch.onnx.name_scopes@['', 'model.relocate_head', 'model.relocate_head.0', 'linear_8']JÈ
-pkg.torch.onnx.stack_trace©File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 83, in forward
-    relocate_logits = self.model.relocate_head(relocate_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-’
-
-val_123
-model.relocate_head.0.biaslinear_8node_linear_8"AddJµ
-	namespace§: __main__.ExportableGNN/model.relocate_head: torch.nn.modules.container.Sequential/model.relocate_head.0: torch.nn.modules.linear.Linear/linear_8: aten.linear.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÈ
-pkg.torch.onnx.fx_node­%linear_8 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat_6, %p_model_relocate_head_0_weight, %p_model_relocate_head_0_bias), kwargs = {})J^
-pkg.torch.onnx.name_scopes@['', 'model.relocate_head', 'model.relocate_head.0', 'linear_8']JÈ
-pkg.torch.onnx.stack_trace©File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 83, in forward
-    relocate_logits = self.model.relocate_head(relocate_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-À	
-linear_8
-val_10val_125node_Div_115"DivJ³
-	namespace¥: __main__.ExportableGNN/model.relocate_head: torch.nn.modules.container.Sequential/model.relocate_head.1: torch.nn.modules.activation.GELU/gelu_6: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_6 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_8,), kwargs = {})J\
-pkg.torch.onnx.name_scopes>['', 'model.relocate_head', 'model.relocate_head.1', 'gelu_6']JĞ
-pkg.torch.onnx.stack_trace±File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 83, in forward
-    relocate_logits = self.model.relocate_head(relocate_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-·	
-val_125val_126node_Erf_116"ErfJ³
-	namespace¥: __main__.ExportableGNN/model.relocate_head: torch.nn.modules.container.Sequential/model.relocate_head.1: torch.nn.modules.activation.GELU/gelu_6: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_6 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_8,), kwargs = {})J\
-pkg.torch.onnx.name_scopes>['', 'model.relocate_head', 'model.relocate_head.1', 'gelu_6']JĞ
-pkg.torch.onnx.stack_trace±File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 83, in forward
-    relocate_logits = self.model.relocate_head(relocate_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-¿	
-val_126
-val_13val_128node_Add_118"AddJ³
-	namespace¥: __main__.ExportableGNN/model.relocate_head: torch.nn.modules.container.Sequential/model.relocate_head.1: torch.nn.modules.activation.GELU/gelu_6: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_6 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_8,), kwargs = {})J\
-pkg.torch.onnx.name_scopes>['', 'model.relocate_head', 'model.relocate_head.1', 'gelu_6']JĞ
-pkg.torch.onnx.stack_trace±File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 83, in forward
-    relocate_logits = self.model.relocate_head(relocate_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-¿	
-val_15
-val_128val_130node_Mul_120"MulJ³
-	namespace¥: __main__.ExportableGNN/model.relocate_head: torch.nn.modules.container.Sequential/model.relocate_head.1: torch.nn.modules.activation.GELU/gelu_6: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_6 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_8,), kwargs = {})J\
-pkg.torch.onnx.name_scopes>['', 'model.relocate_head', 'model.relocate_head.1', 'gelu_6']JĞ
-pkg.torch.onnx.stack_trace±File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 83, in forward
-    relocate_logits = self.model.relocate_head(relocate_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-¿	
-linear_8
-val_130gelu_6node_gelu_6"MulJ³
-	namespace¥: __main__.ExportableGNN/model.relocate_head: torch.nn.modules.container.Sequential/model.relocate_head.1: torch.nn.modules.activation.GELU/gelu_6: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']J‡
-pkg.torch.onnx.fx_nodem%gelu_6 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_8,), kwargs = {})J\
-pkg.torch.onnx.name_scopes>['', 'model.relocate_head', 'model.relocate_head.1', 'gelu_6']JĞ
-pkg.torch.onnx.stack_trace±File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 83, in forward
-    relocate_logits = self.model.relocate_head(relocate_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-ƒ
-
-gelu_6
-val_131val_132node_MatMul_122"MatMulJµ
-	namespace§: __main__.ExportableGNN/model.relocate_head: torch.nn.modules.container.Sequential/model.relocate_head.2: torch.nn.modules.linear.Linear/linear_9: aten.linear.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÉ
-pkg.torch.onnx.fx_node®%linear_9 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%gelu_6, %p_model_relocate_head_2_weight, %p_model_relocate_head_2_bias), kwargs = {})J^
-pkg.torch.onnx.name_scopes@['', 'model.relocate_head', 'model.relocate_head.2', 'linear_9']JÈ
-pkg.torch.onnx.stack_trace©File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 83, in forward
-    relocate_logits = self.model.relocate_head(relocate_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-“
-
-val_132
-model.relocate_head.2.biaslinear_9node_linear_9"AddJµ
-	namespace§: __main__.ExportableGNN/model.relocate_head: torch.nn.modules.container.Sequential/model.relocate_head.2: torch.nn.modules.linear.Linear/linear_9: aten.linear.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÉ
-pkg.torch.onnx.fx_node®%linear_9 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%gelu_6, %p_model_relocate_head_2_weight, %p_model_relocate_head_2_bias), kwargs = {})J^
-pkg.torch.onnx.name_scopes@['', 'model.relocate_head', 'model.relocate_head.2', 'linear_9']JÈ
-pkg.torch.onnx.stack_trace©File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 83, in forward
-    relocate_logits = self.model.relocate_head(relocate_features).squeeze(-1)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-Ü
-linear_9
-val_93	squeeze_1node_squeeze_1"SqueezeJA
-	namespace4: __main__.ExportableGNN/squeeze_1: aten.squeeze.dimJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.squeeze.dim']JŒ
-pkg.torch.onnx.fx_noder%squeeze_1 : [num_users=1] = call_function[target=torch.ops.aten.squeeze.dim](args = (%linear_9, -1), kwargs = {})J/
-pkg.torch.onnx.name_scopes['', 'squeeze_1']JÎ
-pkg.torch.onnx.stack_trace¯File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 83, in forward
-    relocate_logits = self.model.relocate_head(relocate_features).squeeze(-1)
-ø
-action_specs
-val_64select_2node_select_2"Gather*
-axis J?
-	namespace2: __main__.ExportableGNN/select_2: aten.select.intJO
-pkg.torch.onnx.class_hierarchy-['__main__.ExportableGNN', 'aten.select.int']J
-pkg.torch.onnx.fx_nodev%select_2 : [num_users=1] = call_function[target=torch.ops.aten.select.int](args = (%action_specs, 2, 0), kwargs = {})J.
-pkg.torch.onnx.name_scopes['', 'select_2']JÜ
-pkg.torch.onnx.stack_trace½File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 84, in forward
-    policy_logits = torch.where(action_specs[:, :, 0] < 0.5, place_logits, relocate_logits)
-¿
-select_2
-val_15ltnode_lt"LessJ8
-	namespace+: __main__.ExportableGNN/lt: aten.lt.ScalarJN
-pkg.torch.onnx.class_hierarchy,['__main__.ExportableGNN', 'aten.lt.Scalar']J„
-pkg.torch.onnx.fx_nodej%lt : [num_users=1] = call_function[target=torch.ops.aten.lt.Scalar](args = (%select_2, 0.5), kwargs = {})J(
-pkg.torch.onnx.name_scopes
-['', 'lt']JÜ
-pkg.torch.onnx.stack_trace½File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 84, in forward
-    policy_logits = torch.where(action_specs[:, :, 0] < 0.5, place_logits, relocate_logits)
-ã
-lt
-squeeze
-	squeeze_1where
-node_where"WhereJ<
-	namespace/: __main__.ExportableGNN/where: aten.where.selfJO
-pkg.torch.onnx.class_hierarchy-['__main__.ExportableGNN', 'aten.where.self']J“
-pkg.torch.onnx.fx_nodey%where : [num_users=1] = call_function[target=torch.ops.aten.where.self](args = (%lt, %squeeze, %squeeze_1), kwargs = {})J+
-pkg.torch.onnx.name_scopes['', 'where']JÜ
-pkg.torch.onnx.stack_trace½File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 84, in forward
-    policy_logits = torch.where(action_specs[:, :, 0] < 0.5, place_logits, relocate_logits)
-Ş
-
-layer_norm_4
-model.value_head.0.weight
-model.value_head.0.bias	linear_10node_linear_10"Gemm*
-beta  €? *
-transB *
-alpha  €? *
-transA  J°
-	namespace¢: __main__.ExportableGNN/model.value_head: torch.nn.modules.container.Sequential/model.value_head.0: torch.nn.modules.linear.Linear/linear_10: aten.linear.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÊ
-pkg.torch.onnx.fx_node¯%linear_10 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%layer_norm_4, %p_model_value_head_0_weight, %p_model_value_head_0_bias), kwargs = {})JY
-pkg.torch.onnx.name_scopes;['', 'model.value_head', 'model.value_head.0', 'linear_10']J½
-pkg.torch.onnx.stack_traceFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 85, in forward
-    value = torch.tanh(self.model.value_head(context).squeeze(-1))
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-«	
-	linear_10
-val_10val_135node_Div_125"DivJ­
-	namespaceŸ: __main__.ExportableGNN/model.value_head: torch.nn.modules.container.Sequential/model.value_head.1: torch.nn.modules.activation.GELU/gelu_7: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jˆ
-pkg.torch.onnx.fx_noden%gelu_7 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_10,), kwargs = {})JV
-pkg.torch.onnx.name_scopes8['', 'model.value_head', 'model.value_head.1', 'gelu_7']JÅ
-pkg.torch.onnx.stack_trace¦File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 85, in forward
-    value = torch.tanh(self.model.value_head(context).squeeze(-1))
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-¡	
-val_135val_136node_Erf_126"ErfJ­
-	namespaceŸ: __main__.ExportableGNN/model.value_head: torch.nn.modules.container.Sequential/model.value_head.1: torch.nn.modules.activation.GELU/gelu_7: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jˆ
-pkg.torch.onnx.fx_noden%gelu_7 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_10,), kwargs = {})JV
-pkg.torch.onnx.name_scopes8['', 'model.value_head', 'model.value_head.1', 'gelu_7']JÅ
-pkg.torch.onnx.stack_trace¦File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 85, in forward
-    value = torch.tanh(self.model.value_head(context).squeeze(-1))
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-©	
-val_136
-val_13val_138node_Add_128"AddJ­
-	namespaceŸ: __main__.ExportableGNN/model.value_head: torch.nn.modules.container.Sequential/model.value_head.1: torch.nn.modules.activation.GELU/gelu_7: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jˆ
-pkg.torch.onnx.fx_noden%gelu_7 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_10,), kwargs = {})JV
-pkg.torch.onnx.name_scopes8['', 'model.value_head', 'model.value_head.1', 'gelu_7']JÅ
-pkg.torch.onnx.stack_trace¦File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 85, in forward
-    value = torch.tanh(self.model.value_head(context).squeeze(-1))
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-©	
-val_15
-val_138val_140node_Mul_130"MulJ­
-	namespaceŸ: __main__.ExportableGNN/model.value_head: torch.nn.modules.container.Sequential/model.value_head.1: torch.nn.modules.activation.GELU/gelu_7: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jˆ
-pkg.torch.onnx.fx_noden%gelu_7 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_10,), kwargs = {})JV
-pkg.torch.onnx.name_scopes8['', 'model.value_head', 'model.value_head.1', 'gelu_7']JÅ
-pkg.torch.onnx.stack_trace¦File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 85, in forward
-    value = torch.tanh(self.model.value_head(context).squeeze(-1))
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-ª	
-	linear_10
-val_140gelu_7node_gelu_7"MulJ­
-	namespaceŸ: __main__.ExportableGNN/model.value_head: torch.nn.modules.container.Sequential/model.value_head.1: torch.nn.modules.activation.GELU/gelu_7: aten.gelu.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jˆ
-pkg.torch.onnx.fx_noden%gelu_7 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%linear_10,), kwargs = {})JV
-pkg.torch.onnx.name_scopes8['', 'model.value_head', 'model.value_head.1', 'gelu_7']JÅ
-pkg.torch.onnx.stack_trace¦File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 85, in forward
-    value = torch.tanh(self.model.value_head(context).squeeze(-1))
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/activation.py", line 816, in forward
-    return F.gelu(input, approximate=self.approximate)
-Ò
-
-gelu_7
-model.value_head.2.weight
-model.value_head.2.bias	linear_11node_linear_11"Gemm*
-beta  €? *
-transB *
-alpha  €? *
-transA  J°
-	namespace¢: __main__.ExportableGNN/model.value_head: torch.nn.modules.container.Sequential/model.value_head.2: torch.nn.modules.linear.Linear/linear_11: aten.linear.defaultJ
-pkg.torch.onnx.class_hierarchy|['__main__.ExportableGNN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JÄ
-pkg.torch.onnx.fx_node©%linear_11 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%gelu_7, %p_model_value_head_2_weight, %p_model_value_head_2_bias), kwargs = {})JY
-pkg.torch.onnx.name_scopes;['', 'model.value_head', 'model.value_head.2', 'linear_11']J½
-pkg.torch.onnx.stack_traceFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 85, in forward
-    value = torch.tanh(self.model.value_head(context).squeeze(-1))
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/container.py", line 253, in forward
-    input = module(input)
-  File "/Users/jsparks/dev/codex/projects/pathagon/.venv-pathagon-gnn/lib/python3.14/site-packages/torch/nn/modules/linear.py", line 134, in forward
-    return F.linear(input, self.weight, self.bias)
-Ó
-	linear_11
-val_93	squeeze_2node_squeeze_2"SqueezeJA
-	namespace4: __main__.ExportableGNN/squeeze_2: aten.squeeze.dimJP
-pkg.torch.onnx.class_hierarchy.['__main__.ExportableGNN', 'aten.squeeze.dim']J
-pkg.torch.onnx.fx_nodes%squeeze_2 : [num_users=1] = call_function[target=torch.ops.aten.squeeze.dim](args = (%linear_11, -1), kwargs = {})J/
-pkg.torch.onnx.name_scopes['', 'squeeze_2']JÃ
-pkg.torch.onnx.stack_trace¤File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 85, in forward
-    value = torch.tanh(self.model.value_head(context).squeeze(-1))
-°
-	squeeze_2value	node_tanh"TanhJ=
-	namespace0: __main__.ExportableGNN/tanh: aten.tanh.defaultJQ
-pkg.torch.onnx.class_hierarchy/['__main__.ExportableGNN', 'aten.tanh.default']J†
-pkg.torch.onnx.fx_nodel%tanh : [num_users=1] = call_function[target=torch.ops.aten.tanh.default](args = (%squeeze_2,), kwargs = {})J*
-pkg.torch.onnx.name_scopes['', 'tanh']JÃ
-pkg.torch.onnx.stack_trace¤File "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 85, in forward
-    value = torch.tanh(self.model.value_head(context).squeeze(-1))
-ª
-where
-action_maskpolicy_logitsnode_mul"MulJ:
-	namespace-: __main__.ExportableGNN/mul: aten.mul.TensorJO
-pkg.torch.onnx.class_hierarchy-['__main__.ExportableGNN', 'aten.mul.Tensor']JŒ
-pkg.torch.onnx.fx_noder%mul : [num_users=1] = call_function[target=torch.ops.aten.mul.Tensor](args = (%where, %action_mask), kwargs = {})J)
-pkg.torch.onnx.name_scopes['', 'mul']J®
-pkg.torch.onnx.stack_traceFile "/Users/jsparks/dev/codex/projects/pathagon/research/gnn/export_gnn.py", line 87, in forward
-    return policy_logits * action_mask, value
-main_graph*™ Bmodel.input.biasJ€vÀë<·¾tl ¾¿.$<ÌÇ¾Ùw•½&/F>”6>Xƒg½Îk'¾‰Ï=İß7>iD>ïˆ½=gèY=€¬4¾ë3£½ÄÁM¾Ë‚½ßÄ=ì•=èò¼<Ã¾w 	=1¾È½Ù17>4GY:}Î$¾‘Š=úí=™$:>*£ Bmodel.layers.0.update.biasJ€ù©¬=Öím¼~¶½¤X½~îl=´¿Ñ=Ö;t½ø`Ñ½×½Ò½"MO½ÇÒ¼Ã`â=‚d]½EÅş<#$Ú=sDÊ¼~ğ2½ïû=='¬:<ÑFŸ½2³‚=eÇs¼×ƒ ¾İŒ=öŞÔ¼Cy =‹i›½*}½Æ¾`ÈÄ¼1ó!½*£ Bmodel.layers.0.norm.weightJ€æá|?Zz?ËÉ|?£Ÿu?À>Œ?SŒ€?È†?#_s?`Ê|?é†€?iÌ|?o?Å&ƒ?˜ıw?ÿ1†?1é}?2šz?Wê|?‡³€?·;†?ÿo?fuw?Ûb}?èIr?r»€?¹İ‰?”,|?#‚?Üâ…?òy?5}†?
-{?*¡ Bmodel.layers.0.norm.biasJ€{‡ ¼uR1¼@hò<•ˆ<©ï<	<óyT;X[·õ§<oh»fT£¼Õó ¼1l‚¼ĞÜY<C¼+Äñ;ªü;|y¼ÆS<¥^‹8y­J;á‚×¼_éú¼ GQ½*æz¼–Øm<RÔ/<{<ÁVï»Q1Õ¼N<6©kº*£ Bmodel.layers.1.update.biasJ€qy@¼²‘q½™ƒñ=nğ=
-¨‘¼´ut½‚+Ë½œêÃ¼·$“½DÆ½ıT½jÁç½ò¿½‚m—½–Ä•<q¶Å=xÑ=ÙU½hŠğ<Wö…½’Ãß=6 >µô½r„X<JåÕ=–1»ç)=UMâ<rÙ=rßÕ=İ«9½Å>*£ Bmodel.layers.1.norm.weightJ€9ƒ?º„?mG}?óí†? ’’?á.?¬½€?%¡…?í­|?bño?‘xƒ?†€l? ‡€?Ïb€?ÆÑ„?—Õw?Ú“k?–¿?şä„?²d‰?÷Q‚?†z?šx?
-š?Uf{?¾„?ü]v?›
-y?)ï|?Å&}?ÊÜ‚?Ñ­€?*¡ Bmodel.layers.1.norm.biasJ€ÙµQ»È)»>E=7f5=±*½¦•É¼}ú»`<*;"G=¬’-½ÑhÜ;$¿¼<ã=ËÜ¼÷ç<‡£<}‰¤¼a<s™<d£q<4ÏlºÉM¤¼n^E½Ñ	G<ÁP¬¼£x<©¤=Œ_Á»°‰@¼Ò=;ÑÇß;*£ Bmodel.layers.2.update.biasJ€jWÍ½²n½Œ>×= 'è=ØZ>è†V½Jß>>Y6;>øß=ÅuŞ¼Xi^='¼½šë$=ßw‰¼R,>—›©¼ş ¢¼L¼K±=0ù]½Y¿¼x¾úo<#…¶=13>1 ú½
-à†½>7l<¢tS½j=áÖu="v·½*£ Bmodel.layers.2.norm.weightJ€ga|?ªH„?WÂr?zb‹?$9‹? ˆy?6È„?‘„?ÁØ~?&Ö|?4‹‹?+Qn?™ëƒ?‰bx?2†? go?år?‡0?Jˆ?uû‚?JTƒ?½†t?„?H§„?¢€?hùz?¹t?Päv?OÑv?Ï\y?†B}?U}?*¡ Bmodel.layers.2.norm.biasJ€»F<Ò.¯;GBÅ<-ıN=B ½'O½›™¢<°²™=ˆ?¼ºø<ï’S½p£¼/M½†ëQ=ò”-;GœB=|Ó<v¼E½>ï¼·›­;¿İ¼á¯S=²å_¼7½ñY=/6o½Æ½Ì<–@É<A€³<ùy»§Ì ¼YªF¼*£ Bmodel.layers.3.update.biasJ€=.Êå=°+>¾êéÛ=<f%=¶Ã=o—>áX¬=!Õ<–£X½±U«¼­˜î=¡M.¼>a¬=Od£½,¨7½0é½1‘½½Ou½]/ç='B=Ù=Ku@¾T˜	>îİÒ½—î\½ş¬=Ò½gù–=35h¼R¨a½ı#r½*£ Bmodel.layers.3.norm.weightJ€’š’?Dô’?µµŒ?ÈÍ?‘Z¢?Q•?Tj‘?<H‘?N2?ò?“À–?cˆ?VÜ?ÅI‡? ‘?tX‡? ?x?šµ?Hš?»|‰?Ò!‡?TŒ?ï¿‘?’›?‹¬‹?à
-Š?°?!‹•?”ä‘?jµ?ÌÍ?¢ˆ?*¡ Bmodel.layers.3.norm.biasJ€®lØ¼	>]=QE¶½µuÉ¼Hâ»½f‚=[Ë¤= Y=F“+½D¦X;ôæş<s§Ú¼·|Ö¼¹&ç¼	«ºe„½99I¼Š$¼\Oİ<*B½òò«½Õ>şó»½¾R6½P‡=k„§½Ø^»/@¢¼…Sã¼×†=,:½\Ì>*¡H HBmodel.context.0.weightJ€Hh×¼TÖ ½-p›»…%²½ï‹´¼†E¼ÃZÓ=¤()>$ş½‘Æ‹=7…l½ø,Ü<£Úë½Œ¤ø<AN<Å'=x9=9ı¾;œ‰:t‚í¼µWâ½~¹ >qL½èaŞ=Ş³=ƒ»* ¾A£=JQ½¬Q>"]‹½SwÏ<Œ}=”ø=<s.¼ŞxÓ=İ½¢¼/3½1ó¨=ò}>”Á¢9w¶½”¦ë<Ÿ=•"æ=p: =vj‚½>h„<=ÏË=¿+½©½af¶=ë1¼Ò‡¼İS½İì=^0f½ÕPÀ=BU=õ>8»ªô)>úß‚½¶<çÿÀ¼‘[¥½´;ó^Ë¼ªM¼Ç]Ñ½ CÁ<âd>%z‘=¸¥½¥ÿµ½à”½ü†<í„½²5½h„e½GW™<ŠZ?=}u<<;[ò=b”Ë¼¾¤=5ø¤½wDµ½¶=¥½ãç,=¯{­¼°Œ%;l,Æ=ûP½K­<»ùÌ=`º=€Ê†=V¡=ğ½i¨=6á<Ó=Ê8<ó†	¼_X=cDô½c­=½»]=¥fÃ½à¶0=Ï
-É½¯ˆ»Æ¨½Á‘<¼Ô¾§½ŒÂ¼¢¼½)„½Ş=Ñz½~oE=æ‡<ÿÙĞ=İ)½ñ8Ò»åÈ+½­ÜO½Sà=³5~=•Z¥<RØº´\Æ½<¦<½0Õ6<D(<U½ïB×;›å=vÖ<¯H½£cÊ»Š‘d½)x¿=ê_†<#–½kA¾==¡hÖ»T\n½¾HS½)C²=1‚=	‘½ôív=!À=’}¾ü˜=«Õ»kL­½ôÃ½ân=„|>=CV=-jõ½ç{­=ì&¶=D:˜=?½n<U »y•=û„=ƒ^=ó›= ¾“³z=bx½³ú}½Ğ¯;–ô¯½Éú­=ùP½¹¦^½T–Û¼½®é½3Ó ½Eåm=ÃÄ=Š{ˆ<yo=«ÍÚ½ùÛ³½¸*½„<l´<òD/<#ŒÕ½{’Â½G÷=Üˆ;½æc=0²<Q¬Ç½êæš=Yƒ=U4/=)u‡½Ş^–»Fƒ|½‘˜½ç6¡½YG=ô+µ;|½Fˆ½Ñ…à»ˆ5b½2T<=ôĞ½Ï½=ã/½ÇšF»‡ìË¼^ü¼K)E=X =FOw<1üÈ¼Ù´½Fã
-½A»Ù¼3Œc½fU =°d½ Ñÿ=öÌÁ½/I¹½31Z½*áÿ=²=¦û›¼Š›Õ¼ëÿÅ¼BÍ*<™w½{0`<ä#C½c³¹=6d.¼™>='³<p=:Î½y¨^=¾¹©½í¢=gÚ½-%€=Åë=öÓY=a§¸=n=´½ócŞ=è¥ê½b¶,<P¡Œ<tË;‡Ş¼_Ó=—£=B	™½Hœ<B£Á½%³ª=–´±½‘Ê•=ÖOÿ<4G¢=š{¬½•u™¼Z~ë½cÿ‰<¯ô=Í¢o=î…è;éø¼½İŠ¼ÈÅÁ½ªÑ½½7$½·R=İË<wf—½ºñb½Ú%{=ë÷å½%4y=gZ	=C×¼fğÖ½2Åİ:ê=AÍÚ=»Ú½Ÿ™½uİª½h­Ì=xşô=pİä=û²D=ò÷Ì<DG=Œ½w;š¼+=Ò=^Ø½ä½<x®=|ì4=˜Sş=ÆX½Ö¿¨½º®–<İº>=¬™½Øê=ş"Ş½3º½Qm§=	«­½Û<¶ÁÔ<Æš< Ó ½İ&•¼j¹¤½ÈØ½Q¸Ó=:.9=¥6u=Ål›<í\b½j3%½2¤‡½«Ÿ½ÌA{=µÑÎ½Ã½'S¦<O[½©4¤½+Ï½‰r½M´½½˜«=…Š]½=,ƒ=ÎÙ½øû>øÍË¼óÊç<2É½£,ó¼°ú“=üŸ½aô¼½omÔ¼û#:½<Ş>ßy=œ¢=»`û»øz½6]„½VØ)=öeu½Œ½ıÿ<›@½ÙA<(ø%=sÇP¹!“‰¼„Şø<˜R³½
-e¼<9½=•Ï½ôa¾§³á»Y<õ»‡=>¨Şw¼O±½í¦¤;½Çˆ=êÿºé›=E<æ<;Ë£<Tr=(«ê=é>Q;9½JR©½rĞù=îI;Wä!=GPW<¸E=l™»ßBˆ½Ùt½<¬=ç¹=c ½JH¼£ÚÄ;!ÔÏ=¤x½õO'½œX&=‚Ô=Ò?y=•²=al>?µ=«è™=›9Ù½¨‚¤=†Ò»m9½çÇY=ÍŞÄ½ıµ0=®—	¾‰†Œ½!Á=Å5¾½Z¡¼ª³H½0û¾¹íØ=L>à=N.m=~÷=¨a½Ñ¶=¢ì­¼Hm½,Üƒ½Ùa<·=Ù¹‘<—
- ½jY=‚Ğq=)æ-½©ZW¼ïĞ=¥ƒ<®¿¸=åG<ãV¹½Å„=ëÅ·½I&½hŒÓ»u^”=â[ø½¢¥½ºå½ºÌ½	%‚=¶´R=Å¾œ=iÁ;Öº=ª>K½èÃœ=ìq½šë¨=	ûá½²¾1%=Â‘½2fØ<íeÏ½ê@€=ä¿=ã®½Ñ¾Cì¾zpš<Ñ8ó¼,_›½>¿¼5ÃJ½È´A<ö?¾mş¼¾iî¼ ü™<UMX½ŸJ‘=jõ½Í_½tÿï¼ƒ‡½v¾`×r=ü%Í<Èò‰={L}½ÅB•¼•k½Ú,¾ªÓ>d¨½ k= ×=á€—½ÚÑ‚=¯œ½Çªß½†Š˜½wzÏ<&E*=ÎßO=Şİ*¼ş`5=b>AY>-äĞ=‚¾¤B×½ª±=½¾ö½šsb=iÚ½ã¶¼gü‘»ã}¼O¢¼!/<½d¨½hÎò½ó‹½!Ş•¼—æÅ<G±É½@¾6¹…½*+¾¼v@=-ş1½\h(»Y{œ=ºÌÓ½¸»ÀÃJ<l;E½³}½†à8=—í½½¬ÎÕ½ßà“½š†¾½¢Fi<ao¾½æıı½½¨„A½Xÿ½‘µ½+*:=2t=¯«“=¸	¾rÈ3½¤	½w“½aÅß<ZıØ=Hín½x'=ı9³=ê´=…·½Ä¾Ò‰½è"/½vñ3¾ƒn!>uxn½XS%¾@•H¾6®â=¸Õ¸=ú>-è×=¤s=Ëå½3@¥½v9=ëâ>Úü€=ÁÕ½cÚ0=ÂºR×>u <d~—;cm	>%&=¦¨.½pE"=9N–½Ø=Ëæ=,(¼ª+¾şw‘½X94=!DU¼# é»Dêá=µa_=+yç»ÈÊ>wO¹=;Ø>=-)Ã<½<¼¼!_Ì=£ç=v»=^y½½*Œ½Â—±¼Êøò½&G=wq¼šÿ9½>Î&=°=úc ;š2<âß½­½Ô3ï½ï½t=Ùo±»ËC¼ar®¼©ı=ŸÙ =¶ ½ŸIñ<aŠÆ<	vt¼ƒX>[¯=6T¼	V½Ã?½u7=1…Æ=b·¼­ı<=12Ì=Dnt¼ò¹´½İa‚¼l—=
-¾>=«Z½˜P‰<Aù>6î‚=ñ—˜½Ü?³=F¯={f¼ÊCÄºh–<V…=×,ø<& ¸=’²8<²iU=P®›<ŒÄ&½«né:*Õ;õl½ËUÉ=q¦ò¼û ,»“ V¼'=SK÷=D8æ—<Mô¬½nhÎ=}j&<jüº=¢Gq½°»!¤î½•èl¼%¢º:'Ï=«Óô=ÀÅ>ö£÷¼º<z=Ÿ½½P=áÌş=£ï>ıûŠ½na½Ná¼È}6½Äy>&í=œ¸“½©-¹½ğ8—¼©*½GL1¼lü‡=²s=wv½ W‚¼ŞEš=s™©<ãÊ1¼„N½ÉÆ=d§½»‡ÏºÈB,½“Ÿ½?:a=Èì¾t‡=»½|j=Ø`Å<\o=÷ÿ¾¼GcÜ¼ígÉ½šø½›­½ğ:Ÿ=4‚<kÅv:+¿Œ½‰¨ˆ;êĞ¼cn½S›<”=œ=ÒE¸=°Å½û=-<=/Š•¼à¦¨½ãmÿ½·İo½ÃÛ=V5:=ÔÆK½€<a½Å4V=ä¼F§”¼„¯<\ê=Èô¼û=<ú“=¤Yü½~G‡=Áoù½Fú¼Båx½Ep¬¼ 0>S =ö…‚<­¹=ã0ò½j=/½büI=;ös=$¿|½òc{=¯ˆR½›w–=Ş%¾¨,>`è	¾a=&^¼=tOy=—ûì¼Jõï¼î¶½ŸŞ.½3¦X=i9€=iî½¤I=òUY¾—`	>#®<_¯ñ½/‹Ş=QÆ¯½ã—=½aÎ½~$—<Ù÷º=ı×½ØÅÁ½)ä6½¤!½^g3=¢=e±7<Oº|½…M˜½Û]=æ.Ù»Ø5*=¸±>5£Ó½x¶»a›½Ã*‡¼h©=¼{=Òüú¼‡=ÃnI=är‘¼g¾Û=é=kìâ=õEõ=¢}³½ğ…ë½ÛÙ·<‡».<ÑÊ©½©_<¾è:Ê½”÷ß¼è_Ì<>}G½_@¾š5==6ÄºJ˜Ü:H}½ïF³»€8=¸èœ<ñÍp=ñ3Î<`¤½lûK½&öA½"Y4=|ğŸ½	ë=C61;ƒ±]½h·&¾½áa;šê>®ña<|ÚV½Cê…<€=%½>MÇ:¼±m=Šz>7¬F=€Y±=Ç<=ÅæP½ Ä×=Vš>r>5ı=N>Ïõ@=åŞ¹<Ê`G½ÊéÎ=ıû=¨P"=oÖ½X<ƒ€ ½×¯=’•Æ½Ëù½³Æ=ï;4&½½•v=ä‘ù=åŠŒ<€¥†=¾=©=¬<¤=Ÿ#T¼)B=êâî=/e= H9½‰ƒ½+ÑŠ½"¡<¶=+¢·½.®=¥–k=Ğç¾ƒ=ÚI%>4½È¹a=wI€¼æ¾Oâ1=‘\½’¾²š¬=¥§d=ÿ2Ä=À©=§g¾=Û½ê[Î<:[8½kÎ	½>Ì=ÕBD½‹¸½ƒ˜>wrb½ıÌ9>¢|¾©…Q=eÏS¼œNº<SŞ<‡»‡:>OÆ²=ó¾í=z¥º½n	=K!=µ…=â{h=ëà=ÜŸª½«²³<ÏIŠ<€˜@½
-Ã<ø!°=—ìµ;e¯½@^ı¼®@u=T,>Ô‹½6R <î£Ê¼w—½º¿:½ÍÔ¼S¿Ÿ<¯==@(½ÒN ½¤[r=m„S½¨C½Yí¼×¢n=F+m>ÕxŠ½È%½ö°¼.î¾Ñj[=Á­=óëI¼.[9>Iêû¼_©½¹¼ì=³íY½!×N¼g ½%è;½c>€=ú›½ë8=x½é9å½YBÖ½x—=ıKó=Q4¨=É1£<ù§¼wY¡¼«ò=;p½=>| È½ˆ˜<-ªÏ<%Œ0=Æwè<æÄ=­bÛ¼Åy=Üû`=3Ëv½Œ;û<ü©¾Ë6¦<5:=Ğ5Ø={ ‹¼06½>]c=‘J=Â'»= ¯×=½°û½kŠù<›ñx½ÓÓ\<•¤=•×ì=Xº=gŒr=×2¯½çÅ¾½ò·Ì=`Š€»p+Ô:¾4¾H…½Uõ·=ˆ–K<‘…_=Y±¼İç	>çÇ½fŠ6=Zo×=Šğ€= ²½g½™½À¶ê½0²¾¿Ë½LFÛ=©YÖ½V…å½ny¢=ùp²¼÷ÌX½´ÛÇ=‡õÄ½m*<ÃT=*«1¼Ëà½qµ=¢İ½^[&=„Ë=NŠè»`Ó½Ğ¨¼)Ÿ¯¼ic!½ÈSÛ½öÓ½ök=Ğæ^=¿O½Ìî\½©=~|¼¤ò½ÂFÜ=£’w=ùé“½ÑÉ=£ŒË½M,=V=ŒK>:i{z=7?;…¨¹=…Â=İÙ½ ™O=±u‹=ıB <¬½	²»_âV<Òá½ŠIa½Ù— ¾`z¶={ü€½İ~¨=ˆğ—½p–A½Fª¼[s½o”;;f¸ş»	Ñl½L=}¹œ=7Ìh½Â4<¢Ûv=Ò%>h¼ñ˜©=¡Ñ½(oÍ<üÆ:} ½×u/=7)=†Åá¼òGì¼	É=P`¹½²^n=gş¼ô€°<lM=µ(ÿ=Re€½Í¢=íw½°7“½¦ú>‰zL½ú²½AC½>'¾L=¨ë‚¼š‚<Y–Å½ÛÇ½ìS“½Fï5<!7Š=˜¦=ÆMÏ="î­¼‡kŠ= yS;ú¬§½0n<½-í=°'Ê<@=2ÌÈ¼ğš=xÈo¼sÇ>˜N²<ÌN›=<Ë½¬{$=lˆ¼:ïL=€3d<S3“=¾”·½U3š=–_>œ<QK>ËM=·×ò½iä;1)A½,¸B½ğFQ=nt¾Z’à=Òs€¼Š”½°™<Şy¼eò=¥y+½ñ‹½İØ\½éi.½·iÃ<Œ’=-lì½ÜÎ<%C¢¼µİZ=?Aº=¾4¨=/~(½vW±<-Âş¼Nºš=Œ"½PSÍ»—mŞ½°¯¨=L:×;±A½VÆ½º&¸=Ş‰½Âg;ZD½Wdä=h@¼t¿Õ=}mºÑ1ó½èŞs¼•¹¨½(E ¼Íîº<×¾½8Ä‚<zr¦:UË
-½Áª<½ó»<Îš½p¯½’=@ê½î£½'
-Ì½
-ò¼¹Õ½gîî½€¬½>×K:±-¼_"¼¼¯š=UF;Èyñ¼%y•=tç´½»Ó<X%‡=ƒÑ>6=qÜ½–=à24=sM=£í½¨Í½÷Œ½¹¿¸½‡”Õ=ñGq=4¾Ş½€š=Å“)¼¹™H½îÁ3½ï¾ª=É*T=C‘½y<C˜‘½VS¾İ…½m´=ãEp½¢|È½†/Â=„=«nM< Ø<o´½ g§=lVm½]õu=IO=
-nû;Æ•¼!ı·=Qš–;/G=…í¸½œ½ ´½*ğ"=L"~=¶Pš=­g >ïé<è¯¡½P…D½•ì“<´ğÓ½¨½/÷<«ºní<ƒ>ä÷R½X>Î= ì›<”§›½J¤½²QÎ½|ÑZ½`ÃÆ¼ë3<=´Ñ=aú<‘%8½ŠÜÙ½Ãö=½au½x=yC›½Í˜½¤Ÿ=¼Å=µR½‡q¼½c§Ì½¸ãÜ=	Ñş¼‹B¶½ñˆ­=Gw =‘0•½<%½ˆò‘½•ƒÈ½“"0=§€¾ºM®=G	Ñ<¾ºw="§Á=$
-Æ=ˆL½^Ï±½{¾ä¼2>Gé½ ±ù=ç9“½™(u=‚á¡=İ*½´Òà=ê¨¼ ‰¥½2êJ½k&Û¼‰ç½c(=q²á=ÖRš=ë|(=¥:Œ=?ıƒ½ùZÎ½%=‡ØÊ½é?½½±=|h»=^˜½–ÿl="ÙÀ½ƒìí=M^¨=zO‰½Kzt»3³=)áğ;¦²½æ¸½)<h'¿½ƒ£”=$M¸¹âôY¼¿M+½¬}š==ğ^<‡+°½ˆß=âå¨»P‚Ú=nÈ=H¤¹=Mµ:Ù…=T<ğ#Ç»û6s=$/½öBZ½…y<´h-=ı¥í¼Ï²=•32='6>=7KÙ=nÃ½|v¾9û”¯=,u<=Ñ¨¼È ´¼ní¼;{ÿã¼§¤=\X¼2Ü;½ä­“½^Y}=™XR½ôºj=s\`<ú÷Á¼	õ¯½/Öò¼WT=¹ƒÈ½ÜÏ¾Êò);Ê*=Bb½…¼½³-¼©H=lÿ½°=Z\Ì½Da€=3Dë»Ùû†=3åÑ½²¾½‚Kò½5ĞÕ=ê°=‡c¾oÏß½´ ù<¡	=i·Û½óáñ<d.9=`¶½×Ù†½Ÿ\â¼%[6¼Ú½£¬½ÑŠ¨½eÃ<ër½ïNº½Fvæ¼ÉÛ>Ÿ»=!w5=°v<2áØ¼«½'>Ø@R¼HøÖ<J˜==TÇÚ¼yø	½†&§=¬=è¾M·ñ½2à¼lT¡=Y×½İ×Ä=á¸½ç	ã½y,=
-‹[¼UĞ²½
-Š˜=)¾çÑ±¼°ÑÉ½Ç?¼ˆÙ’<DŸa½Ø½;W™=íF½
-y»<”ë¾¡m½¯#í=İ6N½’Ì¾½Q¢f½'ü¡½vö¤=:$=‰=7º=R«¸=ãH=H×¿=	"¼=X'Ê½›Ö{¼€z3=¿Õ¬=$¦=5ó©½)Éü<ÎÆè½Ó…“<ğaƒ½l‹=p‘==İ=üV¯=~õT=}M=bc½”ï!½ïcÃ½/=ÌV®<ñ(s½Mly: ”=kL½;.D=´ó¤½4Åh<â¶µ½E“Ì½s
-×=_<Ëp‡»†â<#Ï >ÕÎ=\=š=à.«=I©‘=,dì=´Ï¼Ã=ŞL<Aé¥=3>›½k÷
-=ŞŒ³½<‰Ò¼àË×½.;t¼û»L½p2¼)Ï–½Ï”Œ;şZ²;™o=¾ãö½Y“ ½Öİh»¼Ú¢="1<¨#ó½(p½:˜d½|ıŠ½¹ø¼±ıe¼ä€
-<%o¼‹]½p_¤½úV¬=§"·<LO=Ô¬K<·»^½`ú{½;¾ß½øK™½=“£=‚+Ü½'è
-=¿&Á½m-½Xv=Ä¬(½¶Òô¼ÁÌ_=fÈP½ÜA·½ûL=ƒ~=wàx½Ÿï3½$ş½ÆY=A,½=)"½Óß>½ÉO×½¤Ec»?æ<ãğå¼8LÀ<LÅ‰=ÅW×½d¶½”R	>«O½´Ü?='¤¯=Í×ì=¿‹3½
-Ì½GÍ4½HH=J}_<­V=Ú¼…NJ½ş‹=V£Ó½êıq½ëT=/ø½—1®½‡Â=Ã¾X»ı 
->¥<ßÂ=µ½œİA=·H½>Y½½VY>  >A4=zÓ½$G>É®>ZÉë=;Ãƒ»/·–½emÑ<`üñ<ñ{:=N(=·_Š=D«½[ ©=–ƒ½¶æ×<sF=XpÆ½ı‰Ş½¾ZŠ½ç¾=µ¸‚=ÈÅò<ay<°`½Q‚¼¼ŠP=7"ˆ=ÓÜD<ôÎ=…Ó÷<P½Ï…C½ô_=‰áb½Äd=İ••=ÌÇ›=§/;½/Ò_=‘ ½µÈ¾?%>Í¾X=J¼½nÁ½Œ.„½ëjÛ<ëäÛ=ãÅ…º]˜u=â×¾Š¬¼2Z=ºšÑ=Ş©=…0'½ÑÜ<OTß½Ò<½ªwA=Ovf=kNS½ãÖ¶=¿—t=í¯<Î¹½_`i½§ºã<±G¡ºA8=ãÊ¤=gÎl½Í¼è¼‹¦½%©=3nì½D/j¼‰¨…½¶sU=Ï‰¯=ˆfø=ÏÄ¢=²Ñ<¼™Š=€<»f…=}°©=·å=€'6<KbÀ½½ß	=@n½ô|>ÉÄ$½qsL>$e½­>ì~">lÈ‘<Ş-À=w¹>)õ=dİ½¹×->ôş°=…‹¦¼c #¼5”æ»pÜ½§ÈT=jO†¼ù©<¦è“¼úGh½È–ô=Uª“<ûùÁ½µı½·E×½Ìè<9»B½ÑÖÖ¼ñ)„½«½°ã‚½Sñ=ëĞ%=Ïò¾:é;W =Ÿí§= b½Ó=QÖí¼Ìş½@UA½Ûü=iÂ‹<.Õ×=`RZ½ÜP½Û„¼g½œjL<İvô»<ˆd=š¼œ/Ó=R¯=4A™<{Ş½ß®£½8#<Uá+½ÿÙ½‡Ş³=Çd(½öpã=ı÷™½E'á¼¢=Iˆğ=ã‹!=Í>bŒ<ÙÕ=´£½0=«½šÔ½8û½+×ì<k¤e½–„ã=lˆ½oÑ‹<wÓ<Nº;=ı®¬=¼Ÿ;T…º ­Ü=’˜™½›¬=I{½¼™Ä¼V¯š=QÏÆ;d?D=2:¼Mñ”½·b{=G% ¾¾tb½²ÿ‘½Yáğ=ôqæ<—ÿ½Íø=ŸAz=hBÇ<Êı¸½Uu„½œ*¿»KÚƒ<]25½«kŠ=hŸu=7L=eõ2=¢]=ç­ß»?„&¼yK¶<
-—u½¼Á;`î½o3=Ÿµ;EÓÒ<Ò±½-°Î=åV<½h•Õ½+¬=Ó½ıTç½ùTQ<jI'=^+º½œUr½ÄD½İz}½‰š˜¼Å)=ÀÀ=
-î£=ìY½LÔd=„ô¼‚¯½ía×¼Â»Á½@ğ…=K+Q¼fZ&=Ù;’½Zz©½³=1›[½‘Õ’=Ïÿ8=E-™; :¿¦3=Î‹=ph`½k ¯=½Æ=W—Ä½£õ•½4r¾°”=3õ„½ ¶=Œ8!=œ­=à×–¼«6=[$¡=©ÃÖ=ãz±=áº½zÒ|½XJ<£|:½İ®?½¾àã½¨†j½dì½3úU=Âİ©=$eÒ½˜ä=é<Â»C­;=>ZÏ½AÊ/½Ôç¿¼¦`„=Ö(à¼QÏ=qj½Nò¥½;|=ü•Õ½ìB½nŸˆ=+°J½´Öh="S;İ0*=Iá=ÅÍó½ìdÇ½Â;€½§ÍA¸PáC½? ç¼ãÛ¹=hEg<Ëµ¾©;O=àÎÎ½ÄÓç=ïÖ—=ÂåÆ»•B=ÅC¾ ¦‘½¨	½i?™½_#½@Âe½M;cö¼HÔ˜½Ş&ò»G$2=p.Ç=g|Î=º>“½ÌK¾¼ül½Qõ<¤-m=à–½®¯;äá½½yö5=”ÁR=w=r7	¼Äyº<àt’¼¦Fz<‹t=—¾”G=V„=t¾<©½·ir=PN€½mN”½éÆˆ½Œİ¾/R|==Óû½Æ½Àˆ½nÓ;¥„½Í;¾ Ø½–¥€=Õ½ó½£W<qò¾oÙ½w{=¥6K=-—†½¼K<_&½´—©½†Kò¼!]Î<K=©n=}˜=Q¢ı½C3«=U±Œ=S¼¤õâ<QÇ:¼€A½®¾Ã»=˜»Q2=UpÂ½£½˜4²<½ƒÜ½ŒØ¼½J9½®‰ ½Wğ³=´£¿=ñU7=Œ_=¦½¦zş¼Lf:Ê.=U¢™½Bf›½Fp½4LË½¦'=°‘½Jœ¼×›ó;;gJ¼À)¼½+x½¼ı=¡ô¼¶˜-=]Tƒ»8•D½·ÍU=Q»=Îqr½“<b\–=dqÿ=ĞÆ˜=ã“U¼®yÉ=v<iE=c¹=¢Ai¼C¢=£§Ç=Èñ*<ãúÃ½Û=dÉ½*ß¸=É.ï=ˆ¥½Á»½¡9¾ğ—E½b“B½óüÌ½-Má<Õ#=|î=¸Á=e<ÿ7½¿*½…ÜC½Òà=ĞW½÷\…=Ÿ"´½ÚÆß<¤"l=}?¯<«µ=F‘ë=W¦H½Ÿ  ½Ü>­‰}½¼¬Ÿ=;Á°¼·tR½à7İ½ŞI¾=¹ĞÑ=än¼¥é²;ÚÉ¹ºç==·—±½—$<‘¸™<h’ç¸„…½¤p7¼iâ»¿6®=”v†<!¾¡"Ì=“…¼½jç÷½t+©=\²‚=T¬¾Ë§	=ì\Q½ã•›½9â²=
-â½=Ì=‡&¾bƒ;b¬¼¡6„<"Âñ½ˆßâ½6Ğ½è¾‘ú¸=ıƒê<M#´½Zx½Œî½¼£‡¿½ÓğM½6‚½Şæ<…½ ÁÌ½ò\˜½[Ø¿½Ù™<¾@=w·=‹œ±½¿ƒ=Çó½Ó±˜½=æ=ïÙğ<¥º\8€5ß¼õ’½d^½4é>½™ó·¼Ù£½o½B² =äk½”·½U¾á½]6H=ÀÈ€½ªä±=ôÊ½…ˆ¤<IZª=Å‹½R3 ½ÍQé½W<(<íÔ¾‡¾£=­ô>©›¼şú°<©Z‚<L/=4Ş™=1=¢¥ì¼-§»½ªÿ»½ mD½Mã½BÍØ< XÚ½¾Ú¼öâ»´±o½İj> ÒY½bx½{PK<ËÂ=wâ¼ j¼æ¼J(ä=$ ¼¡.»ß =a<ÓDä¼Ù‚ª½0]½UÕ›=ÿÄM½2èÌ½€€:Ó±…»Lqf=®	x½* Bmodel.context.0.biasJ€nå{½2’ş<Üé_½ŸÀL=ƒÇÎ=½MÎ=O‚Ù<LcX=I¡ô=~¨<É… =7iz<½‰<ítV½D£K¼wÉ½„W=è¦¼…šÚ½‚z½…W=‚g½ê:¼ùn¦=ÿ'Á<ú¾¥½êøü½–ÌŸ=ì¤;<	µ=÷×ª<l”Ö½*Ÿ Bmodel.context.2.weightJ€Š*…?k½ƒ?)‡?ˆÆv?ÿ?gH”?Û?g3ƒ?2?ÔÒ€?€?–)Š?9—–?¸…?\&‡?b¬?4M„?ÇĞ?G~s?§‚?y'„?Oë†?í€?¯‰s?Šùz?^ƒ?°6’?bâ‡?Õ+Œ?{X‰?¹„?èŸ‚?* Bmodel.context.2.biasJ€ÖÄ»î;ë¼‚«1½OBo<íÕ¼'Ü(>®²¹¼ÿ’Ë¼šP=2ƒ"=36¼¼{˜6½ár>íK„¼:»xYµ¼W47= Çš¼3w÷º®ŞA½½«‹½äÉ|½Õ^¼&Ú$<åP+<w“¼.Ó¾›Û½BÀ½Øzˆ=S/½‡hŒ½*  Bmodel.place_head.0.biasJ€]şë=®×<=d}æ=#‡>}¸×=‹U½ü—<^%>Èg<½(kL>Iß¾<çÓ=ÿ¾=ö³¢½Îò™½¹³Û½ÜV<j>Âı=xu¾
-¼ÎÂ=oÎÌ=‰A´½Æ¡ú=Æg=kí=\y<=ş\ >èü½à]e>%:>*#Bmodel.place_head.2.biasJWV>*£ Bmodel.relocate_head.0.biasJ€®ÁÂ=M‡½Š‰s=‚`a¼æåĞ¼ÓäD»ÙmÛ½-ÑI=:Ô;=³k½½{û=L„†ºßzş<ó§ =Ó¸½=q€#½„œÖ=q2A½hYİ=óÅ>÷ ½!ÌÖ=P[º=’¿Î=`°½‚)‚=8lˆ½‘ß=€:ú;K3>@Ë—8‰A<*&Bmodel.relocate_head.2.biasJ{<*¤ Bmodel.value_head.0.weightJ€ßc <Iw=ûU
->TüZ½ú=ŸQà=şbB>İOo½(½~¾@½kö!¾¿? >2½†ãã=Fä=fÖ¾½ñd=à‡½–½Æ‰½†g <Œ‡=ùZ½5{÷=c#ê½/êî½ZFÄ½şæ“½Ø¾Û{¤½@ûÈ=$ÅU½ğá½²n½ó>~HĞ½é¬¼ *¾øÖê;£m$>á$<ó¬î½c½¬cã<R›=x/¡=ú”½ØkÒ½`ÂH¾õ›½†³½BB8=úô>Öi
-¾_ô	¼Ñz¼„#>gK”;!>Úò>Sma<í¾<Nrİ½"£Ÿ=öNX½n‘º»™W½mæ=œJ	< ƒç½Î|4<"˜=æf<óD½‘Gj=]¡=N!½¼xß½I 9¾UË¾B.=ê2¾ì”=X
-¾‚Éq½?ò«½¤D>te¬<Ú}ˆ<bÿ½8sP=SĞb¼£á¼=Ê*²=&ÖÙ½¿„¯½2÷y½¼×=œsş=Ø ¾ñWO=Ó…™½&"»Wè¾8ş€=Ï6—=g‚<=á—N=ùxA¾)P¾êÉ >>“¾(…>ı ¼x=®ş¸½ˆtJ=\Œç=üj
-<ï•½¿=×—…=ÀÛ†=bÓš¼ëıH=Ï½U¬½§8½Çšú=9Û«<r'Œ½Mi>|T>ÌÏQ¼ä|">w!¾sĞ<‘¾ë?½¤‰®<4Û:¾nä=³[Ã<L"=Pê=ÓWÑ=çï—½'œ½Xµ=³H="K>ò 3½q=>­>Q <å¯<H­M½†ó=¸1>…İ¦½úMğ½Ş¢F>d" >fzí½„µ>Ñ¾²f¼¤#,>È€=Vê
->¯á½*VG½÷Ä=×Â¾1N4¾ó1b¼ŞBG¾¨§Ï=ÔÒj½ ow=|*q=²%¢½À%Í½8~½J¶ğ=ZQÍ½7Jõ=¥Êc=7Ù@½g¹Ñ¼FÒz¼Ÿİ<=Á²Ç¼QKí½£7<á!¯½‹ .½…»¨=ú[;¾+ã>Ç=D}ñ½	r
-;}?b=P¾¾LÎ1=şéà½ºY/¾^d>bğí<<‹<­ƒä=„™0¼qH¶9‰5³½AW¾ŒlÉ=Ó",>Úg~=VÕÂ½ûhï<"h¶=ÌĞ½ç	è½ÆÂ>î'>\ú¼°Ræ=jÿ½¤³¾DJ-¾
-ï=<®.¾¾È´½æ¸É=×™½¸i¾UY=š›;;ug<§Ï0>Ú«>Æä'¾ıûE½ıl±º.·-¼Vm=
-“
-¾’ZË=óÌä½ºÄ½ß¼Ú2‹½ãÆ
-¾Y
- ¾‰>Ğïü=äYe½F&E=ˆP”½•Î)=]›½ºË¿½Àyà½ó/¾Ù>6*Ã¼äJ"¾ak
->{¯b=¸Üï=üj8¾Ş¾î¸Ó½åN½¿¼=°>¾ø'=ç¼¾q­=Î™¾ù†0>ÚÎ¼_®¬=O=˜­¤=,Qz¼Jc½òÊÊ=?Cá½ÃD¾5å>m s½Hâ¼72>-5#=ÑãN½â¾
->“ÓY½J¼ºƒ)K½Ë9Ê½+Ğ¥<"lÓ=Nw†½é€½½:mø=…ÛÉ½2"í=@,>­=³N=š;½‹F>TÕ¾˜²k½ü?±=]ö <åü£<˜¢ñ=Ğq³=Í',»rñï½sX«=U"=¾AJÉ=–æ’=Ñœ;¾Î¾Âs<Ö:‚½€^|½OŒ=Á»û=?³=|-=áG>–Ò€=1–=
-îl½‹ ¾ ñ½˜;³)È½’®º<¡6¾³½R=O:=’!ş<•Àª¼ƒ*â½­½èp-½Şî½9‘ºö¾€‘/¾—b@>MVI½£°=»Ìˆ½ I¾x >ëÓ@¼¤d>0øu¼E½…[C=ÁAD>B_8>]<½Ôç1;ÑA(¾ì½•½»—Ü½Áş¾ìs¨;üx‡<«(ÿ½S`Ø=oç×½c´>>`ì<F‰2=–ú>%;Ï=±O<$¯½.£‘»¹"½±¾[Óá=U7¾ÑF{¼,î=o˜ï¼®û½l¶¾¨¨Á½Óà=^€½Ò¶=r7î=ëH>Òš>–$¾_|í=*×]»éí*>!F<ÈB>6á>¼=û=,ß=Õ¥£½2©á=Î)ğ<æ½×L?>Ô­×=‚‡&>Öét½pà¾«ª5=:k,¾gïğ=Õ!=Ca"»=n§½vSƒ=¡:=šbù<vë½tÃ½æ«^=±£Ì=[± >t= >4Èº½	Ù=,Ô>›DÜ¼bOë=½2Ê½g~K>uÍ&=tÏƒ<_3»r¿=pØ½hJë=ËÅÃ=¸Œ*;eß·=¾|#¾åî”½–>ñÚÃ<R­L¼Ìç9>ÅŞ=ÜÏ½¸pÛ½mŸ>*>xc$>ä}½úŸî¼b8Fº^‘E½ü¼ô<îşÛ=Â¿³¼Mªü=£ë
-½£i¥½ÕÀT=#Ñ0½Î£¾Jı=õõ¾NÔ¾6˜=áô§=J
-Y;H×¬=½a…=æ,)<1w =nL‡<ş§<•QË=™O>=QC½bqµ½‰Ş¬½ÍÃ“=k<SÀå½ÎÔò=¾r½ß=“œ><oš:{à->«'¾¯J!¾„‚>†ñ½*_Bmodel.value_head.0.biasJ@÷Xá½Ú|”=Ê>œ½-\×=Çı½=÷²½÷İ=){I½+=^$>K(¾ˆ">ƒ¢½‰Ø½Ò#6½*cBmodel.value_head.2.weightJ@<&»‰€½¾<‘º¢"%>™Ú½”19>â¿E>¯r>ˆ>·{‹;Mˆ=Ç}¹½×I2=¬éO¼p	‘½í”&>*#Bmodel.value_head.2.biasJ>* Bval_0J€0ë}½YÈR¾/w>kuô½
-Q>“Ì˜>¥SE>9>øH>¹ÇÙ½êì|½öÚ=\F>Ç´¼õ˜[>Iê]¾ı³=7>^>Å˜U>mÁK<Å|b½™Ñ	¾Á©®;Wü?>äÊu¾ÜI>V{I¾>–5¾s¾A¾ld¾8^½]>.z½™½q>†\½úi*¾bn9=îk^¾‡Q¾/:û½ø@…¾…††>Ïë+>@ò>×¯¾»ê7¾*š>¾ñQ„½ Í/>û½Ÿ]*½"s½ìÄ>5ı¾‚&N½8^FºŸím>ÔâÃ¼·7^>xW>"O/¾óŒ#=¿n+½¡Q;¾í€d>§"q>€“«»S¾/vV=«5€¾NÑN¾i>ëìS½ø8Ø»‰>D>s({½¬ãn¾->Ø7¾uÜ8>—A¼Ta:½2“¡½›I+>ÑÒ‚>Ä;R¾?ä¾Óç™½=G<sf">À&›¼74
->Aíµ¼‡<‘<'½˜= „w;~Í>~>Sh¾‹ãE=E… =m¾'B„¾~Uä¼	ôİ¼I˜>¬õ|>Ëî>ë³¾¤®”½ñ]î<v>#s¼FFÁ=ÎX¾4µ>Q‘˜½ÉÍ¾9¡½Á`m¾iFõ¼²SV=±@|=âŞ>%Œ¼ûR>O•>ªİO¼‡<3¾HÊ=Ïù³>@
-¶>¾È¿}õ«»ætu>¸êµ<Zé®¼“+©»4Î™¾åz=½¾K‰ >EèĞ¾â¯N>lm¸>üğ@¾œ÷=×
-š>Ëô¥½“çÄ¾:şü¾S“>:¾Úp
-¿yˆ>8Ğ=œğò>İƒ¾îöÕ>ĞßÏ¾‚‘¾ôt¾#£œ>y!>«HÉ¾y·Ú½—r¤=êd¾EØ>¢Ã>t—¾‹ä³½÷C¿a²>×÷8¾_Ñ>Q¬™>°fº¾8ùª=MŸ”=á-ì=ù7¿ª¤Ö¾›¥¾™6Û½@×¿d×Ö>M=OC¤>Çw°¾ü?v~Æ¾[ğS=€uÃ½¹Ñ¾0fY¼s‡½:«İ=_EË½¶¾–B>×¸S>GU†=Ób¾Â¬ï½ 0>>¾O¼#Ló½é=7,È=†<Òpõ=[ãÚ½™n¾T¶ô=È8ç=<d>ñ»	=}Çá½<
-¼‰iÚ=N”ş¼+¿ˆ=Û¾È?8¾ë54¾kj½âI¼;ÚÜ}<„6Ì=|5¢½Ët½Q¹L¾ÔX;>"Ÿ>˜Ø<<Q¾Mg½Ğ»v=Ç.:½û#>*İw½ÍQÔ<laô<"¾¾¿¿=‹=D¡¾tƒ=â½A!^½["5>¢P¼¤>ve>;î=Œø¾Ş¬=ÆØy½=é(>WãÌ½Hñ=Ä¦¾óó+¾ª¿(>nü
->™¥
-¾Ù
-->}û½=Ì=oå½‘İà½Hšö=Ì‰;¾NùÆ»´Wß=1CX¾ ³Á=ßª½ò\¡½Ä2½ëY>•|ï=>x(=ñJ¶½vı~=l+ôºøÒ&>½Ï'Ş¼Õ¾§ÄÜ<—î²½vî»‘Î =ØÛ%>âŸ=¥-><°„º—8¾§	=ß$¾àL>l°=x8÷=zı1¾ö>Ò]0>@K»ñ×¼ÓìÙ½iÃş;	_—½Jk»=#„=¾vT=ı+\¾íe"¾OÓ5=ñ¡¾+GÂ½‘	&¾	º‡=¿B…¼P>¾W±M>çy$¾Gúë½é	½%¾d?I¼¸Ï>:x1¾qh¼A(¾t½ì¨ñ½L>EûŒ½Šv8>èì=BZE¾°$-½Ğ8¾;xç/¾ôm>uGå=™w!¾Dê½Æ½·©k=‹½Ç‡=ã@=-vA>OÊ>[†º½Xe½ú®½Ò=²½*ôk>‹:¾K­=ÈÑ >: ¶¼~ã9¾8Æ“=;ì½á—ƒ½Hx³<ˆva>U%L>õF½[šº<dŞ=¸„õ=NĞ@=”T1½7™W½åÛï=ôâH½ÿIX¾èO½øÄ>qm²=O¼ÀÛW¼/[¶=J\G¾ÿV=ô`­¼€Û‚=À¸=Â€¾}¾Dæ=VÍå=RÍ;O¾ÂÓ=…=Ç½l¿¹<@f½-°m¾ŠÂÏ¼!l9>±Öá½}ó¾>ÁC
-¾¶6â½.#>™ú6¾Y—6>CñŒ<Áªy=HP¾SéØ=S±œ=¸F>‘Æ:¾22¼½,Õ‚¼Ûøğ<æ:\Ş$>w€9¾h‘%>íÛ-¾ı:»gí¾—º²»Áç=ãÔ¾-Ê;¾ 4=Üı>¶P=“†É=¡ü½Ï)>¾Ùa<jfØ<q¾9¾*1i¾í¸w½sy=Rc:½™}K>ğa6»AÀ3½ßN1¼İ=*¾¾"™®½İ¶Ï=‡83¾8«½J²¤½Œ ¾_’ª=ßC¨¼¶¬=i¿³½uóR½ñû¾÷÷=Uƒˆ=k!-=ÃA=pù>->eg3> wC>58¾Fm¸½NU-¾2O>•:°=ù€•=*=E8>û®:Ñ“»Õy£½yv¼ŠJ¬95G±=B^¦=?íŠ½ã =U:>ËÉf=,ËÑ=3°¼3³”½~½Ş<gä:>Ão;i×<³Ùí=UâÈ»øí=¢ôŞ½x î½I`¾½BÈK¾Yí‘½¢G•=3ˆ”=F®=¾é1½Q¸¬½*Ï½¹7¾4YD>ßÆÊ½)K<=èÆ=¯VE¾­çÙ¼šA%¾©œ!>†é…¼a4>®N"½ö3»_$Ä=C+#>®<)>>¾–~.<JG¾=ŠW%=µÛ[>g=œy6>^Óç<…;	>%½ú=L$+¾iÊ»ó8ß<rÛv=c½•I¾ıÌ½Ëp®½C
-«½’V>¼;>¢>‹&>¼´fó¼äøñ;Cšª½¾€·½µû½Á°½”m¾ñÄ=GèØ¼ÎJ¾ßî½’¥û=ÔÓ>†¤=A¾—9&¾(_÷<²‘º½‚2=¹w>"ĞG=3¹½iß¨½ˆr½!íP¾³[‘¼m¶«;Dß¥½'á=?½œ½.*/<6Ö7>ïÙu=îÛ,¾	¨¥=é¾“ô>ZÖè=gEB;ÿû^¾³!b=ÍËT½Ä££»É› >Ó£8½vÂ™¼<>?š½Ù¹=: Ğ=0°Q¾m€´=7Õ½bà=æY½ƒ
-A¾Ôo'¾ÎÏ>ƒ€´½³˜/>ôú(¾®Â½PO½»h=¥*A¾³..¾ÍÕ4¾Ø=ÃËÁ½O›º½*v=$´»ùg
-¾b1Õ;CŠ<P Y¾Œ =e³­¼L>Ã½Ü"¾÷ú½ó õ=a Õ½1Xƒ=äyH>¾/½w«Ê½D°>~<¾£~w<y#¾@—2¾E³½ô™T>^	">oº¾‡w›½w¾ñy =>fö†½7j=oA§½–Û=öÇÎ=ÜL‰½38¸¼{>ÿ}¼FãF>şQ>$‘6½>E+N»â¼)>Ş‹¾˜F>Õî=H<F<*÷W55BexpandJäW«ªª>«ª*>                    «ª*>                                                                                                                                                                    «ª*>    «ª*>    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                                «ª*>                «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                        «ª*>                        «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                    «ª*>                            «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                «ª*>                                «ª*>«ªª>                        «ª*>                                                                                                                                            «ª*>        «ª*>«ª*>                        «ªª>«ª*>                    «ª*>                                                                                                                                                «ª*>        «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>                        «ª*>                                                                                                                            «ª*>                            «ª*>                        «ªª>«ª*>                    «ª*>                                                                                                                    «ª*>                                    «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>                        «ª*>                                                                                                «ª*>                                                        «ª*>                        «ªª>«ª*>                    «ª*>                                                                                        «ª*>                                                                «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>                        «ª*>                                                                    «ª*>                                                                                    «ª*>                        «ªª>«ª*>                    «ª*>                                                            «ª*>                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>                        «ª*>                                        «ª*>                                                                                                                «ª*>                        «ªª>«ª*>                    «ª*>                                «ª*>                                                                                                                        «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>                        «ª*>            «ª*>                                                                                                                                            «ª*>                        «ªª>«ª*>                        «ª*>«ª*>                                                                                                                                                    «ª*>                    «ª*>«ªª>«ª*>                    «ª*>                                                                                                                                                            «ª*>                    «ª*>«ªª>«ª*>                «ª*>                                                                                                                                                                «ª*>                    «ª*>«ªª>«ª*>            «ª*>                                                                                                                                                                    «ª*>                    «ª*>«ªª>«ª*>        «ª*>                                                                                                                                                                        «ª*>                    «ª*>«ªª>«ª*>    «ª*>                                                                                                                                                                            «ª*>                    «ª*>«ªª>    «ª*>    «ª*>9ã=9ã=9ã=9ã=9ã=9ã=9ã=                                                                                                                                                                        9c>                                                                                                                                                                                    9ã=9ã=9ã=9ã=9ã=9ã=9ã=    9c>        9ã=                        9ã=                        9ã=                        9ã=                        9ã=                        9ã=                        9ã=                                9c>                            9ã=                        9ã=                        9ã=                        9ã=                        9ã=                        9ã=                        9ã=            9c>*@@ Bval_8J€@Æy=ÎI@>>$Œ»Vg½\{¼å=Ğ½(ÿÅ½®}M=­œW<^º<½3Ñª¼‘€½Iå=Òñ¼‚“Q¼2±>–b\½+qs¼5ıÄ<Œ"½ÅRE½È†½!…=>€«¼‰³½Diî=òh¼1Sš½ûrÒ½º€K=šl	¾—Øñ½¶ÁV=ê)¼ğ}È½;H…½0û»»'º½ğl–=Ûª7»·Š—<f´½€ş’;ë@™<¼†°<İœù¼—İ½}¦„½?k'º!ï•ºc]å¼#€Z=Œø<§yØ½  <÷„Í=4Ä=„¾¾ñî>ƒDÉ=ğR£½Å8&=¾ğ½B¨¾šĞ¾D²Ÿ½Îé´=`6æ<µé¾¢Q½uKİ=ĞÎ½İœ“½'ƒ…=,ÿè<kÿ"=¹Ô	=ÃµÉ½$œ>Õ¡*½İIÕ¼wî¾L}Ù=šs÷=“H=ÖJS¼“8=M(H¼ıú<ÆŸÖ¼µuÑ=}³+¼]ÄºZú¶=Gs¼=³A×<€ÌÛ½XOÍ=ó—®<È£€½g„s½L
-=2q;£fô=ÿ‰½=:Jz<çŸ=X¢»=Tˆ¾İÚÂ<{tÃ¼3 »y“=Ší?=d'ş=åŒ½£ÚC=Ä&=•?'=Ñ…{½´Î<²ø‡¼ß|à=îáÇ½4‰>{Á½á‘½'©®½,<ıÚş½ØÀ<¼,n“½_í@=5¡¼Ç´=²´|=Oİ½	#Ô<Çœ¼˜l=ØÁ¼Ù4R½Î ;‡q=ª0ç»Šö´½åXÿ½K¤½`MX=ÏÔ‡=v\È½‰{=L¤=8TA¼•k_=6=™%à¼ßë‡½ÖÏ«¼êUŠ½›Ë=†€^¾€Y>z¡ì¼äÙ¾£#=~BS=¶•>|>½4Ë~¼ûşï½2
-˜½“àM½Â²>”-“=‡'0½äK-=¿h6¾áE>™˜>¡Xş<TÖ=hR½ Ù=y"¾ÊÃñ= c´½Úÿœ½#ì¾ó€=d]é¼
- 
->L{X=ALF¾¼=+_>!H=Ü ½º †¼İ~ÿ=nô§={é%=4O•=[(‘<÷.j>ôG> B¦=ºk»½@¥g<QC®=Ò]—=X ½¥J”¼[.Ÿ=7P¦=ÉÌ=&Ü¼G!=2-¼¾y>Ú½DQÊ=k±å»xî¾t¨=xÄ=Ş¿¼İ;«=~Œ¢=ÁÈ»¼4ä½
-k½r©\»»¤½èÚû<In]<
-½¼Há¼œp¢½ˆr©½Ë¼+ƒà½!²d<,’=•Ù>>g=šw,=ÌÃy½¨š>HÕ¦½W|>MÖû=Çî´=úƒ½[ç¢=áÄ½“¼—9ğ½+GÃ=¶ş³<ÑÀ±=YHÚ¼ÉÄf=Aãš;V³=h¾Òu×=ä?Ø=r‹=¤=ÍS‡=Ñs¼ \¾,`=+ª½Ú	—½Ê ½Õ­¾Ğ]ô=Än£;ö›½™EÎ½wg½ÿlÊ¼°®É=}G(=VÔ°<¶—½å,Äºx6=c•ê=iÇ½œQt¼%Š	¾ºö4½`%=I’=ß4u»æ¾½½Ç¾<T-[½¤£ª=â¼¡¼=;{i=ŠìÄ½‘å=ªÈÏ<=êº½ëJI=rZ>u‡½í}½ÿ×Q=[×µ:ˆÆ)½êZğ¼0ë=ï^—:»Ô¼1>ss½?’½=&<U¥¾Ek"=ÖjŸ={+=&†½ªöÙ¼Éåú<‰v©<Ã–Í=Ş%½/^f½tí½Mp=}Å½'z›==™d½Oà-½ß¬ü¼4hÍ½¼×½¿ÅN<Èy¾Lğ7<}Ğ;9Œ=Ü27½ğÔ®<á®”=£ ¾tE¾bJ;Ò¿B½ñÓÖ»XÏ4½‡¦=â¯å½Ü.½³°ã½¢á_=cli½\§¾½¾]Ó½ õÁ¼¥}®½-¢¢<ÅËÇ=c~<ô#<½ˆP;·À½u=a}½^±=:Î=ÓÖ=µâü¼xŠÏ<ÄD=oÎ“;ÇÂ0=œó¾!å=/ç	=_U½L”½Öä>qÛ‰½‚Á¼½Ÿ~Â¼N!ì½-:½{'=É»–¼Åã¥¼pÉT=­©½™Œ½¦¢š=¨´û½3«	>¥e¾=òÊâ;Ã¢?=(•B¼‹—w½¬#½R#¥½ÿ¼7½$º=–*½ÛÂ[½~Ÿ=ü‚ >æ»ì½Å½ãë½<±q½¿R³=y0‚½™<ng¸½	§³½—S´½}S¼ßˆ½,›¼+Ä=fd@=´Eª=óQ¡=n\&½ß=*<¼ö´½M×=lSË=È'»`¸½jññ<ÊŞ<9E=<«=M³½ï -=#|b=ç<¡½ˆ“=ø7½@{G½éùá=¢Y‘;yˆ½\ªù¼Œi¾!i=Eu»º‚ <»>½½‡ ¥=:*½=ğº¼ˆ€¬½3×½]Îƒ=`…=BıØ½ÚB—=¹‰½Ñö=÷ì=ús·½÷9=“"”<`“	¾iÔ½W›ô<B7²=s3½ÎBÃ½XÔ¾yŞœ½Œ €½ñ=±Fk<û†»£†>İd½ O<»Í=æüĞ½ø«È½‹½´4 ½kßi½z«Í=Ú•
-¾<üä½qè]½è‡ú=í—¯=Æ¾¥½Á¾…½ş¥=È° =£\>|¹Š<>0‘<ScÒ½¼ ½+üŠ;O#"=[,ä½hC¸½,W<§Ú>õªç=ß:‚=‚|c=¯hŞ=8bÆ<Êöa;SùA¼ÛÚ;ıd'¾ še<j˜±½—.>½ÿ9î=|’½xÌ½õ8©=…Ü½×Á@=X@ä=ıƒ½Èñï=é‡®=ŞÆI½áá<`Â½~*S½ê{´<€>æ==0v='¢‹=ÇÏ½"•½,Ğà½€¡§=¨³&½!=ş£–=`Wü<ÑŸ˜=z =Ş‚=üŸ½p‡ª»ùÒ¾§}<£0„={çØ=m„<­½lğÕ=#ÌÑ¼†ˆ½@)¾Ö;û0ä½bÁ >\Øî½´¾´>@³ˆ¼ƒÆ=ÀÔ5½¶`ª=¨EO½ê¸Û=‚@Î½Ôú8¾ÛÖd=û8½F‘Â½Qµ<Úš^½Úñµ</z;ù$½†E<S§½C8B½ÁÇì½}PQ<S!½<@">ƒ2~½Ë]¼í< ½w·œ:J"=˜œç½`şŞ=ÖE	>¨¼1Ì=vúà<N¿©¼¶¿=‘q±=¥]ó=}¯æ=¿5¿½ê‹Ó¹D¡k½ \>²‘–=Ns‹½ˆ”½QÕ<¡»ÄÑ½I£="½"dç½²±¼„“X¼´È¼©’ò;ıK>4ñË='Âğ=¾“½ÈÒ6=Q±¬=›.~¼¨=ªÈH½=2O½FÑ=lË¾
-]¾N¢=á$½PH	=Ë,¾èc€<èH¦=´0À=ú[ ½jj=€2?½Ûº=Å²ö½×K<x¼6<ûW¾´¾¼ ¯½,Ş•=|Ä¼_>ßÓ=È¨ƒ½Ê!§½QÖ¼['j;Ì<,À½(Ä½&õs½“i+½øÜ½™ë:0¾aÄ=0Y¼ª¥©½©'¦½‰¼ò»kÍ¼“Æ=«Ù=ä'=Mí´½ªô=G¨—¼4YO¼|öi<?¯‹=\$=Äç=Ë:½
-²½&ô½Zˆ=U¼°æ`½ëkÄ=½›ü=áä»Ìı:ø]Ä½Ã½™¨5½á"B=$2¾tÆ=nÔ»{Ç>>v°¼²Á}¼ì
-¹ÿù<ä½r‘Ã=÷Å½ˆóü=Šo=,$~½L¼’½‘è¼Flš=”òG=›<<2r½Ä’«<Ó–=Y(Ø<7µ=	³½[Ã¹’fO½ë%=6§>>è
-½¼uˆ½Œ¼Í=v¡Ö=u½›3!>˜->92û¼\é¼7p¼ÜJ
-=Ÿçõ½&I‚½q.½­Z¢½A1È½%Ú»Û·<Ò^ò½9i=æv=ô˜€=É±û<MN«=ûH™=üÄ/==FÓ½‹o¼Ğï¤;_™q=/Ã†=ìûo½gãı½$™=n ¼z½>UÍ½mÊ‚½ò½Ìf½İ]=µc >¥’¾"-q½2'5<&ç4=:µÇ¼L´E½°ë£¼$ û½ûØß¼±%>÷l\=wçE½›¤¼š*¾ÁÑ‡<ÏÏ‚=ü'ì½ônà<"*k½½º#½‡Z=ŸÊº=Z†Á=¬h³½Ï$3½ù=Râ¼½yu+½Ø 0>±¦œ¼ ²=p<j0ì=ÿ>Ã=µ½º˜Ì=J?>Æ®=al»ö›>#½]h=†¨‘½É!2=u°1½=Æÿ=‡”=­Å=Û{“=Ì§¾Ş'§½£:‹=ÿKš=%‚¿=,õn½QÂ÷=?Î<}H¼º¾Éˆ½7T™½rèd½Õ©=Ï A=M%—=ŸïE<Š~N=Âê\=%¥0<(/=ÍH==yD¼YÛ¬½PÕ=ÅŞ‘½­£<Ñá;Z¸½Òø<;=Ê¸N=¬IH½iåò½c\ã½x¾˜V‘½´ûÌ½Ù!½€ª=†TŒ½ºÀ½3dä½D=¹p ¾§_y½ËA¯<ßßÚ=•ÌO=Q«>ÉK¼'‘½›ë¥= ¢a½ihƒ<!¾˜¼öZ½ï½}¼ˆRš½Ø|¾=Û¼>ù6S=qC¬<ù=…½$½B¯6½YTŒ½ÿ¾§Í=Î»;7>Ğ„Ñ<a<ş^ğ=öï¼òx=q5A¼\ ‰½Ò=4pÌ=`c¼-l¤=j&æ½5¾D½‡?‰< ½¼¥°¼.{½î…=–j½A4½F¢¬¼¾/g=+#¼½CLé=Øò1=ĞéD;÷|à=8·6=MÊÒ=Í½Èäğ½±¦Ò<fíh=ºLP=R˜½A,-½¼¿Ú=î¹å;V÷ê<Ø¿¼½ü  >Ï„½øm¾0“¼cÖ¬=×°=v	G½O×Ì<w¡¼M7'½îº<mÏ=Z‰½·šÕ<<9½¼_ğ4¼º>¶é=Ÿ+ô=0•Š=1”¼¨2=™[=¤îò=«>Gş;=ÜÑ=õªZ½â˜=½½—©b=÷Û=AõÎ=–Ø¦½Â°À½Î œ½ğ¤¾=~”=Ì.”=läÈ½6Í;‡Íè=ú\4=Eíö=µº¹=6<ôÚˆ½?
-3<y?ç½˜E<Ë¼=-a>œÒÁ<ïüw=IßI=A\=ÒÃ}»Vé½Ã®=ö#°=Ù‹ä;Uä”;ÏÅ½!æ½>%c=«ø-=Açû=ë¥½/µ½&˜=õ¡ƒ½"y	½õ›„¼¡Y¦½.Ş½Z‰³½ÆKëºÂïÑ½íáÖ<Q1Ş¼€h<>È)=ƒĞa½£(=>jÃ<`à#»²Ä³½\	’½Ø=¥İš½³Çí<ûı^½‘ş=M)Œ½«dR»¾îb=qy>Ù*¾ÏŸç¼o.ß<dT#>c›W½?…E¾Ç_x½À˜½ŠM =™~½¸C=;¨=š”}=Gğê=†>Š-Ó½ÌŒi¼méĞºµ»©ä¨½/â½ğ~Z=f=°=ì‹½P<Òx¾X,€½¢û»=B”*¾:1>MRìº#Rƒ=ø9„»¸ä=ƒ©Ù¼[¿¼DA<¡>œÑí=½â½Ğ÷ï=Hİ|½µ¾½$˜¢<‘u‘=¢Â×½öO¸½§â½…B½@oš=ƒÔ½àŠB¼#É_=÷dä¼ü¨ ¼û—¾%V†=¾&5½1ğŠ=j4¬=0½9”1¾ø=”û½‹P!>­“¼)Ä¦=…<<ê­ö½u·½8?•½=%½¥N–<˜’=s =e¸Ù;L=d<}ÍÂ<,`½£Ö	>¿ò½yµ½’O½³·ç=ğg½s"»iØ =Ã½»ÀÈ×½×
-†¼5V±½‘UŞ=üèA=á¿™; ¾'gR=9p°=ÿdÖ=¯¶ã½ßQ"=”Ê¶=ºù½Q“=Ë³=Š$>ÛC>Å½5é3=¥!t½¹–V<z¹¿½(¾+
-¾¹ë3½ƒNî=ùu¢½È^Ì½S©½ı«Ë½Õ5½İü/½ˆ¾½5oº½¸4= ü‘½ş±‡º*H†¼~z¾ŸG¾Èp»9Q›¼ö}\=E%ª=V3©:÷N°<ÕZ¼"ÆC¾ÂÃ@¾Ëé=)ø½PÖ™½aa‚¼òm¼NU*>öèÂ=‘yš=üBÕ=©ò‚="h½<RºÃ=¢ƒ¾Ì{‰½Xƒs>XBŒ>7¾Hš>öN†¾Fk=½I÷½}¡O=\Äè½’+¾½G8ò=¹¥.¾ÓÀÌ½^!¾‹“t>0¨
-=%±½¾òó½Ä¸ï=¬—±=ß$¼Â×¾ f>[ú'>MZ«½²í=Q.¾›îĞ;…+>pc½¤½àG>³oU>è”Á=j•!>AM¾Ìİ>¹ïO¾4x$>I{½°ù;HŸµ;œ¼a½53°=m?¾p¸ò=„â©=
-M¼ÃÔ=QZÆ=Ûï3>««à¼Éô’½Û§¼=˜=
-Nâ<?<•=ÿıå=åN—=w®Œ½ğy‘=Q®Æ¼vıÁ=kó½ a<×½=Q=K"½Â=,I=’›½ôu‰=6Ëá¼9=“¼0Í|¼ê²©<«=W>tò½v/æ<N>½æs—½üÃ==Ø£=Ç	¼æ>Å½I¤ü<x¿¼nƒı<Già=Y=£ıİ½dûÊ=ØÑ%¾¦¶Ÿ½vğ±¼zÂ<-)4=°\2>=ø½14º¼©ı½ó¯í½ëV+½Ëüv½eÁñ=¾eç¼¼G½ıÇ$=ã´>H<ì=È4 ¾ò+˜=s6Ñ½ÖW=°3½å>Pt-=Q]Õ=HÃ=å´<À¨½S›7=¾Œ¼=NOö<ë9ÿ<|Ş¾q÷Ï½è î½2%ò=æˆ<úMï=FµQ½ş?‡¼y¼g½=”½ë<¤N°<¡©À=Ìl=F¾ø+q=²rk<Ó:dÔ½Š¹V¼!8~=åm<Rg[>‘ø=ãÄ½Òì”=eH³½¤ _½Ók½†ˆ½¨=k§ <$L½àÊƒ=èé+<BV	¾Î‹»Ù×[¼3_;>7«ä<Ty&¾…Ó¾‘=,¤ =ïåH¾«A<ÄìQ½É<+¢A=}58=ğKN;vÕä½kZ»­”9»<{½·•ª½ZŒ<½µ„=2Å¡¼7èè¼!	="¹==G=€åõ»ÒZ½øz²= %ô¼çdÆ=J‚=ºn=s3¼.c½–’=§M€=øæƒ=1A<÷ä¸;Ô¯Q½š´w¼ê/ <Ÿ‡=Èä½‡·+;Ó7²½\Ê½Mî	¾£±½LŸ=»bö@½¢>R}+>“C€=ı/%¼çJG½”×B¾Ksî=èXë<ŒÜ¯;Fš½«_	>Ã
-©<†)À½(¾¶<¾èÎ¼ëF½|Ÿø½PEÊ<šC ;
-—¼œ<?=:ma>D¾V»#¾§ì-¾uº½›;víÚ=§Ö^¼n= ½òÀ4½¹T·=š®"½(ï¾$«ß½Ÿå¡<]¼7õ°½ª²=(X<¾Ó¼Èz¼QŠ=Í3¼wY>" w=:¸:…/Â=ê£›½Àj	=É ®¼œ”½='Â½ÆXÅ½@Ağ=ÚA§=År=ˆîş½0)»±Ì²½T¾Ò9‚¼EÃ½Èà¼“şI>Ã/›<y>û'Ç½Óâ6=½t<Ì=“¾‹=ïãr=xºo½÷²½à–Ò½ed½4pó;L2¼Æ2ï½Ş_ş½ß
-=¶ßÇ=n%·¼–==À1>é¾Ö½Õ“X<Õ ¾s¡½Zt¾HÌ·=‡—`½ß¢=À¬¡=Ó‚¶=­ı¾¾½´øÁ=TzÖ¹zç°½o,S½ å=Ÿbğ½Èø¼»,È=»ÀÓ¼’ºĞ)Í½}fº½OÙ½E‘=Sg¿=‚Û¸¼]ä´=ÇaZ=ÿ1—½”æ!¾k6î=Uë½$½ áØ¼ÎÃ¢<|º½­¹§=K5=/ş¼¡ÎÌ¼ İ½²šã½#^~½¡ùX>W¿>éŒ ½ÜÍ(¾Î[½ÃêV=ºŸ-¼ç—±½Sšó¼áê<=cÖô½ÁÖ¿=ªC—½9)H>‡MÂ<°R)¼ÎSn=®£‡½›E½Š=¼ëÎ=ªÜD>Cçn=š_=“% ¼õÅÍ<;9=¼p¢½ãê==$|2=§Nÿ=Ÿ>2=¾>m`=Ÿº‚»Îã‚=Æ>$´ì½üŠA¼%]S¼ûg¸=.G½/w½Bœ½œ9¾ÊáD>ˆ=wz½g£ş;P<>'¾i<õ½†ÚŞ½t‰=…½\½ =šÈ¾ı)(¾XI =”»ô<fXT½-¡¤:/Ç"<2 ó½á¶}=-Ç¾~²û¼¢ô'>´Cî=KÊ½—7U=Ï›Û½‚¸½ØÚë¼EÒ=v“)=¨å=p">b^u½ÒLk½` ¾Ğ;.>>·	ö½+;‘ªG=#JF<!£>‘èã¼ä0½×Çù¼ĞL½UH=ù½<¾à&<Ë…Î¼Wkà=Ğø»=5Ï§½M$½mY¡=oÖ‘=¸ğ={Ïº½m®=rü³=g«½ÀåÑ=åÈé=%ÅT=¾a¾3Yª<¤¢H=g{9½®Ğ$=õ=¸ËK½@+q½©Øq=&å¥½S;=Èô½~ö¥9-x×=Ùè
->İ)½½¨U=ÅÂ½Ôkâ½^&>y\ <`¾N…E½ÿ•‘=3¾y½l;F±¼åÔ=¨)«½SÎ<*Âµ»Îb‹¼îw¼¤2¼™—=xD<Ìë½OÙ=ÿ4=N¯½.¤Ï½@ë%<BËõ½Œì\=Å[¾V*¸½^K>>Í¼·ü½#µ“¼Iˆ<ÒL½\½ŞÜš=yú%<Vø>Êã>ÖŒG¾ÀÒ\½3î˜½£Ê2=8i£<+J‹½ì„¼}99=¨Hœ=ü##=„Eâ½°8C¾€õ?¾Ã=%ğ,=&rÀ=O;µ½2!C>oÿß½&=Ç°‰=1$*>†>!_1½î‘=Ìâ¾nwÒ<®è=Sææ=©cR¼Öz1½Ù¨½â‚Š;@Ü¼‘6E=è£:¾Æi”½=Šœ=ÚP¤=Õ’ì½õ3{½›ß>¾æ³¾}%¾{Â=ÀG¶½¢V>ƒ;È½ñ°…½aeñ=ûV=öÖ=½Şáó<À=Lÿİ=½äE±½c”œ½Ûv“¼¢ã½{…Õ½	>Ñ¾<Ç·1=äöH½	¾¼ªƒ½~—M½Öã ½\“¼—6‡½‘'¾õœ­=ûÎ¼¼Iß½µb¥½@Ş¾•y¼9¼=°­>k
-©=4ªv=@Ïì¼‘û=l¯„;n_«½=œ•=>$‹=P>‚><}«=2ô½
-~ß<ˆX,=¥Ú·=÷•j=1hÈ=ao=c>‰=ªŒ¤=XÜ;=ÆÌ>›n¾–>;¢<Aº½	}_=(0J=/¦½=e½ó£
-½t	
-½f‡;>ªˆ’½‡k#¾ØW¥>Î>@k;=>8¾«°½fò¾?E>±çÊ¼ş`·<ËÉ†½ò#>êK±=ã)¾úT>'`“;Æ@U½O‘¾¶ìÇ<4++½¤fT¼h`E»‘
->H F¾<®,¾,7¾eo>ˆö=½j&C>ñ\=áD€<Qì½­ê»=ŸDÔ½Ç§Ä½•)Â½ÚÜ=ÛR½±Öü<,Æ}½ú¥=¼Œ‰A=ÿÔ=Ö³½
-£½9ç=ôê<¸«>WÊ¼[<½Õ=„<å”«=LÍ=ãøŠ=,¾^:=W£=§0Ö=\#=‡Ş<×õ¼”€>es>Ø©*½e§÷<ÜC={"/<ª=Ò>ˆÚ>½A×=Ğ1º<Ì><üÖÔ=Ãò½k È:ï>Æ=lj½æ5·=¶å¼½»Yæ;¿Ğ˜:I¤½8ïÆ=ÿ¥º=İ=¾£">‚û9½x==q‹µ½‹ıê½áä;›¨¡=-ïS¼k&<¤ƒ½2¾Üñ½ÆÑ8=+ÒÀ;ë¦½àsô½7¥4=Ú@í½¾ò…½E¾=Êír=ş²O=SùÁ=}
-é½J³¤½ ‘;s·x=Ö•˜=Î:»ßL=nŞ½pÈá½lÂ>"¶’;ÈÒ•¼
--½Ç+ >´‡<¾6<±Ş=Yü0¼Õ—˜½øM>‰¹n<LÏ=ÓúØ=E!I<1Í=â†>ªÂª=N¸T½eÎ>Z2w=\>ŒÒg=õê<*"$=3™¼a÷p=›Ëp=ıÿz=M#½µ}Œ¼W9=z@=†½êeã= Ü¿<-HH;– ê=Ù¿Ö¼Jôæ¼ußí=ÍË!½ËD·½0¾sQ{¼4N=/¸=½î1½GÂ¾ßèÈ=Ò,=}ã¢½xÉ¿=¶ 0>o½g½WË½¼É@;(ğ>³­ï;V=½òÆ½ô)d»½J9¾'/=»¥Ú=§i‘>hTV={º¶=ZóÆ½dº‘¼áõÂ=Ô½%¼¼•=¶ó8>/ >±ê®<ÖXÀ½øíË½Nù<¬0¯=x=¨,½ßñš½ïÕ>g#Ã½©õˆ½²™=
-õê½ôÔ:=OÕ®½ŞØ·½èšÉ½…˜¼f‡D=¢^<ãÄ½ç¿¾FÉ–»ö$í="–N½’vò=*‘@@ Bval_19J€@8Òn<n•½ÚSÁ½f³€½(Ü9½2ÎÀ½6°µ».™-= e>¼p½ŞÓ =Ñs½5	Ë<F0¢</¾øİ¼çŸ«=~ù½†ê²½ê8J¼ Cß<·ıc;×|³¼9ÕB½¨<Ÿ¤¥½(Tä¼yÛ=>Z<S°è=xq«¼àK¼{/æ½¶ó>ÎîÆ½H¯`½Ğ 0=•ş8¾‚’ô=¤Å^½Mx½z<y=[lÕ=ŞÚ†;ÀÃ¼ÙEâ½f“½NîÚ<LÓ"¾şƒ®=‹¾¾6>Ó²½Ù†¨=Å}†¼'³Ã=ÜH·=é”=l£­¼¢z×<'Ï©¼®Ã+»\}R=6yT¹Ğº
-¾%ş3=$,¾V5¤»)kC<íe ½)
->_ô=i$+=nó†<Z=¬B<:²#<÷²=™M£½lW¾Îóš=¾Ç=:’½o„=¬–Ø=–Ò”½úù£½Ğ½áŞ‚=‘—;x=¶¢><Š½¡=™=‡0ø½
-P=ŸÕ=-
->qi½d×º½/R£=İÇ>íÑà¼@å<Ãİ/=Ä¼jŒ¼¥Œ†½zil<,„µ<ŒŸ=‹z»üÉ¹=ÇE`½í;=N°“="€=ë+½¯‰"=Pš» ½À½–Ë¸½±Ia=n«¼7B½çÚ¼=\Ô7¾[i˜=&Ÿ½ˆ¥-=2á ¼]ü/½í«»ou=1K ¾€¾ë:&½†ü½ñjQ¼Ë9û¼Vşİ½ ş¾ÿ$Å=A¡¨½1"Ú=¤’Š=ç.
-¾LÏw½‡sè<O²ğ;¸_»½ö/‚½'>Ï=\÷>ÊHù½?H½,n¾CºÛ=J œ¼5n>j=ËA½	øº=_µ!¾R³¼¼ˆ˜Ÿ½\ è¼ƒêw<<—Î½¦¾.˜i<*ÔÈ½eéŠ<)× >ëˆ¾²Ä÷=BgŠ½¿’é½’r»z°<<½°<Ñp4=K]C¾X
-=\§‹=Yu<[%ø< Û½ÊT<¼1L>ß›K½O„=k%¶=‘s½u¿>±±½—ğA=½z<ÌÆ˜=•tÔ¼ Cr½	NĞ½®1>t1">IV„½BúN½~—=V£½UË ¼±>Ô&É;`­†½ÿ”A½ G=–[;´›æ½°¿[=gä?>Ûl½±¦½;£ï½_›Ê<s½s->ú*>¶s=ˆ\;Ã½Q>=1¹ ½(¢½™ã£<^³½àù¡¼roÂ¼2‰—½Ü58<A'w½;g¼Oı¨<!¾R×l½¬H‚¼®t.¼‚Ò‹¼†ï=ªb‚½ë‹¿½åËô=Ü^½¿‹¤=&Êc=:8°=d_Ê¼ï¼š½{µ‡½^nú½¾Ó\¼&=á)Â½ÇÔ½l%»õ’½AZñ;÷ª2=n×½{ÿİ½ø=#ß	½ Æ=èƒ¯½gS½läU=3;;ò¼ZôÖ=[h®½Êóv½İ£½}†üºSDt;<’Wº¸F½Š±=Ê‡Ì<¯Á½¸o>F¾£Ÿ•=Bî»½»gO½vÈ½WjP=‘¿‡½àRJ½%X%=! =¥ºö=‘Ï½óµ
-¾ı?>Ë>¾~8ˆ=ms+=oâ»=Ò÷=ÜšÄ=íò=¿Íî<v<¤=n±<—†p=0¬[½ŸÔÑ½$>ÓMß½Õ
-¾ıÓk½Ã=…òp½û±›¼T°Ã½KE6½ø"½°Â«=
-ğœ½Áağ»pÛĞ½ï7"=5¾>\ƒÒ½Ó½¥T!<u^$=¶æ½q	û<<r>"å»qˆ=ûs…¼>	¼ü½ä‹=ÕŞ¥=ˆ¤½F˜?½Ÿ—=FÚ`>%…½K´š½ Åò½Ã_¼³Ìª½:…ó=Z	=²½şô¼ \†=× ¼Øı=Ï•;;w
-¾€3^<GNº;'%í=rÿ&=ö£Œ=HñN½«ä4=ï½æ½æ#»=4¸f½rØ<¡’Ê=N6
->…-`½µñ#½İ­½Oü‚½äq½¦š=«Ò=c	¾ÀA»ˆé>8F¥½œ€ò=7ï5<Œ½Y&€=jñ,½ÃÏ¾#¤½Æò½­ë6½±}Q½µÇ÷½Å$‘½IP†½ÙYƒ=ë#‚=y9>áïS=ß4(½Pq€=Ï¶C<~¾0½¾Zx=úD­½¯9ğ=¤·‹½Œ)ê=Cé§<gf'=ñD½PŸ;G¬=©î½Ë€
-¾ÊÁÅ¼mÉ]½Ioö½^¦Ã½O‰=ç„><©¼®½V¦`½¥6<…ÚÉ:£#6=#"¬½b‘¼µ½ˆª½wÑ=ÇŠp=:º„»k·
-=Ê»½MÀ=Gòñ;Âè»ùí¼v¾0½‡Xl½ó¤Ş½I>6&³=O>øØ>Ş²¾Q¶±½ •½#)‹½–;¾ÄìÕ½XÕ½88==0gÊ;}¦¼FSÓ=•Ù¦<ì—¸=ïS ¾¤^>u{A¼û =Ó½†Ú™=sS½g(=üÜ)=¿vË¼N6B½ÕöÛ½½O=@´¾L=9½sã¾}J¼¶ô½¶Ìâ¼U,k=ÿk½mÀ½Ì¤³=İ 6=ÄÓÇ½f‚«=×!î½l	¾p€Y½D,r=oóõ<·ô¥½èÍ<mVJ¼Xá§¼sÕ˜¼~j¬½D$†½ò½BX½à8O=ñåu=ìÿ¼m¡¬=ÍÈŠ=ñóN:¨CÆ=¨4O½«ş”=¦C¯=WNÄ½fY=#8/>Äíõ=&7È=™ÏA½k"=äê;`ã7½”«ä=Œ1³=^Ø½\âq½rÃ='v=,ç>¬B
-¾Yv=èÄ˜=¾CºMU¾«½dŞ<½Éê„½Î:ƒ½ÇÄ=î¾G<ı¼Á‹¾íz}<Tšó½ R½½ÿ!Å½j8½#9r½×0½a²«½=Î<.‚à¼==;s®¼Æµ¾[·4=Ù¿=Û9½„Ø<Î<K>Â-A¾iŒ9¼>ó¦;?{½¸‰Æ¼¼l2=r‰=ò!¾†¼µ½dÛ™=fs=ÑÖ½n·š=ØÇ»ÇËĞ=©¾ÜÔÚ½¶ñy¼*Å8½ò¶=ƒ(à=w5i=ŸŸ†½’xÅ½ÃJğ½¡)K=N'=~u=DO½ü6«½E¹X=ÌÔ½™i¹½êxş=%eì="ê¾#„Ñ½d/>KıÀ½îw0=¬›=.ä"» ]<šE@>ÎË ¾ıÌ™=bs¾½–@½Õp=P7(½~­û=Š¸«=ñ[¼N8µ=‚=Ò=Vé¼]è÷¼rpº‰Õ==ˆ½„‰Ù¼…^=­ú(½í§f»vê‹<èşà½@†I=™Jv»!Íi=ï¸ª=Üø=ùÛŒ½ÕŠÎ¼-¢½2P»=Ğ´½ÔÚË=Ğt&>%R;Ìd>tx½~=[¾ù½.Ç<a­>rM°=WP>PJ½vµy¼FÅí=rlÇ½%O©=ÏQ>–`=9"=ÿÁ"¼|A®<9¦¹=&—å»Ş ½"ƒ¼³½>]°=r¶> ÿ=z÷€½®8:½XñÏ½Û(=†S9½ÒÃ¼KÇ>>õ?^=ä¼ÄX‰=†¬¿½Š2ä»Z×a¼F˜¡=Öû¼‘¾‰	>kÌõ<Ï(;[4Ú¼³ãX=d>N4á½(©Q>r=õe<Íi¡=+­ğ<<²7=Ö½ìq|=™¸=Wïˆ½Oø¬½ÙÂE½wi½;1O½>½o…N=ÂB@½"=	Y¾è6Ç½>:{@H¾R.`;—¿k=!µ=Ìû>K@;­½ou¼©½x7½«h½n½6ò§½zB½Ó‰ƒ½{;2±m½zÏã=kgX<‰ò®;Ò¨ğ½d:Ö½I7—½¸½½}?î»pe!;áS4=¢ç®=‡ËĞ<ØN½_Š=|dÕ½Kú­¼¿QÕ½ò‡©½şË=‰€Ë¼h ¾¼Åˆ½ŠÉ¬½,x=ÎÎc<Šlì½¸Ú=pÈä½ìÒÔ<~s¾‹Ä‘<úßà½™ä=† ½Ë:¼¦¼=Ÿ¾$=\}£¼½‹>>{ß¼x®@;Ü«İ<vÈ½ZÇş:;m¡<C5=È5‰=|¯9>ŒÅ¾…<­=i9<O6œ½MĞ3<q^Œ=FÓ=>­&=|`½W·Ù;IeÚ=xÛ½‰€>ØE=Ş];/–<¦uÏ;ˆşs½\“>ÎOœ½\¿f¼Rbg=y°=h=äâ€¼>é€>Ù1º$ô¼³—í=¾Zs=¦Ñ¼oGÕ½ÓB¼Šp¹½J¯=´;¯Õv=åûÜ=¶ì<=ÿ<İìÖ=’”=•¬u½‘úŠ=ªÓ9½Ğõë=maš¼¨¬1½4Äü½ÁÇ‰½WMV½Æ(A>t§½RÔ<¼:øK½‰êú=uµÈ=ñ-Ú½ÿ=È»‘ãD>©¨|=8W=ÏB;¼ºn½UˆÚ=å½
-=Ã¸=3/½[éK=^¨è=Má=,ÎO½Äk=8p¾d¯®½Ê*¼jÂ†¼.Ae=µåÔ½ßRï=a(é»şJ“½+áÓ½+¼Õ½6'ˆ½ÿ««½áq.=eÚq½yNL¾Ìş½{\½Îó >€G¾Kô ¼™'|=×B4;I”~=#õ=C²È<¼¹¼;*½¬“…½ùQ=ƒ>Tø$½±ÙĞ½ÂŠu»A€=†zã½R0W½V$2=Ã’;¼6f<ùÑ>…Sƒ=
-6<w·”½«²r½ÌB<là(»f,";__µ<—s=¿­<deÇ½~³­½¹ ½7C½ñÛ>Ÿ=Û=hU½½¢,¬½£““=Â‡u½ñÃ»½<½úä½Âã'=Ò²=Û¾Ù=±$è=!øÂ½ÅP/<ûÑ	>ø£í<Ê¼ ±`½Š<¾uz*=j•†=k#›»í+¦½Z©½q¹á»ë¾(½ó§	½ g½‹­…¼(ÄpºYæ©½™2½O¼¬<>\{=¤ ‚=>›–>åN½«˜Ö<ô+x½S7º=aZ½ì§=Q8m½1Ÿ_½«Í½@,=şXx<Fd=‚f<à©½,aÜ;C+)>ºaÚ=×ÜÄ<`Ê<Ö‹= &>èæ>"ôÇ=OI=hL>*ö½N‰Ë¼QÕ/<®)î¼aê=•­½Çî	>…M&>ltP½û#¾n!¿=àeü½ÔÏ–¼$H;dt;¥)’<é]S½´s÷¼Ñ³¼—XÔ=Ÿ]ï½x\½ä,¬=¨ù=à2¡½iTˆ=Â‘á<Uá< E–<qğ¼Ğ's½*„‹=Ãï=k®»=á½ú²>‡ÊĞ¼cRS½±£=3•‹<Óôu½Ê%¹<N«½f¨®»·§Š<Cá:ù=$¿½y@l=$çC½Öñ¯=M‹„½„®û=µl=e[G½ë¯;Î½]à½—œ{½â>R&¾©°~;Ş>×\½LÃ›=«ø–;Ë™=u²O½ò¢<+½ë¨L=İÁj=G}Ç=%½*‘¡=~Æ=Ï(¾»÷À<‚eƒ¼Õ†)=ŸÒ¾òRy½zB=H¾ƒ½!ñî=‰„&>3·=˜ì‰½‚·k½¡ã.¾T‰º½ÜšO¼kY~¼O^³½6.>(ãÈ=GJ©=°™Õ¼Êè½r‡?¾*j/>½>Bw;>FT½ÃÜ½C(€=a5¼=œ>"æ¸¼o>€ã½¿”Q¾)ş»Œë=Ó¼×=ªRd½Êq„½Xb¾W…=©ÿ¬½Z&½Ys°½}õç»‘'‹½,Ç=ˆÕ<ñòç<B$¾Ğ½ /=ÂA¼İZ\=œ¾yà<$½¿½™\h=m)ë=¬ãM½fZ¾±:’½3~`½iŸ¾€Iş<â>=?_½q¾î!5¾Z=H½‰¾9"½
-ËÛ½=É1C>üü½‘S½pŸñ;›îr=Å¼=Á=–s>½Ê$²½»Ñ½ö™ê=4iÌ½/u½9ƒ0='«¥½ç¦<u¤ö½Õø=Æ€Œ=Jß;[h½F×§<°ØI=Sl=îØˆ½Ñº>gŠ½Sñ½>R¯¼¤œ¾<a¡¢=¸¦¢º‘k½Ş‹”<EÃ#>8dL=€¸½ï9îß»¡é=9Ğ=,Ÿ=ÏÓ¾jYÄ=~Å¯=¯è<$Õó=N‹…¾ÒÕ>)Ò1¾Äm‹>:0ç=[TY½¼n½LòÜ=Båë<$ì)<I®´½uçº=÷	Ï=­ìÓ=H¿½²S½°‘}=S(½I^ß=;v=ÜC*½8 .»hà=ÙO&½dÕª<y+@=ÌŒ‡½Ñ5¾‡ƒÑ=éO¾S€„½¡×=}ÛÑ;î†>ÉÍª½R>üêP½©˜	¾2*Ç½«ø=§ÖÚ=Í1=æÍ«¼u‹»<!Ô$>¸÷>Jõ ¾!=ƒ#_<ü¼RUV¼jË¤=¹„¾Ñ*ç=¾-½ùi=´Œ0¾=¯=:>Ğ=ï¢1=>•6½ò—ò½üÓ¾€Ó
-=S¾>É‘=På½ƒ•¼“v)=U<½¦¿=?›<ÖX‘»í"¾+_™½¶œ!>]³Â¼&±=Ö>Û<gá=oÃÕ¼q¿½½q^½^¾b{â=óDÒ<,Ã7<ÿ¿Ö½{KD<	…»!Ã=÷¡=Ïœ=[Ï> b¾šF)>Œô<Éé±»¥è½ˆ=(a½ä»<5»„=´¾=®¼”Â<"éŸ=Èÿ=Öµœ;_ñ½á_»½—Os=«=¼”½¸GØ=¾˜=_¦œ½Åè½†Åñ»á
-ã½¦Í×=³iW<£ĞÀ=ln¼ã$¾.Q¾<íı
-¾ÔåÎ=	˜,=ø>,½6œ<šÊ'=8Z¦=n^É½f®ß½iş>R²#½ZÏ¾¥¾Ëwk=P´;³oï=`ıc¼F?™½¦ú=Â¹=AÙ½=½>áÌ´½ÙÁç½;Zï=à¿¼½=“ë=64=€ºY<ÔQ|½£”¾Ş—v¼j=½Tö$¾Ä3>k«½e—=œ½h:=Áº1¾WŞt½	şÁ=âPq½)¯ã<ì´½ì7@¾Aoà=“¯°½V=#Uí¼ö£¼lã’=°<ìÊ'¾T¾wâS=ã÷=ZL ¾t'V=ŒR½”¤½…¤=PN>¸è$>MÿS¾Ü-7=™WR¾`’é¼‘n<yË½áh6¼`f¥¼†°	¾/mú½*TŠ½`Æ¼¯v¾äì=nr=®ÅÂ=y„è<hÆî=ôp =u[u½2®¾¡º=5…€½.Ï»x•¼…fÁ½¾œnŠ<ï¶½Ç…á=Ù{C½Ô¯B;}úq½+Ë»ö[ô½< Ú»evh=~ùÆ<È¿Ó½²ÙÌ=¨¯=\!Í=è½Âß¾<ÄŸ<—õ½<º3½5	â<=å¾z?<¢Ò:>í‹ğ½œQ&¾­]Ö½»ğâ¼¿°¼7»Õ¼;²½+×r=½˜<®°Û¼‡=©¶—¼Èé²½Õ¤>ÚƒŞ½—®‹=E8p½9Ü=eM:Ä†=ä6ù<Ë3º½îG¼ Áš¼6ÁÆ=¡8å¼G”<ÇÆä<ÈsF=‡²‹¼]F#½£\8»’E¹<üª¼Ëz=€­Å½»Ñ»½nzÄ=ñù¥<…Ä9<ƒo½D==6î+½HÈ»Ò:$G<#ÊÔ<õú»œ4=/œ>wz=»m1=ğ?»g'1>';T=?Š³<Ú`2=p,½<1¾4±=ºÈ=Ñ.Ú<şÈÅ=eR>WÉ©=©£Á¼åÃ	½Ô¶¼wÍŠ=ÒÂÃ¼Ûs‘<5ì¾‹!8=ûwŠ½ïV<åG¼ö¾­}~=8ï¥½8%>­½‹á}»bğ<¿Oú»çïœ;ˆD€=8ºÚ½54b½kÜ½åg¼ê3<öc=Á‹Ì½†]=@ê¨½Êå»÷ÿ; í½'`²½l3Ô½âT<á»:}´¬=YDß:×‹½¾t¿™½Æ£½4‹½Æ<¾¤¹"=iJ¾B¸~=Í²6½×PÖ=j•¾G¿´½Âúµ½Ê½¢{z=&‡>=a«½×æ¼½|˜=xéŒ=T>(‹}=Ù
-¾Ş-™½f ;³õ¤¼­ùì½Gœ§½“½˜Ö=Rs>üÔ½ğ”­½¹èË½^TÀ<{ªÈ<+LW¾@>X¡¾O‹=ûµh>¹ìP=« à<›˜É<•‡†½9J=º½xtß=ÓÊÈ½uÚr=â¢=®rí½’¾	Ø¦=‹¤¤½ß½öz¾i«½¬x°=õğ=å¹Ì½<ö
-=¡÷½µÂ,=½	>*É¼«
-¾‡âÁ=ÒdU¾ÁÛŒ¼Òâ->l¾™¼C	[¼ æ½*Û½ç»õº)oh»;˜ƒ½k¬`=¼€ƒ½öê¾D0½3|³=Í»M>º‡›½€]ê=AÄÂ»ÑE½ÎS>l=?rK¾ğ(;<ÒE%¼•ó…=‡»7>± <İÒÃ=GˆÄ=º=ŠºÖÉ“½°Ÿ–=¦?º<ÓôÃ;’¹='g¾½­óŒ<hwP=,=lG£=Ç.µ¼C5@>«á¼“¸«=[ÆĞ=óíÉ=ªÔ#>ò`#½h>„=Rº¦¼`Úá=ÓÄe½æ=4é=°P¶½‰¼öºÉÎ=Â4™½A¹­<\”@½D|=iXE>Ğ·c½$Ü;½Yg¾½v*Ä< mì½ı½G^½qÀı¼–‚Š=ze½/¤‘<¼€÷½¢˜=Ôüä=‚/'½Ş…¾½+=oÙ=â’:½½¦@=½3¬=ı®=ù–=81:Ûy§=ˆ%†=RGˆ½ã;½¥“=µ)“»³·½=Âe;/8ÿ½ı6r=Ü³¶½Á(Î¼óÖ½iY¿½.´B=üµ”=H5¼ìW= „¶½¾!ä»Ôî:>İ²¤=¥É¡=I£»<8eÿ½¯Š>8>¼h½eŞ;¼¨ (=Í¤=S°¼¼Ë7$<5£½n`¹=† T¼”$p½×©•½
-üİ¼æìõ<JÕ=(g¾g;½bA›<—ÖS½I½.>Võ‘<1Éj¼—<Æ½‡XÉ=ô£=*É>;¯õ½ı0<Jm*¾Ğ.¾R1Ê=ÄÂÖ¼göE½×Ê[¾IMõ=™\Q½°¼×ù!<ÀT®=³¹ˆ½u@½b>b©¹½Ù`=VÄ¼Ê¨Ò=Lˆ6¾ s§=zŠp=ƒƒ	¾¾‚œ=ˆ²=¬t1=Ä³Ÿ½Ï05=yã=¡Å.=ª³‘<E È½Üô)=øP=»2ë¼Fñ=Ñ3=Û$µ½ÎE¾Ë=X¾;¾(¼6=ã¼½çD
-=Ì¼/f =&¦I=@ª<¥öË½f")½gÍ‚»ä¬½³ù¾Õİ‡<˜­½¯·=;}p½ƒˆ½Càş½¥p¼=—ú¡¼QŸÁ<"%>‹½ü2Ğºâ|½ş¨½ñÜ½ºÈŸ»jà½Œ’õ¼OT½æ	>Œ«.¾§:Ø½ŒM=–Ù¾ŠĞæ=,“æ=x- >á¿J¼ô7y½{Œ]=.tº»a £=>YÚ½¹æ½$Aî¼ßi¼*´L=tã×=C}1>]ú½fÔT=
-–i=üÀ3='áª=¢,¾Tİ½©q>Î<.»G
->ìÌÇ<fİ»½µ½bõ½¾Ç½äb¬=g³‘½9>Ì"Œ=Ï)¾‹vš=˜WV¾dğÎ=Ÿó½ÃSr½øüL=qÖ>9äÿ= ·]¼· p=É›¢½ª ˜=yz>ÿ†=sğÃ½+0Í½Ö1<ˆ™,=+¥¼<"†=Ëf%>í9½ú&¢<İé¼¼½Éc>¢*s½~·½Ğ†½kÑ¼¼d€ƒ=)>"4ç½Œ] >™½ü¼Å>ÙÎÆ=`.>„O‡¼D_ğ½<1½-Èé½Ë„=¾¡Å»—é¾ÿI>ïß¯=ØâR½Å>b*9¾AI½ˆ«½ba2>½¾Ó]W<—„ì=_e÷½éé(;µèt=JH
-¾.âŞ= WÃ=_¥¾ì
-†½>æ¹¼Y‘7>(¯6½³õş=ÛlJ=Fß³=†*¢½dt=xö=‰u®=#p…½½Ğ:@K]=Wƒò½X÷¼Mz">_Ñò¼Iû¾yg:=|r½<½'“½+&=—B½Õ(>¿a	>ôİõ½l¼ÄÜy½¸Â*¾ùï >ı31½0’r=c½N7½;­=…Àæ½õ=^	¹<)K>Ïk	¾lñ=§³ò½¼ ¾ºµ»‡®½Ì+<Ü(¾/â^½éÂR=9°½s–.½t€½r„å=w¯<¤üã=ÔG½;‡=CŞ½eM†<õZ»=C†½ÀœN½FÕ¼w´»€s< ñ)½pï¼<Í|‡=rß¾¿aä<5ğù½ü(½¿.b½L»=·(<Cá·=]r´=;ß>i»À½UÏ|½Ğ=X–*>;m{½;>¼ó=µ53=ÛT
->¡²=_¶„½êÚ¼½u.â½
-Ôà½İ>í½„º9[3>Í‚¾™ÓÌ<M),=sïÿ=Şê‡½6ö™=Å¹·=%p¡<Ú®¼;?Ç‹½{‘/¾=h½×õ=Ò¼;Ä'8¾œã=\ã<İs=ç-¸=ò‹½lƒ >Vğ§½cô?½]M¾›²O¼ &>~?º½ì±Á½>ß<Ä†w½;=”±¾$-#=Ú5ğ<k¶=âŠ³=#éX¼n&½†®ö;M%½t¥½#8¨½lvÈ=*‘@@ Bval_30J€@%]½ãâ3½'®î=I0#>§FØ=#ä'¾Õc=Í}¡=Ó|Ï¼Œ†½E|7¾ìNj»«ï–½WÂ½¢³Æ½Eÿú<A½²<„q®=N6b=ûè´½"ó½e}i½zJæ<©¸š=¯à=Ïİ›;ÊPi=•Ñ<¶VJ=•ÅZ=”€½ÿ>T=·=<<7kâ½ü½¡5•=*Şç<šÙŒ=IŒ-¾oÆ½sÖ=ø	å:\l/»¿F‹=
-¾WKÈ=`¹½µ¤¾ï¾Ş"<˜¼¡9=Á¿½^‡È9XY½±C­½¼S;=×U³=¤ñ½¦¾¿›¨½qı =ÔuØ=+>	N=§Ü¾=Ó…¹½>›<lÅx=Ü¢ ½•v6¼`nô;ë@µ=•‘=6Şé=ñå=BäÆ=É÷;ªÛ&<l®‚½ò¥;.àÔ=Ê»½&&í½à|½ÎÏM;Va>RÏ=8¡<dêú½éG=¼‚>»m”=æÖ:=4Ha=ığÎ½4¾š»øË½;÷½õó=ª¼Ú;›¤ä½3J,=ïO½½|²½ü!>ñ¬¥=,Ò¼‰ï½n~‘=Zl–<.ñÑ=á“=Ôéa=ÉEô½W<“=H õ½U,=Ÿ>?s½s¢Å¼H¥l=……=Ÿx=RdŠ½¬¾<`Ş¼½Ó#=¥‘Ì»]sé½eM=™6±½¬A=>7½½PÅ<¶¦=üÿ½¨™¸¼×Èß=`Ùš=†÷…<iú=,³»Íªa½‹K–½&–½-»¾šĞô½¦ÁR=u‰k=€·=÷7ƒ¼ñO#<C!§=ó=‰=5¯=¬%'½ş"j=*±#½ıÌ¾oÌ¼Q˜>–I¢<T²?½>°¹<œT½)Ñ£¼/4Ğ<–®½ƒq¦=Œc@½¬äá=’R>oÕ½6'>’¾½eU½¥ô°½a6­=°÷¶½rÍ£½«(½½P½«£a=³í<u5ö¼b>âì‰<™¾‚Àı<Tlw½U»ï=­ñP=Îd,½Šš£½ıË¾=¥ı½‰<v%?=@==·Ã½–ñ½Tw·=LĞ=j½(Øø½Ün´½[9|¼î‹>ĞdL=7ƒ‡½ãí²½Å>S=1Q¼é¦û=Â¸½^¸ç=,C°<ªÖ0¾8Ë¯=›å2=¼¾ìé<?Í§=­´”=Zõ®¼aß½„å€=jşg½Nö¿=W‰Û½áòô=UÇ´½†i]=Ù›1<A¥¸=¾öÍ­½.Šš½…´°=¨öí=E#ğ¼İ–¬½í´½±í`=«Œ =7¯Ğ»é<Ş½=m½ÀSğ={á»=±§¼ê»½ËÌß½+'†=«ÑÛ=¥˜G½©D=c£,»*_>½|PÓ<:•†=5WC=øiz½ëºñ<½kÛ=NÌ£½$'	>;ı
-½Lqh½×—½h >@7½ò=öÓ=t£¹=¯‹D=æj<[©¼@„<XÎ<aJ=QL$½	ÛŞ<ª„¾Brÿ½Kå>ÛP†=è=ÜA»½èG;—ºÔ=®s
-=7/<}É½ú=~¼h+5=ªU½Lt:½TV¼¢ğ×½%Î¯½,xû½£1Æ<(-D=)3v½_¸;<õ=mPi½â!¾¡®‚¼Ç==ƒ
-š½üÚ>¤¼¦½ë^X½b­<nsî½ı Ø<ÀÎ¸<Œh3<?á<&T½G¬Ş=}¶è½ª|»¼#©===Õ®2½…+ˆ=6Íœ½ñJ¾ç#»~ñõ»óá´<Iá¾²:½íWƒ=oªÇ¼—…´=
- ³=_t`¼ºY½ 0>İ½Fõ½é½·Åˆ<bô°»'_=t¶î½wğË½E.Ÿ<½'=¨¦Ê=Àå=½W½ÛÎ¼®Ë¼Ê-É½gÕ¼‡ºR¼û[R<ªEÈ½·›½Ø¦–<$=Àó¦=¥qƒ½µÿª<†¶¼KÛ=2V>=&ön½Ròå¼9¸½È^Ó½f&ƒ=m½½õ: =! z=ù²o<Uµ=Yìg¼æ–Ì<Å1Á½åz‘=<¹r½‰Ô>J¨Z½„‚<=Ò½íK½fç=s5,<Â{F>¡®Œ½½Ó'½û,ê¼K>HÏe<?õ½M”¾=O¥½@"<ùrm¼¡¡¿½T™z=ê½õ==4@>pş¶<gpí½Âb½¦vÕ=ŠT–¼³øG=wÕš¼Ü =ÉÒ¯<t/z½dêÜ¼­»Gyª½D‰¼×;¾{3=õ#J¾î7»½ëÎ<~©¾K:ê½ÿä’=Û½<y2”½b¶P=>|í¼¼{=÷ƒb½8½=ú~Ñ=|…É=¥–Ğ=×w:ÙM‚=¸ê¾Lo ½iú9>—/œ½á¿<­ÀF½u Ä=¤Úß="åP¼Ëè=(Òã=Ì>Ói‘=P4/½¾îÂ½u†>Ö"6½î™ŸºRöŒ½b
-)½[jî½]ƒª½ËD´½•Ÿ>z¨½ÎB»x¯µ½D½ÉË	>“1&=à¥©½ú,ß=¼†=ò²)=QpS½b¾œ›=ù–İ½¨=eæÚ½à…z=I·4½Ü½¾å
-G½…uŒ½¯Å½ò9C¾ïi¾½#¾k¿ ½µ×¼SB»u	¯=çHŸ½ ñ€½l^2½„@½+¸7½Y}.< şÉ½¡‹>DÆ¾†Ç=›¯<2XŞ=T»X½Ù3½{Ï½¸x½Ü²½q>ûö,»ÀS²½K­ì½ãç>6‡ó½éû={¡‘<¨´u=Á÷ ¾@V:¼ÈîÊ½ß#‰=¶ßé=;yJ˜=â¤A;M)·½”ƒ½åM¼{N¾_xï½)ÒD=$9†»Ül—=›x!<¨<p=*¶Ü<šB=Nc¼æ'…¼®Ş='Æˆ½ÊÁ½iÑ“=ú{O=¤Ê¼5D<Àæ,½ß=l
-¼8š
-=²·½°|2¼Ãºµ=Å½©­=:G>]<õ½¸>=pbN½HH½‹±¨=˜®¾-S>8Øâ½Iİø=\½Å?½¤6”=X>TF¿½¥Z=(e„=íû9>‚_Â¹	–=åÃ=I=|Ç=ÈÑ¶=|¾;bñ¼)h½£°;Ö =ş¾ô8=†<B<Õ‚š=@“Ü½+½üÃ—¼.AÙ=¢óC><¾P$ğ<‰Š$»«-¢=aFæ¼½q¹½±\¤;^@×¼}¾ì=Ê‹½çnw;=“zï=€j>\±¾é:<B_€½…Ä’=õ•<•É/>a«¾H¤î=cv¾NX˜½Õ»T¼f†>bšÈ=új_½çâô½È:=ËŠ½%b¼¼Û½Ì(=È´š¼7¼r=&åA<`¼G=Ä>)(—½Ç	˜<ÄwÇ<1O¡<HÉv¼¨>¡¼İ¼<a¶ƒ=¦eÎ=X`==›×L=éÊ‘=‘A>½cÊ=3SK='à™<Úª>šÈ‰½”½=Ÿ¶½qÃ½¦‡*¼	¦½Wô=¤ä½éÁª=5uÄ<È>Ø<”’I½GÓ=‰Ğ·=ûã!=¬m¼¿½£ØÏ=@¶Ë=;W<åA=E‘è=<J¹="fu=`R=êµÎ=ä§è¼Å>K«½üF=ğWI=ë¥Â½ó¼½J—"=3›‚½á®"=¿¡í=	à[½m ½Šy‘½ş]6=b½=¬rÏ=!{y;r¿Œ=Ğ/=²û×=W<¼ÆÖ¨½qíá<fè=.%ç¼iö'=q¨^<N©=ÉıÕ½œöP½÷EÆ½s¡O½9Ë‰=t<ƒ½?Š=˜+”=>Ü¿=ò¿¢=Œ”Í=Ÿí½:é<„¼<V 2ºÈ’¾="t=ÛŒk½Š¡¾å¼$ĞÛ½›Ğ*=ôşe=²8*=FOö=Ø½b¹ Ê-<pÀ$½d:GÀV==¸'=%¼†=Ë3l<)¾½½6¾Í½èÆF=å]‹½8’R=ìµ=éO¼½ûî‘8ÿÀÖ=Šµ½	½¸D:|³½¥
-Š¼	‘<Ùx½Ï=¶ÚŠ½ç˜*>Ì{A=eÙò¼œÑ=Q¹|½;D»Â­…=ƒ/0½ûŸ-=t3>ñs¿½Ó  9íiÂ½¼P½ÿ_A=W~>%ãÒ<İ[‚½€Ÿ=Á>«üŸ¼hl>¸;½X-¼Cö³¼Ç,f=h•Ø=~½•Â·<»$’½w–x=r)<nû·½8ó½ğûÔ=û/†½_d>zá¾4j>šA“=ûz>›pÔ½U¶=¶/ì=AŒŞ¼»/ò=ÙŞw=EĞ=‚=â>V <‰™“½ßµ<Ã¤½1Ê >!–k½Y¨t½Wó»ëïü=(µ=ÿå*¾U±œ=r%©¼)!>|íÃ¼âxƒ¼ ¨‹½³Ø0½,'ä¹^øÌ½t.~=€ÂŞ½6¨»¼b‡T=Lg½“èÇ=ş(½‹^¼Pt<;‘‡½[Ã¢½©Ç<ƒ„¼Äì˜¼È;›=¥¾‰’È=Ã¾§>fc˜<B}T½ûø½Q„½õÒQ¼~\a½9_6»>)t=ÔÏ>¼'»=sã<‹*T= C½YE/=Ób½ìš½q¼5<D›=4”Ê½û¾ß=µ¬½Pd»=+±À½|½üÙÀ=a~°=õ²½×'#=~â½ñ…½	Ü$½BÆ=j²b¼Ê½®Œ²=u²
-=8±<˜Ä!>¼Pµ=^Ê½=Ò¼–A½½:&=4r‚»²£Ê¼Ö›‰={òš½4=IŸ=_W½Â‹<¡û÷½Xõ½£BÉ½€lı¼œC¾|ër½n¾=À¼¾½»¨×=T°ê½~M”<>†nï¼–•=Nøé=¦zÎ½?VÓ½~3É=p º¾ÿÅ»ÄQZ=lŸ¤½7K5½??»3Bä¼š‹¤½_©ƒ<Ãÿ½Ûà¤<`ª=è3›< 	Ø¼ı0>ù­5<^ñ¼²<¤×=±õ5½Q.x=/>ˆº#½Ÿá= ¼=ú©ˆ=F}=œÆå</C„=è]@=@’=õ~×;$%‰;IºÁ=2;˜½'IW½q+°½®¦À=Û•Â½!6j½¿Ë¼ô±s¼ß˜ô=DU¡½ÿD×½Î¼¤L½:A<Ù<ƒ<‹5 =èP2¾Ÿæ	>† >µQ;õ·½i ¾ı|½­b½‹“†<Ï•Ò½«BÅ=ğwK½ë¾ÿ¾ÉZì½ŸÓû<…/Ú=åz¼=cÅ=Pä=!u>Úç¾=í=$­n¼ªÃL¼õ‚"=yqh½C¼<)û=øó=ÃX=%¡]½Zî<6µ=´q…<~dˆ<éó¼ªİ#<]o¾ğ	C=²<eG=Œğ]»µÍ½$Ó»Lç4¾+“=HÙ˜½rè=Šë= Ûº½Y1>ş”À=˜-¹½Í¸x=Í˜å½>Y½xkà½®{+»ñks=R¼2= T¼”0=û¶=¸=“Q1=k½&¨">5é¼‘Ôò=~…¾=GØŒ=|¦y½w4>-%>T›½Ÿ[K½¤*»Ñ„½ø>‡¼S"$¾oº­½½`<]ç­=!l><ü½Ü1=c@ó½JË½ö”e½¯àÇ<£¢&½~òï½ÕsY¼§÷§<šÚ›<ŞãË=|D†»K°»½®šx=ÊX=#ù·=':½÷±›½—¾Ø<>ršv¼p½ßÎ.¼k@½K9=Ä)Á<ÏkÆ=N·€=ş/À=VĞµ½²â¼PK:eÀ¾B|C>\Å§<•gÿ=p¸¡¼|¨Ô:Ç7{;yx­;òï°;4ŞX=Îùœ=èä+>^ë»=ÿÉ¾<[Õ)>Ë½5C‹=İ >­xU<ö¾Ìş‘¼ìôÄ<	óÒ½²³×;"@€½å¯J<AÇ>r¸P>ãû¥½ço#¾ğ8Ò½ò¦*¼ºév½»R¶½ÿA"=iUÊ½]ö>Ş=Ş=rU>¹ˆ½¥È“½pÂ—>Qoî=Z¼`Y|=¥»e/=ØN!¾Îš¤=ru=¯j">2˜=û]¾fÄù=i†
-¾{”w=Ã½=Nµˆ=
-ñ¾Ây½ØÔ=®>zã¼Œc¹¼·>†SI>l>¦>\ˆ)¾m¦ê½r½9“;½!:F>Âÿ¾_î<t«½xr=²==”á~¾|‡A=%ãO;	¨û=Ê-¾oÉa¼ Sp½‘Ş½g‚É»¬—>?eè<ÌV[>Â6½dß
-=ä¢=¯U½
-#
-½ÃË‚½u=Ë	^>«=º±2>a<é$½³K;§WÅ=ŸM5=¬$¾ˆÎ¼ÈZy=OÁc½721¾¡#Z¾Øë½Çs—=¨ş½Ÿr9¾Ù7‰½|§¾<nT¼K¶+=Ú2I½7m=°Õ–=—š¾û¸‘=„A”<Xl¾z/‹<ÀÔ¿=5In½úˆ½TıÏ<z ¼=^!¾£µ=#»<¹“y¾Å.‘=êG[½HçQ=ƒoğ=‡>¼2¾L<·h=80ê¼ÅëÏ=^
-H¼a½ä“½Š)¦¼Äâœ=U·==İ¼¼Y¾±>C>‚‘
-¾
-¥ =ó½PÛ»è9Ë»7?Q½À•Ü¼IñÏ¼¤»E=ÍÜ»{,›¼*E@¾F >e†>N…=jó;Óøš½·EQ>Ë‚=|*“¼Ü´R½†(>z ½ÓZ¾
-m=Õ%:Ü2;\¨U=õÍ–½+ÎÉ¼ß¬Ù½ÑT¼
-ê’¼åªÄ¼dH«=¡÷¶=ô!>ıØ>è³³º[:¡½`½Ìx=ÂM=ò"Á=ò‹=(U¿½qŠ<zoO½TøØ¼Ì=|òÓ½½½í=æÊ¾O¾¡©¨»é9‡½œÀã=!a¤½4Ğ½Ä“½Ñè½~—²½WÓ:Ê*¥½ãˆœ=Æ¸<&¾/¾ƒÔJ¼Æ—=ø›»}/·=HW=àc´<¤Œ=6v½#•Œ=ä¼GæJ½”Õ<fdH=Ó¥=*OÀ=`Ú£<"Ük¼ıÌ„=Ş=4ñ¾= Z†½×;=\Òæ½y/«=Ìğ¾Y"¾	ğ¾'€ˆ<ˆn£<eöºMê¾v›«=Œi1¾¤ °½‹½sè>J©¼Øı=Û5œ½>=-K	¾£ 	¾Öë“½ŸQ;Á‹<=
-¬å:ÿ=·»$¾½çƒ:Ìî¾:€/à<D:)>•Ü¾ºË=½/Ô¼…Ø=îº=œTç=2Y>Æ	B=j8¼2¯•¼KV=ŒY>•¶Š=P—¾	BÀ½O0=áBí<a¤‚=»Ç=¨˜×½ìA½5¼Ğ½›k³½E:p¼÷ö=€˜<S{ˆ<ÜÂœ=@$!=hÙ=É o½sí½ı|º<ø… ¼Å~o½®%¤¼c>µ%Ü=hİ½¼òp½=ï¼ü˜½U¢K= §=×*>ÛÏ½îÏ¦=Qçá=g(>”’Ã½›Ò˜½"§Ç¼ûZd½ß=›ˆ½æŒ²½~½°¹¾„(£;‚ßó=À$3¼…£=wz½gvy½²Œ¥=¨V½ÖÍš=Kp–½ßéU¾òœ>Gã<>Y@B¾@=¾ÿë¥½¯æ½lsœ½><’<ß ¾²"¾,¶f;w$>GÔJ½Ú=<“»ÿ<ü®“=ä[½ú½Ö=XĞö=°‘»Ç±ÃºÔlõ=+Ÿ—=Œû¨=ÇH>ı·‹½H$=êBı=f2e=ëc=sâ®=½I	=ôÙŞ½=ˆ#=&µ>A½ı=ƒL:=ÀÙ>Û£>‰K˜=^ŒÜ=P¯0>Û€½«Íî½^å½VÄ´=ˆŞ=öb°¼Ÿí"=š“ş;˜@‡=KZ
-¾Æ²h½»=®¼áÇ»=ó»»¾¬¢†=ª÷‰½ŸIÈ=µG¦;ƒÑ½'t= Œ]=ÒÍ@¾eÖ‰½9™÷½)‡é=»Ï„<fa)½:Ñ¾‰s¨½¯±½]¯	=*"„=~¾çÙ¼|îr<[]]=XÉì½¨¹Õ=x7=?Õ:<üŒ=¯÷½±Ø½@
-¦<™cÌ½e˜½àpŸ½ÄA>xB¾›%U¼×´=Iœó½}çf½ˆI‰½mˆ'=€ãÓ<ïŞÚ=”ƒÕ¼$ù<ïß½"ê”½¹‰d=šœİ=°¤=zªÀ=ŸáT½Y%j½˜d+<Š÷²¼ÏİÀ½8H>»ñ[;{áî=¥×<SÒş½2§½ùÉ¾=ñS½}ç§½ Ğ=æ|ñ½¼¶Ô¼›*d½›ùÅ¼ñ5>Oc½Ë%_¾£C>í->ïş½=î&½y+M=½ê­¤=–(>\°„¼ÉÊ¾5ØÊ½Îµn=ÈúÓ=ŠÍ‹¾òRó½Ù¦;½º²O=G«İ=ı³1½`†=n„¨<&¸=ÃbK¾°>…sä<\wX=Ïl÷=±âV½~ù1>Ûy®<ùÑ×=Ëh>])=†—›½­à½Ö@=x9=0G³»D÷å=2a¥¼Ø<ûV>l´$>[E>ñ¡a½cæl>°˜¼gC>§ÁR=˜©‹½|)b>…o9=Û!¨½»'·S>W•¾¢î½‡ª÷;Eq=ú¸<Fñı¼W½Á–<Ø$¼¨z¾Åy™=	™<-æ=SÔ<ùù0¾QH1¾vİ½Ê¬Ó=¤8>¶O_>Ä£H=es.¾\Áë=»/>œ ¼=;GÖ½|m=8™’=»VŸ»ÓH<0f	=ÂæN>r…‰=x9Û<^Á½f>¼v‡=Ñ0S½†>Å½Å¹°<-‘ß=I|÷<Àù½Ğ|>/‡=9ãO½¬~½Ô—ºBé¾nr*>ónD>mn>;X¼Çzâ¼Ólµ=J…>ìæ½P³=_ëÑ=<· >9'&=w[e=|§ç½Èo7>°1ı¼hÉ•½:±=p\/=ğôÓ½Şş=B=ìÚX½v5©½CJ?=JF>|>‰,/½êd‚=ôî?½:`z<££¬=Ãkõ=àÏl½y¿¼ğòô=°Ù=MÂÑ½líÛ=p–!¼&¥İ½µÖ=x*=À{™=ghÔ»QÕ==¤ä>¸)3=GPl=*¢½f>Óò<¾5=ƒgÇ:ãk½w¥<8œ½t¼é<×=*—¬=›jm½l¬y=¦µ>ê¦¸½e1¾öÎ˜½Ì¦ê½ÅR=2“«=½y¾Áá½hYÆ=BS³½†K€=Í¨¾…À½ P>'Ë=
-
-à;ë§¦¼İh=ƒ™=+Ã=!>j=ÙS?½¯<,=h¤<Ë ˜½bOÉ½äYá½=m[½Nç©½Ní†=(Ì™=1şã½ğğO½è°¼oóõ¼N¨R=`ça½b8ã¼O}½Xèˆ½–ú‹=öJÇ½DÓ·=gù¡»0¼<ÍX¥<FÂ½í”‹½y;ˆ=9ß£¼u²½'T:½Í½W½ƒŠó<K.¾ôZñ=b‡ ¾ów]=‡K…=#A½´Zo= @F½Ñ¬›¼“–Ó<Aõ¼;ÿ½V¥> r²¼Œ»•½Ëå=h‹H»/ÅJ½ö`¾ı,Š=“}'<Dæ¿=V	¼ÑŠ=I´“=êÛ7=x\‰¼3—„<¯Gà=7½ÉHÉ¼MA>g(=s'¾|:Z<¨ö=Ï½íğR½½³>àÙÊ<w›²=š >=½ÑÙ.¾ˆaÓ<{†=“ã=¥Ÿ¾¬š¸=¹úû¼¨·K¼
-Ëz=[¼…<®(½ Ğ„½óXÀ=ñï<æ¾næg<1Ué<æ°9¼—í½)}¨¼aù½„Ñ½T
-¤=Nmp<äb°=&«¸=(•ò½£+Ó½ö©•=ç“=«Hà½—¡½‰iş<xş½=«’½gø»Phè=Æfk=˜~=¦Š=µ?½W8ö=›Æ9=í¶ >IIO¼ÙM¦=%ø½´<?»¤)d=Û=Å½Ë@<a¨½”Á<ò)=®y=8Gİ½¹Ñº½iÃj¼
-JÒ½‰×‚=êdœ½¡Ì¼à½ZX÷=#¿>•Û=#|Ü½ê½İù"½«ë¼À¢´½h£=™ué=y/>,>’ •½b"½uş=%{=è×>¤mc½#"Â<Æq$>	÷½éÎ<‘‹<—÷Ë=õÿ½Î¡å½ŞY½¥D¥º-¦µ½¶ú˜¼Ô¸Á½Şb¾x9È½&òì=fô¼›™ =®4½Ö6Ä½šúg<Ğ[‚=Rrn½-T=„F½ë½¼¸J¼ó6V;< =ôC¼©Ğ™¼‡¨ß½dˆ[<Ò®¼ï’ë=0…½>¸±=Ş›!<ÿÄÖ½Bëñ=%˜>g»O<“<w‹…½0´±½›—½ÖÇ=[Â½j·>+L >v½¹Œ <á
-Ô»ê`¦<–Èo¼Z±­=Ò.”½íü>„Ë=Î1®¹Œş‚½UMÀ<ôÓ£=;õ½OŒœ=6Ñ¨½aıÕ½*µ½öî>ÓÚa>±¾Í«¾t8n½D(=z½O
-¾¶)½¾Á4¾KnO>=1D>‚s<I¹<£å½^Ê=UÔ÷=éç>æêS=©©>¶Ä»Bı<T»½Îİ½„é­8ÿ¿›=™Íi:Q
-¾­µ•;j¾7O>j=
->£šQ½ÊØ¼³¬Ò=`f°½>p=lQÄ<Ô²;>'>VÖ>}gÇ¼ædú<Ó›½ÅÇú=BKŒ½Ì©½·Å½9%¼=’è2=ùÉ=v¾¿ˆ¼>Â;@(%½Nv¤=ŠëÀ={·w½Ä˜=ãR'½*‘@@ Bval_41J€@/u=%’
-¾³qˆ½˜2ì½ì@=ø{>‚%ù<V9½¸O=ß¦}=âW¼–gğ=_x<£ñ¾`Ì8=¹®=ÔU_½»‹&>ğ*ö;N¹¾½­&Ã½œô<Gh½n&Î;)P »>4Ù=‘¹¼ˆÿèºñ¯Ÿ=ÿ½<°<(:r!š=VK˜<õp­=øB‹=ø]È¼¬èÿ»BT¼òw;=-_s½‘=7ò=û¶Q>üŠ½7ú½pk?>1G=¶á=÷€Ò½Ş¦<½¯½á½aQ»Ï¨ô¼‹_P>H¹=Í#“½5»V>Ş²š¼[”ô½0ªQ¾l¯¹½Ck=Š\Î=ø÷ú=}{¾…½Í=25<>5¾-M¤<CÙ¼=ôƒ=âİ.½,€à½“¹õ½B<¾ÀÓ½=¿ª&½F#8<½ã¼	^~=+½¢·½Ê‹ÏºiãM¼¨e=Á¸¶<‰ja½›§>^ò.¾r½©ÚÜ¼°ü¼úL=!½) Á=*©Ş½²*@½s¾À0½+3=µ¤â=o¢>LE½Ì_p=)ÜË=¸ÿÊ:×Í¾^¾iTÊ=$¾HSû¼©şğ<Và=8,À½Ñ–ç=ı¸=¯~Õ¼nw¦½×s=Z·<¡½¬ñØ¼c_³½ºHÒ;s°Ú½ZË=Şğ¼¯È>­ ¾Ö‘%>7²®=Èœ^½öt½KUë½u÷­:2ã!½ØH7½qÎú¼Úw=«ïI;ú«ñ¼y¨Ğ=Õ½¢½û^¿=h4ê½9.–½!½o½´c½†¯¾oç¾m:¾>.–„=´¦«<‰¼£=³k¼@l=X¬€½h¶y<`üA¼ceá=;hÄ¼S$<9 Y=GV@½O¥z½ˆ’½,ğ%½¨Èû½¥ÔJ=È¼.ÿ½†´Ú=À¤Î¼y¥³=§s«=Äj½"2
-=PÛì=K"J½‹Ú®½¾K=>®½h‰œ=dª…½¬¼Ÿ¬Ö<ö’ş¼à)â½R½Æ=Æï¼$ÂÆ<Šÿ±<e	½ÅL-¾1:½É‚c=¡Ì<†f½vj¢½óJ²=ğÃ=·,”½kb6=š?q;ş‰=êìeºJ2˜=OuU=ìæs=jŠã=ıp›=rs½=ß\½Áš¶½dí¥<ó Ÿ¼.PÇ½
-±½@ ´¼~²:à(¼2½tğç<oŠä;¾J°½o½Ù~;ñZñ»gä <,Ò¼Ÿ3=ÆĞ½YE½zjJ=÷=n¬ß½nDl=Ğ‡=¹­™<¤YE½ã[ƒ=´/=¬¥4<ÚÈ[½*C=C6–½~ÚY¾è*§=ã’;‰>·»”<œR‘¼ÛJ>©p½t³/=2&=à}%<kÑ­=È»<ìÏŸ=Ô ‡½p¯½z_<½²ç;½?õ¾í„½ÒÚ»½cLÿ½YáG½K»ï½…™–½(pl¼ì*Å=—Ci=	<ë½èª,½UØ-=îm;n€×½âä¼A®½Q<³½ñ©<Æø›¼‰N”½İO~»ò†G½òÒ»="Š=Ÿi>£¥=á¾jÑ/¹%sˆ<V\=2>åˆû= B7½Ü/fºÕ.
-½zñ˜=¥+Ç=JÏ½‡g>_QÒ=r<¤¶¾; ¡ü=3¢=|®˜½×Ğ©¼–xÇ½`ÄÌ=9ñ»Ô=¨SŸ=›è½;»¨½}Î6>şx­<h½çI¼’ˆ==‰<PƒN=ÅÉ=Jôv=#"Õ= g>'îò¼L¿İ:&’=§…¢=®Ô=öíÍ<‰6Ç½Ÿ%=‰Ì<½Ô¯¾ïÌƒ½$w—=Ÿ•¼Ä=Â= L">»ÎÕ=Yw¾Â•å;mËÛ=ü[b½üë<ÔP¼ÃĞ;ì½Q"ï=ìJƒ<à=ù¼LJ¦¼¡È@=’²c<VœH=<Ì½ı:9»×äp½¿ú»)Y=‘bZ½ñc:B©^=¼ëT¼ß(¼l<=ã•Â½Ü)< 5Å¼¯Å­=Tº=Àé;<™[½¯—½5¢Ÿ¼ødé=„³ş<QË°=âO½u1M=Œ*Ò½Èé;¾N˜=ıuÁ;Œ½eq´½5Ä½4|‚½}Éœ½{=_ŸA½“ìÒ=_«¿½Ö¸=óã=v ½ğJ>O6z½D:¾·´+¾iv]½wà½:ÃF=U÷k=Ò;>­lï½Qv³¼[ â½A3Ò»¯«ö½ÊJ»=u¹½<Ø=+¹½¼Å0ù=ù>kÛ¤»xfõ½fá;=)G*= =2î§;¥ñ=æ¸C=nÊ½\3p=ë£½­È¼!s<¬µ=R°Š½ü,/½†7]=êd/=U^¼¦<ë³4¾‡ŠD½Peá½L|H½í¾=Ø†ô=±EÆ½º;ˆ<¬şû=@.¾7==Ğ<KÀ<Ä¶$¼öıa½Çe= 0=CP=¬á¼sg¼2X]=É\£=›õ>ä‚™=
-;€«š=<á¾ïUV=~Æ=ùöm½~áÎ¼´>ü†¹<%÷š½o‹š<„¼ß¼`Z½Å+¾£ş¡=ßÚ<} >Õ9*½ø¾wŒD=3Q>èº¼cò/=iQª=×É='<¹Á­</U<'á·½-š<!â=‡³=<d¢»	Ÿ½½Ş’½ó@®=İ{[¼Œ\¼=é ®;ï=Õz¾•j½ÃË ¼Î5ù= ˜½(B^½º÷¨½»¹2=(å=&Z=	ù™=ä[½?¿¼Åû½dO=ğEå=TÎÂ<íÍÂ½ı^Ç½ç ®=-İé<uí¥=Ìì	>-,½%s=Hz=F9= ½¿½Š¦=«é½ã^¢½½äŞ>î	İºó@ò=ü%`¼ag&=¡Rn½ZÓ½Ä6ë¼è‘½Û½9†=ø†=ıûµ½2ÁÕ½|¤3=şB½õ¯ú½&İƒ½zé‰½zßT=vW…=¾‰€½KÃ=JÛ¼İ’œ½VP½Šˆå½È<Qx½"ÏĞ¼¸1,=o¤Ä<¸ «½Ió½»—½Ñ»oËš=’E€=3H–½€Ü˜½¹[=h¶U½ï :sE¾;—S<4÷$>¦=İ‰z=Ò·¾½RIŞ=Ã•E=js½8IÇ<¥>ªu‰<ùŸ=Š'	½ŒtI=·æ‘½æ^ï=ò›k¼èq­½ÒV>
-ìÚ½|l=>Í»K=£ >üc=¾ÄZºC‚¼,‘Í=Ìÿª<å=Ñiâ¼’=,¾òi‡½ÕŸ½–õÈ=K¨½;_c;z	±½Æ!l<–W½6Åù½İÓ¦½‚K^½ßp=óÓš<A²6¼óG½ f[½7©&½Œ²«:,áÃ½Ì÷¨½w€~=>Ÿ=²X{½ïP=]â-=ùôˆº_Sm¼Kaj½)«ó½w:Ô¼¤‰$=MŒA<„i´=/¾p¦=>GF@=®Õ=‡óò¼å#Œ=F˜Ö<îr8=?)³½ÇbÖ½éÍN½~…J¾Œ½M.Ş<½<U=yé=FIœ½ùáO½XEL¾^E½}VZ=Wşª½Æ©<‚õ½Ik]=E,¾RÏÖ=±ì¼Üß¼¿iŒ½ºj[=Vgù=ŸŸ‡=¬Sâ½#jï»8Ş;­=½	9>e»o«<¹=^Ré=›½›¿==Òz‚¼ÒÁ=‰Rk=7|>Æ‹¶¼ ò=ÆGF=”İ½E=¿Ş¹¼÷‹ÿ=ë´½‹Çy=ø¡ë<«q„½èª:.Kì=¿‡{<s²=ÿ±¾(­4<nïù»¤\ ½(4¾eö=%÷¾¥d=Âƒ<ı·¾^»f<Ù’=Xr>s>å¸.¾ÌY½‹ë=Aè¼³Ws=lÚ=G“â½İzW½ô+±=ò.®½èC‡=¹ğÆ½QN»ê[%=-ƒû½äZ=[S½• ¾¼Ïh½³r|½Í¢¼K¼½*/Æ:ğ''=¨ğS½
-ËÄ½çåò»c€²=T0½ZÍa=´éÔ=òÀ½½¶<¿_‚;k!¾eù
-<J4·½$’½Ùñü½jğØ¼õH½f¾;½¼³ y=4kœºc|	>âå=|~<Ãw´=ñÄQ=VÇÉ½Jó>/°<=9Æß=¸îk=ŒŸ~=ş’S=
-·½Ãõ
-<Ôº,=…^P=…¦=šK}=m">¿»5½ìaØ=æp> oz=ùÈ½êZ>‚¯½Ÿ>=†ŠÂ<œ
-a=ÚL!¾û‡‹¼'>½ÏL¦»µ0><:y¼¿¤¼à´=ŒÆ¾G‡­»´ÖĞ½g;N½õ‘½Ô†=BrY<¿uN½Ã®W="£«=ZÜÖ=W¹;“Lº½*x>ş->ïù‹¼¨p<¢§g>0Z=²<¾^F=šÌ»½Zv¼&A>î·É=šZ=Û‹½
-g-½Û¨¾P×…=SŠ=¤ê=Æh¼k¨=/ä>]ÊA=r¤Ú=!b¸='ó¼*]ş»è,<@ò½d¯½J8Î½ıØ$>÷ª½’¦$=Bïo=‡.¾¹ ¾°¹$½ÁT<=ø ¾­a@=W =4\¯½Şƒ^½ö“	¾Ÿ°u=z>Hõ×<[.<½>=@=“ ¼ï³Áº/q¬½Ü?—½j±‘=×ò”<š'8=åô
-=íĞd:<E=t—¼=ŒwÒ»ÂÏ)>©;#½€ô½	8¥½Ëi(=ÃF-¾ğé„½JçD½r£½gÂO½@†½)ã<Y*=n-½äùY½b¢=ò¾§•m½y†!¾¿F¡½C¾‹½©‚½Pm=7 V½ÙMÀ½×½€Èµ=Š-= %¾Röã½ûú¼¬Â¸½ó>©U½‚B;P¥½S[™½aš@¾Å‚Í½˜Œ>9æ½–äˆ<î	v<o>!£¼Ík¿½Æ»<ˆ!=Ú=±»£ÁV=güÖ=àLˆ½+AŸ<n=İ»ş>|W™<í>¯<¸È­=º?¾‡ôù;>³p<’Õ¶;)‹d»Ùf½$=Ï™'½ßLÛ=Z¹»(Ã=-•¨<‘¡½†j½Œ.ì½\|Æ½‰ÈM¼ìÂ©¼ª|M<-q•»ç­m=Fn¾Á;Ì½Áf¹;q½ÛE =Š&r=ÀN³½ş‡½l{=’š¥=‡ëò=®H	¾øÚ=¡ÒÛ=®<¹\4½²É¼š]š½¥ÀÆ½Wb„=t=1=*+‡½à‚¼°U½I™½öói={Ì³½u¾¾B$~<ĞOš=“¶ä<u”=Ìà÷»¤V;=q®Ü=,Ë <xºo;~¨½XŸ ¾Êõ<¾şë½â>ïË<{»2=Æ2ÿ=Î>¢!=To’½4Æ½Hø=î§Â¼r½=S¶*½U4>l³>IUè½÷¥…½Å×­<7Uõ<ö-¾Q9±º`åô=<—=C;=«˜I: Í½à;`!½ijn¼ƒ†™½Ã˜¾½6U¼güÚ½>±Ê½\¹ÿ¼­A='¶ƒ¼]§¾ğå<¥´	>ß
-ä½äYB>4æ>½K`¦;>…¾=—1©=Íúÿ=!@;½Y4=_eÍ=5n¼8ã,¾ôäQ>TÚ<µ[X¾šÍ½¯l‡=´; >TãV½ª±=˜h¾¾-¾Üd½ëkx»!5¾]]Á=ÇD=	¼^­¾Ûó²½[¦3¾Ùl=Ö^Í½Ae¼vY«½Fî×½r/1½¿¤¼”7¶=™h7=ƒ½Ì7å=.’İ½=¾‚<¼×¯=Ö"<½Ó~½g¬V½n_¢½T|=Õ¿C=oô	=st½ª2=Yó%<×ï	¾R¶^»»¼~<\-½mw½L”Ø½>PÆ=ûåı<(ìÃ<[ı½­Ü§¼o6Ş½uF–=¦È ¾Øš<¥QÏ½­º=Ä³=3«“½"Ñï½b¾Šâ >·Îd>n)Ä¼ù>=¾§”ù½B
->É8¾'ä½-@*>WÁ½¼u3½ƒ%>œäM<ö’<Á¤½yZ:>¸¤V¼Á[Ğ=¯b½½\Æ½Ù’W>G2Š=‹[>ÖÎ=×Ô>„<„½¼D¾¸ˆà<ÄÓû½R±:¼4	>#r	>È›í½N =‹`¾™$?¾
-#<ÉÌí½m¨½çµ>Äv9=šĞ=•Ø½Ó	2½%3=«üÜ»±æ§<ÏNp={\=8ù†½/O9¾‘,C=k4µ½g¶=»=Y»²'·<Ü3½;¨÷½+øI<Ü½Í:
-¾ıV >+Ú½jÅ­»]7¬½>–š=Ø<ƒ<]#»Fõ>½×–®=Ëh:>åÚ¾àÃ½ÛË*<Ğæé<öUï½¼½@ÿ=±&¾ôÇ,=Êê>ÖÆ»ÆÉî:Q:r½u½m¾k:/>j¾²r†<ú0Ÿ=|N5½ƒûÂ¼ô"¼BÁ=nNÖ½"ôB¾(d‚¾×Ì/=H	F»=Ú½¢Ÿ>mpô<İuÑ;Â^÷½IPŒ<c\ ½3Ñ½SıÉ¼ı²=z¥¾ºÊ¾j,=‰)­=‹…=5Ì¡½:ó½xB¾¬4„¼Ş¦r¾£¸>6¢½.®;W³s=ÆQ<<ú¹‡½ºŸ›½	Ü>Æ‰!>p3Ğ=×âj<Ë0k½sO<ëŠ¬=\´‘=Ñ3=¯Ü³;æÑ
-»q¸=®<äEV½PC<³¢}=JÑ[=Ìİï=K°÷¼¸I¼ÄÅ
->ÃP
-=‡Øô=È¿S½Ğ`<@Í<Zì‚=4UÄ=œŠ:½)”½÷»R>¨;-½ö‹]=^²½Áäg½üÀ=‡Ù =½ê;)K½aùÎ=o«=T%¾¬Ôé½Æ›Á=…ø§= –½y”â½ødê¼G­â½·™Ú=4õ:ÄCÎ=NĞ2¾T >V$1¼4>«¾¿_‚½`u¿½ª`= ’½r Æ<¯}é½›c)¼¨ö=ÙP¾}¥º=Kµ£=´>£kÔ<®Üÿ¸H²ö<!¾€¿=0Ô=³jëºÜ„*=Úñ=—>¾çú½<³½ÍĞ²<˜UÊ:ô2¾»¼íLÈ¼¥İj½„áÕ½L=QP>M3Î=5@=È8Ç:¶.Û=’ø=ká=¶ú7¾NÚG¾øÉ=³c->èÔd>¬62¾¡³,>Î>­£,¾«Ô¥¼9[Ó=I>9À­<Şí¾kW9>V°#¾,•¾.8g¾§?q>»Í.¾®q™½Z[ã¼C"æ½ÕÊ=Áq¼½2à‚=ï>kJa¾Ìô½¸=¾(c½Œ^½"ï½é½¬½ˆ‚†<ƒ<1í^:™=áW=A†=ñ}Ê;r	½á]R=)Ô&¾¸eò=Èü¸<Ä> y¾·•¥½ğ×½¶Àé»¡Ô½‰qL¾q¤ ¼Ür½±=ûı¾e¾>òA½¨]É=a×d=ödm=Sƒ±=êïÁ½“G½sN@¾œå9½Ê>w½ŠĞÕ=ş;"½œ >-—>Š¼È½;nİ=`3=h„I¾ˆkã=ì]V½rcB=åÀW¾Ä-@;˜Š9=œ!>uË[=Îi¾±Bª;çI¾6kí=Ï<½áXó= Áï½wƒ#>B}Z:ñAÛº×ÃW=jx=aÁ%¼9P>&{*¾l®L½”ğˆ½ZË¹=ö¶_¼l¼÷>’\Ó=j½ï`>å£<r«½Ú
-½½[=Ä³½á°‘¼Ø«¾ æÒ=®8{<CÊ€½+>’½õÉ$=ñ1¾Ñ<Á;ó‚;)w<½å«É½¥*3>ç¡*¾æØ&>·Ó >Jk–½Š†Ì½î&à½—Í·=bàs½Óìº¼ÚÃz<ˆc™»”ˆ»½YN=Cbh=a%D=“è	¾xFô=54#>FÆø=zŠ¾‚Ø<Õ1Ô½õğ< @¹=Ì´m>ü7Š=:J<²c²½0,¼Ãf×<Âê–½fGS=¨(½ä¡Ã¼u°>ˆ#ø<Ø(¢<~
-‘½µÖ¸<}&<5³P½ãôÉ=Ê<¾[ì½<ğQ=,P¾?[™½¯ÒC:¨ÍÑ:2Rš½´_=!±±½!„½È\=uWË¼şõ!½x‚¾½cÑ=aÔ==å»=$Å=Z–%½àÿ"½bç½Š[=ÑÔ†<#¶Â½a ,¼`°Ù½œ9²=âù<jŸ?=GĞ¾£l½^@c=_İŒ=sµ¼u`…½‹qï½09 =âÒõ½f©=•¿>ó<½LÀğ;š	Ó;¤sÉ<?‹=gÚŸ<ÊO=·çš½{Ñ=.º¢=mN½ß½Æ>¿Ü==‡}½ë™s¾/™?>í1_<È¿&>Û@«<Ó~¥=—˜»QEN¾ÿ„V¼S½—=)Í¼ÎË¼rÒ†½j>ã¬j¾Î1¼6Dw¼¥Pd¼Ã¿=®-¾â§•=MÊ¤<H³Å<3!˜½5áv=ÄÉ¡¼+=›ô=Çµ‹½ğ®<U¾lW%>G@n>{Ú*¾&àˆ¾°©½G¿->‚ÂY¾oŸ[ºñR>½ÄÕ<@>œÒf>¤¿“½¥™= B½?é(>çûç¼YÅ=¢~Ó½¼ ³½“v;>Áç*>n9>lC>6™/>eØÕ½çé	½ğ³)½Yr€=£ıˆ=ferºÉŠ¼½š(½q€k=½=·¨½˜#½&™¼Kôñ½Ùè;û1¼•UA½ëÑI=	P==/lC=úLğ½¸tÒ¼74>³Æ½,ø=Ló½®Ï´½â>ÌQÒ=×¾¼Ï…ı½AÀ£¼»;½6i<“¢Å½³y+=ëbŞ=#Î}¼1q>¢ğd=™í>]
-ë½°Ñ¾6Ãí½™>Í<ß¬¾Xé¼9JH>êì¢½_ˆ=ßõ½<SYX=û÷¼a3I»}ÖŞ=	}§=Z¤/½o Ø½ÓY˜=¾–c>Â’İ=p×®<ˆ¾ ˜>Û>í½¶†<m ¾¸§½Ìr[=«µ½6[q;œg=€Ò>Î’S=ìv=Bèñ»>ÊZ½Å“İ<$xO="‹=<¦=mî <˜¡˜==I³=tû¾½È½pS/=§tT½ r´=mú½xGì<=í8B½)G¶½`×=­»}=jìs=„òU½Îkø=²ğ½3´=ê?4¾U^>$¾¨fß½@Å½Ê[´<‰¨	>Vò½¯¯a½^‘^½ÀSƒ¼»„!=eVZ¼ßª#½{š½Cì=ä#½ê;…=îru½v½ÄSG=¢øô»|rõ<«!=,8f={„‰½I[¾¼–ıô;ï œ=Å9°½[s•=´,Ç¼Ï-œ½Øj¤=ú½TØv=ş¾üao½9È<7ˆ‘¼V¨<ı¤¢½oUş=ñÎ>Á0½’x9>ÊŸ=¥yt<êÜ®¼i_=N4Ò=š‰¾ £¼2.>F>îÎ½Ê¯Æ=ƒØ<›hâ=—Ñ'¾¢¦=yG‰=åZ½ma>#)¼átà=S1‹=ËÓæ=áÑá=®°R=CKĞ=Ê(»½vz2¼ì_Ó½'~>X÷<Œ¹U<<u}½Ar>½‰}=»c<5y:=sû½Ç•†½dÇ:â˜B¾'µ6>Ëã½•Mƒ:˜•†½^öR½&ù6>¢.=®*†<©AU=y_á:N—}<ŞÚŒ½ôè>¨€Ô½!—=ÇÄ=®ø—½D]J=Ÿ›½=œÜ=­±½êŒÇ¼‚]e=YÊÄ½-ZÜ<’¿î=¸˜*¾›m½ƒ*½HKF>„7=ØŠ=q¾ıT½$E¾Io9½Qqé<¨Å½ê¸)=s…=¥#¼Eu=¢æ¸=½ >êûJ¾1Èò½ò=x½^Œ¼*È&ºtyé½ríÕ»†ô¢<´=Á»3‚É=Ş#
-¼pğ½³\›½W^¶=®°½)S½<ıŒ=ñô&½a<µi<%’<]Q>¦½P5Ä¼ƒ­²<y/S½ß¦ğ=„&ø½75>t‹½7–û½C€¬¼NNä;ãAo>dÆK½7÷Ç¼å«Ô½õ%¼xô¾ªOH=ƒ"9>¢–->›½ÏÒ¼=•=?=×;qn%½Ágİ<#å<âá<•Iè¼û¼èÊ#>w|à=±Ê<×^©½•ú<ë¾€+½åÔà¼£jB¼ƒhM½Nf>_o<>ËØÊ¼ÖW¾„àñ»˜½‘Ïİ=²¾ÀÓ<C†=7Ğ=6Î<vùx¼‡½9|Î½0á¶= L¥=Ó-j=ól¼–»c(n=¾cÊ=ÎÜ¡=NÉ<¢!®=Í8.½YfÔ½<À2¾û¾3¼¼Ëiß=İ"=ôb¾‚™¼-;´¼¢Áâ½ô-=c[İ=kU	>yZ¾ç-¸¼õˆ”½ Åø½ò]«9‘›=ç*P=v`Ì=2t¼<Ã>w€»s¯½„Í¼"&1½I(¾Îı=ÆßÒ½ ¹½ØA¾Ê¾£=r)&=,Â=‚•û½½m*¼½½I¥$¾4œŒ½+-Ù<zÅ¼Ä›½u ú=Ñ›>¼¼‚ı½;M‘½/I>Ytİ=?N=˜¬î<ğ]R½«#Q=c^Õ½TÒC>!³î½p&=cm‡½hˆ½¯¹h:á¯	½GÙ:Ç
-	:LË€½Ó5°=C¢Ï½‹+Q=Ö2½%;½9õ¦=^G¾ñQ`=sl·½FŠ=@JÏ¼†xı=:ß´=å>ã=/·=IÍ<üÕ#¾å’½ÍÉ”=Jˆ½a‹½½<©Å=’Ìà=â
->÷+>ÅNŠ½Mˆ_<¢»òÏ½S‘¸=1<ø¼ì¼b<>ş€½ğy->'i@½*Bval_54J       *Bval_67J        *Bval_71J1       *Bval_83Jÿÿÿÿÿÿÿ*Bval_87J       *&Bval_98J                      *'Bval_110J       a	             *’@@ Bval_111J€@"İŒ½Sºù½•D*¾Æ4¾~o¨<n[æ½B\;¾f©=
-¬ı=X>»İáX¾ª §=yÂè;üpU>‚ğ‰<&>ä›=¯ü<¾/EÍ<Ï,¥½Â¾¼ğ(>Ã=C·F>Õ2½{~¢¼@UO>‚?=¼iŒ=¾A¹<J`¸;Gg¾öQ>ÖÖ>ğ‹T>ƒ¦<Yó½c.>{·= åÅ½‡™¾ÂZ
-¾ºI>ú;Ü<”"Œ>F½M‡“½İX¾½»ì=Ø›$=7÷V¾Guş¼Üto>l÷E¾ÕKR½â_¨»éc>Ğü =É»½È¥½³‘¼8ºb½y&ã=9“>[C¾!£º?5>¹’=¥Lİ½Ùç»‡óÚ=†£›¼@Ë´=ˆ<"¾çè=½ı¬‡=§ÁÉ½×~–=rq=Œ<Í=8ZÀ=ñó¾ÙGA»_Ö;ûú¨¼´/	¾X‹P¾¤·û<£'>®# ½ 5a;ç€	¾Í§‰½wY=œ>da°½½ş=6R}½™ >[-½ŸŠ¼ª*œ½é\¾töŞ=eJ¾lµ=º	=áTè½¸î»RÁî¼3W½L$=‡¬A»­ê¾ø7	9aÔ|=+¤¾Ã¦=ÈQ›½Œ¿=ë¼¼äÚ`;Ağ=MX¾Ê$w=:BE=¸G½B{ó½ã`·½XÍÖ¼HÍ4¾N¹·=îx2¾J–¼Üå>l1u»fÖ¼ÈS¾U˜<BÖš¼w×=ÇC>¨œ
->¨²Ø=Hùİ½±XĞ=^×†=“,
-¾Ñ<
->ÀU½]Bb:l:¤½Wä"¾„…½Í½,âK=F±<Àzä½…Z=+l+½İ>òmu=Ê‘ÿ¼;o<Íä>i/>
-œç½.òá=Æ·¤½½6>,¹¾é=b4=>"'¾PL=K}#¾É«<_ÖÄ;gÚ½1>?£Ú=íã½˜Û)=¨#,>°Í<¸>¼íkZ=ãë©½å_Ëº47	»…¡=”ş<×	¹½. c=Æ_p½¿ÓŠ= ä¼¶Ïó½…1>¶·œ¼ï‹=¯¬Q½èÊæ½]ºÍ½I†ñ=5"9|7:>>„ñ½!ô¾ÒüÜ<Íj=ş=Ò½Â%<¼~>èº‰½Eü½ùù½±qh=auâ=›ë>ßá=ç™É½Z+U¾G=¨½z{*¾ö!t½†ÍÏ¼Yşf½J¾f•½ØLu=9™õ=»¤¹=m¿'¾ó•·¼cf‡¾“±>ßB´½aG>¦<¼7şF<KÊñ=™¸¼?Ü}¾²úš=Ë">™õ= 8/¾pè ½Gì ¹ à­=HŸ=ÂçÔ»÷:äºv„¾jW'>ŞH <[­<]Ä=<€£¼jbº¼Ö*D>ögû¼½’¼ ÓÉ¼Ó¼½?¿½Û‘Ó=òÉF½ Ø#¾?Ãº(™œ½H©=¬¨„½{8‘½b3>á{G½¼¾ö”Ş½ç{,>—j>Å2¶½<‘¾øÂë½¯O¾¬8
->8Q@=ùM¹½I©/>úÒJ;C_İ<¿¾T˜=Û7#½=ºš<Èd ½¹5¾åşØ=ÿù½º~‹»õÃ-¾ê[-=[ìô<N>–>„½'M4=s¹Œ»ãÁ±=ÑÉö¼äÅİ½…—_½é†½£¹=´¬ö¼É_İ½Æ¿Š¼Ú$©=ñ;Ç¼õˆ=fnğ<uŒ>pÆA>"$½9;1¾#œ>s3
->¹£½‚N¾n3°½Ú×’={™²»Y($>/Ad=BVÛ<Ö]=¾éˆ½£Õ;··½À1²¼m¦X>¢¤—½ÅG¾f*¾şgß=¯ı>xü¾/:½©ö"¼·¼â(­=€GU>É¿¼»A->j´ >®§=Ô†¬½Ÿ=³Ê‹;©Ù‘=ÏèR<™€½‡ÓÈ½Öé½"=¼›Y&»åàM½ZV×¼YŞ6½e’Ü=it&=Ëh$<5V ½Î½a~_½j—¾œ=UÔ;£T™½“º<Ÿmv½j‚h=€¤;R(<#÷>èî¼öæ«=¼²=˜²M½°ä<ŠÉñ=z=yÂÿ½Iˆ;É¸T=×Ê¾»=\ÒÆ½ÑD6¾ÂÛ^½nŠN¾èi->ì/ş¼ˆÂ6¾ë"½Ï¿{=e¬w½h\Ş»›Êâ<Ï†=NÄ=o'«½‚¡¾mŒ=Øp=¬›'=*â¯½°ş½k¼½½°Dl»Œ2ƒ½ïp¾˜¾=”ÏŞ=¥z >.µ@=(¸¾>=ó–L¾ª‹=š=‰Ü<¹Ú<z2=a2*½N·À½`Y¼r3´½–’´»Öı8½ô”¼/,¾ßBÒ<G3¶<BPÓ<`g=ÑR¾ô@¾¤8¸:Ÿ½”¤<™:½_ö¸<º‡°=Û¸G<Ëşw½Xp½“mB=<‘
-¼=¾ú3È¼Ê—Œ½jeÅ½æö=F†$¾Ö'>v:(=¢ª½ğNê={ex½`<øáÁ½ Æ>Ö„>ç Ï½çËÎ¼4îé½Â+¾I¸†=ã)"¼Qåœ½ŞX½½Í‡½¢¾«İ<ö‘=¬	ä¼Í—½Ö=ÑÁŠ=]œ{½Ù-Ë=;D ½2fz½Dìà=ôo>R¯=œ™9<³==ÑÎ>ğ™r½LËÏ½Ü9»½Ì€==<€÷½l¾è¾s=i4=8»9Ùu½á¸;÷É½X”=VW=ğ=Óê´½,¾$ï…<ŠF<”m=¼Íaû=Qd±½û<ú
-º½én=é+½OÁÒ¼à=Q½Æ}¬½²L½…¼ÆÑe=å:˜=
-Ï=îÃÏ=Ã
-½(½F¾¾¨ÌÏ;@ÿƒ½ñ†„=<¥Ø=â¡Ä½j†K½K¬æ½÷Lv¼sI¡½\ô¾»óúz<•
-¾ñï=²}X½$ÊK½2«‡½?µ4=wÿ="_e½cõ½˜>Ûæ=*&v: Á!>ìT=7Á#¾í”½ëïĞ=ÇÁ´<v|=â˜½–Á=ŞY©½3ö=ò=>-Õ
-¾‡ú¾¶˜½„İ½-¸=`wc»œÀË=õ›C½iW_=v4>AMæ¼ Î(>¼Tô½Ëá­½\¾–ë>ğä”»áÚs½AŒ³=¿©Û½1Ğë<ªÔ½¬h=•ÃÂ=It˜=Ïô³=¬;¥=g½Ç)=,·=j±>?¿«=Ñ[¾ç.‡=1[/>&<ôV¤=¶©<½˜¾ƒ?À=øĞ>o,¹½â9é½-~D¾Èñ=¶™<,ÿª=.Ú{½ãˆ¾â
-í<XCÈºå|L½&ß»Ş—½Ù ½€Ú'¾<Õ½Šª¾á	'=ñ¡|½¨§½Î’F½r®½ï£M=Ìsx=«ÇÈ=eqë=¾;_2>e÷=–h¾~×>xã=©V½½˜Õ„½*GÖ½nU<½ºP“=5U>AM¾Ñu½†±¾îÙ=B`F½Şá½*¶Ì½ósÑ;_É½Ê>
-½Úy5¾à>{/½ß‚B¾æ(¦¼cß'¾&bó½É$½~+½S¨Ë<V#c¼¼7’¼½öï½
-ò=ÉaÇ<HÂy=ß±	=6øì=\Ã-½ƒÅµ½õ‘û½¾ñİ>>€=Ç`V¼ïPn=¢ÛÍº—®½[N ¾ •§½•*î=…İ=?)=ªˆô½Ü°½!!%= ’(>§Qå=ÀSí»Ôdº=Aé= _R¾÷G¸¼O¶T¾í¶4¾‰$>ôÍ<¼¾,E>ÛŒ!<ø„A>jÏe¾ù¯>:û%<Vá<•¤<>ïÃf=÷7W>é‡&¾
-ï7=vi">Âÿ)¾ÔbG½Ô0ƒ=ü=æöK¾–"¾&¹P¼$x>>GT=ÛTÚ¼ıs¾^=¢½pˆñ½j½“'	¾lGñ¼­‚Ï<˜Xš½XOp<d+>û„D=ÕNw=@w¨¼;vû=.‹-¼jÆÖ<S=Õ’²=¤²´¼RA¾gD>ÕS>²İ@=‹Ë">›n=½^N>D?Æ½ÆV¾¦Zê=	pˆ=ñÿ¼·ß1<­…¾õ7J=ôÄI½ô#½%„…½é(.½Öp>U.ù½Ô0¯»ÄÁ2>òb¦=©R¼ä	½È¡Ô=ö»í½oœ<>ü¦½=i¹m>Î<Â%=v‡(==rd
-¼Äò>Nh>ùpH>!?÷¼æ½ŒOÄ=Šv=TV>âF>‰½oa¼J²R¼/2’;éXÁ<«¸"½½n=|÷­=kè,¼²\à½a¥½¡wC<«e´=G=LV½|E—½v=Ä/¾³ì¢<-Gï»Ç=•øü<I€=`cè½¼J>½å1¾,Ôv½__;Ñö½/Ï0=dgÎ½4íé¼#/>Éîï<'İ6>©€K>	ù=‰=t¾ö¯§=“¼9â¼(G½hn½PKu½\uœ½•=>pê-¾Lr§½•…j=ŞÊŠ»Ï€ >Hæ	¾»>§½¨—_>,h½nhşºsSÛ½?ÈŞ¼ÁPÑ=”­½;%G¾½È½×}¼½Ç|0>¯çg>N	1½à¿½ÚZl=_?¾˜û‰½tğ¾Ÿ	¾3èB=bD=ˆI’½Xû½Õßƒ<ƒƒõ½ŞS«=¨¹<4Ö>‚û²= •„½`½%½XÕ#½¸jÅ½ã_=æï<·œ™½ë1¾u=CH>Ñßl¼@ä=mã€¼²“Ğ»gé-¾¯R(¾jÛ*¾ªÏ¾¢î<Âˆ>²C¾_Ÿ¾‹zà=~Š=cœì=¼Å‹½5t=7¼%k=bb<2…R<”kç=Â’½ÅÃ½¼Óy©<+º½›è²;õı
-¼¼.>&|N=^O=ĞİÓ½	8&>0>ój½¼|à=¾3¾º·–=·òÒ<Ôœ¤¼“Ú(¼Ú½\æÔ¼S0>½Löç<¹®&½Xç°=Êr9¾@&ı=Á;ª}ğ<ZW>ÃB>*x={Ù¼ÃÎ<&ˆ½=G«½½óq‘<³j‘=(ˆÜ<‰-ø½TŞ¾XX3>úy>=è2½­– >‘ÄI¾şı§½7M>‡á>=Å]¼2>ÙŸ ¾*úû=	Ğª»{Î½!6+¾‹oK¾¸½¼!„½°YD=mÅO¾çıv=îŞ¾&ı±½JtB<D$³;Û<½£ö=©Ö¾7ñÁ½[Ø°¼¥Å4>(y;İ@¾€Ü½m‘M¾ı¸}<´<UÖÑ=¦¦Ş<$·j=6 Ç¼µÔL<¦¤Ü=©=ØaË=kjÚ=ºU9½_0>²Äğ<J=3½ì“½ü¶=@öÕ½ÆÉœ½á€¯½ĞÔ–½_=>@„Ò½Ş¥¾é^æ=">>÷ö=2¤s<ıá¸=eU	>
-k>ºÏ@<;=lÉ´=A$À½äè=p¡ƒ>ç±½X>¬½|”Ë¼¡Ü²½6^ª=ş	`>U(¾œ>E¾!³\¼¾=F{…>lp
->ºDÀ¼'±>ñ>°;h=âzê=ZV½úÆÎ=Ë¥«½v8µ;d’¦<Ğ±=kv½Î0¨=¸|«½±ëí=¿>úfô<W>Z©={#®½B1¾,7=·ØE»¢eu½«±½³œ`½»½ˆú‡½+¬2¾9€½àö=TGğ½¸˜=®V=(s=©Å½â½2Ô8½í5	¾à¥¯½X*½œO="M¾|d½C¾¯K½mæ¼,°¼õL˜½2ù½+4=·6ä½)Hğ½·:¾åAÔ½dš^½¹ÁX¾•€½•ÏÆ=.ß»½;K‚½ôyı;©ÊÀ<+›l<{Ç±¼¬·½!İ=·¹5¾V:Õ½Û>A2Â½ñ+¾-®á½ño‡½CdX¾À±¾üt¾çºµ½¾DN^<n½»NY/¾¤$Î<ªî½Õé>L#½ƒ­>'ù3><Ñó<¿‘=iD¹¼Ä;5;»wË:Âª¾8¤=“GÔ¼	’²½\Á½Ä¾†Ñg<³£½¤‹H½"½c—:>‹‰†=”é¤=NçX¼©+½èÑQ½Mµ,>Îb>ªÆ±½æÜE<‰øY<Ë»M/í½¡½¾|ğ
-¾*È ½yİB½(¾ÀÃÜ<›ó=_¾Wé½©œÚ<®…½
-¶ƒ¼vüÑ=<ú®€=¶ç.¾Ÿ]½ùªé=)†¾¸àF¾—ì¾]ŞÜ½ÿ>¼)L»Ç9–=Ç$½36¥½â©=û½ŠÏB=U¬ã;¨/½‰^>"BI>bç@>¿2=ebY>¢¤=­Š ><	d>'e$>‡z¾Í§ú½(å=„…Û½©
-Ô=s9¾Ç%1>Øï; Õ½bºa=›¬<™1>1,>31œ=Îú>F8;½˜#V>qÉé<ã›Â<”»=(ÃTº;İœ=ï!´½ìé½MØ =éë<A'F½0£|<— ½‘£=Ó¾İÇ½wæ=îØ½¿sE=%à>€½2©ï:Øÿ<Ö7a=ïF}½òá¾Ö¸¾\»¾øÍº;ßšB½„>=ø¬å=˜!#¾%¾¿öÇ=K"í½C'G½;U¾&§$½Ïl~½¯µ¾xš+¾”mD¾ïœ¾Üœ©»”7$=‡«"¾ND¾S>@I=ÿ@º½d>'=z/•½Ç)=ï/¾Ñø<ïbK½"‰¼V7¾X¹G¾8R¾¡Ö²¼á(ë½ª¬ë½9.<4S¢½:–â<ê˜K½¥G¾NÆ_>µc>ièº=Yè>KvÍ½€Û=*¨™=òÂ.> 8e½”“
-¾#Î„<ã¤-¼[kx>,	>ÅÛ»ÿ€>éüm=–« :ŠQ{>Zv©=È´w>»Ô>½ò‹E¼%‹±=½Z=*‰Ù=ãf>ûÃ°½²ô=>DŞ]=Íê÷=L.=gTA½Ç3İ=ßæ¸½nïÇ¼«PÛ½×Â½Æº½Y°>±ÒE¾û‰z¾ÆW¾~{Œ=`Ï€>9a½?#>Eg>wĞ=ú =Wº'>)ÖJ=pyR¼š“¾sd—½<‘»µB‚½:Œ9"º=zMC¼âMV½i¯>T†»¼¶©É=V9Ù½^z<İ]À½é}½XøQ=ãP<Áš»5‡D¾ƒ0¼&‚½h#Û¼Æ6ë;D$¾_‚½kİ=©],¾— L½Ñ½º=¼{ ½"»½Úk¾[…k=ÊT½ŞÚ¾’¯¶½ı=ÕD?¾`€=.F¾Õ¡¾`}=äöO¾"ö¤½=Âi;½i[„<ßN=uS¾‰OÛ¼RÄÌ½‰Dğ=Àƒ½ç<«+D=Ì¾4§1¾i=¡r¶½p1=ùU=­…"¾PÛ½CÖ¾›¥Ã½C¡=²cÎ½ÈÛc½kp½ív,½oÖ=f¾WxL<ç¨–<nç]¾ÑY~½v½¢7>=¸>—=Øòç<ˆ‘s>å7"½·½½ñX>b5,>Å‘	¾-ï=İW+>B–Ì½§j>
-¾á++>à}Ñ½/::¾*½>ÙU>µé=…a>h!>"”S<Áj%>n ’»Ô™¼Âw>¨œ1½1¶
-><€>§©´<wn¼vúW¾uş>±I½»÷=Ğê»¨ı½2×d= ”>ùŒ=FŸ©½(ê=<ë»º5%»Xf¼øND½ê“´=kN)>£15¾‰<i½Ô.[½¸]À½¼¿C=¶ü½åº]¾~?<L[$½)Œª½‚Şô<ÁÊ5>0+!>é.7=Uİ#½(ß¡<é^=Öä½²6£>E”ù½ ½¿¦µ;‚ =A¿>Í¼d*=øåW>s+·;´X=ñ}>ÕYÑ=mx0>; =‹È¼ŒÜ7¹Â/*<‹8³»M#>"¯u½Õõ5>ãƒ3>™@±½>ë½‘ğ»u¾>30¾u4ô½Âá¼<ü-©»ı´»÷®=àı½øy½_ï€º™Ù;ÒÎ½Æ–3=È˜½·ø¼¼ñ«8¾îO¾®ğf=	¾ì½çvD½$¾7NÖ½Ö Y½/Ù½µ/q= K½Û30=—ñŠ½>èÁ½Qbƒ¼ğåÎ<çV·½Å©>Fİ=Úm>]L/=£ôL>t¹o=yŞØ;šå=öõ=wù·½$¥{=|œ½ùş¾+¡=»E ¾Ş`$=Â<›½±‹Ò½¶¥Å½Vı/>d>{E½º€,>Pv=m>™ñ/>°ƒŠ½‡ğ¾Vƒ˜=kÀÄ¼ƒj½›£û<ê†%¾±À2¾‰N%=¬•l=V
-É½Ÿ•¼ÉVÁ<ãQ9¾<Ë½9E>pB	=k¾mo‰<ËÇ=Â>úß¾ÿ\‡½‹¹Ù=·‘®<eû#¾ms¼tÖY½i…<à‚=77p¼É’½¦=¾R¡ ¼—."¾€=9¾üÓ=ì=Ğ’	¾¸áĞ½?”ê½&å'¾'—ş½
-4{=pkï¼=37¾–•ºDäÕ=¾âË½å0>w<½ğª<İ/Ë½Â³½	á¥==ÃIY=&M ¾|fı½¨
-Ğ;¨ï=ôí=U9»¼]7
-=º‹½òÑ	½ƒ $¾|R½ëd<çqÊ½4‰?¼á!=½1*A¼‰ã¾ï™¼?=eè™½A¾óu!>1T¼½¬äW=ıÚ‹=™GÒ=Uû=`æ½&a½òº=I¾,2µ½ú¶Â»ÚÉğ:å¬¸½ãğ¾x²Å=]U®½ÆÚ¦=pŠ½=¡	»]?J½8!½ÓŞ;4ì
-¾¦À€=ó ¾fQ"<»Ç¾ÖÁñ½Ğ¥§<#´¾NÆ‘< ø=?tİ½×}Ì½ÚÂ½Å=lm3½®-P½|P[ºŞb½ğqŠ<‰ºù»ô4Œ¼im=mÿš¼t ¾ÅE%»!w½\=n„·=²¡½ew˜½•æÂ½m¾Ú– ½¾éQ»ö.¾£|¾Òõ ½F©ª½et=TË<ñ€¾`5§=r$’9ì(*¾mÀã=qÍ¾ã÷¾=şo<»ô
-¾ò	={bü½É¾ÔH½­«<fõ1¹İ÷Ê½Æ¾†Í)¼`İN¾8Â½m¤é½ñ(O¾‰bP;*ËÑ:‘ Ô½Éß¼Â-G¾k/¢½ácä½‡¾¤Z¸½•2“½ü}'¼49>û¢½ é;‚ «=vC„½Ç">³ì<³:£¶º=˜q@½5Ù;¾ ½\2½Ô¼õq†½e˜;İQ»<|¿=¡¹ä<úOl;úD½å”~=9Ñ;¸¾c<ı.¾S=È½Zk½ÓÓ:M”¢½)æ¼ÖàN¾İb<šÌà=‘±»¯¡½8’£=áØø;ß"F½> ¾ĞGÂ=ÿÌV½hA²=yÊ¾@QL¾,Èº½5-½NPŞ½²S¾5¾ç¦Q½Çlõ½KèP<cæ.¾©÷%>ÒY„=€4^»;k<z)»™û…<Ç”Ñ¼\Ù=EbE¾aÌ´<ÇC¢=.z=ó–Ò<Ø†=›j:<íT–¼ìL*=
-Œ“=&\,=RB[½dÁ=¢L¼Ÿ<¯±<é3U½y!À½Ø¬¼¾ó¼;Š	>H*â=†)ê;ëô=Üàó½«¶=ØÅx=tsW=‹v×=/ƒP¾cé&=Iï…½«J>hJ=Eh½¾£>HL:½ˆªl½™½ÈB1¾íPK½{¹½]<¾£Ú=3Ş²½N
-(¾Uv¯=
-Bs¾Œ?¾&×<áœc½ÿ2>=Ê½¾ão@½-Î¾_<'A„½Ø”¾+K¼§Œ<iv«½ÿ%,¾Ïü;½¢í=_<&½>–½fa4¼¸ ¾†N•=á>	i‰½²A»UŞt<ë †½¥§
-=q)¾8«5=GF¾MTë»¸2¾d¼ßÉ;½óÌ	=©Ó	¾s`.<É:Q½a+!¾e:¼f£½{_¾œ%¾¾¥¾;‚½µè	¾ùæ·¹ ¼‡\“½«¾»c@=²\«½ÁÛ½>—=>"½uG=
-yÊ¼rın½ƒ¥ì=>m½¹œ<= ½÷O½˜*½å†#¾l½\œ
-=tHY¼,µü=“¦Ú¼á•m¼(ùv=l½QÙ'¾))ÿ½»{X¾ş5¾U¼¼Ã)G½ò¤=h¤w¾èµ½€Œ¢=á6°=`Ññ<¤=ˆ‚…=öŒT>¾IÄ=V >\‘¾©û—½BYM¾A0½˜n;¾®=¾E5½-*¾Q	½ª×Å¼ñä½×†@¾Q©/>j(¿=Gq}=HØ¼âe1>13>ÀÆ†=€ğ<Ó>ƒ½‰™==¶×F> KP½3™ê¼ÆV>Õh#=ŒÀ¿½dh¾& ¼ùbÌ<öúŸ½1ö™¼Ü%§=(L½E\ì=JšW=*Ë¼N!„¼ß”û<ˆ>˜JC=!?>9À™=}?œ=ÜÔw=C©?¾Ãï¾v¾B>¾&Õ<^å¼†²>û™S¾Y]<Cæ=âœ=òİq¼ö\É= ¡=Î=¶‚+¾•½)>Ä€=;<_#Ÿ½¼¾ÜÓ<{Í$¾İ½TÏİ<9áš½¿hw½Y‡;tï+=QÂ½œ¯<¬Œú<ªoŠ¼ŸŒ¾6”<™Ö¼»ĞB½fŠ¡<;^¾/Û¾<>Ş—>-V^¼b>ª·ğ=•¡=Pj{=±fÃ<Š )>¿ò½¤ôÖ½Ê”o½{´f½šA¾7¼'>%=nÒ>¾=İ=²Ò½pa/¾^x¾*’ Bval_120J€	e6¾Ú“¾ÃTÜ½4¾×k~>Á¾rém¾ùñ>Ğ\i¾J(>zÉN¾Gl¾$j-¾²p9>òn¾µU#>3$)¾|n¾	~>¥NX¾6Û&¾·\>û£†> j½=¹l~¾äÁ„¾ 4>èëù=æq>ä¹„=…X¾Ì$¾*’`` Bval_122J€`	ïƒ=i:½ÀÅ>p,=äïâ½àR–<³>½°«Æ=ğ½½}	Š¼ÂıW=Qè¾º4=†=H¡‡=ËóŠ;©ë½=o!«½C
-Z½:,o=üš=í:ÔNº;ÚÔ½ÉÁ/¼Q=±¼1v<Ş™«=.Lõ¼aø=ªÀ½|ï{¼ÿÀ=|¾hÓò<õ´»ÿOÑ=¯y<íåé=ô=	‰»=GR=˜Y’½ª»ÁÙ3=o°‚º¢pŸ;cÃ=I(¾ïpÑ<S 
-=bÌ¾ˆ=ğÀ½Ò†¾Ugú<3s==/–½&ÃD½õ7‘¼¿6½T÷q=+s’¼at=­º¸=@)¢¼—¿¼êç=.=öÿ…<eç½ƒÙ]<X =±Ù$½Ï6–½q]M=ª¼²õ7½“S$=Û,#½ì½	©¾½¤¼’×¾çˆ¼òu™½2	=˜Š¶»ü¦=Ûı½Rª´½„b	=c»½ñCÄ½I¬®½ê‡ö½øR½×µÑ=`«ª=ŞSõ<ûõõ¼#µ„½”Ó½F¹«½¹Z†¼Ñ¦Ò=‘"=W‰­½q/_=÷åÁ=´ÿİ<+3ã½§iÜ<f-F<J¶‚¼H]="Åµ:dÚ=ğï¼ËªA½Ò¥=(QÚ¼=k¼*ƒ3½™Eõ½Kc½R³º½4¦¸½P"<±=ÛÜ½¼Ê¡½ Ÿş½Ö=>|?Ú½®f1½	¾Šh=BE:>¢ ¾'Z.½v">Ş¹2¾!½¢…>>Tş= \=3õæ=Òmì¼ ö=iŒİ=tr=‚#>­%>L	>÷Sx="Z'¾ö‚<ÈôÍ½ƒ0U¾°Ñ#¾ºB¼ûuß=RGŸ=±H=»ê°(¾™W>rï<{|Æ=À¾ Õ½S±½=níÁ¼µùƒ½£+>¨Ó=.€°½I
-¾Šê½7ä¾d“¼=ï3¾K‹Œ½¨y¾€Aè½|B½ï´?½ı…J¾A†=¢åP=K5½,‘Ó¼tQü<{_(»Ïºó<À8\=Â‰>9Ô¾·Ç=–„Û½À¤	½-áÔ½ø¾\¹0¼ğ<°=Ü†r½Áì>®D"¼¤Œ½€€‡¼·ÿ½{È:¾H£ˆ=M\¾şˆ‘½­Éş½ƒÿ¼xö¶¼ÒÚ¾E„Î½}ó·<Ée"=ƒ»
->M¦>øí=ğ ¾Ã¶í½S?»å=·¼ç2>éTk½üº=ëˆŞ½\ş2=ÌnO=ï‘_¼’¶½Ø°=ƒÂë;âsŠ<m—İ½—ƒ÷<Âu;“fû=µ/0¾_½Rı½zÂÀ»Ğ§ó½0"´½èˆè½!™=îø=¼Ñ>ôë
->Ê¸º¼QEÃ»8D=R¦½0T=Q¤…=†¾ä®==t—y»p}¾¼áÓ=¹‰ø¼¼N£=s6=]Sí<Ç¾›óô=‰Bç=JĞI<®wœ=X¼C:Š"Ä=QNS¼=…º<Yâ½ô¬½³o=ÚÃR=‰$­½WH½õ)½^=µ<êh¾^>=ç6=§¶à¼³¶=¯ßD½69ø=1¥V½%>z×¹½
-³½ù,Ê=EN¤=…ï(¾õÆ>Âñ¨=“@¾(Ò½4b¹½â )½‹>›RU½(¾	İ=qëğ½Æ„«½ß]<cÅÔ½.š >GÅ>t—>ƒ‘D=K™>¹¾x¨ƒ½ ¢İ»E´=Ôh+¼¯zÉ=â1¼ ¤»=*ç›½±g½´¶³¼“¹½ôœ<Sl=`N‚½ıÿº4ö»vÍ€½Xu=õ¢Ş<Ó³½íh ¾]"ì½ôNJ=Ø ¾_T†<ı"=n`>az½sV‰<ï®ã<Ó²=§¼=Oï¬½‘T‡½‡7N<û[=ƒ—½ƒ§d½G’><kåµ=ès5=`éÀ½Ê.½_µ=U¾Ù³‰½sÚ¬=UZq=½XFŒ=kT½$B=£Æ·=4´ >ˆ1=Õ†ö=á`><¹¶=‘=¢½$>•½øFÜ;õU}½k=½>L½1m{½Y˜ã»®ˆN:ŸO»:½õ½»çT:½@¼½(ÓÎ<Ô¶j;Ş«½EÇ½®G€=KD=â
-= ¾~‚H½|è<Ê;ª½rÜf»èŒš»òçŞ¼g¦¼i!y¼iO½cÔ½-#¥½Hª=.cg½Ê(	½j!½â¬°½ÖÖ±¼›Æ7½=&y½qWg=¦¹=+¡œ=ák¼Lf<'+½‰‰¼ËÔ ¾®á!=äXo¼Ç=LĞ8=ÛE³=2Z½<kZ;™ø=¶Ò½R‚>Ëş¼Ùå½ª{½6¼£¼2v“½%·½jñX½Ÿù°½ ›=Š½¾A>B¾·å<ÿg¾ü>sæ¾½ù4U=O\½aÁ<† >a`Ğ½¡ó!½ì>èu€½ÕÁ½\}E>D>ÜÇó=:Ü>r¸¾d•;	š÷¼ß£¼n¼%=¡=n>( >ºHh½Ø¶<Ä¸è½«q›½çyª½´ø¡<Åò=ñVQ=[²½Å•ù¼°ÿ‰¼ç=3®“=Ğfk=©§»½P/¼
-kÑ¼6=ˆ=ÈŞ×¼4ÂÍ¼ùQ½Pˆ¤½œ—û½ìºm=0Y½O·=l™½“ûZ½Àp„=û¼ğK½›Aà½°Çş<å«@¼6¤ =èıë<eÇ
-=Tq=n˜s=ñÙ¼/(_¼Sà½ Ã©=åk =Ğ”Ä=#®ö<£‹=™Še½É O½*r²<0?=Ğš½şÇL½bŸ…½½ ¨¼L#½;‘P=k‚½+»*i¤=F´´½':Î½Š¬O½±“³ºİ?=^¸º½"Ë<Ñ¼ş~½º½ª¼²„=>âø½ÑÁİ=ğb½~ùù<y¾Ê…=Ò²æ<ì·“½2²È»û§@½£‘‡<•ìŒ½¨§'=^D½x¼½ùşË½¢
-<%©½'ƒú½“öŸ¼Öl½‚c(=ºC=´	½Œ¿E½U¼KÌ=¬0€=“?œ½ìCy=½Xj=æ,q¼\Ö]=‰¶ ¾rE>¡Û$>š¾µé¾Ğƒ>øB–¼IæD=/×[=ç¥ì=%Qn¼gĞ¾=!ƒ¾!F>øÈH=Š”=Êö7>Ÿ=¼Õ>à.¹=%&Ñ<êKü¼ÄA¼q.½·É½&¿ƒ=J¿?<ìcì¼)HÍ=!(½›=†…½®£ª=u½dh;Ïú¤½§„T<ü›¾=0á™»j=‹†è½ÛŒ,½V_í½h·…=r=ÚGÉ=9E{=BÈ=•î<û{€»]*¸½Ò>=±½Ñ’€½8È†½Àë½Mœ|½\2I=òèÁ½±uº¼y;Ä¼ÆÁ‰¼“®½ók`½¤±<ÒÛŞ½]„¼ y½pR=4—¼‡Q¼Aõ=}{V=-¹Ÿ=:‰=Ù°¶¼%uw½,ª½É7ş¼#³=&0•º8T=½h‚=˜–î½´•Ğ=«==³» =4¼Z½ûM=µ´¼Â8"½²£=/™>!ğ›=&h	>Wİ÷<¼ü¨=h
-:=¹vn¼"³j;	ˆ´¼­;ö½cÏ=R´=ï®Ğ½.ìœ½ÇÂ¾„ò=¿s4=çÚ,½íİ½.÷X½ßŞG=/ªº¼ÈíD½¹Gë¼8ò>ø*®=FÃ=?J:¿z=q}=bIª¼iÎ<á3=¤÷‚<fÊŒ=²áÏ;\˜ »ıJµ½òµ¼…A7=(¡=§	J=Ğ-c¼ˆÙº=ÛbÇ»ö?C½€@¼©‡?½ñ´»!;½@Ç=G™=qEÊ½·®¹½gú(=$j½mGé<üï[=u„7=’\j¼!!=~=«„¿½èn›½Æí½ñº>zŒ_½ÉÃ¹=¶¦ <'•<˜Ø>Wä•»«¤ ¾äB†<Ê½9ô
-¾|R>¶=ƒh>i•›=]½=U>´>=I¥7>D»>‹3›=|Ú>½uü;¥*$=§©à<Iê†½Ògà¼…Ñ¼Cæ½:²=†‘˜¼—%Ó=Çï«=8!›¼6€Œ½´B”=ì1=ä,ú½¢Ïô=xª½	°Á<M÷ =Ç=Ú=‰—|½ê'œ=îÒº<¹=p¶×=ë¸Ë=0ÙM½ô™=<ª=âä÷½K)¼=]›S=“J= ©İ=ã<­><×Z…<†Ñ—=2†<=-ÌÔ½Ş¥	=  >+¶¾C™¼Ì¾W	 >TÔ<½-Ë¸½ıñN=ySW½¦©»MG=ÜB™½L=€I½÷‚È<ƒd¼…„Í=CÂÀ=ã1>ıbä=+p´=‡Ï€=.;µ×à½ã“"½¨ğÿ½¸«l½‡“Ë¼G`=6›™¼È™½ÏêQ=7é˜½b·½Ò7<m‰Ç½Ü¬½7=•»aG
-½äS¯½É/½©ª·½J,¥½z]=‚ü’¼ê¸¥½ÀU´½bqQ½êH¼êoç=áÊ=\F=5Ïºnc¼× ¾èÃ<²+˜½şXo½Ëé´¼ÚË¯½Ğ=Óyö==f=J“ñ½<>V^›½j*½bãÙ½Şş=5ç‚½Æ5½'x¨=ÓP>‚r¶¼âxz;Øùv¼@Ù=q>¡#>ÎıÈ¼Åï,>…ˆ=çÿ‹=ˆ>íGµ<}Éy=&I.>¨è¸»O†½ïº½L&û½®¾%¾Ñ3ô½Ü=Ğ	E=y¬?½Ãj-<˜g+=Q=ªN•¼V;¾SÎ¼:{=—Ø{½k¦Ğ=À=£¼r»¶½ù 2<»Ó)¾Pƒà¼§O½ !¢¼6Z¾•?6¾p;%<ø¼Î9=Ê™ß=@ÔŞ= 	=¢gà<tğy=e´Y<—ˆ“½%¤0<Ï5î=w=õàï=<”y¼îÍ=ØÏæ¼çå¶¼Ÿ>(%«¼üMa¼‡x=R½§<H=)¼¬D¾½Èn½¾.¦=aó<îØ½ÙÇ¯=Œ ß½WŸÑ:w—½<íÛ½…¹Â=ŠÔî=ş%6=Ä:ö=)h\=à¦‰=,fó¼ú6½lÜœ½ÊRÿ½‚ƒG½˜	?½¤[§½™¼ãİ±=(—„½»Ûx½è!=âš“½T‘Ñ½I:x<Õı>½·w½Ç|ç½¢æÄ¼‘Öé¼®¹h½¬äë¼ã¸D<³§½µä¯=q;Ã½KÿŞ½¬ÑÕ½ZÄ²=˜ve¸Œ—‡<„Î2=_1=e)½—ª¼Ö¥½<èİÌ=¼ï˜=îe=ºË¥=ş¿.½¤Wy=é?ë=è¶7½A/¼ÈŠŒ¼hØõ½ıÈ„=ëE=}5=ãï¬=•wÔ½ğ*¾€¼êS”<h=ÃÅÑ½Î=òOã=9!½
-c¦»›½5Íê=,‹½G,=Q@‘½:á:=ÛP½ÌFÏ½O¨†=jôN½e”Ï=]‰=öÂù½¯¬¼nÌe=¿ÄI<™üæ¼rˆ¹='Ùˆ:ø%¥½í£v<<nê<WuŠ½ÿ$=İ'-=´VÏ=”p½@=0{¶½vÑ<aÁ;aä½*¾~=¥½Şìà¼Î:b=ºÚ>6p$=t~µ½A¡=_0’<´Çá<YŸ¾z+<´±v=tÏ=èz ¾›w®<9‰=©{¼A ½r"A=¤h¾ .½F•¾²lA½å
-¾‚Åï½Îü<ı¾ÏŠ:=%!5¼¹áÇ<Ià=EÈ=Ë[¼¼ıòÌ½ ½±ì<Ì‡”½',3½'äd½3À½×íâ=.]Í½Ô{½Ù¬°=ã^Ñ</~½‘µ¼ÕÇ<š“½çÕ½SÎ¬½ñ,¾xÕÆ=­M
-¾|vÖ<€Ö½­¹¯½¯ë½Äõ`=+jƒ<œb©=ú‘¿<ïr=™³,<Z=½&>]¬ü;Úö—<Tu}<^æó<b$½~™e¼å±Î<E6a=-M×<Û
-¨½EÌ=A<>'½4Ğ¾A(	½«>ÓM>[@j>æÇ½l„Ã=Í2>y:>í>I¹ä<‚Ã>G@­=±=µ¼LıÉ½N¾ZÛ¹¼"¾¨'>´qA¾A•¼¨o<>µcC»ÏÈí<:	¾–->„ôP=ÈØ#¾øKç½ŠQZ>WŠ¾4F‹½¥k>i­<¹M>kÔ[>L.¾Àu«=Sáj>Ÿc>ÀN»ÍF<"Ç<Ã)>Ò	¾×è½u½)Š½áS½waÅ½.œÆ¼w®Õ=¶->VŒ„½£å9=éx&<³]¹=—7”<À>|½®=1¾Œ<”~h<Š{À=ÌÀm»¢²;¾œ½É½ŸäÔ½†’>JX¨½É…=æ*9=ô;~U½Tô¼çŒ¾ˆ/;šQ>@=îğ>=)½½9¾+If½Øü=Rq>À|0¾g–à=Ébæ½.8>ŒŠ+¾E¥½B÷<sœ½hèe½¸4>o¡Ùº,`ú½ñ»Ğ<¯ ¾®¤Î¼Xí>ÉÒ½‡A?¾Pjs½¹Jº¼\³W<3F¼‡F*¾+½&>6«âº d =NR(>f9>Ù¨½5şÀ»X½Äm;
-:Ö½NP2½Z N½~Q=CÍ·¼	N"=~ğ=\iº8±=ıè/½½óù»õ˜= ?|<GŞ‚=Oè°=wÅŞ=¨·½‰¬Ş½pş^½Àëß<H`½×ÇY=…”D==Úy<ãd²=’½oP=‰=¾ã<I\=¼¼½l3Æ½H–¼8ğ½{&ç=úî½ÙŒ >óK=zìÄ»3Ë==pŠ<!…Á¼L;<¬ÃÉ=_>=Ü>½ô6¤=f:z j=†¸‡=“*>ˆ#>@“d=(Æ<ÕÚE=‘`ã½°¬={µÀ½ß½…ùT=eÆ<½©.¹¼Ïä=ã« »*•¤¼jX½ŒBï:6Û	½Lb½\8U<^|C=}“>¦'¾/Ø¼õæ=“	Ğ½±ù-=İƒ½õDÕ½bÁğ=æš½œã4½Ça„<\@½ûnĞ½„’–»FzD=¾Ø;½LØ»ÿ°=ÛA‡=â¤_½!:¾Å†‘¼Pæ=…¼=µÅ‚¼Ãßï;6æ»pÜ=ç³¾¬rR<s†•=ß½Gi½GÕó<™pñ=ªë;Øn8¾o©à½Ÿ}/¾~ƒ<-ï¼N5,¾A3'¾™õ½>SÁ»láí½BÆ¾5ğ=m¬Ä=˜A>Úæy=şiö=V³–½C+2=Ü€á<™ã<b'»ûÕz½\¤™=—£«=iôÕ½I¡=âR½ \ç¼#v•=-v¡=!:‚½Ğ;;Ã7½Ô7™½ Êh¼t9Z=ØBd½X…=Hæ–½Ov%½…Ç…<şùT½Öù¼§V=ç‡å<WÑ½y‚¼â’<S}+=ˆö9½å	ã=3´©;lá½-)> 8¼÷ÈÇ=1´¼0À¾a3<K½¾bŞ½=!|p=¢İ½¬˜½Îgy½"ÆÑ¼”3ä=J~%¾]ƒ¢¼/oÖ½‰‰ù½aê½vGˆ½‚*‡½Ó­C=ƒ·=³„=A=Â=:¢s=ÿ¼İG©¼ˆàh»@£ö½À
-=@Z½mÛ¡½¼K=o ÷<m–I<“¤ñ½Çæ"=Ã/Â½ûüQ;µ|=9}÷<ØßD½õê=~ ½ÙÙ=»Œ>€ÌN½›Ä=&6¢½—v;=×I‚½lv¾=öìğ¼`]«;+Ñ¾½{I½ÏÂ¼AP¥ºm¼¢z®;‘9C½ƒ©º=h'½¡­p=xÂ·=:£=Ê‡Ì<ûï
->Ol&½¦Vá=d©ñ=çû<õĞo=êkÎ<« Ò=&o;œÇ½Ôh½3…Ğ=kSy½èZ¥=›8³=w^Ó=>ÎÆ<Hh’½fk9½K³=‘¼Ò0p½Óõ~½Rë-¼}¶`½ÆeŸ½SZy=Ük=§g¼¼)š=»üü:º=š­½»½Å\¤<s®í=’=v´®<A*c½ô½Ze¼=ÏçG½˜è¤½Ô;m=zl‹½‹YŞ=ÀÁ=p=§€®½ÕÛ½"5€½î?‘½^;uZ½=÷¡ä<‚@=Z,è:@I½s?=*€=õ===‘½O*$¼:¿¬<û,Ò½›T=3ÚF<èL=½Ùİ=1]z=í€=J¿½ö†	¾ã…¯=ö=Ü;yè~½>Ûa=ÚWƒ<T	q=Í†¼,'<ÄáÏ<ÙÎÔ<îúã½¬M)½¸¤ÿ=€¦>À	½Ã­Ã¼`Šl½şa÷=ÏV.¾Å8¾Ëı<=Mº½Ï6¿¼<vKÔ=2÷†½àDû½»!Ä½6ƒ¾;n=œ’#¾É›=ÃÉ4¾ÏK.½ìj½½¬.¾Wê:¾ÁØ"<ˆWù<ª·=Mè=kW>ÕdG>­Ü½ÖX“»¢¥_<[şâ=´L·½r»=š)¾?ÿ=—D$>Íé×¼¾=õ½Âwb>˜„Ô½YúÓ<z4c>#•I>Ä!>¤5º=øV¾†:
->Ş>X=Ìİë=ı1>H=Ã	G>‹î= 6é½ì¾:»k†½Š\	¾ -¾ºWÖ=K–ó=Œ“<´Õ±½EåV= e3¼ò‰‰;<aÔ½yl¥<3?Ø=P	Ş½[¿½½Iû ½û4Œ½1½QŠ=²>æs¬=vš
->†£á½öÒ¶=\PÇ= ’§¶ÛË==ów„;”¹™=ñÂ=ö÷ÿ½)ú½İO<°ğ;½MÖŠ¼+Ãˆº`ğ=5¡b½kìê½
-ì¹½ŸÙ”¼,Êp<Èë=™¾ºâãï<Â9®½>6=Ø)<Â­ï<ŞÉ€=ŠäA<º}ı¼F,Ù¼V»ä=A0è½³	½ùeÚ<’›;—öÛ=w¯o½ÊïÊ<˜½Ò’E¼;<á<¿Ö½‡¾”{=´·ß¼k‘û<ÜLN¼øX»=z	¾tÁ,=2z
-½WÜ=İ÷¾c§±½Pf=š`½‡°¼”¸½8˜÷=FÜ½½›g¾¨\o<8ä½.b^=J¥ì½½ô½7½.=¸
-Ê½&GÒ½qIÛ½…‚O=õ-£¼ßÊ=Üe>d<Â<:–»_×ı½:¾î.³½ZĞä<-ŠÁº{6=7S½ÕğR¼y†&</Å½İ¯‰½k=Š¼<ò½áÛÍ<)çÙ=¶…b=(¼=şU=.e½¾ıê¼ù}d=¸‹Ö¼ãRn<#QW½4Ø¯;ó*;=èxÑ½xåi=;Ê8=Y—÷½ÌF¼e>ò0¾X°<×Å½ê²»%á½Ãtj=;ó¾•&B=Ÿ¿>dèò½ùx9¾rÃÕ=d?d½‡•´»jéí=!"=§ˆ=ùÄÒ=½áx<<GŒ=<¿9>è;ñ»½5ç=­’ü= ó9½Y û=(èà½áÍâ½ı©,¾L½¡9ş½ü;&«~<?Á¥½_êá½"¢¤¼iéú¼Ïª»N¡½=©Ê¡½fÍ×½zYË=”¢|=”&Ù½÷T=Tòï=ß‰=:¼Œüt½ÙÍ=Ãâƒ<Ûµ=¶¶Ï=Ğõ<ÖÊ=A‘¼|cÌ¹¨¯J=^‹«½àË½%×½íQ<1VÛ»Şû=“æ=$³½”JÍ¼äÚ@<ê¶=J_<Ò'½Wå=£·‘½¤ÕÈ=£ c=nX¦=´’¼É˜<•Ïş=‰8¼2å=’Å<½%>TK>Å/Ù=ÇÏ¼ALÓ;@J=u:º<`‰=ÏÏ¥=¯×-="„½n&<0XF=p¤³<fŠ½Wv½Ï»¼"ì¾=Ç2‹<É·O½	Ù§=
-<P½ ¦9=RÑ}<(¾Eà®<ôq¼i½¥‚½î8`½9GÖ<iİ²=íá:q€“=<“Ç½$ç“»5‚K½(ÅÚ½9	½u¸°=œ‰=ÿ<=(W²=¼DÇ=KW8>»˜+½”¾j½³ÿÃ¼µÿ4>õØ½=T½/ï¼GÕ>ÊÓ>–x•½^z=Gç£=Q ÙºÓI¼ Ø>#B><Âˆ<£÷ƒ>uóã¼÷Ë	>”£ø=:Ò=êÿO=šÖÜ»ø–+>w³a>§Üİ½çeÍ½V†Ô½½áÏ½:Œ;7K3½+ÍÌ½°bí»—¤=ê¸¨¼NiÒ<¨P¢=¢…½q×<‘IÅ½£(Â<[··=ãÜI¾gğ=24û=²O¥½Æ³¾«#T="¿‹½ r=ólÖ½^ÃP¾%±<é¾ò/Æ½¢Ñ¼<Nİ;ÁÓù»lD ¼ê«—<sí¸<<h½%Ö°½†<t³½£<&uN¼	z=Ü_¡=Q«V½¥ê{;¿Ó½²²Î½Wï½v8	¾ê|==ùÑ=q£^<X¡<½~_÷<úf½süR½ûñ¯½	:í½„¥È<‰@½0Ò³=LCl½o»•|e½ÁÃ2=øÓ½ï )<<AŞ<ö‡¯=Ş¯Ë=}qÎ=¹Ò‘;¸ø¢½ç‘=3›Š½şy=+åf=Äµµ=Ê>»k=e'¹=m=êÈ=­Mx=MùÕ¼]Ií<]ê¾<ê[ ½Õ±½§ˆ=’Ø·¼ù'®½ïĞh½;…À<¬½¿o½3F…¼e_½ğT¾=¶/Ú=ƒğ’½á‰ı=Âµº/_µ=ºË<Åê9=I=½ã8£=…=Šœ<Ä>§=6…Æ¼Ñ¼{1Ü=ŞHò=”BÅ½Ì!Ï<¦¿½‹„Á=Ûn¼¹Lû:JÜa¼õö	=ß{=)B§½a€³=$=%óO=Yq2=6Â–=}¯ì<ÓE½¹<%½†ñ¢=bQ¼~—¼ãÒ,¼>E=$‰½õ>?½¸¯›=¿zi¼z==àf6=Ñ®Å=İÆH¼9Ó¾½;-¸<§İ°=«±¯=~…s=Zˆ’=ì«¦=ù"£=½ó;uşh½LG%=3L½W˜†<›<İ»öx>ÅuS<Yw>D=!î†½ŠıÁ¼ñê¼½K½|Õ<ò½œ(	¾g¾¿ãH½@<4,ª½¦]ö¼´e9½ñï<^³™¼;‰Æ<ZÀm½ Á+¾Ä¾ï¹ş½Ær¾íÀ,;ö‰…¼ÉÈß½LÀÅ½]F =® ¾ªD½ÂXÍ¼ÙP¼tï:¾…à;Ô]=^~w½B#Ş½íÜX¼¢ıi½^$w=Ç<½~qû½,‘Á=V8ë½Â½ğ9Á¼]¤<ÇD½€U½RŒŸ½Uø½€/ˆ½[%!¾’O<kˆ¼P¼½2q­½®¼Ş¡¾‰ßß½)Ÿ^½<?"=¶Ù¾®:¾½B<(>CŒ½¸oÒ==K½Ãk½y’»RÍ‹=5Ù=İr½8¥J=È‘½ZL^½¹`ì<ïÎ’¼Üj”¼Æ{Æ;vµ¼ÍÁı<‚"-½ßæ^=ñYå=HsA=÷lu=â••=Re=wÕ«º…”¹=
-œh¼%½½û<{ø=-3>'U:<´	:¾Â[=UÓ;=¡›ª¼JiÆ½)¢%<9Bı½“¿¼q¡l½Ào;’Ñc=Èó¾¼¼½‘D!=³'²=Ô À½Š|]½ãĞ¹½ä³‡½uÕ¾qĞÀ½‘’#½àS-¾a¼Óñ¼N•Œ=ñ­À½ÕD½ß+t¼˜	½Õv±½éC< á» ×=¬~¢=ŠZ‘½¡>gö½9mc¹2¢=YR=vi=Ú4½+=…Ëµ=VÛ¼-Y<½Y»$>2—/½ò¶=&“=^|Ô=ä[½œ>è\.¼Æ­…<aØ¤=™€õ=î¿=)½6:"½=vIF>Cù*=Ú¢û¼#+‰=‚ĞÆ½?ñ’½o|½?€¨<ş'S=ªß¾Hßö½àa=lQı½t>¯={2¾ Ò¾(Ô½â¿<]¸¼½~Ü½Œ™½})·½º4ÀºÀ†=©Ş¾tÎ½ÖÇ£;~µ¼\‰‘=üÓæ½J}É½ıÀ;¾à;¾·3½ë¾ÖŞ­<«ğ>=<½Ê\½Îı&¾¯Š½@—Ş½Á!=2añ<NO‚»{œ=};yÁ,¼ÕLÍ½]ºæ*¾¾†Ï=ïs½µeş½Xši½Ps¢¼ ¶/<xÄ¡½à Ú½9=¾»è•=¥Lö½b9sÒH¾Y²ú½B¾İ{–<ÊBz=IÀ×¼3İ,>‰Í`½‹ª>»%­½D=‘jB<D¢¶<¶Ãô=â‚¼ßãÒ=“Œ;>åîb<qèg=ÛOÁ=}‚Œ=Úhé<­=XÔºæğZ< [:·U²a½c~¿=Õ=7³=³êo=É³=4µ<u-™=˜wñ=	İ—8èuv½¹Ğp=5>ÌN=±]>}~|½ê¬>@e<¼2/=Òpÿ=µ’·=Á–<`P#=1>4½U½@	G½|›ì¼4$>£`>‘û;ë˜<ÈøŠ::ä=Z1]=Ä\0¼wò<YÚ>ûÄ€=pTT>å0.>·˜F=Â°=—æÙ½#'ì½ñ‘=ÿ]õ½ù—=Wƒ5½ı-2;¿Q}½B&¾d‚ =ì7¦½˜
-<=9½Á¯½4t¾ ½U© ½Ğ¾T·Ü¼¢×Æ<pEŸ½vQ¾d©Š½¢I`½YG½yf »Şœ=®(-½qõZ»Ø.ã¼¼®½å2¦=sè½Û6;¨=Ì¼¸Lğ½(¦œ¼‘yß»N¼º½¯œ½H“˜<±&“=+¿Û<Ú¤½áò½Æ¼èqH¼ ÀÌ¼ˆE¦;!‰½æğ½ª?¨»³§¼¡š½½ûa=Å—=®.Š=8ç¼şc	¼ù¼¾^¼‰¼c?!¾K»¨¼Dù#½½<a¯=ªJ=\:¢;“Bã½ïP>¼vi<ÔQ«=»Hş=
-„¢½[Y=ĞÙM>i½>M¿*»´(;mR=Õ¼>ÿ[D=;h">284=öS=éFK>fuò¼X?=’((=>Ñ·<×—Ï<Id> c@>lE>…	¥=ğ1¾½‰èÉ=MO­=d<@º$>=›s<ˆô¼º»½:ƒR½¶Y÷<†Í¼ÔĞ>ş4>)>c“=Å=I¼dNÜ<­C>©“²=J)7=—°Ï=r1ñ=ş’ö=½½ ¨Å¼Ò =pg=‹ş!>à‘æ=ö >úÁ¤¼yŠ—=İÎó<ï”=–A–==<	=âe’=éW<år›½ø»·=nCÖ½gêZ<@>ù¬=Úªí;İÆµ<U&s=êœÒ='eJ<'³§¼<Lb<‹Ã8+;4s•¼€Š–=Ÿ.@=J">wÉN¼%×Q¼ë+ï<çŒÑ=¤ <­a±=zwx;½U»¹²¥=F€»ª”½7çØ½û›Ã»}³=ä¾'«À=en¼D,=’Ñ½¤º=h-/½G<E@¾Û‘ä»íÉù½Ä7Í½ô=ì²y½„$z¼ Šì<&'9=2ÁE½ ½W²<z¤¾ÙL’¼Ynò<²½‹½JD	=pÇ<ªTÚ½kÊ}=(
-‚½¾à>Ë¹=›ªb<‰4½é/=ÓóûºÁ±Z½õ8½Ñrˆ=ûØ<«ÿ<V©Î<øø®=(ÔQ¼ÿ0 ½V;haÿ=ìÁ=eûí=ô'[½[iH½sà¬¼),=¡L¼"ğ¢=2Ë¼½»R=‡Ë¼şó€½d?Û¼ (¾Ûç=½İ¶½gz¾NÇ½ˆvÀ½=´º=vj0¾¹9á½‰¾âğŸ¼Õ7¾~œ½I}¾—¤½YÖá¼¾‘¼NÌ¸<if<Úï¼ï¨ƒ¼¤x½6< ½ò¾¶S"½4i8¾œê:½ò~<a*½/«<oĞX<ryä=ÙÊÀ½Ißõ=RğĞ»©Ë=¹G<›!¾º>ˆ<Q^×½lÌæ½®¹š»dÆH¼~Ï¾‹I<¬ë ¾–½ôÄ<ò~©½‡%=c¯¼×¹€=ex<'í=îö¼)¾\O½ïY½õéÖ½^\ˆ½°€9=¤V<½¨Ô¼½\À=h0¾ìî<‹)¥½™:§; Ìg½œ·¼MŒ“½hSl;IYš½™»Ä¼…±½~õ¿½†I¤½.Q¼ü—û¼S1¸»ìæ½*ä ½IŒe¼Wˆ½„^=}òÖ½—ÂŞ½R³Œ¼š½ln¾uÛŞ½]O¾½Ì‘x=r®ú<¼÷¼Çù¡½cÌ½´•½cS<ï×U½šù:Tş½½ =‚Ÿ¾âıã»¡"¾¬Ñ½Ãã¿½öÿ‚=Õ==
-é‰½‘gâ½9?½_:½ê_Û½}‡½	ãé;Y‚½VñÄ½„e‰»Û²½»V½ZS¼ ¼½ÆT$»]-=ã®¾İaç¼a¾E.ï<èÂ4½z™y¼>==½ûûŞ¼9O™¼ÜÉR<©Ï—»ùòß=ïî½g=sÜ½ƒºï½¼iò½©N=¨“<vÔ<t=š½×O=çâ=”d¡½Åê°½Ğj¾h\ª½Kã¡½ Îİ½Ó=0»–½@¾zş=§_½ÏÅ5<—y½Ö€½¼0´h<”È»v¾èœ+½&‘ ½¨UŸ=€,U»-İ<½wL"=n00¼HS<V&º:Ïåˆ½1š=Dœ¾<‘Œ¬½É½ºö»Û‚€<Œ†6¾£ˆ¾lëÕ½Ø°T½—=ää<½Q«Õ<+&É½ê»=µÉõ½ñ³½úâè<œÁ»¥Tç¼¸.= Q#½ë¾=gæ·½Dî0¼',‘=ëÖ¿<Î½½±‰¼h[¼3ü¾»2g–=’ˆ+½Ñ,»%Ö!½^zS½£’æ½†º„<©~Á;qé¼K6'½ãk;½Bó®¼`’›<-†;¤£v=RqQ½Ö%%>ZKq=y¿Ç¼ˆû=[E¤½åÕ<¹¾†=y¯H=†k²½üù°=óı²¼ƒÛ>Ni>vt1=vLD=~³=ÚÜ»È…»™t=è”<áN=ÃV¯»Å6>a£>Û_X<Š®½ ;á»®A¾ë´V½m½=Såñ<úó+=Nû½‚W½:'Ï=¡‰Û½•Ğ‚:–ÇÛ¼ñß½Ûuå½"}¼Ö©š½1ŒØ;'ø»‰ü½ns½¾Í =”Ø7¼¤l¾E
-= …Ù½zók=(fD=——§½ıÅ‰<h×'½üÅ¾ÓŒ!½éĞ<¢2ñ½	 ¾·¨½Ë_?¾íŞ¿=N6¾[Ó‘½}‰¼ƒÛÛ¼Éëk<{Ó—½Äª¼b²u<Ãş"½È‹½Å8£½ã/<¾î% ¾’¦½s=H½ü½¨K½’”¾ªPu=øÔ€½˜~Ö½%²ı½Ñe¼+ı;¾ĞOœ½Øh›½mĞ=Í¬½N’=ı¾JıØ=™½Î1½§óÏ½™ªÛ½ÓlŸ½Ğ9ş»fÿ½Ü¥ ¾´º¼±åû<]ªè=Ï½ÃA½îÄ¼0Èw=ö@¾£e¾ñâ½T¾£-—;Çá¼ì¹¾‘¡¼ı8™¼í›¾°”‘½¨ø½ñÖØ¼¢Ü0¾âi4½T ¾ûM/½0ğ¾:²	¾¢%9<Ó ¾Óè“½1\½J#$¾zR ;Ú2ƒ½·¿$¾C·_=”P¾A ×½G]å½¿“c¼Ã’å» –¼.;Æ½ùë?½ÉO\=ù¾f’½ÓÙ'¾v­ê½ï¾½ä®:(F ½Y9ì=¿`=ö¢=Z3>½#½4´¨=øD>NXR½K
-B=¤Ôƒ¼9àW<HÖ>%D>Ò•â=âö€=Dƒ\½¶=\;ç:É¦=L¢<½2½Á9=(£K<¯\½Î’=„”Ú='/t=€Í¤=¾ $>÷õM=OW—;æ£µ½É.ô½‚m1½‹aÄ=½“˜<j»=pDu¼gÀ’<Z,½â ¾›{ø¼]¸½¨¹¾5ªÈ<?ìZ<ªÇ»!*ª¼ôN®¼	ë×;„¹<Ğï=ª™ ¾1%X¼M¨¬=fGl½Ñ8Ê½"¾ÛŸq<CY©;úãò;.Ò›½úü½.Zú»fzl½Ó>n=/ =¢]a½õ¼'<=!¾ÆŞ½L<`=<È5=Cû¼¾é‹½¼ò½Ş!{½»'º½K´»´k±;£œş½ºõ;¸£¼0ºA½ËÍ½é’±¼V÷{½ÿ]ö¼¼Ğê½c”½p›½´™0¾7x–¼*’ Bval_131J€Óš…>ˆ”=e§5¾é5¾ñ·‡>8º¾T	ı½è6a¾-M>õ·Œ>`àl¾ú>\}2>çX¾‰,Ë½î"#>"AD>$#&>(#>‹¾9%>¸£2>= …>Ê/h>‚=Ô=ö%@>¥Ì0>ÃÅi¾»\¾ R¾
-€r¾ó^¾*Bslice_2_minJ    *Bslice_2_maxJ  @B*Bval_10Jóµ?*Bval_13J  €?*Bval_15J   ?*Bval_64J        *Bval_72J       *Bval_93JÿÿÿÿÿÿÿÿZÕ
-node_features
-
-
-5
-"=
-/pkg.torch.export.graph_signature.InputSpec.kind
-USER_INPUT"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"2
-!pkg.torch.onnx.original_node_namenode_featuresZÕ
-global_features
-
-
-"=
-/pkg.torch.export.graph_signature.InputSpec.kind
-USER_INPUT"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"4
-!pkg.torch.onnx.original_node_nameglobal_featuresZÔ
-action_specs
-
-
-á
-"=
-/pkg.torch.export.graph_signature.InputSpec.kind
-USER_INPUT"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"1
-!pkg.torch.onnx.original_node_nameaction_specsZÎ
-action_mask
-	
-
-á"=
-/pkg.torch.export.graph_signature.InputSpec.kind
-USER_INPUT"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"0
-!pkg.torch.onnx.original_node_nameaction_maskb‹
-policy_logits
-	
-
-á"?
-0pkg.torch.export.graph_signature.OutputSpec.kindUSER_OUTPUT"(
-!pkg.torch.onnx.original_node_namemulb
-value
-
-
-"?
-0pkg.torch.export.graph_signature.OutputSpec.kindUSER_OUTPUT")
-!pkg.torch.onnx.original_node_nametanhjÔ
-model.input.bias
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"7
-!pkg.torch.onnx.original_node_namep_model_input_biasjè
-model.layers.0.update.bias
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"A
-!pkg.torch.onnx.original_node_namep_model_layers_0_update_biasjè
-model.layers.0.norm.weight
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"A
-!pkg.torch.onnx.original_node_namep_model_layers_0_norm_weightjä
-model.layers.0.norm.bias
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"?
-!pkg.torch.onnx.original_node_namep_model_layers_0_norm_biasjè
-model.layers.1.update.bias
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"A
-!pkg.torch.onnx.original_node_namep_model_layers_1_update_biasjè
-model.layers.1.norm.weight
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"A
-!pkg.torch.onnx.original_node_namep_model_layers_1_norm_weightjä
-model.layers.1.norm.bias
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"?
-!pkg.torch.onnx.original_node_namep_model_layers_1_norm_biasjè
-model.layers.2.update.bias
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"A
-!pkg.torch.onnx.original_node_namep_model_layers_2_update_biasjè
-model.layers.2.norm.weight
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"A
-!pkg.torch.onnx.original_node_namep_model_layers_2_norm_weightjä
-model.layers.2.norm.bias
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"?
-!pkg.torch.onnx.original_node_namep_model_layers_2_norm_biasjè
-model.layers.3.update.bias
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"A
-!pkg.torch.onnx.original_node_namep_model_layers_3_update_biasjè
-model.layers.3.norm.weight
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"A
-!pkg.torch.onnx.original_node_namep_model_layers_3_norm_weightjä
-model.layers.3.norm.bias
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"?
-!pkg.torch.onnx.original_node_namep_model_layers_3_norm_biasjä
-model.context.0.weight
-
- 
-H"<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"=
-!pkg.torch.onnx.original_node_namep_model_context_0_weightjÜ
-model.context.0.bias
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone";
-!pkg.torch.onnx.original_node_namep_model_context_0_biasjà
-model.context.2.weight
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"=
-!pkg.torch.onnx.original_node_namep_model_context_2_weightjÜ
-model.context.2.bias
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone";
-!pkg.torch.onnx.original_node_namep_model_context_2_biasjâ
-model.place_head.0.bias
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone">
-!pkg.torch.onnx.original_node_namep_model_place_head_0_biasjâ
-model.place_head.2.bias
-
-
-"<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone">
-!pkg.torch.onnx.original_node_namep_model_place_head_2_biasjè
-model.relocate_head.0.bias
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"A
-!pkg.torch.onnx.original_node_namep_model_relocate_head_0_biasjè
-model.relocate_head.2.bias
-
-
-"<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"A
-!pkg.torch.onnx.original_node_namep_model_relocate_head_2_biasjê
-model.value_head.0.weight
-
-
- "<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"@
-!pkg.torch.onnx.original_node_namep_model_value_head_0_weightjâ
-model.value_head.0.bias
-
-
-"<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone">
-!pkg.torch.onnx.original_node_namep_model_value_head_0_biasjê
-model.value_head.2.weight
-
-
-"<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone"@
-!pkg.torch.onnx.original_node_namep_model_value_head_2_weightjâ
-model.value_head.2.bias
-
-
-"<
-/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
-5pkg.torch.export.graph_signature.InputSpec.persistentNone">
-!pkg.torch.onnx.original_node_namep_model_value_head_2_biasjW
-val_0
-
-
- ">
-$pkg.onnxscript.optimizer.folded_from['model.input.weight']j
-expand
-
-
-5
-5"o
-$pkg.onnxscript.optimizer.folded_fromG['adjacency', 'unsqueeze', 'val_2', 'val_4', 'val_5', 'val_6', 'val_7']ja
-val_8
-
-@
- "H
-$pkg.onnxscript.optimizer.folded_from ['model.layers.0.update.weight']jb
-val_19
-
-@
- "H
-$pkg.onnxscript.optimizer.folded_from ['model.layers.1.update.weight']jb
-val_30
-
-@
- "H
-$pkg.onnxscript.optimizer.folded_from ['model.layers.2.update.weight']jb
-val_41
-
-@
- "H
-$pkg.onnxscript.optimizer.folded_from ['model.layers.3.update.weight']jR
-val_54
-
-
-"<
-$pkg.onnxscript.optimizer.folded_from['val_52', 'val_53']j\
-val_67
-
-
-"F
-$pkg.onnxscript.optimizer.folded_from['val_64', 'val_65', 'val_66']j\
-val_71
-
-
-"F
-$pkg.onnxscript.optimizer.folded_from['val_68', 'val_69', 'val_70']j\
-val_83
-
-
-"F
-$pkg.onnxscript.optimizer.folded_from['val_80', 'val_81', 'val_82']j\
-val_87
-
-
-"F
-$pkg.onnxscript.optimizer.folded_from['val_84', 'val_85', 'val_86']j\
-val_98
-
-
-"F
-$pkg.onnxscript.optimizer.folded_from['val_95', 'val_96', 'val_97']j`
-val_110
-
-
-"I
-$pkg.onnxscript.optimizer.folded_from!['val_107', 'val_108', 'val_109']j`
-val_111
-
-@
- "E
-$pkg.onnxscript.optimizer.folded_from['model.place_head.0.weight']j`
-val_120
-
- 
-"E
-$pkg.onnxscript.optimizer.folded_from['model.place_head.2.weight']jc
-val_122
-
-`
- "H
-$pkg.onnxscript.optimizer.folded_from ['model.relocate_head.0.weight']jc
-val_131
-
- 
-"H
-$pkg.onnxscript.optimizer.folded_from ['model.relocate_head.2.weight']j
-slice_2_min
- j
-slice_2_max
- j
-val_10
- j
-val_13
- j
-val_15
- j
-val_64
- j
-val_72
- j
-val_93
-
-
-j
-val_1
-
-
-5
- j
-linear
-
-
-5
- j
-bmm
-
-
-5
- j
-cat
-
-
-5
-@j
-val_9
-
-
-5
- j
-linear_1
-
-
-5
- j
-val_11
-
-
-5
- j
-val_12
-
-
-5
- j
-val_14
-
-
-5
- j
-val_16
-
-
-5
- j
-gelu
-
-
-5
- j
-add
-
-
-5
- j 
-
-layer_norm
-
-
-5
- j
-bmm_1
-
-
-5
- j
-cat_1
-
-
-5
-@j
-val_20
-
-
-5
- j
-linear_2
-
-
-5
- j
-val_22
-
-
-5
- j
-val_23
-
-
-5
- j
-val_25
-
-
-5
- j
-val_27
-
-
-5
- j
-gelu_1
-
-
-5
- j
-add_1
-
-
-5
- j"
-layer_norm_1
-
-
-5
- j
-bmm_2
-
-
-5
- j
-cat_2
-
-
-5
-@j
-val_31
-
-
-5
- j
-linear_3
-
-
-5
- j
-val_33
-
-
-5
- j
-val_34
-
-
-5
- j
-val_36
-
-
-5
- j
-val_38
-
-
-5
- j
-gelu_2
-
-
-5
- j
-add_2
-
-
-5
- j"
-layer_norm_2
-
-
-5
- j
-bmm_3
-
-
-5
- j
-cat_3
-
-
-5
-@j
-val_42
-
-
-5
- j
-linear_4
-
-
-5
- j
-val_44
-
-
-5
- j
-val_45
-
-
-5
- j
-val_47
-
-
-5
- j
-val_49
-
-
-5
- j
-gelu_3
-
-
-5
- j
-add_3
-
-
-5
- j"
-layer_norm_3
-
-
-5
- j
-mean
-
-
- j
-amax
-
-
- j
-cat_4
-
-
-Hj
-linear_5
-
-
- j
-val_56
-
-
- j
-val_57
-
-
- j
-val_59
-
-
- j
-val_61
-
-
- j
-gelu_4
-
-
- j
-layer_norm_4
-
-
- j
-slice_1
-
-
-1
- j
-slice_2
-
-
-á
-j
-clamp
-
-
-á
-j
-_to_copy
-
-
-á
-j
-select
-	
-
-áj"
-unsqueeze_1
-
-
-á
-j
-expand_1
-
-
-á
- j
-select_1
-	
-
-áj"
-unsqueeze_2
-
-
-á
-j
-expand_2
-
-
-á
- j
-gather
-
-
-á
- j
-gather_1
-
-
-á
- j!
-unsqueeze_3
-
-
-
- j
-expand_3
-
-
-á
- j
-cat_5
-
-
-á
-@j
-cat_6
-
-
-á
-`j
-val_112
-
-
-á
- j
-linear_6
-
-
-á
- j
-val_114
-
-
-á
- j
-val_115
-
-
-á
- j
-val_117
-
-
-á
- j
-val_119
-
-
-á
- j
-gelu_5
-
-
-á
- j
-val_121
-
-
-á
-j
-linear_7
-
-
-á
-j
-squeeze
-	
-
-áj
-val_123
-
-
-á
- j
-linear_8
-
-
-á
- j
-val_125
-
-
-á
- j
-val_126
-
-
-á
- j
-val_128
-
-
-á
- j
-val_130
-
-
-á
- j
-gelu_6
-
-
-á
- j
-val_132
-
-
-á
-j
-linear_9
-
-
-á
-j
-	squeeze_1
-	
-
-áj
-select_2
-	
-
-áj
-lt
-		
-
-áj
-where
-	
-
-áj
-	linear_10
-
-
-j
-val_135
-
-
-j
-val_136
-
-
-j
-val_138
-
-
-j
-val_140
-
-
-j
-gelu_7
-
-
-j
-	linear_11
-
-
-j
-	squeeze_2
-
-
-‚·
-0pkg.torch.export.ExportedProgram.graph_signature‚
-# inputs
-p_model_input_weight: PARAMETER target='model.input.weight'
-p_model_input_bias: PARAMETER target='model.input.bias'
-p_model_layers_0_update_weight: PARAMETER target='model.layers.0.update.weight'
-p_model_layers_0_update_bias: PARAMETER target='model.layers.0.update.bias'
-p_model_layers_0_norm_weight: PARAMETER target='model.layers.0.norm.weight'
-p_model_layers_0_norm_bias: PARAMETER target='model.layers.0.norm.bias'
-p_model_layers_1_update_weight: PARAMETER target='model.layers.1.update.weight'
-p_model_layers_1_update_bias: PARAMETER target='model.layers.1.update.bias'
-p_model_layers_1_norm_weight: PARAMETER target='model.layers.1.norm.weight'
-p_model_layers_1_norm_bias: PARAMETER target='model.layers.1.norm.bias'
-p_model_layers_2_update_weight: PARAMETER target='model.layers.2.update.weight'
-p_model_layers_2_update_bias: PARAMETER target='model.layers.2.update.bias'
-p_model_layers_2_norm_weight: PARAMETER target='model.layers.2.norm.weight'
-p_model_layers_2_norm_bias: PARAMETER target='model.layers.2.norm.bias'
-p_model_layers_3_update_weight: PARAMETER target='model.layers.3.update.weight'
-p_model_layers_3_update_bias: PARAMETER target='model.layers.3.update.bias'
-p_model_layers_3_norm_weight: PARAMETER target='model.layers.3.norm.weight'
-p_model_layers_3_norm_bias: PARAMETER target='model.layers.3.norm.bias'
-p_model_context_0_weight: PARAMETER target='model.context.0.weight'
-p_model_context_0_bias: PARAMETER target='model.context.0.bias'
-p_model_context_2_weight: PARAMETER target='model.context.2.weight'
-p_model_context_2_bias: PARAMETER target='model.context.2.bias'
-p_model_place_head_0_weight: PARAMETER target='model.place_head.0.weight'
-p_model_place_head_0_bias: PARAMETER target='model.place_head.0.bias'
-p_model_place_head_2_weight: PARAMETER target='model.place_head.2.weight'
-p_model_place_head_2_bias: PARAMETER target='model.place_head.2.bias'
-p_model_relocate_head_0_weight: PARAMETER target='model.relocate_head.0.weight'
-p_model_relocate_head_0_bias: PARAMETER target='model.relocate_head.0.bias'
-p_model_relocate_head_2_weight: PARAMETER target='model.relocate_head.2.weight'
-p_model_relocate_head_2_bias: PARAMETER target='model.relocate_head.2.bias'
-p_model_value_head_0_weight: PARAMETER target='model.value_head.0.weight'
-p_model_value_head_0_bias: PARAMETER target='model.value_head.0.bias'
-p_model_value_head_2_weight: PARAMETER target='model.value_head.2.weight'
-p_model_value_head_2_bias: PARAMETER target='model.value_head.2.bias'
-p_model_advantage_place_head_0_weight: PARAMETER target='model.advantage_place_head.0.weight'
-p_model_advantage_place_head_0_bias: PARAMETER target='model.advantage_place_head.0.bias'
-p_model_advantage_place_head_2_weight: PARAMETER target='model.advantage_place_head.2.weight'
-p_model_advantage_place_head_2_bias: PARAMETER target='model.advantage_place_head.2.bias'
-p_model_advantage_relocate_head_0_weight: PARAMETER target='model.advantage_relocate_head.0.weight'
-p_model_advantage_relocate_head_0_bias: PARAMETER target='model.advantage_relocate_head.0.bias'
-p_model_advantage_relocate_head_2_weight: PARAMETER target='model.advantage_relocate_head.2.weight'
-p_model_advantage_relocate_head_2_bias: PARAMETER target='model.advantage_relocate_head.2.bias'
-b_adjacency: BUFFER target='adjacency' persistent=True
-node_features: USER_INPUT
-global_features: USER_INPUT
-action_specs: USER_INPUT
-action_mask: USER_INPUT
-
-# outputs
-mul: USER_OUTPUT
-tanh: USER_OUTPUT
-‚r
-2pkg.torch.export.ExportedProgram.range_constraints<{s81: VR[0, int_oo], s37: VR[0, int_oo], s80: VR[0, int_oo]}B
- 

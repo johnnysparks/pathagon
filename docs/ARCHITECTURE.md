@@ -1,65 +1,33 @@
 # Architecture
 
-Pathagon has four active planes: the browser product, the rules/search
-engines, the research laboratory, and the game archive.
+Pathagon is organized by lifecycle and ownership rather than programming
+language.
 
-## Runtime ownership
-
-| Plane | Canonical responsibility |
+| Layer | Contract |
 | --- | --- |
-| TypeScript in [`app/`](../app/) | Browser game state, UI, reference/coaching behavior, and regression fixtures |
-| Rust in [`engine-rs/`](../engine-rs/) | Bitboard rules, search, native self-play, evaluator training, and high-volume generation |
-| Python in [`research/gnn/`](../research/gnn/) | GNN/CNN construction, replay training, export, scoring, and learner leagues |
-| D1 through [`db/`](../db/) | Durable human and imported self-play archives |
+| `apps/*` | Independently deployable products. Each app owns its infrastructure and UI details. |
+| `pathagon/*` | Supported game/runtime code. Rust is the authority for promoted rules, search, and opponents. |
+| `data/*` | Small, strict, reusable datasets and fixtures with stable formats. |
+| `research/YYYYMMDD-*` | Historical questions, exploratory code, narratives, and disposable workspace artifacts. |
+| `scripts/*` | Shared tools that still serve more than one current subsystem. |
 
-The Rust/WASM adapter is an active integration boundary. It must pass the
-cross-runtime parity tests before it becomes the default browser engine. The
-browser contract should remain stable while the implementation underneath it
-changes.
+## Dependency direction
 
-## Research scope
+Apps may consume `pathagon` and `data`. Core code may consume contracts and
+fixtures in `data`, but must not depend on an archived research implementation.
+Research may import anything while exploring. If research succeeds, port the
+behavior into Rust and promote only the data/artifacts that have durable value.
 
-The canonical model target is 7x7 with 14 reserves per player. The graph code
-can exercise other board sizes, but those are curriculum or regression tools,
-not part of the primary strength comparison. The fixed CNN is intentionally
-7x7 only.
+The browser retains a TypeScript rules adapter for UI state and parity checks,
+but the Rust engine is the supported high-throughput and opponent runtime. A
+second app should use a shared Rust/WASM or contract boundary rather than import
+files from `apps/web`.
 
-The playable baseline ladder is:
+## Monorepo conventions
 
-- Coin Flip: uniform random legal action
-- Lunatic: deliberately weak one-ply local-pattern heuristic
-- Surveyor: shallow broad-beam search
-- Pathfinder: deeper iterative search
-
-Search variants must receive distinct agent IDs. Improving Lunatic with board
-search, for example, should create a new agent rather than silently changing
-the baseline used by old games.
-
-## Data flow
-
-```text
-offline games / human games with consent
-              ↓
-       contract validation
-              ↓
-       D1 or local archive
-              ↓
-    dataset split + manifest
-              ↓
-       model training/export
-              ↓
- held-out scoring + pairwise arena
-              ↓
-     optional promotion / publication
-```
-
-Leaderboard standings are a view over imported match records. They are not a
-separate source of truth and should never be updated by an undocumented live
-generator.
-
-## Agent identity
-
-Every recorded agent should identify its runtime, rules version, evaluator or
-model hash, search depth, node budget, beam width, and board configuration.
-Display names belong in the UI; stable IDs belong in contracts, archives, and
-evaluation reports.
+- The root package orchestrates workspaces and cross-project checks.
+- Deployment-specific configuration stays inside its app.
+- README files live at ownership boundaries and explain local decisions.
+- Generated dependencies, build output, and research workspaces stay ignored.
+- A feature with no current owner, documentation, or meaningful coverage is a
+  deletion candidate even if a recent experiment once used it.

@@ -2,8 +2,8 @@
 set -euo pipefail
 
 project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-output_dir="${project_dir}/public/engine"
-inference_output_dir="${project_dir}/public/engine-inference"
+output_dir="${project_dir}/apps/web/public/engine"
+inference_output_dir="${project_dir}/apps/web/public/engine-inference"
 
 if ! command -v rustup >/dev/null 2>&1; then
   echo "rustup is required to build the browser engine" >&2
@@ -27,28 +27,30 @@ mkdir -p "${inference_output_dir}"
 export DYLD_LIBRARY_PATH="${toolchain_root}/lib${DYLD_LIBRARY_PATH:+:${DYLD_LIBRARY_PATH}}"
 export PATH="${rust_bin_dir}:${PATH}"
 
-"${cargo_bin}" build \
-  --manifest-path "${project_dir}/engine-rs/Cargo.toml" \
+"${cargo_bin}" rustc \
+  --manifest-path "${project_dir}/pathagon/engine-rs/Cargo.toml" \
   --target wasm32-unknown-unknown \
   --features wasm \
   --lib \
-  --release
+  --release \
+  --crate-type cdylib
 
 wasm-bindgen \
-  "${project_dir}/engine-rs/target/wasm32-unknown-unknown/release/pathagon_engine.wasm" \
+  "${project_dir}/pathagon/engine-rs/target/wasm32-unknown-unknown/release/pathagon_engine.wasm" \
   --target web \
   --out-dir "${output_dir}" \
   --no-typescript
 
-"${cargo_bin}" build \
-  --manifest-path "${project_dir}/engine-rs/Cargo.toml" \
+"${cargo_bin}" rustc \
+  --manifest-path "${project_dir}/pathagon/engine-rs/Cargo.toml" \
   --target wasm32-unknown-unknown \
   --features wasm-inference \
   --lib \
-  --release
+  --release \
+  --crate-type cdylib
 
 wasm-bindgen \
-  "${project_dir}/engine-rs/target/wasm32-unknown-unknown/release/pathagon_engine.wasm" \
+  "${project_dir}/pathagon/engine-rs/target/wasm32-unknown-unknown/release/pathagon_engine.wasm" \
   --target web \
   --out-dir "${inference_output_dir}" \
   --no-typescript

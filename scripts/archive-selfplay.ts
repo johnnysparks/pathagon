@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
-import { validateSelfPlayRecord } from "../app/selfplay-record.ts";
-import type { SelfPlayGameRecord } from "../app/selfplay-record.ts";
+import { validateSelfPlayRecord } from "../apps/web/app/selfplay-record.ts";
+import type { SelfPlayGameRecord } from "../apps/web/app/selfplay-record.ts";
 
 const args = parseArgs(process.argv.slice(2));
 const file = args.file;

@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-forbidden="$({ git ls-files -- research/runs training research/adversarial/generated public/lab || true; } | sed '/^research\/runs\/README\.md$/d')"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${project_root}"
+
+forbidden="$(git ls-files -- 'research/**/workspace/**' training apps/web/public/lab || true)"
 if [[ -n "${forbidden}" ]]; then
   echo "Durable data policy violation: generated workspace files are tracked:" >&2
   echo "${forbidden}" >&2
@@ -15,6 +18,6 @@ while IFS= read -r -d '' artifact; do
     echo "Keep it in external storage and commit a hash/manifest instead." >&2
     exit 1
   fi
-done < <(git ls-files -z -- research/corpora research/experiments research/fixtures)
+done < <(git ls-files -z -- data pathagon/contracts apps/web/public/models)
 
 echo "Durable data policy passed."

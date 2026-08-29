@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "tableFamily": "historyless-wdl-v1",
+  "rulesVersion": "pathagon-rules-v1",
+  "boardSize": 7,
+  "reservePerPlayer": 14,
+  "history": "ignored",
+  "horizon": "unbounded",
+  "key": {
+    "encoding": "packed-2bit-cells-turn-relocation-v1",
+    "bytes": 14,
+    "namespace": "boardSize+reservePerPlayer",
+    "canonicalization": "d4-eight-rules-preserving-symmetries",
+    "ordering": "lexicographic-byte-key",
+    "reservedHighBits": 1
+  },
+  "value": {
+    "encoding": "side-to-move-wdl-byte",
+    "loss": 0,
+    "draw": 1,
+    "win": 2,
+    "unknown": "absent"
+  },
+  "rowBytes": 15,
+  "conflictPolicy": "reject",
+  "source": {
+    "kind": "all-discoverable-replay-terminal-truths",
+    "scope": "research replay archives excluding data/golden and data/fixtures",
+    "corpus": "data/corpora/games-v1",
+    "selection": "all replay-bearing JSON/JSONL archives plus canonical corpus game shards; path wins and no-legal-action draws only",
+    "inventory": {
+      "path": "data/golden/source-inventory.json",
+      "bytes": 60458,
+      "sha256": "517ff41997c36c5fa28d5e785527ed1146bf652c9f7ad7e03fa0e8571d8a4a14"
+    }
+  },
+  "shards": [
+    {
+      "path": "data/golden/tables/historyless-wdl-v1/5x5-r8/shard-00.bin",
+      "boardSize": 5,
+      "reservePerPlayer": 8,
+      "keyBytes": 8,
+      "rowBytes": 9,
+      "rows": 167,
+      "bytes": 1503,
+      "sha256": "763e3e9a818512e1d347540b8c05535747aeecfd6e1029ad86c84162c34dae0a",
+      "source": "all-discoverable-replay-terminal-truths"
+    },
+    {
+      "path": "data/golden/tables/historyless-wdl-v1/5x5-r10/shard-00.bin",
+      "boardSize": 5,
+      "reservePerPlayer": 10,
+      "keyBytes": 8,
+      "rowBytes": 9,
+      "rows": 50,
+      "bytes": 450,
+      "sha256": "2c08a7f9b30b9e26a9db584b22acb119733bd9c9a6be869e8a99a5006b1d6000",
+      "source": "all-discoverable-replay-terminal-truths"
+    },
+    {
+      "path": "data/golden/tables/historyless-wdl-v1/7x7-r14/shard-00.bin",
+      "boardSize": 7,
+      "reservePerPlayer": 14,
+      "keyBytes": 14,
+      "rowBytes": 15,
+      "rows": 41794,
+      "bytes": 626910,
+      "sha256": "d8b8b84775db2b30b5c8b57590e782ea8cecea7ecec7130bf42f78ec3f5b8a4a",
+      "source": "all-discoverable-replay-terminal-truths"
+    }
+  ],
+  "counts": {
+    "sourceFiles": 130,
+    "recordsSeen": 48908,
+    "uniqueReplays": 45019,
+    "terminalPathWins": 46371,
+    "noLegalActionDraws": 0,
+    "historyDependentDraws": 46,
+    "nonTerminal": 2491,
+    "unsupported": 0,
+    "replayErrors": 0,
+    "rows": 42011,
+    "namespaces": 3
+  }
+}

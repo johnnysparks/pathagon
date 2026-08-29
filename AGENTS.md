@@ -73,10 +73,10 @@ Constraints for each level:
 
 # Research experiment and artifact guidance
 
-- MUST follow `docs/EXPERIMENTS.md` for serious agent-search, training, and evaluation runs.
-- MUST keep universal move history, outcomes, agent IDs, and model hashes in the content-addressed corpus under `research/corpora/` rather than copying games into agent/opponent directories.
-- MUST create or update a durable record under `research/experiments/<experiment-id>/` for serious successful, failed, inconclusive, or abandoned experiments. Record hypothesis, lineage, protocol, exact candidate/opponent/model identities, canonical game membership, result, and decision.
-- MUST retain enough information about failed attempts to prevent accidental repetition, but MUST NOT commit every failed checkpoint, optimizer state, repeated replay export, verbose log, or implementation-shaped tensor.
-- MAY promote architecture-independent training labels into a versioned, deterministic, game-keyed corpus sidecar when they have durable reuse value.
-- MUST place large experiment-specific artifacts in an appropriate external store when they are needed, recording a stable URI/key, SHA-256, byte size, purpose, and retention policy. MUST NOT record credentials or temporary signed URLs.
-- MUST link completed experiment games to the canonical corpus before treating the experiment as complete.
+- MUST create research paths directly under `research/` using `YYYYMMDD-short-question` and start each path with a narrative `README.md` based on `research/TEMPLATE.md`.
+- MUST explain the idea, outcome, generated data, project impact, failures, and promotion decision. Machine-readable manifests are optional inside research paths.
+- MAY keep one-time code and loosely formatted small evidence beside the narrative. Automated coverage and strict format enforcement are not required for archived research code.
+- MUST keep generated games, checkpoints, targets, and logs in the path's ignored `workspace/` when they are not durable project assets. Large disposable artifacts do not need to be preserved or perfectly reproducible.
+- MUST promote reusable games, labels, and fixtures into a strict, versioned location under `data/` rather than copying them across agent or opponent directories.
+- MUST port promoted agents and opponent behavior to Rust under `pathagon/`, document stable identities and artifacts, add high test coverage, and scrutinize representative game output before treating them as supported.
+- MUST retain enough narrative evidence about failed or inconclusive paths to avoid accidental repetition, but MUST NOT commit repeated replay exports, optimizer state, verbose logs, or implementation-shaped tensors without durable value.

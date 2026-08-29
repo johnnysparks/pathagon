@@ -22,7 +22,8 @@ trap 'rm -f "$fixture" "$typescript_output" "$python_output" "$rust_output"' EXI
 
 cd "$project_dir"
 python3 scripts/generate-parity-fixture.py > "$fixture"
-"$node_bin" --experimental-strip-types tests/parity-runner.ts "$fixture" > "$typescript_output"
-"$python_bin" -m research.gnn.parity_runner "$fixture" > "$python_output"
-cargo run --quiet --manifest-path engine-rs/Cargo.toml --bin parity -- "$fixture" > "$rust_output"
+"$node_bin" --experimental-strip-types apps/web/tests/parity-runner.ts "$fixture" > "$typescript_output"
+PYTHONPATH="${project_dir}/research/20260824-gnn-cnn-lab" \
+  "$python_bin" -m python.parity_runner "$fixture" > "$python_output"
+cargo run --quiet --manifest-path pathagon/engine-rs/Cargo.toml --bin parity -- "$fixture" > "$rust_output"
 "$python_bin" scripts/compare-parity.py "$typescript_output" "$python_output" "$rust_output"

@@ -26,7 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-_GAME_SPEC = importlib.util.spec_from_file_location("pathagon_game_rules", REPO_ROOT / "research/gnn/game.py")
+_GAME_SPEC = importlib.util.spec_from_file_location("pathagon_game_rules", REPO_ROOT / "research/20260824-gnn-cnn-lab/python/game.py")
 if _GAME_SPEC is None or _GAME_SPEC.loader is None:
     raise RuntimeError("could not load the shared Python rules adapter")
 _GAME_MODULE = importlib.util.module_from_spec(_GAME_SPEC)

@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -14,8 +14,8 @@
 /coverage
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 
 # misc
 .DS_Store
@@ -35,18 +35,21 @@ yarn-error.log*
 
 # typescript
 next-env.d.ts
-/dist/
+dist/
 *.tsbuildinfo
 /.wrangler/
-/.sites-runtime/
+/apps/*/.wrangler/
+.sites-runtime/
 /outputs/
 /work/
 /training/
-/research/runs/*
-!/research/runs/README.md
-/research/adversarial/generated/
-/public/lab/
-/research/experiments/**/*.jsonl
+/research/**/workspace/
+/research/**/*.jsonl
+/research/**/*.pt
+/research/**/artifacts/*.onnx
+/research/**/artifacts/*.manifest.json
+/research/**/generated/
+/apps/*/public/lab/
 /.venv-pathagon-gnn/
 __pycache__/
 *.py[cod]

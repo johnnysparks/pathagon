@@ -613,8 +613,8 @@ sequence in Rust.
 
 ```bash
 python3 scripts/compact_game_corpus.py \
-  --input research/runs \
-  --output research/corpora/games-v1
+  --input work \
+  --output data/corpora/games-v1
 ```
 
 The command refuses to replace an existing output directory unless
@@ -637,8 +637,8 @@ def replace_output(staged: Path, output: Path, replace: bool) -> None:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", nargs="+", type=Path, default=[Path("research/runs")])
-    parser.add_argument("--output", type=Path, default=Path("research/corpora/games-v1"))
+    parser.add_argument("--input", nargs="+", type=Path, default=[Path("work")])
+    parser.add_argument("--output", type=Path, default=Path("data/corpora/games-v1"))
     parser.add_argument("--replace", action="store_true", help="replace an existing output after a successful rebuild")
     parser.add_argument("--no-base", action="store_true", help="ignore an existing output and rebuild only from inputs")
     parser.add_argument("--allow-errors", action="store_true", help="write the partial corpus even if sources fail to parse")

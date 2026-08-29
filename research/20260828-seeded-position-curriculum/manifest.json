@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "id": "20260828-seeded-position-curriculum",
+  "status": "completed",
+  "startedOn": "2026-08-28",
+  "completedOn": "2026-08-28",
+  "hypothesis": "A controlled mixture of ordinary, reachable-midgame, parity-balanced, and legal synthetic roots improves near-terminal learning without sacrificing full-game strength.",
+  "parentExperiment": "20260827-pathfinder-rust-sorter",
+  "sourceRevision": "a97b09ab",
+  "implementationState": "working-tree-uncommitted; seeded-root changes listed in the experiment files",
+  "candidate": {
+    "agentId": "seeded-gnn-puct-v0.1.0",
+    "role": "seeded-position curriculum generator and learner"
+  },
+  "baseline": {
+    "agentId": "rust-pathfinder-v0.4.0-tactical-filter",
+    "role": "frozen search authority and arena baseline"
+  },
+  "configuration": {
+    "rulesVersion": "pathagon-rules-v1",
+    "boardSize": 7,
+    "reservePerPlayer": 14,
+    "maxPlies": 196,
+    "seededFractions": [0, 0.25, 0.5],
+    "seededComposition": {
+      "reachable": 0.4,
+      "parity": 0.3,
+      "asymmetric": 0.3
+    },
+    "nearTerminalDistance": 3,
+    "puctSimulations": 8,
+    "pathfinderScoreDepth": 2,
+    "pathfinderScoreBeam": 8,
+    "pathfinderScoreNodes": 512,
+    "nativeTargetDepth": 4,
+    "nativeTargetNodes": 1500,
+    "nativeTargetBeam": 8,
+    "nativeTargetTemperature": 750,
+    "nativeTargetRankActions": 8,
+    "nativeTargetRankNodes": 1000,
+    "nativeTargetTacticalFilter": true,
+    "gamesPerCondition": 96,
+    "matchedTrainingPositions": 5194,
+    "trainingSteps": 400
+  },
+  "canonicalCorpus": {
+    "path": "data/corpora/games-v1",
+    "schemaVersion": 1,
+    "gameReferences": {
+      "actionOnlyCorpusSources": [
+        "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-0pct/games.jsonl",
+        "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/ranked-ladder.json"
+      ],
+      "rootAwareSidecar": "data/corpora/games-v1/sidecars/seeded-position-20260828-v1.jsonl",
+      "targetArchives": [
+        "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-0pct/targets.jsonl",
+        "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-25pct/targets.jsonl",
+        "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-50pct/targets.jsonl"
+      ]
+    },
+    "corpusManifest": "data/corpora/games-v1/manifest.json",
+    "corpusGameCount": 38547,
+    "corpusObservationCount": 128953,
+    "seededSidecarGameCount": 72,
+    "seededSidecarObservationCount": 72
+  },
+  "artifacts": [
+    {
+      "path": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-0pct/games.jsonl",
+      "sha256": "060460e882d2d9fb80cdc2be3f7f5a47a7ffc416ec36dc6384ff5062c9e95658",
+      "bytes": 18072334,
+      "purpose": "ordinary-start control game archive",
+      "retention": "ignored workspace; retain while this experiment is reproducible"
+    },
+    {
+      "path": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-25pct/games.jsonl",
+      "sha256": "72ee9482ee1b5df03ef38f3901c8fce7604b05cb6afd19cecb5b93569908efd3",
+      "bytes": 16071413,
+      "purpose": "25% seeded game archive",
+      "retention": "ignored workspace; retain while this experiment is reproducible"
+    },
+    {
+      "path": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-50pct/games.jsonl",
+      "sha256": "3e5a27757091035db9b09891070fe1d15f2ef3508ba9b8d62d3d659d5b0a03da",
+      "bytes": 15832000,
+      "purpose": "50% seeded game archive",
+      "retention": "ignored workspace; retain while this experiment is reproducible"
+    },
+    {
+      "path": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-0pct/targets.jsonl",
+      "sha256": "46693f7555a97fcca2d137f661ded738a39d0723bf58967c1eb6ddb0e2f6a376",
+      "bytes": 19797630,
+      "purpose": "native Pathfinder soft/rank targets, control",
+      "retention": "ignored workspace; retain as training provenance"
+    },
+    {
+      "path": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-25pct/targets.jsonl",
+      "sha256": "2a07053781b626c60369935ea3dc345c66e8e0b4fdc561b11b441076e940dbd9",
+      "bytes": 17630001,
+      "purpose": "native Pathfinder soft/rank targets, 25% seeded",
+      "retention": "ignored workspace; retain as training provenance"
+    },
+    {
+      "path": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-50pct/targets.jsonl",
+      "sha256": "fbbf047c4bf3b0ad996bab099a6a8241b450efd2641034090a0ef7786cd01e50",
+      "bytes": 17263851,
+      "purpose": "native Pathfinder soft/rank targets, 50% seeded",
+      "retention": "ignored workspace; retain as training provenance"
+    },
+    {
+      "path": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/ranked-ladder.json",
+      "sha256": "d037e39320f6bfbd8463c0bb56db290e6f00894f0d0a2fdb5478d6113065f9e",
+      "bytes": 3500878,
+      "purpose": "220-game color-balanced ranked ladder",
+      "retention": "ignored workspace; retain for result audit"
+    }
+  ],
+  "decision": {
+    "outcome": "not-promoted",
+    "summary": "The seeded-position validator, provenance, native target emitter, and canonical corpus linkage are complete, but none of the retrained candidates cleared the short full-game ladder against the parent. Retain the data-generation path; do not promote a seeded checkpoint or direct QAdv player.",
+    "evidence": {
+      "rankedGames": 220,
+      "pathfinderRating": 1198,
+      "parentRating": 1109,
+      "policyValueRatings": {"0pct": 1032, "25pct": 1010, "50pct": 1001},
+      "qadvRatings": {"0pct": 919, "25pct": 830, "50pct": 913},
+      "nearRootCounts": {"0pct": 0, "25pct": 5, "50pct": 20},
+      "modelStateHashes": {
+        "parentPolicyValue": "sha256:e2a8b0a4a39943d112dc706fd35ca741fe8b77678c4b786376863bec27f3715b",
+        "policyValue0pct": "sha256:c43aa91a5e5158d1cefbd263f892c2316dc26379fabc5dc2356a6b27861c199f",
+        "qadv0pct": "sha256:7508cc2e9e859bc4a5a403e2a728ec4c185518c5bd2b1a563ba3d26954d4ab92",
+        "policyValue25pct": "sha256:791d993e3d89dd75cb140633433275b8e8b0df5239db4bc08ac408164d233b92",
+        "qadv25pct": "sha256:dbe60b6a050463c787b12dbe740809ae522f913195bdc56dbfb4a4747a898b20",
+        "policyValue50pct": "sha256:dce1ba4f5aa488a824b34c89c497a9e860a0a52eb22eeb3f3a71ea46f83a8ba0",
+        "qadv50pct": "sha256:974bbe1212e0d6f4c282f5df30b3f1113ed279ed65b81ccc6a2b40b31c6211ef"
+      }
+    },
+    "next": "Run the held-out tactical and ordinary suites with longer color-balanced gates, then revisit target semantics or training duration before increasing the seeded share."
+  }
+}

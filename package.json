@@ -1,53 +1,26 @@
 {
-  "name": "pathagon-game",
-  "version": "0.1.0",
+  "name": "pathagon",
   "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
-    "install:ci": "bash scripts/install-ci.sh",
-    "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
-    "build": "bash scripts/build-verified.sh",
-    "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "npm run test:data-policy && npm run build && node --test tests/rendered-html.test.mjs tests/api-validation.test.mjs && node --experimental-strip-types --test tests/pathagon.test.ts tests/opponents.test.ts tests/shared-parity.test.ts tests/human-record.test.ts tests/contract.test.ts tests/selfplay-record.test.ts && npm run test:parity",
-    "test:data-policy": "bash scripts/check-data-policy.sh",
-    "selfplay:archive": "node --experimental-strip-types scripts/archive-selfplay.ts",
+    "dev": "npm run dev --workspace @pathagon/web",
+    "build": "npm run build --workspace @pathagon/web",
+    "test": "npm run test:data && npm run test:web && npm run test:rust && npm run test:python",
+    "test:data": "bash scripts/check-data-policy.sh",
+    "test:web": "npm test --workspace @pathagon/web",
+    "test:rust": "cargo test --manifest-path pathagon/engine-rs/Cargo.toml --all-targets --release -j1",
     "test:python": "bash scripts/test-python.sh",
-    "build:engine": "bash scripts/build-rust-wasm.sh",
     "test:parity": "bash scripts/test-parity.sh",
-    "rust:test": "cargo test --manifest-path engine-rs/Cargo.toml --all-targets --release -j1",
-    "rust:selfplay": "cargo run --release --manifest-path engine-rs/Cargo.toml --bin pathagon-selfplay --",
-    "rust:learn": "cargo run --release --manifest-path engine-rs/Cargo.toml --bin pathagon-learn --",
-    "rust:corpus": "cargo run --release --manifest-path engine-rs/Cargo.toml --bin pathagon-selfplay -- --corpus research/runs/rust-v1/current",
-    "rust:train": "cargo run --release --manifest-path engine-rs/Cargo.toml --bin pathagon-train --",
-    "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
-  },
-  "dependencies": {
-    "drizzle-orm": "0.45.2",
-    "next": "16.2.6",
-    "react": "19.2.6",
-    "react-dom": "19.2.6"
-  },
-  "devDependencies": {
-    "@cloudflare/vite-plugin": "1.37.1",
-    "@tailwindcss/postcss": "4.2.1",
-    "@types/node": "22.19.19",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "6.0.2",
-    "@vitejs/plugin-rsc": "0.5.26",
-    "drizzle-kit": "0.31.10",
-    "eslint": "9.39.4",
-    "eslint-config-next": "16.2.6",
-    "react-server-dom-webpack": "19.2.6",
-    "tailwindcss": "4.2.1",
-    "typescript": "5.9.3",
-    "vinext": "0.0.50",
-    "vite": "8.0.13",
-    "wrangler": "4.92.0"
-  },
-  "type": "module",
-  "displayName": "Pathagon"
+    "lint": "npm run lint --workspace @pathagon/web",
+    "build:engine": "bash scripts/build-rust-wasm.sh",
+    "selfplay:archive": "node --experimental-strip-types scripts/archive-selfplay.ts",
+    "rust:selfplay": "cargo run --release --manifest-path pathagon/engine-rs/Cargo.toml --bin pathagon-selfplay --",
+    "rust:learn": "cargo run --release --manifest-path pathagon/engine-rs/Cargo.toml --bin pathagon-learn --",
+    "rust:train": "cargo run --release --manifest-path pathagon/engine-rs/Cargo.toml --bin pathagon-train --"
+  }
 }

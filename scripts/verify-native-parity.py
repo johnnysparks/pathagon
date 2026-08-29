@@ -47,7 +47,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--onnx", type=Path, required=True)
-    parser.add_argument("--binary", type=Path, default=Path("engine-rs/target/release/pathagon-selfplay"))
+    parser.add_argument("--binary", type=Path, default=Path("pathagon/engine-rs/target/release/pathagon-selfplay"))
     parser.add_argument("--sequence", action="append", default=["", DEFAULT_SEQUENCE])
     parser.add_argument("--count", type=int, default=8)
     parser.add_argument("--pathfinder-depth", type=int, default=2)

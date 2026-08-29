@@ -1,0 +1,46 @@
+{
+  "name": "@pathagon/web",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vinext build",
+    "start": "vinext start",
+    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/api-validation.test.mjs && node --experimental-strip-types --test tests/pathagon.test.ts tests/opponents.test.ts tests/shared-parity.test.ts tests/human-record.test.ts tests/contract.test.ts tests/selfplay-record.test.ts && npm run test:parity",
+    "test:ci": "npm run lint && npm run build && node --test tests/rendered-html.test.mjs tests/api-validation.test.mjs && node --experimental-strip-types --test tests/pathagon.test.ts tests/opponents.test.ts tests/shared-parity.test.ts tests/human-record.test.ts tests/contract.test.ts tests/selfplay-record.test.ts",
+    "test:parity": "bash ../../scripts/test-parity.sh",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:remote": "wrangler d1 migrations apply pathagon-web --remote",
+    "deploy": "vinext deploy"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.2",
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.37.1",
+    "@tailwindcss/postcss": "4.2.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-rsc": "0.5.26",
+    "drizzle-kit": "0.31.10",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.6",
+    "react-server-dom-webpack": "19.2.6",
+    "tailwindcss": "4.2.1",
+    "typescript": "5.9.3",
+    "vinext": "0.0.50",
+    "vite": "8.0.13",
+    "wrangler": "4.92.0"
+  },
+  "type": "module",
+  "displayName": "Pathagon"
+}

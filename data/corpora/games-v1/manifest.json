@@ -1,0 +1,27 @@
+{
+  "actionEncoding": "base64url-12bit-fixed-49-stride",
+  "duplicateRecords": 90412,
+  "errors": 0,
+  "gameKey": "sha256-base64url(rules,size,reserve,repetition,actions)",
+  "games": 38547,
+  "gamesByBoardSize": {
+    "5": 225,
+    "7": 38322
+  },
+  "sidecars": [
+    {
+      "path": "sidecars/seeded-position-20260828-v1.jsonl",
+      "schemaVersion": 1,
+      "identity": "sha256-base64url(seed-root-json,compact-actions)",
+      "games": 72,
+      "observations": 72,
+      "sha256": "fd470ba8fe59d25ab7b9db37fe5bc3aa9ea39779c92ef5c1769f5747dab006bf",
+      "bytes": 72578
+    }
+  ],
+  "observations": 128953,
+  "recordsFound": 128959,
+  "schemaVersion": 1,
+  "shards": 64,
+  "sourceFilesWithGames": 22487
+}
