@@ -2710,8 +2710,9 @@ mod tests {
         assert_eq!(replay.agent_specifications.light.manifest.runtime, "rust");
         assert_eq!(
             replay.agent_specifications.light.manifest.node_budget,
-            2_000
+            32_000
         );
+        assert_eq!(replay.agent_specifications.light.manifest.beam, 256);
     }
 
     #[test]

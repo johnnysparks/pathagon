@@ -15,9 +15,10 @@ cross-runtime fixtures where applicable, and inspection of representative game
 outputs. Stable interchange types live in [`../contracts/`](../contracts/);
 durable fixtures and corpora live in [`../../data/`](../../data/).
 
-The promoted Pathfinder profile is depth 4 with a 2,000-node budget and beam
-width 8. The browser and native defaults use this same envelope; larger
-profiles must be requested explicitly.
+The promoted Pathfinder profile is depth 4 with a 32,000-node budget and beam
+width 256. The browser and native defaults use this same envelope; larger
+profiles must be requested explicitly. The previous depth-4 / 2,000-node /
+beam-8 envelope is retained as a historical control in the research archive.
 
 The runtime boundary keeps `apply_action_json` as a position-only compatibility
 API and also exposes `apply_action_transition_json` (and the corresponding
@@ -36,5 +37,4 @@ The browser adapter also exposes a deadline-bounded tactical search export.
 It checks the browser clock during iterative deepening and returns the last
 fully completed iteration, preserving a legal fallback move when the deadline
 is reached. The web app runs this search in a cancelable Worker; the historical
-depth-4 / 2,000-node / beam-8 profile remains the supported default until a
-later strength study clears the three-second research gate.
+depth-4 / 2,000-node / beam-8 profile remains available as a research control.

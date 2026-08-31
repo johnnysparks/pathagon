@@ -67,15 +67,25 @@ canonical search envelope. The detailed protocols, negative results, and
 artifact provenance remain in the linked dated paths below.
 
 The depth-4 / 2,000-node / beam-8 envelope is now the frozen historical
-comparison profile, not an assumption about the ideal product budget. A direct
-WASM probe shows enough headroom to investigate a few-seconds-per-turn default
-before more learning work is promoted.
+comparison profile, not an assumption about the ideal product budget. The
+current ordinary Pathfinder envelope is depth 4 / beam 256 / 32k nodes, which
+was promoted after the search-strategy arena. A direct WASM probe shows enough
+headroom to investigate a few-seconds-per-turn default before more learning
+work is promoted.
 
 The 20260829 three-second study is complete. Its deadline-bounded depth-6 /
 100k / beam-16 candidate remained responsive in a cancelable Worker but scored
 49.9% game points in the final 400-game paired arena, so no deeper profile was
 promoted. The deadline export, Worker boundary, and durable benchmark fixture
 remain reusable infrastructure while the supported v4 default stays in place.
+
+The 20260831 search-strategy study promoted the ordinary search envelope to
+depth 4 / beam 256 / 32k nodes while retaining the Transition v4 identity and
+model artifact. Its corrected depth-5 / beam-256 / 256k rerun beat the
+promoted envelope on strength, including at the same 256k ceiling, but used
+materially more nodes and remains an experimental challenger. The study also
+found and fixed a root alpha-beta bound/tie-break bug, with an exact small-board
+regression check covering the corrected implementation.
 
 ## Proposed next paths, ranked
 
@@ -113,6 +123,7 @@ Historical evidence and detailed outcomes live with the research paths:
 - [`../research/20260828-seeded-position-curriculum/`](../research/20260828-seeded-position-curriculum/)
 - [`../research/20260829-can-root-regret-train-evaluator/`](../research/20260829-can-root-regret-train-evaluator/)
 - [`../research/20260830-nextgen-scaled/`](../research/20260830-nextgen-scaled/)
+- [`../research/20260831-pathfinder-search-strategies/`](../research/20260831-pathfinder-search-strategies/)
 - [`../research/20260825-selfplay-corpus-audit/`](../research/20260825-selfplay-corpus-audit/)
 - [`../research/20260824-4x4-endgame-tactics/`](../research/20260824-4x4-endgame-tactics/)
 

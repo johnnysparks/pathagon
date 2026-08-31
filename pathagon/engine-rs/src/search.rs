@@ -831,7 +831,7 @@ fn search_best_action_with_root_order_and_root_limit_internal_deadline(
             }
             let next = state.apply_legal(action).state;
             budget.count_node();
-            let score = minimax(
+            let mut score = minimax(
                 next,
                 root_player,
                 depth - 1,
@@ -845,6 +845,28 @@ fn search_best_action_with_root_order_and_root_limit_internal_deadline(
                 &mut table,
                 &mut hints,
             );
+            // A child searched with the incumbent alpha can legally return an
+            // upper bound equal to alpha after a minimizing cutoff. It is not
+            // an exact tie, so do not let the root's action-order tie-break
+            // replace a known incumbent with a potentially worse move. When
+            // the candidate would win that tie-break, re-search it with a
+            // full window before comparing the root actions.
+            if alpha != NEG_INF && score == alpha && action.order() < iteration_action.order() {
+                score = minimax(
+                    next,
+                    root_player,
+                    depth - 1,
+                    NEG_INF,
+                    POS_INF,
+                    config,
+                    tactical_extension,
+                    tt_move_order,
+                    1,
+                    &mut budget,
+                    &mut table,
+                    &mut hints,
+                );
+            }
             if score > iteration_score
                 || (score == iteration_score && action.order() < iteration_action.order())
             {
@@ -1544,6 +1566,61 @@ mod tests {
     use super::*;
     use std::collections::VecDeque;
 
+    fn exhaustive_beam_score(
+        state: GameState,
+        root_player: Player,
+        depth: u8,
+        config: SearchConfig,
+    ) -> i32 {
+        if state.winner.is_some() || depth == 0 {
+            return evaluate(state, root_player, config.weights);
+        }
+        let actions = ordered_actions(state, root_player, config.weights);
+        if actions.is_empty() {
+            return evaluate(state, root_player, config.weights);
+        }
+        let maximizing = state.turn == root_player;
+        let mut best = if maximizing { NEG_INF } else { POS_INF };
+        for action in actions.into_iter().take(config.beam_width) {
+            let score = exhaustive_beam_score(
+                state.apply_legal(action).state,
+                root_player,
+                depth - 1,
+                config,
+            );
+            if maximizing {
+                best = best.max(score);
+            } else {
+                best = best.min(score);
+            }
+        }
+        if best == NEG_INF || best == POS_INF {
+            evaluate(state, root_player, config.weights)
+        } else {
+            best
+        }
+    }
+
+    fn exhaustive_beam_best_action(state: GameState, config: SearchConfig) -> (Action, i32) {
+        let root_player = state.turn;
+        let actions = ordered_actions(state, root_player, config.weights);
+        let mut best_action = actions[0];
+        let mut best_score = NEG_INF;
+        for action in actions {
+            let score = exhaustive_beam_score(
+                state.apply_legal(action).state,
+                root_player,
+                config.depth.saturating_sub(1),
+                config,
+            );
+            if score > best_score || (score == best_score && action.order() < best_action.order()) {
+                best_action = action;
+                best_score = score;
+            }
+        }
+        (best_action, best_score)
+    }
+
     fn reference_connection_distance(state: GameState, player: Player) -> i32 {
         let opponent = player.other();
         let board_size = state.config.board_size;
@@ -1638,6 +1715,65 @@ mod tests {
         assert!(result.nodes <= 120);
         assert!(result.exhausted);
         assert!((1..5).contains(&result.completed_depth));
+    }
+
+    #[test]
+    fn alpha_beta_matches_exhaustive_beam_reference_on_small_positions() {
+        let profiles = [(2_u8, 2_usize), (3, 2), (3, 4), (4, 8)];
+        for (profile_index, (depth, beam_width)) in profiles.into_iter().enumerate() {
+            let config = SearchConfig {
+                depth,
+                max_nodes: 200_000,
+                beam_width,
+                ..SearchConfig::default()
+            };
+            let mut state = GameState::with_board_size(3);
+            let mut seed = 0x9e37_79b9_u32.wrapping_add(profile_index as u32);
+            for position_index in 0..16 {
+                if state.legal_actions().is_empty() {
+                    state = GameState::with_board_size(3);
+                    continue;
+                }
+                let (expected_action, expected_score) = exhaustive_beam_best_action(state, config);
+                let actual = search_best_action(state, config);
+                assert!(!actual.exhausted);
+                assert_eq!(actual.completed_depth, depth);
+                if actual.action != Some(expected_action) || actual.score != expected_score {
+                    let breakdown = ordered_actions(state, state.turn, config.weights)
+                        .into_iter()
+                        .map(|action| {
+                            let score = exhaustive_beam_score(
+                                state.apply_legal(action).state,
+                                state.turn,
+                                config.depth.saturating_sub(1),
+                                config,
+                            );
+                            format!("{action:?}={score}")
+                        })
+                        .collect::<Vec<_>>();
+                    eprintln!(
+                        "search/reference mismatch profile={depth}/{beam_width} position={position_index} state={state:?} expected={expected_action:?}/{expected_score} actual={:?}/{} nodes={} hits={} breakdown={breakdown:?}",
+                        actual.action,
+                        actual.score,
+                        actual.nodes,
+                        actual.table_hits
+                    );
+                }
+                assert_eq!(actual.action, Some(expected_action));
+                assert_eq!(actual.score, expected_score);
+
+                let actions = state.legal_actions();
+                let action = actions[(seed as usize) % actions.len()];
+                seed = seed
+                    .wrapping_mul(1_664_525)
+                    .wrapping_add(1_013_904_223)
+                    .wrapping_add(position_index);
+                state = state.apply_legal(action).state;
+                if state.winner.is_some() {
+                    state = GameState::with_board_size(3);
+                }
+            }
+        }
     }
 
     #[test]

@@ -28,8 +28,8 @@ fn main() {
     let board_size = number(&args, "board-size", 7_u8);
     let reserve_per_player = number(&args, "reserve", board_size.saturating_mul(2));
     let depth = number(&args, "depth", 4_u8);
-    let max_nodes = number(&args, "nodes", 2_000_u64);
-    let beam_width = number(&args, "beam", 8_usize);
+    let max_nodes = number(&args, "nodes", 32_000_u64);
+    let beam_width = number(&args, "beam", 256_usize);
     let simulations = number(&args, "simulations", 64_u32);
     let cpuct = number(&args, "cpuct", 1.5_f32);
     let temperature_moves = number(&args, "temperature-moves", 8_u16);

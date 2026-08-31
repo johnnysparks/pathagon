@@ -22,8 +22,9 @@ deepening alpha-beta with deterministic move ordering, a recursive beam cap,
 transposition-table storage, a node ceiling, and an optional wall-clock
 deadline. `SearchConfig` exposes `depth`, `beam_width`, `max_nodes`, and
 evaluator weights; the self-play agent adds an optional per-move deadline. The
-current research control is depth 4 / beam 8 / 2,000 nodes with the default
-heuristic weights.
+historical research control is depth 4 / beam 8 / 2,000 nodes with the default
+heuristic weights; the promoted product envelope is depth 4 / beam 256 /
+32,000 nodes.
 
 The existing CLI already supports independent configurations: `--depth`,
 `--beam`, and `--nodes` configure the opponent, while
@@ -53,7 +54,9 @@ where possible plus explicit wide-beam and timed interaction profiles:
   nodes and no deadline.
 - fixed-32k beam curve: depth 4, beams 32, 64, 150, and 256, all with
   32,000 nodes.
-- depth-vs-budget probe: depth 5 / beam 150 / 256,000 nodes with no deadline.
+- depth-vs-budget probe: depth 5 / beam 150 / 256,000 nodes with no deadline;
+- corrected wide-depth probe: depth 5 / beam 256 / 256,000 nodes with no
+  deadline, plus a depth-4 / beam-256 / 256,000-node same-budget control.
 
 The Full Power beam is set to 256 as the explicit interpretation of “wider
 beam” for this campaign. Its node ceiling and time ceiling are both recorded;
@@ -136,10 +139,9 @@ screening, `--round-robin` runs all selected profiles against each other.
 
 ## What happened
 
-The release Rust arena completed 5,280 games across 80 reports with balanced
-colors and two randomized opening plies. Every archive passed the analyzer's
-structural checks: valid contract, winner/color fields, candidate identity,
-and move-player fields. The durable analysis command is
+The original release Rust arena completed 5,280 games across 80 reports with
+balanced colors and two randomized opening plies. Those results are retained
+as pre-fix historical evidence. The durable analysis command is
 [`scripts/analyze_pathfinder_search_strategies.py`](scripts/analyze_pathfinder_search_strategies.py);
 the generated ranking and confidence intervals are in the ignored
 `workspace/analysis-all-completed.{json,md}` files.
@@ -160,13 +162,28 @@ zero matchup losses; the other four profiles each reached five. The earlier
 partial bracket containing Full Power is retained as interrupted evidence but
 is excluded from the final selector ranking.
 
-The depth-5 probe did not displace the champion. Against the control it scored
-65–35 over 100 games, completing depth 5 on 1,194 of 1,493 searched decisions
-and saturating its 256k node ceiling on 299 decisions. In the paired-color
-200-game head-to-head, depth 4 / beam 256 / 32k beat depth 5 / beam 150 /
-256k by 141–59 with no draws. The depth-5 profile consumed about 2.80M
-nodes/game versus 405.6k for the champion, so extra depth was not a good use
-of this envelope despite often reaching the depth limit.
+The first depth-5 probe used the wrong beam for the causal question: depth 5 /
+beam 150 / 256k. Its pre-fix result is retained as a negative, confounded
+depth-vs-budget result rather than a conclusion about depth itself.
+
+The correctness audit then found a real root alpha-beta bug. A later root
+candidate could receive an upper bound equal to the incumbent alpha after a
+minimizing cutoff; the root tie-break treated that bound as an exact score and
+could select a worse action. An exhaustive small-board reference test caught
+the mismatch. The engine now re-searches that narrow-bound tie with a full
+window, and the regression passes across deterministic 3×3 positions and
+multiple depth/beam settings. Ordinary-search arena results from before this
+fix are not promotion-grade and must not be pooled with the corrected runs.
+
+The corrected wide-depth probe reverses the apparent anomaly. Against the
+historical control, depth 5 / beam 256 / 256k scored 97–2–1 over 100 games
+(97.5 game points), at about 2.11M nodes/game. Against depth 4 / beam 256 /
+32k it scored 148–43–9 over 200 games (76.25% game points), at about 3.53M
+nodes/game versus 469k. At the same 256k ceiling, depth 5 still won 63–34–3
+over 100 games (64.5% game points), at about 3.50M nodes/game versus 1.59M
+for depth 4. The corrected evidence says depth 5 is the stronger flavor; its
+cost is the reason it remains an experimental challenger rather than the
+product default.
 
 The targeted node and beam checks sharpened the tuning rule. At fixed depth 4
 and 32k nodes, the control screen rose from 62% at beam 32 to 69% at beam 64,
@@ -186,7 +203,9 @@ are not automatically stronger.
 ## Empirical tuning function
 
 This is the current best basic-Pathfinder policy, not a mathematical optimum
-over every possible engine configuration:
+over every possible engine configuration. The earlier rows are pre-fix
+historical comparisons; use the corrected depth-5 results above for current
+strength conclusions:
 
 | Available envelope | Recommended search | Evidence and dropoff |
 |---|---|---|
@@ -195,18 +214,19 @@ over every possible engine configuration:
 | Around 32k nodes | depth 4 / beam 256; retain beam 150 as the cost-control | Across 400 direct games, beam 256 led beam 150 by 55.9%–44.1% in game points at only ~2–3% extra nodes/game. The fixed-control beam curve was 62%, 69%, 81%, and 76.5% for beams 32, 64, 150, and 256, so direct validation matters near the top. |
 | Around 64k nodes | usually keep depth 4 / beam 256 / 32k; do not assume the extra 32k helps | At beam 256, 32k beat 64k 103.5–96.5 over 200 games with ~54.5% lower cost. At the exact 64k beam-150/256 comparison, beam 150 was 52–48. |
 | 200k–500k or a 1–2s latency budget | benchmark depth 3 / beam 150, but prefer depth 4 / beam 256 / 32k for general play | Timed depth 3 / beam 150 reached 84% versus control, but lost the direct selector to the depth-4 wide-beam family; the timed profile is a useful latency-specific alternative, not the general winner. |
-| Around 256k nodes with no deadline | do not raise depth to 5 by default | Depth 5 / beam 150 scored 59/200 game points against the depth-4 / beam-256 / 32k champion while costing ~6.9× as many nodes/game. |
+| Around 256k nodes with no deadline | depth 5 / beam 256 is the stronger research flavor; keep depth 4 / beam 256 / 32k for product cost | Corrected depth 5 beat depth 4 at the same 256k ceiling 64.5%–35.5% in game points, but used ~2.2× the observed nodes/game. |
 | 1M nodes / 5s | do not use as a default | Full Power was only 64% versus control and was removed from the competition for compute efficiency. |
 
 The lever-level pattern is: widen beam aggressively through the 32k envelope,
-with beam 256 currently best in direct play, but expect a non-monotonic curve
-when the node cap changes. Raise depth to 4 only when
-the beam/node envelope can complete it; deeper depth at beam 8 saturated over
-90% of decisions in the depth-5/6 tests and produced no reliable gain.
-The new depth-5 / beam-150 / 256k probe reached depth 5 on about 73% of
-searched decisions, but still lost the direct comparison badly at roughly
-6.9× the champion's node cost/game; this is another sign that “reaches the
-depth limit” does not by itself imply a stronger search.
+with beam 256 currently best for the product-cost lane, but expect a
+non-monotonic curve when the node cap changes. The corrected depth-5 result
+shows that deeper search can be genuinely stronger once its beam and budget
+are large enough; the earlier loss was primarily the root-bound bug, not proof
+that extra information hurts. It still does not follow that depth 6 will be
+stronger: iterative-deepening cost, heuristic horizon effects, and beam
+truncation remain separate variables, so depth 6 needs its own corrected
+arena. Wall-clock deadlines are secondary because they change completed-depth
+distributions and are hardware-dependent.
 Increase nodes from 500 through 32k when beam is narrow, but treat 32k as the
 current wide-beam knee; beyond it, validate a direct matchup before paying
 for more search. Wall-clock deadlines are secondary because they change
@@ -222,28 +242,26 @@ into this experiment.
 
 ## Project impact
 
-This experiment does not change production manifests, browser behavior, or
-canonical game data. It does add ordinary-search deadline support and the
-research runner/analyzer. The research winner is currently `d4/b256/32k`, with
-`d4/b150/32k` retained as a lower-cost control, but it is not
-promoted to a user-facing default from this path alone: normal tactical,
-legality/replay, browser-cost, and representative-game gates still need to be
-run. Full Power remains a measured rollback/control profile in the catalog,
-not a tournament entrant. The depth-5 / beam-150 / 256k profile is retained
-as a measured negative depth-vs-budget result, not a tournament entrant. If a
-true alternate traversal is added, it must be
+This path promoted the ordinary Pathfinder envelope to `d4/b256/32k` across
+the Rust engine, browser/WASM adapter, opponent controls, and the current
+Transition v4 runtime identity. The prior `d4/b8/2k` envelope remains a
+versioned historical control; Full Power remains a measured rollback/control
+profile, not a tournament entrant. The corrected `d5/b256/256k` profile is
+retained as the stronger but materially more expensive research challenger.
+The root-bound fix and its exact small-board regression test are also part of
+the supported Rust search implementation. If a true alternate traversal is
+added, it must be
 implemented and tested under `pathagon/engine-rs`; the current deadline path
 is still the same depth-first alpha-beta traversal.
 
 ## Next decision
 
-Keep `d4/b256/32k` as the current research champion, `d4/b150/32k` as the
-lower-cost comparison, and `d4/b8/2k` as the control. Before promotion, run
-the normal supported-agent gates and inspect
-representative games. For future budget changes, use the piecewise policy
+Keep `d4/b256/32k` as the shipped default, `d5/b256/256k` as the current
+strength challenger, and `d4/b8/2k` as the historical control. The next
+depth question is a corrected `d6/b256` arena, not an inference from the
+invalidated pre-fix loss. For future budget changes, use the piecewise policy
 above and add direct, paired-color tests around the proposed knee; do not
 assume that more depth, nodes, beam, or seconds is monotonically stronger.
-The new `d5/b150/256k` profile was added to the catalog and screened, but the
-direct result does not justify adding it to the elimination bracket.
-Do not call beam width “breadth-first” until a real breadth-first Rust
-traversal is implemented and separately validated.
+The original `d5/b150/256k` profile remains in the catalog as a confounded
+negative result. Do not call beam width “breadth-first” until a real
+breadth-first Rust traversal is implemented and separately validated.

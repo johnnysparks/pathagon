@@ -204,6 +204,14 @@
       "depth": 5,
       "beam": 256,
       "nodes": 256000
+    },
+    {
+      "id": "pf-d4-b256-n256k",
+      "label": "wide deep control: depth 4 / beam 256 / 256k nodes",
+      "group": "wide-beam",
+      "depth": 4,
+      "beam": 256,
+      "nodes": 256000
     }
   ]
 }

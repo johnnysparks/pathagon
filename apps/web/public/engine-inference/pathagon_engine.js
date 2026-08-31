@@ -475,6 +475,40 @@ export function pathagon_search_best_action(position, config) {
 /**
  * @param {string} position
  * @param {string} config
+ * @param {Uint8Array} table_bytes
+ * @param {Uint8Array} sidecar_bytes
+ * @returns {string}
+ */
+export function pathagon_search_best_action_with_golden(position, config, table_bytes, sidecar_bytes) {
+    let deferred6_0;
+    let deferred6_1;
+    try {
+        const ptr0 = passStringToWasm0(position, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(config, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passArray8ToWasm0(table_bytes, wasm.__wbindgen_malloc_command_export);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passArray8ToWasm0(sidecar_bytes, wasm.__wbindgen_malloc_command_export);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.pathagon_search_best_action_with_golden(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3);
+        var ptr5 = ret[0];
+        var len5 = ret[1];
+        if (ret[3]) {
+            ptr5 = 0; len5 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred6_0 = ptr5;
+        deferred6_1 = len5;
+        return getStringFromWasm0(ptr5, len5);
+    } finally {
+        wasm.__wbindgen_free_command_export(deferred6_0, deferred6_1, 1);
+    }
+}
+
+/**
+ * @param {string} position
+ * @param {string} config
  * @returns {string}
  */
 export function pathagon_search_best_action_with_tactical_filter(position, config) {

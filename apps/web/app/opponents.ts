@@ -42,7 +42,7 @@ export function pathfinderMaxNodesForDepth(depth: number) {
   if (depth <= 4) return PATHFINDER_SEARCH.maxNodes;
   if (depth >= 100) return PATHFINDER_MAX_NODES_HARD_CAP;
   if (depth >= 50) return 5_000_000;
-  return PATHFINDER_MAX_NODES_DEFAULT;
+  return 1_000_000;
 }
 
 function defaultPathfinderMaxNodes(depth: number) {
