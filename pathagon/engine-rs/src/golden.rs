@@ -12,7 +12,7 @@ use std::io::{self, BufRead, BufReader, Cursor, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use crate::{Action, GameState, Player};
+use crate::{Action, BoardConfig, GameState, Player};
 use serde_json::Value;
 
 pub const LOSS: u8 = 0;
@@ -807,6 +807,94 @@ pub fn canonical_position_key(state: GameState) -> Vec<u8> {
     canonical_key(state).0
 }
 
+/// Decode a canonical key into its canonical representative state. Reserve
+/// counts are reconstructed from the fixed inventory and piece counts because
+/// the namespace already fixes the reserve-per-player value.
+pub fn decode_canonical_position_key(
+    key: &[u8],
+    board_size: u8,
+    reserve_per_player: u8,
+) -> Result<GameState, String> {
+    let key_bytes = key_bytes_for_board_size(board_size)?;
+    if key.len() != key_bytes {
+        return Err(format!(
+            "canonical key has {} bytes, expected {key_bytes}",
+            key.len()
+        ));
+    }
+    let cells = usize::from(board_size) * usize::from(board_size);
+    let marker_bits = (usize::BITS - cells.leading_zeros()) as usize;
+    let used_bits = 2 * cells + 1 + 2 * marker_bits;
+    let mut padded = [0_u8; 16];
+    padded[..key.len()].copy_from_slice(key);
+    let packed = u128::from_le_bytes(padded);
+    let used_mask = if used_bits == u128::BITS as usize {
+        u128::MAX
+    } else {
+        (1_u128 << used_bits) - 1
+    };
+    if packed & !used_mask != 0 {
+        return Err("canonical key sets a reserved high bit".to_owned());
+    }
+    let mut light = 0_u64;
+    let mut dark = 0_u64;
+    let mut forbidden = 0_u64;
+    for square in 0..cells {
+        let code = ((packed >> (2 * square)) & 0b11) as u8;
+        match code {
+            0 => {}
+            1 => light |= 1_u64 << square,
+            2 => dark |= 1_u64 << square,
+            3 => forbidden |= 1_u64 << square,
+            _ => unreachable!(),
+        }
+    }
+    let turn = match ((packed >> (2 * cells)) & 1) as u8 {
+        0 => Player::Light,
+        1 => Player::Dark,
+        _ => unreachable!(),
+    };
+    let decode_marker = |shift: usize| -> Result<Option<u8>, String> {
+        let marker = (packed >> shift) & ((1_u128 << marker_bits) - 1);
+        if marker == cells as u128 {
+            Ok(None)
+        } else if marker < cells as u128 {
+            Ok(Some(marker as u8))
+        } else {
+            Err("canonical key contains an out-of-range relocation marker".to_owned())
+        }
+    };
+    let last_relocated_to = [
+        decode_marker(2 * cells + 1)?,
+        decode_marker(2 * cells + 1 + marker_bits)?,
+    ];
+    let light_count = light.count_ones() as u8;
+    let dark_count = dark.count_ones() as u8;
+    if light & dark != 0 || forbidden & (light | dark) != 0 {
+        return Err("canonical key overlaps pieces or forbidden squares".to_owned());
+    }
+    if light_count > reserve_per_player || dark_count > reserve_per_player {
+        return Err("canonical key exceeds the fixed piece inventory".to_owned());
+    }
+    let config = BoardConfig::new(board_size, reserve_per_player)?;
+    Ok(GameState {
+        config,
+        light,
+        dark,
+        reserve: [
+            reserve_per_player - light_count,
+            reserve_per_player - dark_count,
+        ],
+        turn,
+        forbidden,
+        last_relocated_to,
+        last_capture: 0,
+        last_player: None,
+        winner: None,
+        ply: 0,
+    })
+}
+
 fn pack_transformed(state: GameState, symmetry: u8) -> Vec<u8> {
     let transformed = transform_state(state, symmetry);
     let cells = usize::from(transformed.config.cells());
@@ -1029,6 +1117,38 @@ mod tests {
     fn marker_bits_and_key_size_match_persisted_formats() {
         assert_eq!(key_bytes_for_board_size(5), Ok(8));
         assert_eq!(key_bytes_for_board_size(7), Ok(14));
+    }
+
+    #[test]
+    fn canonical_key_round_trips_through_state_decoder() {
+        let mut state = GameState::with_config(BoardConfig::DEFAULT);
+        state.light = (1_u64 << 3) | (1_u64 << 17) | (1_u64 << 31);
+        state.dark = (1_u64 << 9) | (1_u64 << 40);
+        state.reserve = [11, 12];
+        state.turn = Player::Dark;
+        state.forbidden = 1_u64 << 24;
+        state.last_relocated_to = [Some(17), None];
+        let key = canonical_position_key(state);
+        let decoded = decode_canonical_position_key(&key, 7, 14).expect("decode canonical key");
+        assert_eq!(canonical_position_key(decoded), key);
+        let mut expected_reserves = state.reserve;
+        expected_reserves.sort_unstable();
+        let mut decoded_reserves = decoded.reserve;
+        decoded_reserves.sort_unstable();
+        assert_eq!(decoded_reserves, expected_reserves);
+        let mut expected_counts = [state.light.count_ones(), state.dark.count_ones()];
+        expected_counts.sort_unstable();
+        let mut decoded_counts = [decoded.light.count_ones(), decoded.dark.count_ones()];
+        decoded_counts.sort_unstable();
+        assert_eq!(decoded_counts, expected_counts);
+        assert_eq!(decoded.forbidden.count_ones(), state.forbidden.count_ones());
+    }
+
+    #[test]
+    fn canonical_key_decoder_rejects_reserved_bits() {
+        let mut key = canonical_position_key(GameState::with_config(BoardConfig::DEFAULT));
+        *key.last_mut().expect("key has bytes") |= 0x80;
+        assert!(decode_canonical_position_key(&key, 7, 14).is_err());
     }
 
     #[test]

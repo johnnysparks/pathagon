@@ -109,6 +109,14 @@ from every non-empty shard. The compact output carries solver version, rules
 version, proof lineage, exact/unknown statistics, per-action values, and an
 explicit complete-optimal-action-set map.
 
+The Rust `pathagon-endgame-expand` executable now materializes missing child
+stubs in bounded passes. It decodes the canonical key, reconstructs inventory,
+enumerates the legal Rust action boundary, emits canonical child edges, and
+terminalizes a reachable child only when its path state proves a loss or a
+no-action draw. A 100-stub Ring-2 smoke pass emitted 19,635 legal edges and
+left 2,436 untouched unknown stubs; the tablebase re-read that graph and still
+left all incomplete branches unknown.
+
 The first training gate is intentionally not a promotion: a linear
 gold-aware policy/value/urgency adapter trained on 1,815 Ring-1 rows reached
 72.97% witnessed-action accuracy on 185 held-out rows, equal to the frozen v4
@@ -118,9 +126,11 @@ stronger model.
 
 ## Next decision
 
-Close the Ring-2 frontier by supplying verified records for its missing child
-states (or by adding independently replay-witnessed constructive admissions),
-then rerun the exact minimax and promotion gates. After a non-empty Ring-2
+Continue bounded expansion passes over Ring-2 unknown stubs, retaining each
+pass under `workspace/`, until a measured resource budget is reached. Close the
+Ring-2 frontier by supplying verified records for its missing child states (or
+by adding independently replay-witnessed constructive admissions), then rerun
+the exact minimax and promotion gates. After a non-empty Ring-2
 promotion, train and evaluate against the permanent held-out split and user
 games before promoting a stronger model. Keep this Ring-1 artifact as the
 rollback/control layer until that later ring is independently validated.
