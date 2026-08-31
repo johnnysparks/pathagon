@@ -78,8 +78,8 @@ pub struct SearchConfig {
 impl Default for SearchConfig {
     fn default() -> Self {
         Self {
-            depth: 4,
-            max_nodes: 32_000,
+            depth: 5,
+            max_nodes: 256_000,
             beam_width: 256,
             weights: EvaluationWeights::default(),
             tactical_proof_horizon: None,

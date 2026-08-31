@@ -27,8 +27,8 @@ fn main() {
     let opening_random_plies = number(&args, "opening-random-plies", 2_u16);
     let board_size = number(&args, "board-size", 7_u8);
     let reserve_per_player = number(&args, "reserve", board_size.saturating_mul(2));
-    let depth = number(&args, "depth", 4_u8);
-    let max_nodes = number(&args, "nodes", 32_000_u64);
+    let depth = number(&args, "depth", 5_u8);
+    let max_nodes = number(&args, "nodes", 256_000_u64);
     let beam_width = number(&args, "beam", 256_usize);
     let simulations = number(&args, "simulations", 64_u32);
     let cpuct = number(&args, "cpuct", 1.5_f32);

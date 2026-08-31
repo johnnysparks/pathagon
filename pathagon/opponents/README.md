@@ -15,7 +15,7 @@ high-value deployable artifacts here.
 ## `pathfinder-v0.5.0-trained-evaluator`
 
 The Pathfinder · Trained is a Rust tactical-filter search opponent using the
-promoted 4-ply, 32,000-node, beam-256 search envelope, with evaluator weights
+promoted 5-ply, 256,000-node, beam-256 search envelope, with evaluator weights
 evolved against the tactical-filter baseline. Its durable
 configuration and evidence are recorded in
 [`pathfinder-v0.5.0-trained-evaluator.json`](pathfinder-v0.5.0-trained-evaluator.json).

@@ -47,8 +47,8 @@ export const SURVEYOR_SEARCH: SearchConfig = {
 };
 
 export const PATHFINDER_SEARCH: SearchConfig = {
-  depth: 4,
-  maxNodes: 32_000,
+  depth: 5,
+  maxNodes: 256_000,
   beamWidth: 256,
   weights: DEFAULT_WEIGHTS,
 };

@@ -15,10 +15,12 @@ cross-runtime fixtures where applicable, and inspection of representative game
 outputs. Stable interchange types live in [`../contracts/`](../contracts/);
 durable fixtures and corpora live in [`../../data/`](../../data/).
 
-The promoted Pathfinder profile is depth 4 with a 32,000-node budget and beam
+The promoted Pathfinder profile is depth 5 with a 256,000-node budget and beam
 width 256. The browser and native defaults use this same envelope; larger
-profiles must be requested explicitly. The previous depth-4 / 2,000-node /
-beam-8 envelope is retained as a historical control in the research archive.
+profiles must be requested explicitly. The previous depth-4 / beam-256 /
+32,000-node envelope remains the cheaper rollback/control, while the original
+depth-4 / 2,000-node / beam-8 envelope is retained as a historical control in
+the research archive.
 
 The runtime boundary keeps `apply_action_json` as a position-only compatibility
 API and also exposes `apply_action_transition_json` (and the corresponding

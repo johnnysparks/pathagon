@@ -2708,9 +2708,10 @@ mod tests {
         let replay = crate::contract::ReplayRecord::from_json(&record.to_json())
             .expect("generated replay follows contract");
         assert_eq!(replay.agent_specifications.light.manifest.runtime, "rust");
+        assert_eq!(replay.agent_specifications.light.manifest.depth, 5);
         assert_eq!(
             replay.agent_specifications.light.manifest.node_budget,
-            32_000
+            256_000
         );
         assert_eq!(replay.agent_specifications.light.manifest.beam, 256);
     }

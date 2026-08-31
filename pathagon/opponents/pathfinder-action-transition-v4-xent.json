@@ -9,8 +9,8 @@
   "boardSize": 7,
   "reservePerPlayer": 14,
   "search": {
-    "depth": 4,
-    "nodeBudget": 32000,
+    "depth": 5,
+    "nodeBudget": 256000,
     "beam": 256,
     "tacticalRootFilter": true,
     "deadlineMs": 2800,

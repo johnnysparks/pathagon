@@ -34,12 +34,14 @@ export type PathfinderDepth = typeof PATHFINDER_DEPTH_OPTIONS[number];
 
 /** Maximum browser search budget. The Rust runtime enforces this again. */
 export const PATHFINDER_MAX_NODES_HARD_CAP = 10_000_000;
+const PATHFINDER_ROLLBACK_MAX_NODES = 32_000;
 export const PATHFINDER_MAX_NODES_DEFAULT = PATHFINDER_SEARCH.maxNodes;
-export const PATHFINDER_MAX_NODES_OPTIONS = [32_000, 64_000, 250_000, 500_000, 1_000_000, 2_000_000, 5_000_000, PATHFINDER_MAX_NODES_HARD_CAP] as const;
+export const PATHFINDER_MAX_NODES_OPTIONS = [PATHFINDER_ROLLBACK_MAX_NODES, 64_000, 250_000, 256_000, 500_000, 1_000_000, 2_000_000, 5_000_000, PATHFINDER_MAX_NODES_HARD_CAP] as const;
 
 /** Default control value for the long-horizon browser experiments. */
 export function pathfinderMaxNodesForDepth(depth: number) {
-  if (depth <= 4) return PATHFINDER_SEARCH.maxNodes;
+  if (depth <= 4) return PATHFINDER_ROLLBACK_MAX_NODES;
+  if (depth === 5) return PATHFINDER_SEARCH.maxNodes;
   if (depth >= 100) return PATHFINDER_MAX_NODES_HARD_CAP;
   if (depth >= 50) return 5_000_000;
   return 1_000_000;
@@ -48,8 +50,8 @@ export function pathfinderMaxNodesForDepth(depth: number) {
 function defaultPathfinderMaxNodes(depth: number) {
   if (depth <= 2) return 512;
   if (depth <= 3) return 1_024;
-  if (depth <= 4) return PATHFINDER_SEARCH.maxNodes;
-  if (depth <= 5) return 4_000;
+  if (depth <= 4) return PATHFINDER_ROLLBACK_MAX_NODES;
+  if (depth <= 5) return PATHFINDER_SEARCH.maxNodes;
   if (depth <= 6) return 8_000;
   if (depth <= 7) return 16_000;
   if (depth <= 8) return 32_000;
@@ -65,8 +67,7 @@ function defaultPathfinderMaxNodes(depth: number) {
 function defaultPathfinderBeamWidth(depth: number) {
   if (depth <= 2) return 16;
   if (depth <= 3) return 12;
-  if (depth <= 4) return PATHFINDER_SEARCH.beamWidth;
-  if (depth <= 5) return 6;
+  if (depth <= 5) return PATHFINDER_SEARCH.beamWidth;
   if (depth <= 7) return 4;
   if (depth <= 9) return 3;
   return 2;
@@ -157,10 +158,10 @@ export const PATHFINDER_OPPONENT: Opponent = {
   name: "The Pathfinder",
   shortName: "Pathfinder · Tactical",
   version: "0.4.0",
-  engine: "4-ply iterative · tactical-safe",
+  engine: "5-ply iterative · tactical-safe",
   elo: "Unrated · expert",
   personality: "Builds quietly. Punishes shortcuts.",
-  searchDepth: 4,
+  searchDepth: 5,
   chooseAction(state) {
     return searchBestAction(state, pathfinderSearchAtDepth(PATHFINDER_SEARCH.depth)).action;
   },
@@ -171,10 +172,10 @@ export const TRAINED_PATHFINDER_OPPONENT: Opponent = {
   name: "The Pathfinder · Trained",
   shortName: "Pathfinder · Trained",
   version: "0.5.0",
-  engine: "4-ply iterative · trained evaluator",
+  engine: "5-ply iterative · trained evaluator",
   elo: "Provisional · trained",
   personality: "Keeps the path, weighs the traps more carefully.",
-  searchDepth: 4,
+  searchDepth: 5,
   chooseAction(state) {
     return searchBestAction(state, trainedPathfinderSearchAtDepth(PATHFINDER_SEARCH.depth)).action;
   },
@@ -190,10 +191,10 @@ export const TRANSITION_PATHFINDER_OPPONENT: Opponent = {
   name: "The Pathfinder · Transition v4",
   shortName: "Pathfinder · v4",
   version: "4.0.0",
-  engine: "4-ply iterative · action-transition policy",
+  engine: "5-ply iterative · action-transition policy",
   elo: "Provisional · scaled research",
   personality: "Learns which moves change the board, then searches the consequences.",
-  searchDepth: 4,
+  searchDepth: 5,
   chooseAction(state) {
     return searchBestAction(state, trainedPathfinderSearchAtDepth(PATHFINDER_SEARCH.depth)).action;
   },

@@ -71,7 +71,7 @@ test("Pathfinder look-ahead stays within the browser-safe experiment envelope", 
   const longTwentyThree = pathfinderSearchAtDepth(23);
   const extreme = pathfinderSearchAtDepth(50);
   assert.equal(quick.depth, 2);
-  assert.equal(balanced.depth, 4);
+  assert.equal(balanced.depth, 5);
   assert.equal(deep.depth, 100);
   assert.equal(long.depth, 20);
   assert.equal(longTwentyOne.depth, 21);
@@ -81,9 +81,14 @@ test("Pathfinder look-ahead stays within the browser-safe experiment envelope", 
   assert.ok(quick.maxNodes < balanced.maxNodes);
   assert.ok(balanced.maxNodes < deep.maxNodes);
   assert.ok(quick.beamWidth > deep.beamWidth);
-  assert.equal(balanced.maxNodes, 32_000);
+  assert.equal(balanced.maxNodes, 256_000);
   assert.equal(balanced.beamWidth, 256);
+  const rollback = pathfinderSearchAtDepth(4);
+  assert.equal(rollback.depth, 4);
+  assert.equal(rollback.maxNodes, 32_000);
+  assert.equal(rollback.beamWidth, 256);
   assert.equal(pathfinderMaxNodesForDepth(4), 32_000);
+  assert.equal(pathfinderMaxNodesForDepth(5), 256_000);
   assert.equal(pathfinderSearchAtDepth(99).depth, 99);
   assert.equal(pathfinderSearchAtDepth(-10).depth, 2);
   assert.equal(pathfinderSearchAtDepth(23, 50_000_000).maxNodes, PATHFINDER_MAX_NODES_HARD_CAP);
@@ -97,8 +102,8 @@ test("trained Pathfinder keeps its promoted search envelope and evaluator weight
   assert.equal(PATHFINDER_OPPONENT.id, PATHFINDER_TACTICAL_FILTER_ID);
   assert.equal(TRAINED_PATHFINDER_OPPONENT.id, TRAINED_PATHFINDER_ID);
   assert.deepEqual(config.weights, TRAINED_PATHFINDER_WEIGHTS);
-  assert.equal(config.depth, 4);
-  assert.equal(config.maxNodes, 32_000);
+  assert.equal(config.depth, 5);
+  assert.equal(config.maxNodes, 256_000);
   assert.equal(config.beamWidth, 256);
 });
 
@@ -106,7 +111,7 @@ test("transition-policy v4 is the strongest user-facing Pathfinder identity", ()
   assert.equal(TRANSITION_PATHFINDER_OPPONENT.id, TRANSITION_PATHFINDER_ID);
   assert.equal(TRANSITION_PATHFINDER_OPPONENT.shortName, "Pathfinder · v4");
   assert.equal(TRANSITION_PATHFINDER_OPPONENT.version, "4.0.0");
-  assert.equal(TRANSITION_PATHFINDER_OPPONENT.searchDepth, 4);
+  assert.equal(TRANSITION_PATHFINDER_OPPONENT.searchDepth, 5);
   const action = TRANSITION_PATHFINDER_OPPONENT.chooseAction(createGame());
   assert.ok(action);
   assert.ok(legalActions(createGame()).some((candidate) => JSON.stringify(candidate) === JSON.stringify(action)));

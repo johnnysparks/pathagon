@@ -23,8 +23,9 @@ transposition-table storage, a node ceiling, and an optional wall-clock
 deadline. `SearchConfig` exposes `depth`, `beam_width`, `max_nodes`, and
 evaluator weights; the self-play agent adds an optional per-move deadline. The
 historical research control is depth 4 / beam 8 / 2,000 nodes with the default
-heuristic weights; the promoted product envelope is depth 4 / beam 256 /
-32,000 nodes.
+heuristic weights; the promoted product envelope is depth 5 / beam 256 /
+256,000 nodes. The prior depth-4 / beam-256 / 32,000-node envelope is retained
+as the cheaper rollback/control.
 
 The existing CLI already supports independent configurations: `--depth`,
 `--beam`, and `--nodes` configure the opponent, while
@@ -196,9 +197,9 @@ node cap changes.
 Node scaling is even clearer at beam 256: 32k beat 64k by 103.5–96.5 over 200
 games, including seven draws, while using about 54.5% fewer nodes/game. The
 same node increase at beam 150 was effectively even (98–102) over 200 games.
-The current practical champion is therefore depth 4 / beam 256 / 32k, with
-depth 4 / beam 150 / 32k as a useful lower-cost control; larger node ceilings
-are not automatically stronger.
+The current practical champion is therefore depth 5 / beam 256 / 256k, with
+depth 4 / beam 256 / 32k as the shipped cost control; larger node ceilings are
+not automatically stronger.
 
 ## Empirical tuning function
 
@@ -214,7 +215,7 @@ strength conclusions:
 | Around 32k nodes | depth 4 / beam 256; retain beam 150 as the cost-control | Across 400 direct games, beam 256 led beam 150 by 55.9%–44.1% in game points at only ~2–3% extra nodes/game. The fixed-control beam curve was 62%, 69%, 81%, and 76.5% for beams 32, 64, 150, and 256, so direct validation matters near the top. |
 | Around 64k nodes | usually keep depth 4 / beam 256 / 32k; do not assume the extra 32k helps | At beam 256, 32k beat 64k 103.5–96.5 over 200 games with ~54.5% lower cost. At the exact 64k beam-150/256 comparison, beam 150 was 52–48. |
 | 200k–500k or a 1–2s latency budget | benchmark depth 3 / beam 150, but prefer depth 4 / beam 256 / 32k for general play | Timed depth 3 / beam 150 reached 84% versus control, but lost the direct selector to the depth-4 wide-beam family; the timed profile is a useful latency-specific alternative, not the general winner. |
-| Around 256k nodes with no deadline | depth 5 / beam 256 is the stronger research flavor; keep depth 4 / beam 256 / 32k for product cost | Corrected depth 5 beat depth 4 at the same 256k ceiling 64.5%–35.5% in game points, but used ~2.2× the observed nodes/game. |
+| Around 256k nodes with no deadline | depth 5 / beam 256 is the promoted strength default; keep depth 4 / beam 256 / 32k as the cost control | Corrected depth 5 beat depth 4 at the same 256k ceiling 64.5%–35.5% in game points, but used ~2.2× the observed nodes/game. |
 | 1M nodes / 5s | do not use as a default | Full Power was only 64% versus control and was removed from the competition for compute efficiency. |
 
 The lever-level pattern is: widen beam aggressively through the 32k envelope,
@@ -242,12 +243,12 @@ into this experiment.
 
 ## Project impact
 
-This path promoted the ordinary Pathfinder envelope to `d4/b256/32k` across
-the Rust engine, browser/WASM adapter, opponent controls, and the current
-Transition v4 runtime identity. The prior `d4/b8/2k` envelope remains a
-versioned historical control; Full Power remains a measured rollback/control
-profile, not a tournament entrant. The corrected `d5/b256/256k` profile is
-retained as the stronger but materially more expensive research challenger.
+This path promoted the corrected ordinary Pathfinder envelope to
+`d5/b256/256k` across the Rust engine, browser/WASM adapter, opponent controls,
+and the current Transition v4 runtime identity. The prior `d4/b256/32k`
+envelope remains the explicit cheaper rollback/control; `d4/b8/2k` remains a
+versioned historical control. Full Power remains a measured rollback/control
+profile, not a tournament entrant.
 The root-bound fix and its exact small-board regression test are also part of
 the supported Rust search implementation. If a true alternate traversal is
 added, it must be
@@ -256,8 +257,8 @@ is still the same depth-first alpha-beta traversal.
 
 ## Next decision
 
-Keep `d4/b256/32k` as the shipped default, `d5/b256/256k` as the current
-strength challenger, and `d4/b8/2k` as the historical control. The next
+Keep `d5/b256/256k` as the shipped strength default, `d4/b256/32k` as the
+cheaper rollback/control, and `d4/b8/2k` as the historical control. The next
 depth question is a corrected `d6/b256` arena, not an inference from the
 invalidated pre-fix loss. For future budget changes, use the piecewise policy
 above and add direct, paired-color tests around the proposed knee; do not
