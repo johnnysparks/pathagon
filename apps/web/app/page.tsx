@@ -20,10 +20,14 @@ import {
   PATHFINDER_DEADLINE_MS,
   PATHFINDER_DEADLINE_OPTIONS,
   PATHFINDER_DEPTH_OPTIONS,
+  PATHFINDER_MAX_NODES_DEFAULT,
+  PATHFINDER_MAX_NODES_HARD_CAP,
+  PATHFINDER_MAX_NODES_OPTIONS,
   PATHFINDER_OPPONENT,
   TRANSITION_PATHFINDER_OPPONENT,
   TRAINED_PATHFINDER_OPPONENT,
   getOpponent,
+  pathfinderMaxNodesForDepth,
   pathfinderSearchAtDepth,
   trainedPathfinderSearchAtDepth,
 } from "./opponents";
@@ -59,13 +63,27 @@ function initialPathfinderDeadline(): number {
   }
 }
 
-type SearchCheckpoint = Pick<SearchProgress, "completedDepth" | "nodes" | "elapsedMs" | "action">;
+function initialPathfinderMaxNodes(depth: number): number {
+  if (typeof window === "undefined") return PATHFINDER_MAX_NODES_DEFAULT;
+  try {
+    const stored = Number(window.localStorage.getItem("pathagon:pathfinder-max-nodes"));
+    return PATHFINDER_MAX_NODES_OPTIONS.includes(stored as (typeof PATHFINDER_MAX_NODES_OPTIONS)[number])
+      ? stored
+      : pathfinderMaxNodesForDepth(depth);
+  } catch {
+    return pathfinderMaxNodesForDepth(depth);
+  }
+}
+
+type SearchCheckpoint = Pick<SearchProgress, "completedDepth" | "nodes" | "maxNodes" | "nodeCapReached" | "elapsedMs" | "action">;
 
 type PathfinderMoveTelemetry = {
   ply: number;
   action: Action;
   searchTimeMs: number;
   positions: number;
+  maxNodes: number;
+  nodeCapReached: boolean;
   targetDepth: number;
   completedDepth: number;
   tableHits: number;
@@ -101,6 +119,7 @@ export default function Home() {
   // preference is applied after mount in the effect below.
   const [pathfinderDepth, setPathfinderDepth] = useState<number>(PATHFINDER_SEARCH.depth);
   const [pathfinderDeadlineMs, setPathfinderDeadlineMs] = useState<number>(PATHFINDER_DEADLINE_MS);
+  const [pathfinderMaxNodes, setPathfinderMaxNodes] = useState<number>(PATHFINDER_MAX_NODES_DEFAULT);
   const [pathfinderDepthReady, setPathfinderDepthReady] = useState(false);
   const [pendingOpponentId, setPendingOpponentId] = useState<string | null>(null);
   const [rustEngine, setRustEngine] = useState<RustEngine | null>(null);
@@ -144,11 +163,11 @@ export default function Home() {
   const pathfinderConfig = useMemo(
     () => ({
       ...(opponent.id === TRAINED_PATHFINDER_OPPONENT.id || opponent.id === TRANSITION_PATHFINDER_OPPONENT.id
-        ? trainedPathfinderSearchAtDepth(pathfinderDepth)
-        : pathfinderSearchAtDepth(pathfinderDepth)),
+        ? trainedPathfinderSearchAtDepth(pathfinderDepth, pathfinderMaxNodes)
+        : pathfinderSearchAtDepth(pathfinderDepth, pathfinderMaxNodes)),
       deadlineMs: pathfinderDeadlineMs,
     }),
-    [opponent.id, pathfinderDeadlineMs, pathfinderDepth],
+    [opponent.id, pathfinderDeadlineMs, pathfinderDepth, pathfinderMaxNodes],
   );
 
   useEffect(() => {
@@ -201,7 +220,7 @@ export default function Home() {
     const commitDecision = (decision: Action | null, search?: SearchProgress, checkpoints: SearchCheckpoint[] = []) => {
       if (!decision || cancelled) return;
       const telemetry = search && isPathfinder
-        ? createPathfinderMoveTelemetry(current.ply + 1, decision, search, checkpoints, opponent, pathfinderDepth, pathfinderDeadlineMs)
+        ? createPathfinderMoveTelemetry(current.ply + 1, decision, search, checkpoints, opponent, pathfinderDepth, pathfinderMaxNodes, pathfinderDeadlineMs)
         : null;
       setHistory((items) => [...items, current]);
       setMoveHistory((items) => [...items, decision]);
@@ -217,13 +236,15 @@ export default function Home() {
       if (isPathfinder && searchClient) {
         const checkpoints: SearchCheckpoint[] = [];
         let requestId = 0;
-        const request = searchClient.search(current, opponent.id, pathfinderDepth, pathfinderDeadlineMs, (progress) => {
+        const request = searchClient.search(current, opponent.id, pathfinderDepth, pathfinderDeadlineMs, pathfinderMaxNodes, (progress) => {
           if (cancelled || aiRequest.current !== requestId) return;
           checkpoints.push({
             action: progress.action,
             completedDepth: progress.completedDepth,
             elapsedMs: progress.elapsedMs,
             nodes: progress.nodes,
+            maxNodes: progress.maxNodes,
+            nodeCapReached: progress.nodeCapReached,
           });
           setPathfinderProgress(progress);
         });
@@ -239,7 +260,7 @@ export default function Home() {
           if (cancelled || aiRequest.current !== request.requestId) return;
           aiRequest.current = null;
           console.error("Rust search worker failed; using the local fallback:", error);
-          const fallback = chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined, pathfinderDepth);
+          const fallback = chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined, pathfinderDepth, pathfinderDeadlineMs, undefined, pathfinderMaxNodes);
           commitDecision(
             fallback,
             isPathfinder && fallback
@@ -247,6 +268,8 @@ export default function Home() {
                 action: fallback,
                 score: 0,
                 nodes: 0,
+                maxNodes: pathfinderMaxNodes,
+                nodeCapReached: false,
                 exhausted: true,
                 completedDepth: 0,
                 tableHits: 0,
@@ -270,12 +293,14 @@ export default function Home() {
       activePathfinderSearch.current = null;
       setPathfinderProgress(null);
     };
-  }, [cnnEngine, cnnReady, game, opponent, pathfinderDeadlineMs, pathfinderDepth, rustEngine, searchClient]);
+  }, [cnnEngine, cnnReady, game, opponent, pathfinderDeadlineMs, pathfinderDepth, pathfinderMaxNodes, rustEngine, searchClient]);
 
   useEffect(() => {
     const hydrationTimer = window.setTimeout(() => {
-      setPathfinderDepth(initialPathfinderDepth());
+      const hydratedDepth = initialPathfinderDepth();
+      setPathfinderDepth(hydratedDepth);
       setPathfinderDeadlineMs(initialPathfinderDeadline());
+      setPathfinderMaxNodes(initialPathfinderMaxNodes(hydratedDepth));
       setPathfinderDepthReady(true);
     }, 0);
     return () => window.clearTimeout(hydrationTimer);
@@ -286,10 +311,11 @@ export default function Home() {
     try {
       window.localStorage.setItem("pathagon:pathfinder-depth", String(pathfinderDepth));
       window.localStorage.setItem("pathagon:pathfinder-deadline-ms", String(pathfinderDeadlineMs));
+      window.localStorage.setItem("pathagon:pathfinder-max-nodes", String(pathfinderMaxNodes));
     } catch {
       // Device storage can be disabled; the in-memory control still works.
     }
-  }, [pathfinderDeadlineMs, pathfinderDepth, pathfinderDepthReady]);
+  }, [pathfinderDeadlineMs, pathfinderDepth, pathfinderMaxNodes, pathfinderDepthReady]);
 
   useEffect(() => {
     coachingRequest.current += 1;
@@ -347,7 +373,7 @@ export default function Home() {
             opponentId: opponent.id,
             winner: game.winner,
             actions: moveHistory,
-            metadata: buildPathfinderGameMetadata(opponent, pathfinderDepth, pathfinderDeadlineMs, pathfinderSearches),
+            metadata: buildPathfinderGameMetadata(opponent, pathfinderDepth, pathfinderMaxNodes, pathfinderDeadlineMs, pathfinderSearches),
           }),
         });
         const payload = await response.json().catch(() => null) as { error?: unknown } | null;
@@ -365,7 +391,7 @@ export default function Home() {
         setArchiveStatus("error");
       }
     })();
-  }, [game.winner, game.ply, moveHistory, opponent, pathfinderDeadlineMs, pathfinderDepth, pathfinderSearches, gameId]);
+  }, [game.winner, game.ply, moveHistory, opponent, pathfinderDeadlineMs, pathfinderDepth, pathfinderMaxNodes, pathfinderSearches, gameId]);
 
   useEffect(() => {
     if (!captureCount) return;
@@ -556,6 +582,12 @@ export default function Home() {
     setPathfinderProgress(null);
   }
 
+  function changePathfinderMaxNodes(maxNodes: number) {
+    if (!PATHFINDER_MAX_NODES_OPTIONS.includes(maxNodes as (typeof PATHFINDER_MAX_NODES_OPTIONS)[number])) return;
+    setPathfinderMaxNodes(maxNodes);
+    setPathfinderProgress(null);
+  }
+
   function cancelActivePathfinderSearch() {
     if (aiRequest.current !== null && searchClient) {
       searchClient.cancel(aiRequest.current);
@@ -580,6 +612,7 @@ export default function Home() {
       checkpoints,
       opponent,
       pathfinderDepth,
+      pathfinderMaxNodes,
       pathfinderDeadlineMs,
       true,
     );
@@ -619,6 +652,7 @@ export default function Home() {
       dials: {
         depth: pathfinderDepth,
         deadlineMs: pathfinderDeadlineMs,
+        maxNodes: pathfinderMaxNodes,
       },
       search: pathfinderConfig,
     };
@@ -789,8 +823,18 @@ export default function Home() {
                 onChange={(event) => changePathfinderDepth(PATHFINDER_DEPTH_OPTIONS[Number(event.target.value)] ?? pathfinderDepth)}
               />
               <div id="pathfinder-lookahead-scale" className="lookahead-scale"><span>2 · Quick</span><span>4 · Balanced</span><span>20 · Long</span><span>100 · Horizon</span></div>
-              <p id="pathfinder-lookahead-help">More ply lets the Pathfinder answer farther ahead. 20, 50, and 100 ply are horizon targets; time and position caps may stop earlier.</p>
+              <p id="pathfinder-lookahead-help">More ply lets the Pathfinder answer farther ahead. 20–100 ply are horizon targets; time and position caps may stop earlier.</p>
               <div className="search-dial-row">
+                <label className="search-time-picker">
+                  <span>Max positions</span>
+                  <select
+                    aria-label="Pathfinder maximum node visits"
+                    value={pathfinderMaxNodes}
+                    onChange={(event) => changePathfinderMaxNodes(Number(event.target.value))}
+                  >
+                    {PATHFINDER_MAX_NODES_OPTIONS.map((option) => <option key={option} value={option}>{formatNodeCount(option)}</option>)}
+                  </select>
+                </label>
                 <label className="search-time-picker">
                   <span>Max search time</span>
                   <select
@@ -805,7 +849,7 @@ export default function Home() {
                   {configCopyStatus === "copied" ? "Config copied" : configCopyStatus === "error" ? "Copy unavailable" : "Copy config"}
                 </button>
               </div>
-              <span className="search-cap-note">Checkpoints: ~10,000 positions or 500ms · cap: {pathfinderConfig.maxNodes.toLocaleString()}</span>
+              <span className="search-cap-note">Checkpoints: ~10,000 positions or 500ms · max: {pathfinderConfig.maxNodes.toLocaleString()} · hard cap: {PATHFINDER_MAX_NODES_HARD_CAP.toLocaleString()}</span>
               {pathfinderProgress && (
                 <div className="search-progress" role="status" aria-live="polite">
                   <div className="search-progress-heading">
@@ -813,10 +857,10 @@ export default function Home() {
                     <strong>{pathfinderProgress.completedDepth}/{pathfinderProgress.targetDepth} ply</strong>
                   </div>
                   <div className="search-progress-stats">
-                    <span>{pathfinderProgress.nodes.toLocaleString()} positions</span>
+                    <span>{pathfinderProgress.nodes.toLocaleString()} / {pathfinderProgress.maxNodes.toLocaleString()} positions</span>
                     <span>{formatSearchTime(pathfinderProgress.elapsedMs)} elapsed</span>
                   </div>
-                  <p>{pathfinderProgress.action ? `Best so far: ${formatAction(pathfinderProgress.action)}` : "Finding a legal first candidate…"}</p>
+                  <p>{pathfinderProgress.action ? `Best so far: ${formatAction(pathfinderProgress.action)}` : "Finding a legal first candidate…"}{pathfinderProgress.nodeCapReached ? " · position cap reached" : pathfinderProgress.exhausted ? " · time cap reached" : ""}</p>
                   <button className="play-best-button" type="button" onClick={playCurrentBestMove} disabled={!pathfinderProgress.action}>
                     Play current best
                   </button>
@@ -825,7 +869,7 @@ export default function Home() {
               {!pathfinderProgress && lastPathfinderSearch && (
                 <div className="search-last-result" role="status">
                   <span className="stat-label">Last dark search</span>
-                  <p>{lastPathfinderSearch.completedDepth}/{lastPathfinderSearch.targetDepth} ply · {lastPathfinderSearch.positions.toLocaleString()} positions · {formatSearchTime(lastPathfinderSearch.searchTimeMs)}</p>
+                  <p>{lastPathfinderSearch.completedDepth}/{lastPathfinderSearch.targetDepth} ply · {lastPathfinderSearch.positions.toLocaleString()} positions · {formatSearchTime(lastPathfinderSearch.searchTimeMs)} · {lastPathfinderSearch.nodeCapReached ? "position cap" : lastPathfinderSearch.exhausted ? "time cap" : "complete"}</p>
                 </div>
               )}
             </section>
@@ -967,6 +1011,11 @@ function formatSearchTime(milliseconds: number) {
   return `${Number(seconds.toFixed(seconds < 10 ? 1 : 0))}s`;
 }
 
+function formatNodeCount(nodes: number) {
+  if (nodes >= 1_000_000) return `${nodes / 1_000_000}M positions`;
+  return `${nodes.toLocaleString()} positions`;
+}
+
 function pathfinderModelCard(opponent: { id: string; name: string; version: string; engine: string }) {
   return {
     id: opponent.id,
@@ -983,17 +1032,20 @@ function createPathfinderMoveTelemetry(
   checkpoints: SearchCheckpoint[],
   opponent: ReturnType<typeof getOpponent>,
   depth: number,
+  maxNodes: number,
   deadlineMs: number,
   interrupted = false,
 ): PathfinderMoveTelemetry {
   const searchConfig = opponent.id === TRAINED_PATHFINDER_OPPONENT.id || opponent.id === TRANSITION_PATHFINDER_OPPONENT.id
-    ? trainedPathfinderSearchAtDepth(depth)
-    : pathfinderSearchAtDepth(depth);
+    ? trainedPathfinderSearchAtDepth(depth, maxNodes)
+    : pathfinderSearchAtDepth(depth, maxNodes);
   return {
     ply,
     action,
     searchTimeMs: progress.elapsedMs,
     positions: progress.nodes,
+    maxNodes: progress.maxNodes,
+    nodeCapReached: progress.nodeCapReached,
     targetDepth: progress.targetDepth,
     completedDepth: progress.completedDepth,
     tableHits: progress.tableHits,
@@ -1013,6 +1065,7 @@ function createPathfinderMoveTelemetry(
 function buildPathfinderGameMetadata(
   opponent: ReturnType<typeof getOpponent>,
   depth: number,
+  maxNodes: number,
   deadlineMs: number,
   searches: PathfinderMoveTelemetry[],
 ) {
@@ -1020,7 +1073,7 @@ function buildPathfinderGameMetadata(
   return {
     searchExperiment: "pathfinder-browser-v1",
     modelCard: pathfinderModelCard(opponent),
-    dials: { depth, deadlineMs },
+    dials: { depth, maxNodes, deadlineMs },
     moves: searches,
   };
 }

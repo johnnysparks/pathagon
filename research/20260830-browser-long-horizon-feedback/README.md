@@ -4,10 +4,10 @@ Status: completed
 
 ## Idea
 
-Give the browser Pathfinder explicit 20-, 50-, and 100-ply horizon targets,
-while reporting useful search checkpoints quickly enough that a human can wait
-for a strong move or take the current incumbent. The feedback must not turn
-the node-expansion loop into a message loop.
+Give the browser Pathfinder explicit 20–100-ply horizon targets and convenient
+21/22/23-ply checkpoints, while reporting useful search checkpoints quickly
+enough that a human can wait for a strong move or take the current incumbent.
+The feedback must not turn the node-expansion loop into a message loop.
 
 ## Starting point
 
@@ -18,10 +18,22 @@ only after an iterative-deepening pass. A live read-only replay of game
 
 ## What happened
 
-The browser envelope now exposes 2 through 12 ply plus 20, 50, and 100 ply.
-Long targets receive progressively larger node caps and a narrow beam, but
-remain bounded by the selected wall-clock limit. The result records requested
-and completed depth separately, so a timed-out 100-ply target remains honest.
+The browser envelope now exposes every integer depth from 2 through 100, so
+21-, 22-, and 23-ply experiments do not require jumping between coarse
+presets. Long targets receive progressively larger default node caps and a
+narrow beam, but the browser can now override the cap with 250k, 500k, 1M,
+2M, 5M, or 10M positions. The Rust runtime independently clamps browser
+configs to the 10M hard ceiling. The result records requested and completed
+depth separately, so a timed-out 100-ply target remains honest.
+
+The wall-clock control now extends to 60 seconds. Per-move telemetry records
+the selected node cap and whether search stopped at the position cap versus
+the time cap, alongside the existing checkpoint stream.
+
+The first 50-ply follow-up (`f0193fab-aa78-4a06-9e0e-5412f3575554`) reported
+that the 2M-position budget was reached almost every time within 30 seconds.
+The long-horizon presets therefore start at 5M positions for 50–99 ply and
+10M for the 100-ply horizon; the explicit control still supports lower caps.
 
 Rust search budgets now emit cumulative progress at the first node count at or
 above each 10,000-position boundary, or after 500 ms of compute. The time
@@ -40,8 +52,12 @@ where an older transition-policy wrapper lacked the new callback method.
 
 No generated games, replay exports, or verbose logs are retained. The browser
 checkpoint values above are small validation evidence; durable game metadata
-is stored in the bounded JSON field added to `human_games`. The migration is
-checked in but was not applied to the remote database during this task.
+is stored in the bounded JSON field added to `human_games`. The human-game
+metadata migration was applied to the remote database during the preceding
+deployment. A direct remote-D1 lookup for the newly requested game
+`2099d8b9-abca-4350-a10c-0a2e697c6d18` returned no row, matching the Worker's
+404 response; no replay metadata could be recovered for it. The same lookup
+for `f0193fab-aa78-4a06-9e0e-5412f3575554` also returned no row.
 
 ## Project impact
 
@@ -53,8 +69,8 @@ completed depth, table hits, exhaustion/interruption, and checkpoints.
 
 ## Next decision
 
-Use the 20/50/100-ply controls to identify the user's practical “hard”
+Use the 20–100-ply controls to identify the user's practical “hard”
 threshold before spending effort on large self-play runs. Promote any later
 benchmark labels or fixtures only after they clear the repository's legality,
-cost, and replay gates. Apply the pending D1 migration and deploy separately
-when the live environment change is explicitly approved.
+cost, and replay gates. Deploy the browser change separately when the live
+environment update is explicitly approved.

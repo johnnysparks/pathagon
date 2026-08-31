@@ -21,6 +21,11 @@ use crate::search::{
 use crate::transition_policy::{RankedTransitionAction, TransitionPolicyModel};
 use crate::{bit_squares, Action, BoardConfig, GameState, Player};
 
+/// Hard ceiling for browser-supplied search budgets. Native research jobs use
+/// their own explicit budgets; this guard protects the synchronous WASM
+/// boundary from accidentally requesting an unbounded table.
+pub const MAX_RUNTIME_SEARCH_NODES: u64 = 10_000_000;
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct RuntimePosition {
     #[serde(rename = "contractVersion")]
@@ -279,7 +284,7 @@ impl From<RuntimeSearchConfig> for SearchConfig {
     fn from(config: RuntimeSearchConfig) -> Self {
         Self {
             depth: config.depth,
-            max_nodes: config.max_nodes,
+            max_nodes: config.max_nodes.min(MAX_RUNTIME_SEARCH_NODES),
             beam_width: config.beam_width,
             weights: config.weights,
             tactical_proof_horizon: config.tactical_proof_horizon,
@@ -671,6 +676,15 @@ mod tests {
         )
         .expect("decode tactical proof search config");
         assert_eq!(SearchConfig::from(config).tactical_proof_horizon, Some(3));
+    }
+
+    #[test]
+    fn runtime_search_config_clamps_browser_node_budget() {
+        let config: RuntimeSearchConfig = serde_json::from_str(
+            r#"{"depth":100,"maxNodes":999999999,"beamWidth":2,"weights":{"path":240,"material":110,"capture":700,"structure":55,"threat":130,"edge":80}}"#,
+        )
+        .expect("decode long-horizon search config");
+        assert_eq!(SearchConfig::from(config).max_nodes, MAX_RUNTIME_SEARCH_NODES);
     }
 
     #[test]

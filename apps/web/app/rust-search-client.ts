@@ -4,6 +4,8 @@ export type SearchProgress = {
   action: Action | null;
   score: number;
   nodes: number;
+  maxNodes: number;
+  nodeCapReached: boolean;
   exhausted: boolean;
   completedDepth: number;
   tableHits: number;
@@ -66,6 +68,7 @@ export class RustSearchClient {
     opponentId: string,
     pathfinderDepth: number,
     deadlineMs: number,
+    maxNodes: number,
     onProgress?: (progress: SearchProgress) => void,
   ): SearchRequestHandle {
     const requestId = this.nextRequestId;
@@ -79,6 +82,7 @@ export class RustSearchClient {
         opponentId,
         pathfinderDepth,
         deadlineMs,
+        maxNodes,
       });
     });
     return { requestId, promise };

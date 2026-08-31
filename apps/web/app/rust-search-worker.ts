@@ -11,6 +11,7 @@ type SearchRequest = {
   opponentId: string;
   pathfinderDepth: number;
   deadlineMs: number;
+  maxNodes: number;
 };
 
 type CancelRequest = { type: "cancel"; requestId: number };
@@ -39,8 +40,8 @@ async function runPathfinderSearch(request: SearchRequest) {
   if (cancelled.delete(request.requestId)) return;
 
   const requestedConfig = request.opponentId === TRAINED_PATHFINDER_ID || transitionPolicy
-    ? trainedPathfinderSearchAtDepth(request.pathfinderDepth)
-    : pathfinderSearchAtDepth(request.pathfinderDepth);
+    ? trainedPathfinderSearchAtDepth(request.pathfinderDepth, request.maxNodes)
+    : pathfinderSearchAtDepth(request.pathfinderDepth, request.maxNodes);
   const targetDepth = requestedConfig.depth;
   const startedAt = performance.now();
   const deadlineAt = startedAt + Math.max(1, request.deadlineMs);
@@ -70,6 +71,8 @@ async function runPathfinderSearch(request: SearchRequest) {
         action: bestAction,
         score: bestScore,
         nodes: passPositions + passNodes,
+        maxNodes,
+        nodeCapReached: passPositions + passNodes >= maxNodes,
         exhausted: false,
         completedDepth,
         tableHits: passTableHits + passHits,
@@ -100,6 +103,8 @@ async function runPathfinderSearch(request: SearchRequest) {
       action: bestAction,
       score: bestScore,
       nodes: positions,
+      maxNodes,
+      nodeCapReached: positions >= maxNodes,
       exhausted,
       completedDepth,
       tableHits,
@@ -117,6 +122,8 @@ async function runPathfinderSearch(request: SearchRequest) {
     action: bestAction,
     score: bestScore,
     nodes: positions,
+    maxNodes,
+    nodeCapReached: positions >= maxNodes,
     exhausted: exhausted || completedDepth < targetDepth,
     completedDepth,
     tableHits,

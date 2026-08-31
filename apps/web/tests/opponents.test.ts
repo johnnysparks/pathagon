@@ -4,10 +4,12 @@ import { COACHING_SEARCH, DEFAULT_WEIGHTS, analyzeAction, analyzeActions, search
 import {
   LUNATIC_OPPONENT,
   PATHFINDER_DEPTH_OPTIONS,
+  PATHFINDER_MAX_NODES_HARD_CAP,
   PATHFINDER_OPPONENT,
   TRANSITION_PATHFINDER_OPPONENT,
   TRAINED_PATHFINDER_OPPONENT,
   TRAINED_PATHFINDER_WEIGHTS,
+  pathfinderMaxNodesForDepth,
   pathfinderSearchAtDepth,
   trainedPathfinderSearchAtDepth,
   SURVEYOR_OPPONENT,
@@ -64,17 +66,27 @@ test("Pathfinder look-ahead stays within the browser-safe experiment envelope", 
   const balanced = pathfinderSearchAtDepth(PATHFINDER_OPPONENT.searchDepth!);
   const deep = pathfinderSearchAtDepth(PATHFINDER_DEPTH_OPTIONS.at(-1)!);
   const long = pathfinderSearchAtDepth(20);
+  const longTwentyOne = pathfinderSearchAtDepth(21);
+  const longTwentyTwo = pathfinderSearchAtDepth(22);
+  const longTwentyThree = pathfinderSearchAtDepth(23);
   const extreme = pathfinderSearchAtDepth(50);
   assert.equal(quick.depth, 2);
   assert.equal(balanced.depth, 4);
   assert.equal(deep.depth, 100);
   assert.equal(long.depth, 20);
+  assert.equal(longTwentyOne.depth, 21);
+  assert.equal(longTwentyTwo.depth, 22);
+  assert.equal(longTwentyThree.depth, 23);
   assert.equal(extreme.depth, 50);
   assert.ok(quick.maxNodes < balanced.maxNodes);
   assert.ok(balanced.maxNodes < deep.maxNodes);
   assert.ok(quick.beamWidth > deep.beamWidth);
-  assert.equal(pathfinderSearchAtDepth(99).depth, 100);
+  assert.equal(pathfinderSearchAtDepth(99).depth, 99);
   assert.equal(pathfinderSearchAtDepth(-10).depth, 2);
+  assert.equal(pathfinderSearchAtDepth(23, 50_000_000).maxNodes, PATHFINDER_MAX_NODES_HARD_CAP);
+  assert.equal(pathfinderMaxNodesForDepth(23), 1_000_000);
+  assert.equal(pathfinderMaxNodesForDepth(50), 5_000_000);
+  assert.equal(pathfinderMaxNodesForDepth(100), PATHFINDER_MAX_NODES_HARD_CAP);
 });
 
 test("trained Pathfinder keeps its promoted search envelope and evaluator weights", () => {

@@ -159,7 +159,7 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .lookahead-slider:focus-visible { outline: 3px solid rgba(56,95,76,.28); outline-offset: 3px; }
 .lookahead-scale { display: flex; justify-content: space-between; gap: 8px; color: #6c7e70; font-size: 10px; font-weight: 750; }
 .lookahead-control p { margin: 9px 0 0; color: #5e7162; font-size: 11px; line-height: 1.4; }
-.search-dial-row { display: flex; align-items: end; justify-content: space-between; gap: 10px; margin-top: 13px; }
+.search-dial-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 10px; margin-top: 13px; }
 .search-time-picker { display: flex; flex: 1 1 auto; flex-direction: column; gap: 5px; }
 .search-time-picker > span { color: #6c7e70; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
 .search-time-picker select { width: 100%; min-height: 34px; border: 1px solid #b6cbb9; border-radius: 8px; padding: 0 8px; color: #294a3b; background: rgba(255,255,255,.58); cursor: pointer; font-size: 12px; font-weight: 750; }

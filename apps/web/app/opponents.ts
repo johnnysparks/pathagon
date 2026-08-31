@@ -23,45 +23,61 @@ export type Opponent = {
  * baseline; the long-horizon values make the speed/strength trade-off explicit
  * while keeping the experiment bounded by both nodes and wall-clock time.
  */
-export const PATHFINDER_DEPTH_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 20, 50, 100] as const;
+export const PATHFINDER_DEPTH_OPTIONS = [
+  2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+  21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+  41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+  61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+  81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100,
+] as const;
 export type PathfinderDepth = typeof PATHFINDER_DEPTH_OPTIONS[number];
 
-const PATHFINDER_BUDGETS: Record<PathfinderDepth, number> = {
-  2: 512,
-  3: 1_024,
-  4: PATHFINDER_SEARCH.maxNodes,
-  5: 4_000,
-  6: 8_000,
-  7: 16_000,
-  8: 32_000,
-  9: 64_000,
-  10: 128_000,
-  11: 256_000,
-  12: 512_000,
-  20: 1_000_000,
-  50: 2_000_000,
-  100: 4_000_000,
-};
+/** Maximum browser search budget. The Rust runtime enforces this again. */
+export const PATHFINDER_MAX_NODES_HARD_CAP = 10_000_000;
+export const PATHFINDER_MAX_NODES_DEFAULT = 1_000_000;
+export const PATHFINDER_MAX_NODES_OPTIONS = [250_000, 500_000, 1_000_000, 2_000_000, 5_000_000, PATHFINDER_MAX_NODES_HARD_CAP] as const;
 
-const PATHFINDER_BEAMS: Record<PathfinderDepth, number> = {
-  2: 16,
-  3: 12,
-  4: PATHFINDER_SEARCH.beamWidth,
-  5: 6,
-  6: 4,
-  7: 4,
-  8: 3,
-  9: 3,
-  10: 2,
-  11: 2,
-  12: 2,
-  20: 2,
-  50: 2,
-  100: 2,
-};
+/** Default control value for the long-horizon browser experiments. */
+export function pathfinderMaxNodesForDepth(depth: number) {
+  if (depth >= 100) return PATHFINDER_MAX_NODES_HARD_CAP;
+  if (depth >= 50) return 5_000_000;
+  return PATHFINDER_MAX_NODES_DEFAULT;
+}
 
-export function pathfinderSearchAtDepth(depth: number): SearchConfig {
-  return pathfinderSearchAtDepthWithWeights(depth, PATHFINDER_SEARCH.weights);
+function defaultPathfinderMaxNodes(depth: number) {
+  if (depth <= 2) return 512;
+  if (depth <= 3) return 1_024;
+  if (depth <= 4) return PATHFINDER_SEARCH.maxNodes;
+  if (depth <= 5) return 4_000;
+  if (depth <= 6) return 8_000;
+  if (depth <= 7) return 16_000;
+  if (depth <= 8) return 32_000;
+  if (depth <= 9) return 64_000;
+  if (depth <= 10) return 128_000;
+  if (depth <= 11) return 256_000;
+  if (depth <= 12) return 512_000;
+  if (depth < 50) return PATHFINDER_MAX_NODES_DEFAULT;
+  if (depth < 100) return 5_000_000;
+  return PATHFINDER_MAX_NODES_HARD_CAP;
+}
+
+function defaultPathfinderBeamWidth(depth: number) {
+  if (depth <= 2) return 16;
+  if (depth <= 3) return 12;
+  if (depth <= 4) return PATHFINDER_SEARCH.beamWidth;
+  if (depth <= 5) return 6;
+  if (depth <= 7) return 4;
+  if (depth <= 9) return 3;
+  return 2;
+}
+
+function clampPathfinderMaxNodes(maxNodes: number) {
+  if (!Number.isFinite(maxNodes)) return PATHFINDER_MAX_NODES_DEFAULT;
+  return Math.max(1, Math.min(PATHFINDER_MAX_NODES_HARD_CAP, Math.floor(maxNodes)));
+}
+
+export function pathfinderSearchAtDepth(depth: number, maxNodes?: number): SearchConfig {
+  return pathfinderSearchAtDepthWithWeights(depth, PATHFINDER_SEARCH.weights, maxNodes);
 }
 
 export const TRAINED_PATHFINDER_WEIGHTS = {
@@ -73,11 +89,11 @@ export const TRAINED_PATHFINDER_WEIGHTS = {
   edge: 74,
 } as const;
 
-export function trainedPathfinderSearchAtDepth(depth: number): SearchConfig {
-  return pathfinderSearchAtDepthWithWeights(depth, TRAINED_PATHFINDER_WEIGHTS);
+export function trainedPathfinderSearchAtDepth(depth: number, maxNodes?: number): SearchConfig {
+  return pathfinderSearchAtDepthWithWeights(depth, TRAINED_PATHFINDER_WEIGHTS, maxNodes);
 }
 
-function pathfinderSearchAtDepthWithWeights(depth: number, weights: SearchConfig["weights"]): SearchConfig {
+function pathfinderSearchAtDepthWithWeights(depth: number, weights: SearchConfig["weights"], maxNodes?: number): SearchConfig {
   const safeDepth = PATHFINDER_DEPTH_OPTIONS.reduce<PathfinderDepth>(
     (closest, option) => Math.abs(option - depth) < Math.abs(closest - depth) ? option : closest,
     PATHFINDER_SEARCH.depth as PathfinderDepth,
@@ -85,8 +101,8 @@ function pathfinderSearchAtDepthWithWeights(depth: number, weights: SearchConfig
   return {
     ...PATHFINDER_SEARCH,
     depth: safeDepth,
-    maxNodes: PATHFINDER_BUDGETS[safeDepth],
-    beamWidth: PATHFINDER_BEAMS[safeDepth],
+    maxNodes: clampPathfinderMaxNodes(maxNodes ?? defaultPathfinderMaxNodes(safeDepth)),
+    beamWidth: defaultPathfinderBeamWidth(safeDepth),
     weights,
   };
 }
@@ -197,7 +213,7 @@ export const CNN_OPPONENT: Opponent = {
 
 export const CNN_SEARCH = { simulations: 64, cpuct: 1.5 } as const;
 export const PATHFINDER_DEADLINE_MS = 2_800;
-export const PATHFINDER_DEADLINE_OPTIONS = [2_800, 5_000, 10_000, 20_000, 30_000] as const;
+export const PATHFINDER_DEADLINE_OPTIONS = [2_800, 5_000, 10_000, 20_000, 30_000, 60_000] as const;
 
 export const OPPONENTS = [CNN_OPPONENT, TRANSITION_PATHFINDER_OPPONENT, TRAINED_PATHFINDER_OPPONENT, PATHFINDER_OPPONENT, LUNATIC_OPPONENT, SURVEYOR_OPPONENT, RANDOM_OPPONENT] as const;
 
@@ -214,6 +230,7 @@ export function chooseOpponentAction(
   pathfinderDepth: number = PATHFINDER_SEARCH.depth,
   deadlineMs?: number,
   transitionPolicyEngine?: TransitionPolicyEngine,
+  pathfinderMaxNodes?: number,
 ): Action | null {
   if (opponent.id === RANDOM_OPPONENT.id) {
     const actions = engine.legalActions(state);
@@ -227,8 +244,8 @@ export function chooseOpponentAction(
   const isPathfinder = opponent.id === PATHFINDER_OPPONENT.id || opponent.id === TRAINED_PATHFINDER_OPPONENT.id || isTransitionPathfinder;
   const config = isPathfinder
     ? opponent.id === TRAINED_PATHFINDER_OPPONENT.id || isTransitionPathfinder
-      ? trainedPathfinderSearchAtDepth(pathfinderDepth)
-      : pathfinderSearchAtDepth(pathfinderDepth)
+      ? trainedPathfinderSearchAtDepth(pathfinderDepth, pathfinderMaxNodes)
+      : pathfinderSearchAtDepth(pathfinderDepth, pathfinderMaxNodes)
     : SURVEYOR_SEARCH;
   if (isTransitionPathfinder && transitionPolicyEngine) {
     return transitionPolicyEngine.searchBestAction(state, config, deadlineMs).action;
