@@ -43,6 +43,34 @@ def verify_table(path: Path, expected_rows: int, key_bytes: int) -> int:
     return expected_rows
 
 
+def verify_heldout_partition(
+    path: Path,
+    table_path: Path,
+    expected_rows: int,
+    key_bytes: int,
+) -> int:
+    lines = [line.strip() for line in path.read_text(encoding="ascii").splitlines() if line.strip()]
+    if len(lines) != expected_rows:
+        raise ValueError(f"{path}: expected {expected_rows} keys, got {len(lines)}")
+    if lines != sorted(set(lines)):
+        raise ValueError(f"{path}: keys must be unique and sorted")
+    if any(len(key) != key_bytes * 2 for key in lines):
+        raise ValueError(f"{path}: partition key has the wrong width")
+    try:
+        keys = [bytes.fromhex(key) for key in lines]
+    except ValueError as error:
+        raise ValueError(f"{path}: partition contains non-hex key") from error
+    table_keys = {
+        table_path.read_bytes()[offset : offset + key_bytes]
+        for offset in range(0, table_path.stat().st_size, key_bytes + 1)
+    }
+    if any(key not in table_keys for key in keys):
+        raise ValueError(f"{path}: partition contains a key absent from the promoted table")
+    if any(hashlib.sha256(key).digest()[0] % 10 != 0 for key in keys):
+        raise ValueError(f"{path}: key violates deterministic held-out policy")
+    return len(keys)
+
+
 def verify_action_book(path: Path, expected_rows: int, key_bytes: int, board_size: int, reserve: int) -> int:
     source = path.read_bytes()
     if len(source) < 16 or source[:8] != ACTION_BOOK_MAGIC:
@@ -92,6 +120,13 @@ def main() -> None:
     if sidecar_path.stat().st_size != sidecar["bytes"] or sha256(sidecar_path) != sidecar["sha256"]:
         raise ValueError("action sidecar size or SHA-256 does not match manifest")
     rows = verify_table(shard_path, shard["rows"], manifest["key"]["bytes"])
+    held_out_path = project_path(manifest["source"]["heldOutPartition"])
+    held_out = verify_heldout_partition(
+        held_out_path,
+        shard_path,
+        manifest["counts"]["heldOutRows"],
+        manifest["key"]["bytes"],
+    )
     action_rows = verify_action_book(
         sidecar_path,
         manifest["counts"]["canonicalRows"],
@@ -101,7 +136,9 @@ def main() -> None:
     )
     if rows != action_rows or manifest["counts"]["provenActions"] < action_rows:
         raise ValueError("table/action row counts are inconsistent")
-    print(json.dumps({"status": "pass", "rows": rows, "actionRows": action_rows}, sort_keys=True))
+    if held_out + manifest["counts"]["trainingRows"] != rows:
+        raise ValueError("held-out and training partition counts do not cover the table")
+    print(json.dumps({"status": "pass", "rows": rows, "actionRows": action_rows, "heldOutRows": held_out}, sort_keys=True))
 
 
 if __name__ == "__main__":

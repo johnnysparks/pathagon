@@ -1,6 +1,6 @@
 # 20260830 Endgame retrograde frontier
 
-Status: completed
+Status: Ring-1 pilot complete; Ring-2 generation and restartable propagation validated
 
 ## Idea
 
@@ -63,12 +63,36 @@ The separate `pathagon-endgame-tablebase` binary now provides the persistent
 retrograde core for later rings. It accepts canonical-key JSONL nodes with
 complete-edge declarations, propagates wins/losses with shortest/longest
 proven distances, treats closed unresolved regions as draws, keeps incomplete
-regions unknown, and writes a deterministic value file plus checkpoint.
+regions unknown, and writes a deterministic value file plus a restartable
+checkpoint. It also emits stable value shards and a merge tool that rejects
+misplaced or contradictory rows. Nodes may carry an exact seed from an inner
+ring, and labeled edges produce per-action W/D/L/Unknown results in the
+solver output.
+
+Ring 2 is now a separate Rust export mode. `--ring 2` replays the source game
+and verifies the final two-edge suffix, then enumerates every legal action from
+the predecessor, writes canonical child edges, and creates explicit seeded
+Ring-1 child stubs plus explicit unknown child stubs. A 20-game smoke run
+produced 19 verified Ring-2 parents, 2,555 complete legal edges, 19 seeded
+inner-ring children, and 2,555 unresolved edge targets. The small tablebase
+run resumed from its checkpoint byte-for-byte and its four deterministic
+shards merged successfully.
+
+The independent Rust/Python oracle check covers one 3x3 and three 4x4 roots,
+including root and every action label at horizon three. All four fixtures
+agree; the report is retained in `workspace/small-agreement-report.json`.
+
+The first training gate is intentionally not a promotion: a linear
+gold-aware policy/value/urgency adapter trained on 1,815 Ring-1 rows reached
+72.97% witnessed-action accuracy on 185 held-out rows, equal to the frozen v4
+control at 72.97%. Ring 1 is a one-move witness layer with incomplete optimal
+action sets, so this result is evidence that the gate runs, not evidence of a
+stronger model.
 
 ## Next decision
 
-Continue with a separate Ring-2 path: add a disk-backed predecessor frontier,
-exact retrograde propagation, constructive-state reachability checks, and
-promotion gates that require deterministic shards, no W/D/L contradictions,
-and explicit unknowns at every budget boundary. Keep this Ring-1 artifact as
-the rollback/control layer until a later ring is independently validated.
+Run the full Ring-2 corpus export, join its complete edge graph with the
+promoted Ring-1 WDL shard as exact seeds, and apply replay, inventory,
+symmetry, independent-language, deterministic-resolve, and held-out gates
+before promoting any Ring-2 values. Keep this Ring-1 artifact as the
+rollback/control layer until that later ring is independently validated.

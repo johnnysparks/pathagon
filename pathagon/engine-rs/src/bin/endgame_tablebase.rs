@@ -8,22 +8,51 @@ use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
 
-use pathagon_engine::tablebase::read_nodes;
+use pathagon_engine::tablebase::{read_checkpoint, read_nodes};
 
 fn main() {
     let args = parse_args();
     let input = required(&args, "input");
     let output = required(&args, "out");
     let checkpoint = args.get("checkpoint").map(PathBuf::from);
+    let resume = args.get("resume").map(PathBuf::from);
+    let shard_directory = args.get("shards").map(PathBuf::from);
+    let shard_count = args
+        .get("shard-count")
+        .map(|value| {
+            value
+                .parse::<usize>()
+                .unwrap_or_else(|_| fail("--shard-count must be a positive integer"))
+        })
+        .unwrap_or(1);
+    if shard_count == 0 {
+        fail("--shard-count must be a positive integer");
+    }
     let graph =
         read_nodes(&input).unwrap_or_else(|error| fail(&format!("cannot read graph: {error}")));
-    let (values, stats) = graph.solve();
+    let seed = resume
+        .as_ref()
+        .map(|path| {
+            read_checkpoint(path)
+                .unwrap_or_else(|error| fail(&format!("cannot read checkpoint: {error}")))
+                .values
+        })
+        .unwrap_or_default();
+    let (values, stats) = graph
+        .solve_from_seed(&seed)
+        .unwrap_or_else(|error| fail(&format!("cannot resume tablebase: {error}")));
+    let wrote_shards = shard_directory.is_some();
     graph
         .write_values(&output, &values, stats)
         .unwrap_or_else(|error| fail(&format!("cannot write tablebase: {error}")));
+    if let Some(directory) = shard_directory.as_ref() {
+        graph
+            .write_value_shards(directory, &values, stats, shard_count)
+            .unwrap_or_else(|error| fail(&format!("cannot write value shards: {error}")));
+    }
     if let Some(checkpoint) = checkpoint {
         graph
-            .write_checkpoint(checkpoint, stats.rounds, stats)
+            .write_checkpoint(checkpoint, stats.rounds, stats, &values)
             .unwrap_or_else(|error| fail(&format!("cannot write checkpoint: {error}")));
     }
     println!(
@@ -39,6 +68,8 @@ fn main() {
             "solved": stats.solved,
             "draws": stats.draws,
             "unknown": stats.unknown,
+            "resumed": !seed.is_empty(),
+            "shardCount": wrote_shards.then_some(shard_count),
         })
     );
 }

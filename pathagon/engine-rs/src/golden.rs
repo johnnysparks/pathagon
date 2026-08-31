@@ -407,6 +407,12 @@ fn canonical_key(state: GameState) -> (Vec<u8>, u8) {
     (best, best_symmetry)
 }
 
+/// Return the stable little-endian D4-canonical key used by golden tables and
+/// retrograde frontier interchange files.
+pub fn canonical_position_key(state: GameState) -> Vec<u8> {
+    canonical_key(state).0
+}
+
 fn pack_transformed(state: GameState, symmetry: u8) -> Vec<u8> {
     let transformed = transform_state(state, symmetry);
     let cells = usize::from(transformed.config.cells());

@@ -118,6 +118,11 @@ def main() -> None:
     parser.add_argument("--sidecar", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument(
+        "--held-out",
+        type=Path,
+        default=PROJECT_ROOT / "data/golden/partitions/fresh-frontier-wdl-v1/ring-01-heldout.txt",
+    )
+    parser.add_argument(
         "--existing-table",
         type=Path,
         default=PROJECT_ROOT / "data/golden/tables/historyless-wdl-v1/7x7-r14/shard-00.bin",
@@ -202,6 +207,13 @@ def main() -> None:
         row["provenActions"] = sorted(row["provenActions"].values(), key=lambda action: action["token"])
         row["witnesses"] = sorted(row["witnesses"], key=lambda witness: (witness.get("gameKey", ""), witness.get("action", "")))
     write_action_book(args.sidecar, rows)
+    held_out = sorted(
+        key.hex()
+        for key in rows
+        if hashlib.sha256(key).digest()[0] % 10 == 0
+    )
+    args.held_out.parent.mkdir(parents=True, exist_ok=True)
+    args.held_out.write_text("".join(f"{key}\n" for key in held_out), encoding="ascii")
 
     args.manifest.parent.mkdir(parents=True, exist_ok=True)
     manifest = {
@@ -239,11 +251,15 @@ def main() -> None:
             "provenActions": proven_actions,
             "completeOptimalActionSets": 0,
             "existingGoldenOverlaps": existing_overlaps,
+            "heldOutRows": len(held_out),
+            "trainingRows": table_rows - len(held_out),
         },
         "source": {
             "kind": "replayed-corpus-penultimate-positions",
             "input": project_relative(args.input),
             "existingTable": project_relative(args.existing_table),
+            "heldOutPartition": project_relative(args.held_out),
+            "heldOutPolicy": "sha256(canonical-key)[0] modulo 10 equals 0",
             "proof": "each action was re-applied and had to produce the parent player's path terminal",
         },
     }

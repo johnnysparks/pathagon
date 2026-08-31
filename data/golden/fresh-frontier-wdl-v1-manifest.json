@@ -41,12 +41,16 @@
     "canonicalRows": 35561,
     "provenActions": 35595,
     "completeOptimalActionSets": 0,
-    "existingGoldenOverlaps": 0
+    "existingGoldenOverlaps": 0,
+    "heldOutRows": 3597,
+    "trainingRows": 31964
   },
   "source": {
     "kind": "replayed-corpus-penultimate-positions",
     "input": "research/20260830-endgame-retrograde-frontier/workspace/ring-01-candidates.jsonl",
     "existingTable": "data/golden/tables/historyless-wdl-v1/7x7-r14/shard-00.bin",
+    "heldOutPartition": "data/golden/partitions/fresh-frontier-wdl-v1/ring-01-heldout.txt",
+    "heldOutPolicy": "sha256(canonical-key)[0] modulo 10 equals 0",
     "proof": "each action was re-applied and had to produce the parent player's path terminal"
   }
 }

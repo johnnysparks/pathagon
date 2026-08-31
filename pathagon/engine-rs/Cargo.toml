@@ -38,6 +38,14 @@ name = "pathagon-endgame-tablebase"
 path = "src/bin/endgame_tablebase.rs"
 
 [[bin]]
+name = "pathagon-endgame-oracle"
+path = "src/bin/endgame_oracle.rs"
+
+[[bin]]
+name = "pathagon-endgame-merge"
+path = "src/bin/endgame_merge.rs"
+
+[[bin]]
 name = "pathagon-lambda-worker"
 path = "src/lambda_worker.rs"
 required-features = ["lambda"]
