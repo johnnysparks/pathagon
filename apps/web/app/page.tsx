@@ -37,6 +37,7 @@ import {
   type PathfinderMoveTelemetry,
   type SearchCheckpoint,
 } from "./archive-metadata";
+import { buildGameDebugPayload, formatGameDebugPayload } from "./game-debug";
 import { loadRustEngine, type RustEngine } from "./rust-engine";
 import { createRustSearchClient, type RustSearchClient, type SearchProgress } from "./rust-search-client";
 import { loadCnnEngine, type CnnEngine } from "./cnn-engine";
@@ -605,22 +606,50 @@ export default function Home() {
     setGame((latest) => latest === game ? rustEngine.applyAction(game, progress.action!) : latest);
   }
 
-  async function copyGameId() {
+  async function copyGameDebug() {
     if (!gameId) return;
+    const debugText = getGameDebugText();
     try {
-      await navigator.clipboard.writeText(gameId);
+      await navigator.clipboard.writeText(debugText);
       setCopyStatus("copied");
     } catch {
-      const code = document.querySelector<HTMLElement>("code[data-game-id]");
-      if (code) {
+      const debug = document.querySelector<HTMLElement>("[data-game-debug]");
+      if (debug) {
         const selection = window.getSelection();
         selection?.removeAllRanges();
         const range = document.createRange();
-        range.selectNodeContents(code);
+        range.selectNodeContents(debug);
         selection?.addRange(range);
       }
       setCopyStatus("error");
     }
+  }
+
+  function getGameDebugText() {
+    if (!gameId) return "";
+    return formatGameDebugPayload(buildGameDebugPayload({
+      gameId,
+      game,
+      opponent,
+      depth: pathfinderDepth,
+      maxNodes: pathfinderMaxNodes,
+      deadlineMs: pathfinderDeadlineMs,
+      actions: moveHistory,
+      pathfinderSearches,
+      lastPathfinderSearch,
+      pathfinderProgress,
+      coachingStatus,
+      coachingAction,
+      coachingEvaluation,
+      rustEngineReady: Boolean(rustEngine),
+      cnnEngineReady: Boolean(cnnEngine),
+      engineError,
+      cnnError,
+      archiveStatus,
+      archiveError,
+      pageUrl: typeof window === "undefined" ? undefined : window.location.href,
+      userAgent: typeof window === "undefined" ? undefined : window.navigator.userAgent,
+    }));
   }
 
   async function copyPathfinderConfig() {
@@ -685,16 +714,22 @@ export default function Home() {
           </div>
 
           {gameId && (
-            <div className="game-id-card" aria-label="Game ID">
+            <div className="game-id-card" aria-label="Game ID and debug log">
               <div>
                 <span className="stat-label">Game ID</span>
                 <code data-game-id>{gameId}</code>
-                <p>Keep this token to ask about the replay later. Anyone with it can view the game.</p>
+                <p>Copy the ID and browser debug bundle for analysis.</p>
               </div>
-              <button className="copy-button" onClick={copyGameId} type="button">
-                {copyStatus === "copied" ? "Copied" : copyStatus === "error" ? "Select ID" : "Copy ID"}
+              <button className="copy-button" aria-label="Copy game ID and debug log" onClick={copyGameDebug} type="button">
+                {copyStatus === "copied" ? "Debug copied" : copyStatus === "error" ? "Select debug" : "Copy debug"}
               </button>
             </div>
+          )}
+
+          {gameId && (
+            <pre data-game-debug aria-hidden="true" className="game-debug-copy-buffer">
+              {getGameDebugText()}
+            </pre>
           )}
 
           {!game.winner && (
@@ -956,8 +991,8 @@ export default function Home() {
               <div className="result-game-id">
                 <span>Game ID</span>
                 <code data-game-id>{gameId}</code>
-                <button className="copy-button" onClick={copyGameId} type="button">
-                  {copyStatus === "copied" ? "Copied" : copyStatus === "error" ? "Select ID" : "Copy ID"}
+                <button className="copy-button" aria-label="Copy game ID and debug log" onClick={copyGameDebug} type="button">
+                  {copyStatus === "copied" ? "Debug copied" : copyStatus === "error" ? "Select debug" : "Copy debug"}
                 </button>
               </div>
             )}

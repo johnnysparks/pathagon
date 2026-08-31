@@ -44,6 +44,7 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .game-id-card code, .result-game-id code { color: var(--ink); font-size: 13px; font-weight: 750; overflow-wrap: anywhere; user-select: all; }
 .game-id-card p { margin: 0; color: #627465; font-size: 11px; line-height: 1.35; }
 .copy-button { flex: 0 0 auto; min-height: 34px; border: 1px solid #a5b9a3; border-radius: 8px; padding: 0 10px; color: #294a3b; background: rgba(255,255,255,.54); cursor: pointer; font-size: 12px; font-weight: 800; }
+.game-debug-copy-buffer { position: fixed; top: 0; left: -100000px; width: 1px; height: 1px; overflow: hidden; margin: 0; white-space: pre-wrap; user-select: text; }
 .result-link { border: 0; border-bottom: 1px solid currentColor; padding: 2px 0; color: var(--green); background: transparent; cursor: pointer; font-size: 12px; font-weight: 800; }
 .goal-guide { display: flex; justify-content: space-between; gap: 12px; margin: -2px 4px 12px; padding: 9px 11px; border-radius: 9px; color: #5d554a; background: #eee7da; font-size: 12px; }
 .goal-guide span { color: var(--muted); }
