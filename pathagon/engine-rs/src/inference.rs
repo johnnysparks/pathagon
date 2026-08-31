@@ -414,3 +414,65 @@ fn f32_values(tensor: &tract::tract_core::prelude::Tensor) -> Result<Vec<f32>, S
         .map(|values| values.iter().copied().collect())
         .map_err(|error| error.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct StubModel;
+
+    impl PolicyValueModel for StubModel {
+        fn evaluate(&self, _state: GameState) -> Result<PolicyValue, String> {
+            Ok(PolicyValue {
+                policy_logits: vec![0.25],
+                value: -0.5,
+            })
+        }
+    }
+
+    #[test]
+    fn policy_value_trait_defaults_delegate_and_preserve_no_action_values() {
+        let model = StubModel;
+        let state = GameState::new();
+        let actions = state.legal_actions();
+        let direct = model.evaluate(state).unwrap();
+        assert_eq!(
+            model.evaluate_with_actions(state, &actions).unwrap().value,
+            direct.value
+        );
+        assert_eq!(
+            model.evaluate_policy_value(state).unwrap().policy_logits,
+            direct.policy_logits
+        );
+        assert_eq!(
+            model
+                .evaluate_policy_value_with_actions(state, &actions)
+                .unwrap()
+                .value,
+            direct.value
+        );
+        let (policy_value, action_values) = model
+            .evaluate_policy_value_and_action_values_with_actions(state, &actions)
+            .unwrap();
+        assert_eq!(policy_value.value, direct.value);
+        assert_eq!(action_values, None);
+    }
+
+    #[test]
+    fn tensor_and_plain_float_helpers_validate_shape_and_type() {
+        assert!(tensor(&[2], &[1.0]).is_err());
+        let value_tensor = tensor(&[2], &[1.0, -2.0]).unwrap();
+        assert_eq!(f32_values(&value_tensor).unwrap(), vec![1.0, -2.0]);
+        let integer_tensor =
+            tract::tract_core::prelude::Tensor::from_shape(&[1], &[1_i32]).unwrap();
+        assert!(f32_values(&integer_tensor).is_err());
+    }
+
+    #[test]
+    fn malformed_onnx_is_rejected_by_all_model_constructors() {
+        assert!(load_model(&[]).is_err());
+        assert!(OnnxPolicyValueModel::from_bytes(&[]).is_err());
+        assert!(OnnxGnnPolicyValueModel::from_bytes(&[]).is_err());
+        assert!(OnnxQAdvModel::from_bytes(&[]).is_err());
+    }
+}

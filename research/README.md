@@ -51,3 +51,4 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for a new path. The current direction is in
 - [`20260829-what-fits-three-seconds/`](20260829-what-fits-three-seconds/)
 - [`20260830-nextgen-scaled/`](20260830-nextgen-scaled/)
 - [`20260831-pathfinder-search-strategies/`](20260831-pathfinder-search-strategies/)
+- [`20260831-pathfinder-full-shallow-coverage/`](20260831-pathfinder-full-shallow-coverage/)

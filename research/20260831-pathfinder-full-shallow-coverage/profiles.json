@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "controlProfileId": "pf-d5-b256-n256k-control",
+  "profiles": [
+    {
+      "id": "pf-d5-b256-n256k-control",
+      "label": "control: depth 5 / beam 256 / 256k nodes",
+      "group": "control",
+      "depth": 5,
+      "beam": 256,
+      "nodes": 256000
+    },
+    {
+      "id": "pf-d3-b256-n256k",
+      "label": "shallow baseline: depth 3 / beam 256 / 256k nodes",
+      "group": "shallow-fixed-budget",
+      "depth": 3,
+      "beam": 256,
+      "nodes": 256000
+    },
+    {
+      "id": "pf-d3-b384-n256k",
+      "label": "shallow coverage: depth 3 / beam 384 / 256k nodes",
+      "group": "shallow-fixed-budget",
+      "depth": 3,
+      "beam": 384,
+      "nodes": 256000
+    },
+    {
+      "id": "pf-d3-b512-n256k",
+      "label": "shallow coverage: depth 3 / beam 512 / 256k nodes",
+      "group": "shallow-fixed-budget",
+      "depth": 3,
+      "beam": 512,
+      "nodes": 256000
+    },
+    {
+      "id": "pf-d3-b768-n256k",
+      "label": "shallow coverage: depth 3 / beam 768 / 256k nodes",
+      "group": "shallow-fixed-budget",
+      "depth": 3,
+      "beam": 768,
+      "nodes": 256000
+    },
+    {
+      "id": "pf-d3-b1024-n256k",
+      "label": "shallow coverage: depth 3 / beam 1024 / 256k nodes",
+      "group": "shallow-fixed-budget",
+      "depth": 3,
+      "beam": 1024,
+      "nodes": 256000
+    },
+    {
+      "id": "pf-d3-b4096-n256k",
+      "label": "shallow full-set sentinel: depth 3 / beam 4096 / 256k nodes",
+      "group": "shallow-fixed-budget",
+      "depth": 3,
+      "beam": 4096,
+      "nodes": 256000
+    },
+    {
+      "id": "pf-d4-b256-n256k",
+      "label": "depth baseline: depth 4 / beam 256 / 256k nodes",
+      "group": "depth4-fixed-budget",
+      "depth": 4,
+      "beam": 256,
+      "nodes": 256000
+    },
+    {
+      "id": "pf-d4-b512-n256k",
+      "label": "depth 4 coverage: depth 4 / beam 512 / 256k nodes",
+      "group": "depth4-fixed-budget",
+      "depth": 4,
+      "beam": 512,
+      "nodes": 256000
+    },
+    {
+      "id": "pf-d4-b1024-n256k",
+      "label": "depth 4 coverage: depth 4 / beam 1024 / 256k nodes",
+      "group": "depth4-fixed-budget",
+      "depth": 4,
+      "beam": 1024,
+      "nodes": 256000
+    },
+    {
+      "id": "pf-d4-b4096-n256k",
+      "label": "depth 4 full-set sentinel: depth 4 / beam 4096 / 256k nodes",
+      "group": "depth4-fixed-budget",
+      "depth": 4,
+      "beam": 4096,
+      "nodes": 256000
+    },
+    {
+      "id": "pf-d3-b512-n1m",
+      "label": "budget confirmation: depth 3 / beam 512 / 1M nodes",
+      "group": "budget-confirmation",
+      "depth": 3,
+      "beam": 512,
+      "nodes": 1000000
+    },
+    {
+      "id": "pf-d4-b1024-n1m",
+      "label": "budget confirmation: depth 4 / beam 1024 / 1M nodes",
+      "group": "budget-confirmation",
+      "depth": 4,
+      "beam": 1024,
+      "nodes": 1000000
+    }
+  ]
+}

@@ -2193,4 +2193,240 @@ mod tests {
         let _ = fs::remove_file(path);
         let _ = fs::remove_dir_all(directory);
     }
+
+    #[test]
+    fn solver_resolves_unknown_distances_draws_and_seed_conflicts() {
+        let mut graph = RetrogradeGraph::default();
+        for (key, children) in [
+            ("win", vec!["loss-terminal", "unresolved"]),
+            ("loss", vec!["win-terminal"]),
+            ("draw", vec!["draw-terminal"]),
+            ("win-unknown-distance", vec!["seed-loss"]),
+            ("loss-unknown-distance", vec!["seed-win"]),
+            ("leaf", Vec::new()),
+        ] {
+            graph.insert(node(key, &children)).unwrap();
+        }
+        for (key, outcome) in [
+            ("loss-terminal", "loss"),
+            ("win-terminal", "win"),
+            ("draw-terminal", "draw"),
+        ] {
+            graph
+                .insert(RetrogradeNode {
+                    key: key.to_owned(),
+                    children: Vec::new(),
+                    complete: true,
+                    terminal: Some(outcome.to_owned()),
+                    seed: None,
+                    actions: Vec::new(),
+                })
+                .unwrap();
+        }
+        for (key, outcome) in [
+            ("seed-loss", GroundTruthOutcome::Loss),
+            ("seed-win", GroundTruthOutcome::Win),
+        ] {
+            graph
+                .insert(RetrogradeNode {
+                    key: key.to_owned(),
+                    children: Vec::new(),
+                    complete: false,
+                    terminal: None,
+                    seed: Some(RetrogradeValue {
+                        outcome,
+                        distance: None,
+                    }),
+                    actions: Vec::new(),
+                })
+                .unwrap();
+        }
+        let (values, _) = graph
+            .solve_parallel_from_seed(&BTreeMap::new(), 99)
+            .unwrap();
+        assert_eq!(
+            values["win"],
+            RetrogradeValue {
+                outcome: GroundTruthOutcome::Win,
+                distance: Some(1)
+            }
+        );
+        assert_eq!(
+            values["loss"],
+            RetrogradeValue {
+                outcome: GroundTruthOutcome::Loss,
+                distance: Some(1)
+            }
+        );
+        assert_eq!(values["draw"].outcome, GroundTruthOutcome::Draw);
+        assert_eq!(values["win-unknown-distance"].distance, None);
+        assert_eq!(values["loss-unknown-distance"].distance, None);
+        assert_eq!(values["leaf"].outcome, GroundTruthOutcome::Draw);
+
+        let mut unknown_seed = BTreeMap::new();
+        unknown_seed.insert(
+            "loss-terminal".to_owned(),
+            RetrogradeValue {
+                outcome: GroundTruthOutcome::Unknown,
+                distance: None,
+            },
+        );
+        assert!(graph.solve_from_seed(&unknown_seed).is_err());
+        let mut missing_seed = BTreeMap::new();
+        missing_seed.insert(
+            "missing".to_owned(),
+            RetrogradeValue {
+                outcome: GroundTruthOutcome::Win,
+                distance: Some(0),
+            },
+        );
+        assert!(graph.solve_from_seed(&missing_seed).is_err());
+        let mut conflicting_seed = BTreeMap::new();
+        conflicting_seed.insert(
+            "seed-loss".to_owned(),
+            RetrogradeValue {
+                outcome: GroundTruthOutcome::Win,
+                distance: Some(2),
+            },
+        );
+        assert!(graph.solve_from_seed(&conflicting_seed).is_err());
+        let mut agreeing_seed = BTreeMap::new();
+        agreeing_seed.insert(
+            "seed-loss".to_owned(),
+            RetrogradeValue {
+                outcome: GroundTruthOutcome::Loss,
+                distance: None,
+            },
+        );
+        assert!(graph.solve_from_seed(&agreeing_seed).is_ok());
+    }
+
+    #[test]
+    fn compact_value_and_graph_readers_reject_each_metadata_boundary() {
+        let root = std::env::temp_dir().join(format!(
+            "pathagon-compact-boundaries-{}",
+            std::process::id()
+        ));
+        let value_path = root.with_extension("values.bin");
+        let values = BTreeMap::from([
+            (
+                "0000".to_owned(),
+                RetrogradeValue {
+                    outcome: GroundTruthOutcome::Win,
+                    distance: Some(2),
+                },
+            ),
+            (
+                "0001".to_owned(),
+                RetrogradeValue {
+                    outcome: GroundTruthOutcome::Draw,
+                    distance: None,
+                },
+            ),
+        ]);
+        write_compact_values(&value_path, &values, 2).unwrap();
+        let mut bytes = fs::read(&value_path).unwrap();
+        bytes[22] = 9;
+        fs::write(&value_path, &bytes).unwrap();
+        assert!(read_compact_values(&value_path).is_err());
+        write_compact_values(&value_path, &values, 2).unwrap();
+        let mut bytes = fs::read(&value_path).unwrap();
+        bytes[22] = outcome_byte(GroundTruthOutcome::Unknown);
+        fs::write(&value_path, &bytes).unwrap();
+        assert!(read_compact_values(&value_path).is_err());
+        write_compact_values(&value_path, &values, 2).unwrap();
+        let mut bytes = fs::read(&value_path).unwrap();
+        bytes[25] = 0;
+        bytes[26] = 0;
+        fs::write(&value_path, &bytes).unwrap();
+        assert!(read_compact_values(&value_path).is_err());
+
+        let mut graph = RetrogradeGraph::default();
+        graph.insert(node("0000", &[])).unwrap();
+        graph.insert(node("1111", &[])).unwrap();
+        let graph_path = root.with_extension("graph.bin");
+        graph.write_compact_graph(&graph_path).unwrap();
+        let valid = fs::read(&graph_path).unwrap();
+        for (offset, value) in [(22, 0b1000), (23, 0), (24, 0)] {
+            let mut malformed = valid.clone();
+            malformed[offset] = value;
+            fs::write(&graph_path, &malformed).unwrap();
+            assert!(read_compact_graph(&graph_path).is_err());
+        }
+        let mut malformed = valid.clone();
+        malformed[8] = 0;
+        fs::write(&graph_path, &malformed).unwrap();
+        assert!(read_compact_graph(&graph_path).is_err());
+        let mut malformed = valid.clone();
+        malformed[8] = 2;
+        malformed[20] = 0xff;
+        fs::write(&graph_path, &malformed).unwrap();
+        assert!(read_compact_graph(&graph_path).is_err());
+        let mut malformed = valid.clone();
+        malformed.push(0);
+        fs::write(&graph_path, &malformed).unwrap();
+        assert!(read_compact_graph(&graph_path).is_err());
+
+        let _ = fs::remove_file(&value_path);
+        let _ = fs::remove_file(&graph_path);
+    }
+
+    #[test]
+    fn shard_json_fallback_checkpoint_alias_and_writer_modes_round_trip() {
+        let root = std::env::temp_dir().join(format!("pathagon-shard-json-{}", std::process::id()));
+        let values = BTreeMap::from([(
+            "0000".to_owned(),
+            RetrogradeValue {
+                outcome: GroundTruthOutcome::Win,
+                distance: Some(1),
+            },
+        )]);
+        let mut graph = RetrogradeGraph::default();
+        graph.insert(node("0000", &[])).unwrap();
+        assert!(graph
+            .write_value_shards(&root, &values, RetrogradeStats::default(), 0)
+            .is_err());
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("shard-00000.json"),
+            serde_json::to_vec(&values).unwrap(),
+        )
+        .unwrap();
+        fs::write(root.join("manifest.json"), r#"{"shardCount":1}"#).unwrap();
+        assert_eq!(read_value_shards(&root).unwrap(), values);
+
+        let json_path = root.with_extension("json");
+        let binary_path = root.with_extension("bin");
+        write_merged_values(&json_path, &values).unwrap();
+        write_merged_values(&binary_path, &values).unwrap();
+        assert_eq!(read_compact_values(&binary_path).unwrap(), values);
+
+        let checkpoint_path = root.join("checkpoint.json");
+        fs::write(
+            &checkpoint_path,
+            serde_json::json!({
+                "schema_version": 1,
+                "table_family": "pathagon-retrograde-frontier-v1",
+                "input_nodes": 1,
+                "input_edges": 0,
+                "rounds": 1,
+                "solved": 1,
+                "draws": 0,
+                "unknown": 0,
+                "complete_graph": true,
+                "valuesPath": "values.bin"
+            })
+            .to_string(),
+        )
+        .unwrap();
+        fs::copy(&binary_path, root.join("values.bin")).unwrap();
+        assert_eq!(read_checkpoint(&checkpoint_path).unwrap().values, values);
+        fs::write(&checkpoint_path, "not json").unwrap();
+        assert!(read_checkpoint(&checkpoint_path).is_err());
+
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_file(&json_path);
+        let _ = fs::remove_file(&binary_path);
+        let _ = fs::remove_file(&checkpoint_path);
+    }
 }

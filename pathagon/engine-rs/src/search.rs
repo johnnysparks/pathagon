@@ -2440,6 +2440,87 @@ mod tests {
     }
 
     #[test]
+    fn boundary_search_helpers_cover_empty_terminal_and_probe_fallbacks() {
+        let no_moves = GameState {
+            config: crate::BoardConfig::new(3, 4).unwrap(),
+            light: (1_u64 << 0) | (1_u64 << 1) | (1_u64 << 3) | (1_u64 << 4),
+            dark: (1_u64 << 2) | (1_u64 << 5) | (1_u64 << 6) | (1_u64 << 7),
+            reserve: [0, 0],
+            turn: Player::Light,
+            forbidden: 1_u64 << 8,
+            last_relocated_to: [None, None],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: 3,
+        };
+        let default_config = SearchConfig {
+            depth: 2,
+            max_nodes: 64,
+            beam_width: 4,
+            ..SearchConfig::default()
+        };
+        assert!(lunatic_action(no_moves).action.is_none());
+        assert!(analyze_actions(no_moves, default_config, 4).is_empty());
+        assert!(
+            tactical_root_safe_actions(no_moves, Player::Light, default_config.weights).is_empty()
+        );
+        assert!(ordered_root_actions_with_tactical_guard(
+            no_moves,
+            Player::Light,
+            default_config.weights
+        )
+        .is_empty());
+        assert!(!has_tactical_signal(no_moves));
+        assert!(immediate_winning_actions(no_moves, Player::Dark).is_empty());
+
+        let state = GameState::new();
+        let action = state.legal_actions()[0];
+        let evaluation = analyze_action(state, action, default_config).unwrap();
+        assert_eq!(evaluation.action, action);
+        assert_eq!(evaluation.delta, evaluation.score - evaluation.before_score);
+        assert!(analyze_action(state, Action::Place { to: 63 }, default_config).is_err());
+        assert!(analyze_actions(state, default_config, 0).is_empty());
+        assert!(
+            search_best_action_with_root_probe(state, default_config, 0, 8, 2,)
+                .action
+                .is_some()
+        );
+        let exhausted_probe = search_best_action_with_root_probe(
+            state,
+            SearchConfig {
+                max_nodes: 0,
+                ..default_config
+            },
+            2,
+            8,
+            2,
+        );
+        assert!(exhausted_probe.exhausted);
+        assert_eq!(exhausted_probe.nodes, 0);
+        assert!(
+            search_best_action_with_root_order_and_options(state, default_config, &[], true,)
+                .action
+                .is_some()
+        );
+        assert!(search_best_action_with_root_order_and_root_limit_deadline(
+            state,
+            default_config,
+            &[],
+            false,
+            Some(1),
+            0,
+        )
+        .action
+        .is_some());
+
+        let mut terminal = state;
+        terminal.winner = Some(Player::Light);
+        assert!(lunatic_action(terminal).action.is_none());
+        assert!(immediate_winning_actions(terminal, Player::Light).is_empty());
+    }
+
+    #[test]
     fn search_supports_variable_board_sizes() {
         for size in 4..=7 {
             let state = GameState::with_board_size(size);

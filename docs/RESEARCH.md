@@ -89,6 +89,12 @@ control. The study also found and fixed a root alpha-beta bound/tie-break bug,
 with an exact small-board regression check covering the corrected
 implementation.
 
+The 20260831 full-shallow-coverage path is the next focused search question:
+whether beams above 256 at depth 3–4 recover enough omitted legal actions to
+outweigh the strength of the deeper b256 control. It is exploratory and makes
+no production change until coverage, paired strength, replay, and browser-cost
+gates are satisfied.
+
 ## Proposed next paths, ranked
 
 1. [`What fits in three seconds?`](../research/20260829-what-fits-three-seconds/)
@@ -126,6 +132,7 @@ Historical evidence and detailed outcomes live with the research paths:
 - [`../research/20260829-can-root-regret-train-evaluator/`](../research/20260829-can-root-regret-train-evaluator/)
 - [`../research/20260830-nextgen-scaled/`](../research/20260830-nextgen-scaled/)
 - [`../research/20260831-pathfinder-search-strategies/`](../research/20260831-pathfinder-search-strategies/)
+- [`../research/20260831-pathfinder-full-shallow-coverage/`](../research/20260831-pathfinder-full-shallow-coverage/)
 - [`../research/20260825-selfplay-corpus-audit/`](../research/20260825-selfplay-corpus-audit/)
 - [`../research/20260824-4x4-endgame-tactics/`](../research/20260824-4x4-endgame-tactics/)
 
