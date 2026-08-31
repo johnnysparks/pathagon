@@ -1926,10 +1926,13 @@ mod tests {
             .join("../../data/golden/tables/fresh-frontier-wdl-v4/7x7-r14/shard-00.bin");
         let ring2_sidecar = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../data/golden/sidecars/fresh-frontier-wdl-v4/7x7-r14/ring-02.bin");
+        let ring1_candidates = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../research/20260830-endgame-retrograde-frontier/workspace/ring-01-candidates.jsonl");
         if !(ring1_table.exists()
             && ring1_sidecar.exists()
             && ring2_table.exists()
-            && ring2_sidecar.exists())
+            && ring2_sidecar.exists()
+            && ring1_candidates.exists())
         {
             return;
         }
@@ -1947,14 +1950,11 @@ mod tests {
         assert_eq!(layered.lookup(ring2_state), Some(GoldenOutcome::Loss));
 
         let raw: Value = serde_json::from_str(
-            &std::fs::read_to_string(
-                Path::new(env!("CARGO_MANIFEST_DIR"))
-                    .join("../../research/20260830-endgame-retrograde-frontier/workspace/ring-01-candidates.jsonl"),
-            )
-            .expect("read Ring-1 candidates")
-            .lines()
-            .next()
-            .expect("Ring-1 candidate exists"),
+            &std::fs::read_to_string(&ring1_candidates)
+                .expect("read Ring-1 candidates")
+                .lines()
+                .next()
+                .expect("Ring-1 candidate exists"),
         )
         .expect("Ring-1 candidate is JSON");
         let position = raw.get("position").expect("Ring-1 candidate position");
