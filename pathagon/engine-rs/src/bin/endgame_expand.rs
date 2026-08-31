@@ -265,3 +265,29 @@ fn fail(message: &str) -> ! {
     eprintln!("pathagon-endgame-expand: {message}");
     std::process::exit(2);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn expands_a_canonical_state_using_the_rust_legal_action_boundary() {
+        let state = GameState::new();
+        let key = hex_key(&canonical_position_key(state));
+        let mut record = json!({
+            "key": key,
+            "complete": false,
+            "seed": null,
+        });
+        let (terminal, edges) = expand_record(&mut record).expect("expand start state");
+        assert!(!terminal);
+        assert_eq!(edges, 49);
+        assert_eq!(record["complete"], true);
+        assert_eq!(record["terminal"], Value::Null);
+        assert_eq!(record["actions"].as_array().expect("actions").len(), 49);
+        // Forty-nine legal actions collapse to sixteen canonical child keys
+        // under the board symmetries.
+        assert_eq!(record["children"].as_array().expect("children").len(), 16);
+        assert!(record["position"].is_object());
+    }
+}
