@@ -359,7 +359,14 @@ impl RetrogradeGraph {
                 if !self.nodes.contains_key(child) {
                     return false;
                 }
-                if !values.contains_key(child) {
+                if let Some(value) = values.get(child) {
+                    if value.outcome != GroundTruthOutcome::Draw {
+                        // A closed movement cycle with a known win/loss exit
+                        // is not an exact draw: the unresolved branch still
+                        // needs proof before the parent can be classified.
+                        return false;
+                    }
+                } else {
                     stack.push(child.clone());
                 }
             }
@@ -1143,6 +1150,23 @@ mod tests {
             .unwrap();
         assert_eq!(closed.solve().0["a"].outcome, GroundTruthOutcome::Draw);
         assert!(!closed.solve().0.contains_key("incomplete"));
+
+        let mut open_exit = RetrogradeGraph::default();
+        open_exit.insert(node("a", &["b", "win"])).unwrap();
+        open_exit.insert(node("b", &["b"])).unwrap();
+        open_exit
+            .insert(RetrogradeNode {
+                key: "win".to_owned(),
+                children: Vec::new(),
+                complete: true,
+                terminal: Some("win".to_owned()),
+                seed: None,
+                actions: Vec::new(),
+            })
+            .unwrap();
+        let values = open_exit.solve().0;
+        assert_eq!(values["b"].outcome, GroundTruthOutcome::Draw);
+        assert!(!values.contains_key("a"));
     }
 
     #[test]
