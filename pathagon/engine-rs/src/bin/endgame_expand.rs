@@ -43,6 +43,8 @@ fn main() {
     let mut terminalized = 0_usize;
     let mut edges = 0_usize;
     let mut remaining_unknown = 0_usize;
+    let mut known_keys = BTreeSet::new();
+    let mut new_child_keys = BTreeSet::new();
 
     for (line_number, line) in reader.lines().enumerate() {
         let line = line.unwrap_or_else(|error| fail(&format!("cannot read input line: {error}")));
@@ -56,14 +58,18 @@ fn main() {
                 line_number + 1
             ))
         });
+        if let Some(key) = record.get("key").and_then(Value::as_str) {
+            known_keys.insert(key.to_owned());
+        }
         let expandable = record.get("complete").and_then(Value::as_bool) == Some(false)
             && record.get("seed").is_none_or(|seed| seed.is_null());
         if expandable && (max_expand == 0 || expanded < max_expand) {
-            let (was_terminal, generated_edges) = expand_record(&mut record)
+            let (was_terminal, generated_edges, generated_children) = expand_record(&mut record)
                 .unwrap_or_else(|error| fail(&format!("line {}: {error}", line_number + 1)));
             expanded += 1;
             edges += generated_edges;
             terminalized += usize::from(was_terminal);
+            new_child_keys.extend(generated_children);
         } else if expandable {
             remaining_unknown += 1;
         }
@@ -72,6 +78,35 @@ fn main() {
         writer
             .write_all(b"\n")
             .unwrap_or_else(|error| fail(&format!("cannot write output: {error}")));
+    }
+    let mut appended_stubs = 0_usize;
+    for key in new_child_keys {
+        if known_keys.contains(&key) {
+            continue;
+        }
+        let record = json!({
+            "schemaVersion": 2,
+            "tableFamily": "pathagon-retrograde-wdl-v1",
+            "ring": 0,
+            "key": key,
+            "children": [],
+            "complete": false,
+            "terminal": null,
+            "seed": null,
+            "actions": [],
+            "proof": {
+                "kind": "unknown-child-stub",
+                "rulesVersion": "pathagon-rules-v1",
+                "solverVersion": "pathagon-endgame-expander-v1",
+                "lineage": "verified-parent-forward-edge-expansion",
+            },
+        });
+        serde_json::to_writer(&mut writer, &record)
+            .unwrap_or_else(|error| fail(&format!("cannot write appended stub: {error}")));
+        writer
+            .write_all(b"\n")
+            .unwrap_or_else(|error| fail(&format!("cannot write appended stub: {error}")));
+        appended_stubs += 1;
     }
     writer
         .flush()
@@ -88,13 +123,15 @@ fn main() {
             "terminalized": terminalized,
             "completeForwardEdges": edges,
             "remainingUnexpandedUnknownStubs": remaining_unknown,
+            "appendedUnknownStubs": appended_stubs,
+            "outputRecords": records + appended_stubs,
             "maxExpand": max_expand,
             "status": "pass",
         })
     );
 }
 
-fn expand_record(record: &mut Value) -> Result<(bool, usize), String> {
+fn expand_record(record: &mut Value) -> Result<(bool, usize, BTreeSet<String>), String> {
     let object = record
         .as_object_mut()
         .ok_or_else(|| "graph record must be a JSON object".to_owned())?;
@@ -133,7 +170,7 @@ fn expand_record(record: &mut Value) -> Result<(bool, usize), String> {
         set_edges(object, BTreeMap::new(), BTreeSet::new());
         object.insert("complete".to_owned(), Value::Bool(true));
         object.insert("terminal".to_owned(), Value::String("loss".to_owned()));
-        return Ok((true, 0));
+        return Ok((true, 0, BTreeSet::new()));
     }
 
     let legal_actions = state.legal_actions();
@@ -141,7 +178,7 @@ fn expand_record(record: &mut Value) -> Result<(bool, usize), String> {
         set_edges(object, BTreeMap::new(), BTreeSet::new());
         object.insert("complete".to_owned(), Value::Bool(true));
         object.insert("terminal".to_owned(), Value::String("draw".to_owned()));
-        return Ok((true, 0));
+        return Ok((true, 0, BTreeSet::new()));
     }
 
     let mut actions = BTreeMap::new();
@@ -153,10 +190,11 @@ fn expand_record(record: &mut Value) -> Result<(bool, usize), String> {
         actions.insert(encode_action(action), child_key);
     }
     let edge_count = actions.len();
+    let generated_children = children.clone();
     set_edges(object, actions, children);
     object.insert("complete".to_owned(), Value::Bool(true));
     object.insert("terminal".to_owned(), Value::Null);
-    Ok((false, edge_count))
+    Ok((false, edge_count, generated_children))
 }
 
 fn set_edges(
@@ -279,9 +317,10 @@ mod tests {
             "complete": false,
             "seed": null,
         });
-        let (terminal, edges) = expand_record(&mut record).expect("expand start state");
+        let (terminal, edges, children) = expand_record(&mut record).expect("expand start state");
         assert!(!terminal);
         assert_eq!(edges, 49);
+        assert_eq!(children.len(), 16);
         assert_eq!(record["complete"], true);
         assert_eq!(record["terminal"], Value::Null);
         assert_eq!(record["actions"].as_array().expect("actions").len(), 49);

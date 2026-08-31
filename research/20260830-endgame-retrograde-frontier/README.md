@@ -111,11 +111,13 @@ explicit complete-optimal-action-set map.
 
 The Rust `pathagon-endgame-expand` executable now materializes missing child
 stubs in bounded passes. It decodes the canonical key, reconstructs inventory,
-enumerates the legal Rust action boundary, emits canonical child edges, and
-terminalizes a reachable child only when its path state proves a loss or a
-no-action draw. A 100-stub Ring-2 smoke pass emitted 19,635 legal edges and
-left 2,436 untouched unknown stubs; the tablebase re-read that graph and still
-left all incomplete branches unknown.
+enumerates the legal Rust action boundary, emits canonical child edges, appends
+deduplicated records for newly discovered children, and terminalizes a
+reachable child only when its path state proves a loss or a no-action draw. A
+100-stub Ring-2 smoke pass emitted 19,635 legal edges and appended 19,635
+unknown child records; a second 100-stub pass emitted another 19,992 edges.
+The tablebase re-read the resulting 42,201-record graph and still left all
+incomplete branches unknown.
 
 The first training gate is intentionally not a promotion: a linear
 gold-aware policy/value/urgency adapter trained on 1,815 Ring-1 rows reached
