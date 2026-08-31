@@ -242,7 +242,10 @@ the selected action through the Rust rules boundary, and records exact-action
 matches, terminal wins, exhaustion, depth, and node cost. A full baseline run
 over the 3,597-row Ring-1 partition was started but intentionally stopped when
 the Ring-2 expansion effort was paused; no partial match result is treated as
-evidence.
+evidence. A bounded 64-row smoke run completed first: the baseline matched
+54/64 proven actions (84.375%), produced 64/64 terminal wins, and consumed
+70,162 nodes. This is a harness sanity check, not a promotion gate; the full
+partition run remains paused.
 
 The exporter caught and fixed a canonicalization defect during this gate:
 Ring-2 promotion had stored source-orientation actions beside canonical keys.
