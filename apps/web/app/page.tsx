@@ -61,7 +61,11 @@ export default function Home() {
   const [coachingEvaluation, setCoachingEvaluation] = useState<MoveEvaluation | null>(null);
   const [coachingStatus, setCoachingStatus] = useState<"idle" | "searching" | "ready">("idle");
   const [opponentId, setOpponentId] = useState(TRANSITION_PATHFINDER_OPPONENT.id);
-  const [pathfinderDepth, setPathfinderDepth] = useState<number>(initialPathfinderDepth);
+  // Keep the first render deterministic for SSR/hydration. The saved browser
+  // preference is applied after mount in the effect below.
+  const [pathfinderDepth, setPathfinderDepth] = useState<number>(PATHFINDER_SEARCH.depth);
+  const [pathfinderDepthReady, setPathfinderDepthReady] = useState(false);
+  const [pendingOpponentId, setPendingOpponentId] = useState<string | null>(null);
   const [rustEngine, setRustEngine] = useState<RustEngine | null>(null);
   const [searchClient] = useState<RustSearchClient | null>(() =>
     typeof window === "undefined" ? null : createRustSearchClient(),
@@ -72,6 +76,7 @@ export default function Home() {
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiRequest = useRef<number | null>(null);
   const resultRef = useRef<HTMLDivElement | null>(null);
+  const opponentSwitchDialogRef = useRef<HTMLDivElement | null>(null);
   const coachingRequest = useRef(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fixtureLoaded = useRef(false);
@@ -83,6 +88,7 @@ export default function Home() {
   const humanPlacementTurn = game.turn === HUMAN && game.reserve[HUMAN] > 0;
   const humanMovementTurn = game.turn === HUMAN && game.reserve[HUMAN] === 0;
   const opponent = getOpponent(opponentId);
+  const pendingOpponent = pendingOpponentId ? getOpponent(pendingOpponentId) : null;
   const cnnReady = opponent.id !== CNN_OPPONENT.id || Boolean(cnnEngine);
   const thinking = !rustEngine || !cnnReady || (game.turn === AI && !game.winner);
   const resultOpen = Boolean(game.winner) && !resultDismissed;
@@ -176,12 +182,21 @@ export default function Home() {
   }, [cnnEngine, cnnReady, game, opponent, pathfinderDepth, rustEngine, searchClient]);
 
   useEffect(() => {
+    const hydrationTimer = window.setTimeout(() => {
+      setPathfinderDepth(initialPathfinderDepth());
+      setPathfinderDepthReady(true);
+    }, 0);
+    return () => window.clearTimeout(hydrationTimer);
+  }, []);
+
+  useEffect(() => {
+    if (!pathfinderDepthReady) return;
     try {
       window.localStorage.setItem("pathagon:pathfinder-depth", String(pathfinderDepth));
     } catch {
       // Device storage can be disabled; the in-memory control still works.
     }
-  }, [pathfinderDepth]);
+  }, [pathfinderDepth, pathfinderDepthReady]);
 
   useEffect(() => {
     coachingRequest.current += 1;
@@ -215,6 +230,12 @@ export default function Home() {
     const focusTimer = setTimeout(() => resultRef.current?.focus(), 40);
     return () => clearTimeout(focusTimer);
   }, [game.winner, resultOpen]);
+
+  useEffect(() => {
+    if (!pendingOpponentId) return;
+    const focusTimer = setTimeout(() => opponentSwitchDialogRef.current?.focus(), 40);
+    return () => clearTimeout(focusTimer);
+  }, [pendingOpponentId]);
 
   useEffect(() => {
     if (!game.winner || !recordable.current || !gameId || moveHistory.length !== game.ply) return;
@@ -345,6 +366,7 @@ export default function Home() {
 
   function newGame() {
     if (aiTimer.current) clearTimeout(aiTimer.current);
+    setPendingOpponentId(null);
     setGame(createGame());
     setHistory([]);
     setMoveHistory([]);
@@ -378,6 +400,7 @@ export default function Home() {
 
   function changeOpponent(id: string) {
     if (aiTimer.current) clearTimeout(aiTimer.current);
+    setPendingOpponentId(null);
     setOpponentId(id);
     setGame(createGame());
     setHistory([]);
@@ -391,6 +414,23 @@ export default function Home() {
     setArchiveStatus("idle");
     recordedGame.current = null;
     recordable.current = true;
+  }
+
+  function requestOpponentChange(id: string) {
+    if (id === opponentId) return;
+    if (game.ply > 0 && !game.winner) {
+      setPendingOpponentId(id);
+      return;
+    }
+    changeOpponent(id);
+  }
+
+  function confirmOpponentChange() {
+    if (pendingOpponentId) changeOpponent(pendingOpponentId);
+  }
+
+  function cancelOpponentChange() {
+    setPendingOpponentId(null);
   }
 
   function changePathfinderDepth(depth: number) {
@@ -538,8 +578,8 @@ export default function Home() {
             <div className="panel-kicker">Opponent lab</div>
             <label className="opponent-picker">
               <span>Choose opponent</span>
-              <select value={opponentId} onChange={(event) => changeOpponent(event.target.value)}>
-                {OPPONENTS.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+              <select value={opponentId} onChange={(event) => requestOpponentChange(event.target.value)}>
+                {OPPONENTS.map((option) => <option key={option.id} value={option.id}>{option.shortName ?? option.name}</option>)}
               </select>
             </label>
           </div>
@@ -558,10 +598,12 @@ export default function Home() {
                   <span className="stat-label">Pathfinder control</span>
                   <strong id="pathfinder-lookahead-title">{pathfinderDepth}-ply look-ahead</strong>
                 </div>
-                <span className="lookahead-speed">{pathfinderDepth <= 3 ? "Quick" : pathfinderDepth === 4 ? "Balanced" : "Deep"}</span>
+                <span className="lookahead-speed">{pathfinderDepthTier(pathfinderDepth)}</span>
               </div>
               <input
                 aria-label="Pathfinder look-ahead depth"
+                aria-describedby="pathfinder-lookahead-scale pathfinder-lookahead-help"
+                aria-valuetext={`${pathfinderDepth}-ply ${pathfinderDepthTier(pathfinderDepth)}`}
                 className="lookahead-slider"
                 type="range"
                 min={PATHFINDER_DEPTH_OPTIONS[0]}
@@ -570,8 +612,8 @@ export default function Home() {
                 value={pathfinderDepth}
                 onChange={(event) => changePathfinderDepth(Number(event.target.value))}
               />
-              <div className="lookahead-scale" aria-hidden="true"><span>2 · Quick</span><span>4 · Balanced</span><span>6 · Deep</span></div>
-              <p>More ply lets the Pathfinder answer farther ahead. Deeper settings spend more time on the next dark turn.</p>
+              <div id="pathfinder-lookahead-scale" className="lookahead-scale"><span>2 · Quick</span><span>4 · Balanced</span><span>6 · Deep</span></div>
+              <p id="pathfinder-lookahead-help">More ply lets the Pathfinder answer farther ahead. Deeper settings spend more time on the next dark turn.</p>
             </section>
           )}
           <dl className="telemetry">
@@ -584,6 +626,48 @@ export default function Home() {
           <div className="rules-note"><strong>{engineError || cnnError ? "Engine unavailable" : !rustEngine ? "Loading Rust engine…" : opponent.id === CNN_OPPONENT.id && !cnnEngine ? "Loading CNN model…" : "Rust/WASM engine"}</strong><p>{engineError ?? cnnError ?? "Light connects near-to-far; dark connects side-to-side. Orthogonal paths. Automatic A–B–A captures."}</p></div>
         </aside>
       </section>
+
+      {pendingOpponent && (
+        <div className="result-scrim" role="presentation">
+          <div
+            className="result-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="opponent-switch-title"
+            aria-describedby="opponent-switch-description"
+            tabIndex={-1}
+            ref={opponentSwitchDialogRef}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                cancelOpponentChange();
+                return;
+              }
+              if (event.key !== "Tab") return;
+              const buttons = Array.from(opponentSwitchDialogRef.current?.querySelectorAll("button") ?? []);
+              if (!buttons.length) return;
+              const first = buttons[0];
+              const last = buttons[buttons.length - 1];
+              if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+              } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+              }
+            }}
+          >
+            <div className="result-kicker">New game required</div>
+            <h2 id="opponent-switch-title">Switch opponent?</h2>
+            <p id="opponent-switch-description">
+              Changing to {pendingOpponent.shortName ?? pendingOpponent.name} will clear this board and its undo history.
+            </p>
+            <div className="result-actions">
+              <button className="result-primary" onClick={confirmOpponentChange}>Start new game</button>
+              <button className="result-secondary" autoFocus onClick={cancelOpponentChange}>Keep current game</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {game.winner && resultOpen && (
         <div className="result-scrim" role="presentation">
@@ -652,6 +736,10 @@ function isPathfinderOpponent(id: string) {
   return id === PATHFINDER_OPPONENT.id
     || id === TRAINED_PATHFINDER_OPPONENT.id
     || id === TRANSITION_PATHFINDER_OPPONENT.id;
+}
+
+function pathfinderDepthTier(depth: number) {
+  return depth <= 3 ? "Quick" : depth === 4 ? "Balanced" : "Deep";
 }
 
 function PieceTray({ label, player, count, active }: { label: string; player: Player; count: number; active: boolean }) {

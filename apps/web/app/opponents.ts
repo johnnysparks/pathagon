@@ -8,6 +8,8 @@ import type { RustEngine, TransitionPolicyEngine } from "./rust-engine.ts";
 export type Opponent = {
   id: string;
   name: string;
+  /** Short label used where the selector has limited horizontal space. */
+  shortName?: string;
   version: string;
   engine: string;
   elo: string;
@@ -118,6 +120,7 @@ export const LUNATIC_OPPONENT: Opponent = {
 export const PATHFINDER_OPPONENT: Opponent = {
   id: PATHFINDER_TACTICAL_FILTER_ID,
   name: "The Pathfinder",
+  shortName: "Pathfinder · Tactical",
   version: "0.4.0",
   engine: "4-ply iterative · tactical-safe",
   elo: "Unrated · expert",
@@ -131,6 +134,7 @@ export const PATHFINDER_OPPONENT: Opponent = {
 export const TRAINED_PATHFINDER_OPPONENT: Opponent = {
   id: TRAINED_PATHFINDER_ID,
   name: "The Pathfinder · Trained",
+  shortName: "Pathfinder · Trained",
   version: "0.5.0",
   engine: "4-ply iterative · trained evaluator",
   elo: "Provisional · trained",
@@ -149,6 +153,7 @@ export const TRAINED_PATHFINDER_OPPONENT: Opponent = {
 export const TRANSITION_PATHFINDER_OPPONENT: Opponent = {
   id: TRANSITION_PATHFINDER_ID,
   name: "The Pathfinder · Transition v4",
+  shortName: "Pathfinder · v4",
   version: "4.0.0",
   engine: "4-ply iterative · action-transition policy",
   elo: "Provisional · scaled research",

@@ -85,6 +85,7 @@ test("trained Pathfinder keeps its promoted search envelope and evaluator weight
 
 test("transition-policy v4 is the strongest user-facing Pathfinder identity", () => {
   assert.equal(TRANSITION_PATHFINDER_OPPONENT.id, TRANSITION_PATHFINDER_ID);
+  assert.equal(TRANSITION_PATHFINDER_OPPONENT.shortName, "Pathfinder · v4");
   assert.equal(TRANSITION_PATHFINDER_OPPONENT.version, "4.0.0");
   assert.equal(TRANSITION_PATHFINDER_OPPONENT.searchDepth, 4);
   const action = TRANSITION_PATHFINDER_OPPONENT.chooseAction(createGame());
