@@ -114,7 +114,10 @@ independently solved Ring-2 roots, stored as a 45-byte WDL shard and a
 391-byte `PGACT02` sidecar. It passed the same Rust gates with 24 symmetry
 checks and zero contradictions. This is still a standalone Ring-2 experiment;
 the Ring-1 table remains the rollback/control artifact. Native Rust target
-generation can now overlay ordered layers without rewriting either artifact:
+generation can now overlay ordered layers without rewriting either artifact.
+Rust promotion canonicalizes both keys and action coordinates before writing a
+sidecar, and the exporter rejects any action that is not legal in the decoded
+canonical representative:
 
 ```bash
 cargo run --release --manifest-path pathagon/engine-rs/Cargo.toml \

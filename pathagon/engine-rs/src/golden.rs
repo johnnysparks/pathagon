@@ -6,7 +6,7 @@
 //! This module intentionally keeps both pieces read-only: a search may consult
 //! a promoted result, but approximate search output can never mutate the gold.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Cursor, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -693,6 +693,21 @@ impl GoldenActionBook {
             .filter(|action| legal.contains(action))
             .min_by_key(|action| action.order())
     }
+
+    /// Return deterministic canonical rows for training/export tooling. The
+    /// action values remain sparse and preserve explicit unknown labels.
+    pub fn rows_with_actions(&self) -> Vec<(Vec<u8>, GoldenRowValue, Vec<GoldenActionValue>)> {
+        let mut keys = BTreeSet::new();
+        keys.extend(self.rows.keys().cloned());
+        keys.extend(self.action_values.keys().cloned());
+        keys.into_iter()
+            .filter_map(|key| {
+                let row = self.rows.get(&key).copied()?;
+                let values = self.action_values.get(&key).cloned().unwrap_or_default();
+                Some((key, row, values))
+            })
+            .collect()
+    }
 }
 
 fn parse_golden_outcome(value: &str) -> Option<GoldenOutcome> {
@@ -981,6 +996,14 @@ pub fn canonical_position_key(state: GameState) -> Vec<u8> {
     canonical_key(state).0
 }
 
+/// Return the canonical representative and the rules-preserving symmetry used
+/// to reach it. Action labels stored beside a canonical key must be transformed
+/// with the returned symmetry before they are persisted.
+pub fn canonical_position(state: GameState) -> (GameState, u8) {
+    let (_, symmetry) = canonical_key(state);
+    (transform_state(state, symmetry), symmetry)
+}
+
 /// Apply one of the eight rules-preserving D4 transformations. This is
 /// public for Rust-side frontier validation; callers should canonicalize the
 /// transformed state with [`canonical_position_key`] rather than persisting
@@ -1195,7 +1218,8 @@ fn inverse_symmetry(symmetry: u8) -> u8 {
     }
 }
 
-fn transform_action(action: Action, size: u8, symmetry: u8) -> Action {
+/// Apply a rules-preserving D4 transformation to an action.
+pub fn transform_action(action: Action, size: u8, symmetry: u8) -> Action {
     match action {
         Action::Place { to } => Action::Place {
             to: transform_square(size, to, symmetry),
@@ -1292,6 +1316,39 @@ mod tests {
             let round_trip =
                 transform_action(transformed, config.board_size, inverse_symmetry(symmetry));
             assert_eq!(round_trip, action, "symmetry {symmetry}");
+        }
+    }
+
+    #[test]
+    fn canonicalized_actions_are_legal_in_the_canonical_representative() {
+        let config = BoardConfig::DEFAULT;
+        let state = GameState {
+            config,
+            light: 1_u64 << 0,
+            dark: 1_u64 << 48,
+            reserve: [13, 13],
+            turn: Player::Light,
+            forbidden: 1_u64 << 24,
+            last_relocated_to: [None, None],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: 0,
+        };
+        let (canonical, symmetry) = canonical_position(state);
+        assert_eq!(
+            canonical_position_key(canonical),
+            canonical_position_key(state)
+        );
+        for action in state.legal_actions() {
+            assert!(
+                canonical.legal_actions().contains(&transform_action(
+                    action,
+                    config.board_size,
+                    symmetry
+                )),
+                "canonical action {action:?} is not legal"
+            );
         }
     }
 

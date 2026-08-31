@@ -62,6 +62,10 @@ name = "pathagon-endgame-promote"
 path = "src/bin/endgame_promote.rs"
 
 [[bin]]
+name = "pathagon-endgame-gold-export"
+path = "src/bin/endgame_gold_export.rs"
+
+[[bin]]
 name = "pathagon-lambda-worker"
 path = "src/lambda_worker.rs"
 required-features = ["lambda"]

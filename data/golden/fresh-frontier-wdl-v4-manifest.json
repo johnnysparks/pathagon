@@ -15,7 +15,7 @@
   },
   "sidecar": {
     "path": "data/golden/sidecars/fresh-frontier-wdl-v4/7x7-r14/ring-02.bin",
-    "sha256": "9500922556a1b111f530c7bb5f45464ccd447c10fb1471425c07aa659f7a38c3"
+    "sha256": "0df5c3fbd69fb96c0df0dae5a9bfc3ca6c638769c3c65f0e20c73eb38647f828"
   },
   "source": "research/20260830-endgame-retrograde-frontier/workspace/ring-02-full.jsonl",
   "tableFamily": "fresh-frontier-wdl-v4"

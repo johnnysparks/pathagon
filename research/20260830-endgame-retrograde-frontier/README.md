@@ -110,6 +110,11 @@ The workspace density audit found three additional, low-risk wins:
    the hot solver artifact so the solver does not pay decompression and
    reparsing costs.
 
+The layered training interchange is intentionally disposable: the Rust
+feature-bearing JSONL is 746 MiB, while its zstd level-1 archive is 56.5 MiB
+(92.4% smaller). Keep the JSONL only when training or inspecting it; the
+versioned compact table/sidecar pair remains the durable artifact.
+
 The workspace still contains intentionally duplicated historical passes and
 the original JSONL export. The safe management rule is to retain one
 canonical artifact per pass, a manifest with counts/hashes/command, and only
@@ -218,12 +223,24 @@ unknown. Loss still requires every legal child to be a known win, and draws
 still require complete graph/cycle evidence. This distinction is covered by a
 regression test and is material to future Ring-2/Ring-3 closure.
 
-The first training gate is intentionally not a promotion: a linear
-gold-aware policy/value/urgency adapter trained on 1,815 Ring-1 rows reached
-72.97% witnessed-action accuracy on 185 held-out rows, equal to the frozen v4
-control at 72.97%. Ring 1 is a one-move witness layer with incomplete optimal
-action sets, so this result is evidence that the gate runs, not evidence of a
-stronger model.
+The layered training gate remains intentionally research-only. Rust exported
+35,564 rows (35,561 Ring-1 wins and three exact Ring-2 losses), including Rust
+action features and precomputed forced-block targets. The permanent held-out
+split contains 3,597 Ring-1 rows plus one Ring-2 loss; the other two Ring-2
+rows are used for training so the value gate is not structurally impossible.
+The batched linear candidate reached 48.47% held-out witnessed-action/urgency
+accuracy versus 46.86% for the frozen v4 control, matched forced-block safety
+at 100% on 185 eligible rows, and reached 99.97% aggregate W/D/L accuracy.
+The candidate selected an urgency-valid move on the held-out Ring-2 row, but
+its value head still missed that forced-loss class (0/1). The report therefore
+fails the explicit Ring-2 value gate and keeps the candidate research-only;
+the exact Rust table remains the authoritative answer for promoted positions.
+
+The exporter caught and fixed a canonicalization defect during this gate:
+Ring-2 promotion had stored source-orientation actions beside canonical keys.
+Rust promotion now transforms action coordinates with the selected D4 symmetry,
+and the exporter rejects any non-legal canonical action before producing
+training evidence.
 
 ## Next decision
 
@@ -233,6 +250,6 @@ additional low-branching roots by supplying verified records for their missing
 child states (or by adding independently replay-witnessed constructive
 admissions), then rerun the exact minimax and promotion gates. The first
 two-root promotion is now available for training/evaluation against the
-permanent held-out split and user games, while Ring-1 remains the
-rollback/control layer until a broader Ring-2 slice is independently
-validated.
+permanent held-out split and user games. Keep the direct layered Rust lookup
+enabled for exact rows; improve the learner only after a larger Ring-2
+training population makes the value gate statistically useful.

@@ -13,7 +13,8 @@ use std::path::{Path, PathBuf};
 
 use pathagon_engine::corpus::decode_action;
 use pathagon_engine::golden::{
-    canonical_position_key, transform_position, FlatGoldenTable, GoldenOutcome,
+    canonical_position, canonical_position_key, transform_action, transform_position,
+    FlatGoldenTable, GoldenOutcome,
 };
 use pathagon_engine::ground_truth::GroundTruthOutcome;
 use pathagon_engine::tablebase::{read_value_shards, RetrogradeValue};
@@ -252,6 +253,7 @@ fn validate_ring_record(
     if hex_key(&canonical_position_key(state)) != key {
         return Err("position key is not canonical".to_owned());
     }
+    let (_, canonical_symmetry) = canonical_position(state);
 
     let legal = state.legal_actions();
     let action_rows = record
@@ -313,7 +315,7 @@ fn validate_ring_record(
             .get(&child_key)
             .ok_or_else(|| format!("child {child_key} is not an exact inner value"))?;
         action_values.push((
-            action,
+            transform_action(action, state.config.board_size, canonical_symmetry),
             RetrogradeValue {
                 outcome: child.outcome.negate(),
                 distance: child.distance.map(|distance| distance.saturating_add(1)),
