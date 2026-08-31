@@ -26,7 +26,8 @@ from python.symmetry import ALL_SYMMETRIES, transform_action, transform_state  #
 ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_"
 BOARD_SIZE = 7
 RESERVE = 14
-ACTION_BOOK_MAGIC = b"PGACT01\0"
+ACTION_BOOK_MAGIC = b"PGACT02\0"
+ACTION_BOOK_NONE_DISTANCE = 0xFFFF
 
 
 def decode_action(token: str) -> Action:
@@ -93,18 +94,44 @@ def action_code(action: Action) -> int:
 
 
 def write_action_book(path: Path, rows: OrderedDict[bytes, dict[str, Any]]) -> None:
-    """Write compact sorted key -> proven-action labels for runtime lookup."""
+    """Write compact sparse per-action W/D/L metadata for runtime lookup.
+
+    Unknown actions are omitted on incomplete rows. The row flag and legal
+    action count in the source record preserve the distinction between a
+    partial proof and a complete optimal-action set without repeating the
+    word "unknown" for every unproven move.
+    """
 
     with path.open("wb") as output:
         output.write(ACTION_BOOK_MAGIC)
         output.write(bytes((BOARD_SIZE, RESERVE, 14, 0)))
         output.write(struct.pack("<I", len(rows)))
         for key in sorted(rows):
-            actions = rows[key]["provenActions"]
+            row = rows[key]
+            proven_actions = row["provenActions"]
+            if isinstance(proven_actions, dict):
+                proven_actions = proven_actions.values()
+            actions = sorted(
+                proven_actions,
+                key=lambda action: action_code(decode_action(action["token"])),
+            )
             output.write(key)
+            root_outcome = {"loss": 0, "draw": 1, "win": 2}.get(row.get("outcome"))
+            if root_outcome is None:
+                raise ValueError(f"unsupported root outcome for {key.hex()}")
+            output.write(bytes((int(bool(row.get("optimalActionsKnown", False))), root_outcome)))
+            distance = row.get("distance")
+            output.write(struct.pack("<H", ACTION_BOOK_NONE_DISTANCE if distance is None else int(distance)))
             output.write(struct.pack("<H", len(actions)))
             for action in actions:
                 output.write(struct.pack("<H", action_code(decode_action(action["token"]))))
+                outcome = {"loss": 0, "draw": 1, "win": 2}.get(action.get("outcome"))
+                output.write(bytes((3 if outcome is None else outcome,)))
+                action_distance = action.get("distance")
+                output.write(struct.pack(
+                    "<H",
+                    ACTION_BOOK_NONE_DISTANCE if action_distance is None else int(action_distance),
+                ))
 
 
 def project_relative(path: Path) -> str:
@@ -224,6 +251,11 @@ def main() -> None:
         "schemaVersion": 1,
         "tableFamily": "fresh-frontier-wdl-v1",
         "rulesVersion": "pathagon-rules-v1",
+        "provenance": {
+            "solverVersion": "pathagon-endgame-frontier-v1",
+            "rulesVersion": "pathagon-rules-v1",
+            "proofLineage": "full-corpus-replay-plus-verified-terminal-transition",
+        },
         "semantics": {
             "outcomes": {"loss": 0, "draw": 1, "win": 2, "unknown": "absent"},
             "history": "fresh-root-with-repetition-aware-proof",
@@ -245,6 +277,7 @@ def main() -> None:
         }],
         "sidecars": [{
             "path": project_relative(args.sidecar),
+            "format": "PGACT02",
             "bytes": args.sidecar.stat().st_size,
             "sha256": sha256(args.sidecar),
         }],

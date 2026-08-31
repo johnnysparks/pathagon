@@ -31,7 +31,8 @@ from python.symmetry import ALL_SYMMETRIES, transform_state  # noqa: E402
 
 
 ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_"
-ACTION_BOOK_MAGIC = b"PGACT01\0"
+ACTION_BOOK_MAGIC = b"PGACT02\0"
+ACTION_BOOK_NONE_DISTANCE = 0xFFFF
 COMPACT_VALUE_MAGIC = b"PGTBV01\0"
 COMPACT_VALUE_HEADER_BYTES = 20
 COMPACT_NONE_DISTANCE = 65535
@@ -136,17 +137,34 @@ def read_compact_values(path: Path) -> dict[str, dict[str, Any]]:
     return values
 
 
-def write_action_book(path: Path, rows: OrderedDict[str, list[str]]) -> None:
+def write_action_book(path: Path, rows: OrderedDict[str, dict[str, Any]]) -> None:
     with path.open("wb") as output:
         output.write(ACTION_BOOK_MAGIC)
         output.write(bytes((BOARD_SIZE, RESERVE, 14, 0)))
         output.write(struct.pack("<I", len(rows)))
         for key in sorted(rows):
-            actions = sorted({action_code(decode_action(token)) for token in rows[key]})
+            row = rows[key]
+            actions = sorted(
+                row["provenActions"],
+                key=lambda action: action_code(decode_action(action["token"])),
+            )
             output.write(bytes.fromhex(key))
+            root_outcome = {"loss": 0, "draw": 1, "win": 2}.get(row.get("outcome"))
+            if root_outcome is None:
+                raise ValueError(f"unsupported root outcome for {key}")
+            output.write(bytes((int(bool(row.get("optimalActionsKnown", False))), root_outcome)))
+            distance = row.get("distance")
+            output.write(struct.pack("<H", ACTION_BOOK_NONE_DISTANCE if distance is None else int(distance)))
             output.write(struct.pack("<H", len(actions)))
             for action in actions:
-                output.write(struct.pack("<H", action))
+                output.write(struct.pack("<H", action_code(decode_action(action["token"]))))
+                outcome = {"loss": 0, "draw": 1, "win": 2}.get(action.get("outcome"))
+                output.write(bytes((3 if outcome is None else outcome,)))
+                action_distance = action.get("distance")
+                output.write(struct.pack(
+                    "<H",
+                    ACTION_BOOK_NONE_DISTANCE if action_distance is None else int(action_distance),
+                ))
 
 
 def sha256(path: Path) -> str:
@@ -174,7 +192,7 @@ def main() -> None:
     values, shard_count = load_shard_values(args.shards)
     existing = FlatGoldenTable(args.existing_table, board_size=BOARD_SIZE, reserve_per_player=RESERVE)
     promoted: OrderedDict[bytes, int] = OrderedDict()
-    actions: OrderedDict[str, list[str]] = OrderedDict()
+    actions: OrderedDict[str, dict[str, Any]] = OrderedDict()
     stats = {
         "graphRecords": 0,
         "ringRecords": 0,
@@ -284,9 +302,23 @@ def main() -> None:
                 for action, child_key in edge_actions.items():
                     child = values[child_key]
                     child_outcome = {"loss": "win", "draw": "draw", "win": "loss"}[child["outcome"]]
-                    if child_outcome == value["outcome"]:
-                        action_values.append(encode_action(action))
-                actions[key] = action_values
+                    action_values.append(
+                        {
+                            "token": encode_action(action),
+                            "outcome": child_outcome,
+                            "distance": (
+                                None
+                                if child_outcome == "draw"
+                                else int(child["distance"]) + 1
+                            ),
+                        }
+                    )
+                actions[key] = {
+                    "optimalActionsKnown": True,
+                    "outcome": value["outcome"],
+                    "distance": value.get("distance"),
+                    "provenActions": action_values,
+                }
                 for symmetry in ALL_SYMMETRIES:
                     transformed = transform_state(state, symmetry)
                     if canonical_key_hex(transformed) != key:
@@ -313,6 +345,11 @@ def main() -> None:
                     "tableFamily": "fresh-frontier-wdl-v2",
                     "rulesVersion": "pathagon-rules-v1",
                     "ring": args.ring,
+                    "provenance": {
+                        "solverVersion": "pathagon-endgame-tablebase-v1",
+                        "rulesVersion": "pathagon-rules-v1",
+                        "proofLineage": "complete-forward-legal-edges-plus-exact-inner-seeds",
+                    },
                     "rows": rows,
                     "shard": {"path": str(args.table), "sha256": rows_sha256(args.table)},
                     "sidecar": {"path": str(args.sidecar), "sha256": sha256(args.sidecar)},

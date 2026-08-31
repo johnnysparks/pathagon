@@ -42,7 +42,10 @@ caught a Rust marker-width bug; both were fixed before promotion. A symmetry
 inversion test then caught and corrected an action-canonicalization bug.
 The promoted rows had zero overlaps with contradictory or pre-existing gold;
 the independent verifier passed sorted-key, header, action-bound, size, hash,
-and count checks.
+and count checks. The durable Ring-1 sidecar is now `PGACT02`: it stores the
+root distance, sparse per-action W/D/L/distance labels, and the complete-action
+set bit while leaving unlisted actions implicit-unknown on partial rows. The
+Rust reader remains backward-compatible with `PGACT01`.
 
 The full Ring-2 export scanned the same 38,547 games and emitted 35,562
 replay-witnessed parent records with 4,485,656 complete forward edges and
@@ -57,7 +60,7 @@ training failure.
 
 Disposable extractor output, checkpoints, and summaries belong in this path's
 ignored `workspace/`. The promoted
-`fresh-frontier-wdl-v1` artifacts are [the 533,415-byte WDL shard](../../data/golden/tables/fresh-frontier-wdl-v1/7x7-r14/shard-00.bin), [the 640,116-byte action sidecar](../../data/golden/sidecars/fresh-frontier-wdl-v1/7x7-r14/ring-01.bin), and [their manifest](../../data/golden/fresh-frontier-wdl-v1-manifest.json). The compact sidecar is a sorted binary key-to-proven-actions index so durable data stays below the repository's 5 MiB file limit. Do not place solver traces, queues, or implementation-shaped tensors in durable data.
+`fresh-frontier-wdl-v1` artifacts are [the 533,415-byte WDL shard](../../data/golden/tables/fresh-frontier-wdl-v1/7x7-r14/shard-00.bin), [the 889,046-byte action metadata sidecar](../../data/golden/sidecars/fresh-frontier-wdl-v1/7x7-r14/ring-01.bin), and [their manifest](../../data/golden/fresh-frontier-wdl-v1-manifest.json). The compact sidecar is a sorted binary key-to-sparse-action-metadata index so durable data stays below the repository's 5 MiB file limit. Do not place solver traces, queues, or implementation-shaped tensors in durable data.
 
 The tablebase executable uses compact binary values and action labels for
 large research outputs: a fixed-width key plus one outcome byte and one `u16`

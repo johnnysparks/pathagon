@@ -47,11 +47,14 @@ into memory. New exact observations must be monotonic: a duplicate value is
 idempotent, while a contradictory value is an error.
 
 Ring frontiers may also carry a compact action sidecar. The promoted
-`fresh-frontier-wdl-v1` Ring-1 sidecar uses the `PGACT01` format: a 16-byte
-header followed by sorted `[canonical key: 14 bytes][action count: u16][action
-code: u16]*` rows. Action codes use the corpus base-64 action numbering. The
-sidecar is partial by design; it records verified winning actions, not a claim
-that all other legal actions lose.
+`fresh-frontier-wdl-v1` Ring-1 sidecar uses the `PGACT02` format: a 16-byte
+header followed by sorted rows containing `[canonical key: 14 bytes][flags:
+u8][root W/D/L: u8][root distance: u16][known action count: u16]`, then sparse
+`[action code: u16][action W/D/L/unknown: u8][distance: u16]` records. Action
+codes use the corpus base-64 action numbering. Unknown actions are omitted on
+incomplete rows, so the one-byte completeness flag preserves the distinction
+without repeating an unknown label for every legal move. Rust continues to
+read the older `PGACT01` action-only format for rollback compatibility.
 
 The codec is size-aware for the historical 5×5 curriculum boards as well. A
 5×5 key is 8 bytes (the relocation markers need 5 bits), and each board-size /

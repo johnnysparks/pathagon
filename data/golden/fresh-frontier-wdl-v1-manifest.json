@@ -2,6 +2,11 @@
   "schemaVersion": 1,
   "tableFamily": "fresh-frontier-wdl-v1",
   "rulesVersion": "pathagon-rules-v1",
+  "provenance": {
+    "solverVersion": "pathagon-endgame-frontier-v1",
+    "rulesVersion": "pathagon-rules-v1",
+    "proofLineage": "full-corpus-replay-plus-verified-terminal-transition"
+  },
   "semantics": {
     "outcomes": {
       "loss": 0,
@@ -31,8 +36,9 @@
   "sidecars": [
     {
       "path": "data/golden/sidecars/fresh-frontier-wdl-v1/7x7-r14/ring-01.bin",
-      "bytes": 640116,
-      "sha256": "2d41ae1fe3167b678a02adb1391f520e6362842b37627252f32bd1fbd1c4385e"
+      "format": "PGACT02",
+      "bytes": 889046,
+      "sha256": "cf8e5fa89803ace4f50f458b52f4bcca7d10771f19107479403d5de1f3b3e0d9"
     }
   ],
   "counts": {

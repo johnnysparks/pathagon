@@ -1,9 +1,10 @@
 //! Runtime access to promoted, exact endgame data.
 //!
-//! The durable shard contains only exact side-to-move W/D/L values.  The
-//! optional JSONL sidecar contains partial, proof-backed action labels.  This
-//! module intentionally keeps both pieces read-only: a search may consult a
-//! promoted result, but approximate search output can never mutate the gold.
+//! The durable shard contains exact side-to-move W/D/L values. The optional
+//! compact sidecar carries sparse per-action results, distances, and the
+//! complete-action-set bit; omitted actions on an incomplete row are unknown.
+//! This module intentionally keeps both pieces read-only: a search may consult
+//! a promoted result, but approximate search output can never mutate the gold.
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -20,7 +21,9 @@ pub const WIN: u8 = 2;
 
 const ACTION_ALPHABET: &[u8; 64] =
     b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
-const ACTION_BOOK_MAGIC: &[u8; 8] = b"PGACT01\0";
+const ACTION_BOOK_V1_MAGIC: &[u8; 8] = b"PGACT01\0";
+const ACTION_BOOK_V2_MAGIC: &[u8; 8] = b"PGACT02\0";
+const ACTION_BOOK_NONE_DISTANCE: u16 = u16::MAX;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GoldenOutcome {
@@ -54,6 +57,23 @@ impl GoldenOutcome {
             _ => None,
         }
     }
+}
+
+/// A sparse action label from a promoted sidecar. `None` is an explicitly
+/// encoded unknown action result; an omitted action is also unknown whenever
+/// the row's complete-action-set flag is false.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GoldenActionValue {
+    pub action: Action,
+    pub outcome: Option<GoldenOutcome>,
+    pub distance: Option<u16>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GoldenRowValue {
+    pub outcome: GoldenOutcome,
+    pub distance: Option<u16>,
+    pub optimal_actions_complete: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -204,6 +224,8 @@ impl MemoryGoldenTable {
 pub struct GoldenActionBook {
     board_size: u8,
     actions: HashMap<Vec<u8>, Vec<Action>>,
+    action_values: HashMap<Vec<u8>, Vec<GoldenActionValue>>,
+    rows: HashMap<Vec<u8>, GoldenRowValue>,
 }
 
 impl GoldenActionBook {
@@ -215,7 +237,7 @@ impl GoldenActionBook {
         let path = path.as_ref();
         let mut source = Vec::new();
         File::open(path)?.read_to_end(&mut source)?;
-        if source.starts_with(ACTION_BOOK_MAGIC) {
+        if source.starts_with(ACTION_BOOK_V1_MAGIC) || source.starts_with(ACTION_BOOK_V2_MAGIC) {
             return Self::load_binary(&source, path, board_size);
         }
         let reader = BufReader::new(Cursor::new(source));
@@ -223,6 +245,8 @@ impl GoldenActionBook {
         let mut book = Self {
             board_size,
             actions: HashMap::new(),
+            action_values: HashMap::new(),
+            rows: HashMap::new(),
         };
         for (line_number, line) in reader.lines().enumerate() {
             let line = line?;
@@ -273,27 +297,73 @@ impl GoldenActionBook {
                         line_number + 1
                     ))
                 })?;
+            let row_value = row
+                .get("outcome")
+                .and_then(Value::as_str)
+                .and_then(parse_golden_outcome)
+                .map(|outcome| GoldenRowValue {
+                    outcome,
+                    distance: row
+                        .get("distance")
+                        .and_then(Value::as_u64)
+                        .map(|value| value as u16),
+                    optimal_actions_complete: row
+                        .get("optimalActionsKnown")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
+                });
             let mut decoded = Vec::with_capacity(actions.len());
-            for action in actions {
-                let token = action
+            for action_record in actions {
+                let token = action_record
                     .get("token")
                     .and_then(Value::as_str)
                     .ok_or_else(|| invalid_data("golden action is missing token".to_owned()))?;
-                decoded.push(decode_action(token, board_size).map_err(|error| {
+                let action = decode_action(token, board_size).map_err(|error| {
                     invalid_data(format!("{}:{}: {error}", path.display(), line_number + 1))
-                })?);
+                })?;
+                decoded.push(action);
+                book.action_values
+                    .entry(key.clone())
+                    .or_default()
+                    .push(GoldenActionValue {
+                        action,
+                        outcome: action_record
+                            .get("outcome")
+                            .and_then(Value::as_str)
+                            .and_then(parse_golden_outcome),
+                        distance: action_record
+                            .get("distance")
+                            .and_then(Value::as_u64)
+                            .map(|value| value as u16),
+                    });
             }
             decoded.sort_by_key(|action| action.order());
             decoded.dedup();
-            let existing = book.actions.entry(key).or_default();
+            let existing = book.actions.entry(key.clone()).or_default();
             existing.extend(decoded);
             existing.sort_by_key(|action| action.order());
             existing.dedup();
+            if let Some(row_value) = row_value {
+                book.rows.insert(key, row_value);
+            }
         }
         Ok(book)
     }
 
     fn load_binary(source: &[u8], path: &Path, board_size: u8) -> io::Result<Self> {
+        if source.starts_with(ACTION_BOOK_V2_MAGIC) {
+            return Self::load_binary_v2(source, path, board_size);
+        }
+        if !source.starts_with(ACTION_BOOK_V1_MAGIC) {
+            return Err(invalid_data(format!(
+                "{}: unsupported action-book format",
+                path.display()
+            )));
+        }
+        Self::load_binary_v1(source, path, board_size)
+    }
+
+    fn load_binary_v1(source: &[u8], path: &Path, board_size: u8) -> io::Result<Self> {
         const HEADER_BYTES: usize = 16;
         if source.len() < HEADER_BYTES {
             return Err(invalid_data(format!(
@@ -321,6 +391,8 @@ impl GoldenActionBook {
         let mut book = Self {
             board_size,
             actions: HashMap::with_capacity(rows),
+            action_values: HashMap::with_capacity(rows),
+            rows: HashMap::new(),
         };
         let mut previous_key = None;
         for row_index in 0..rows {
@@ -352,19 +424,26 @@ impl GoldenActionBook {
                 )));
             }
             let mut actions = Vec::with_capacity(count);
+            let mut action_values = Vec::with_capacity(count);
             for _ in 0..count {
                 let code =
                     u16::from_le_bytes(source[offset..offset + 2].try_into().expect("two bytes"));
                 offset += 2;
-                actions.push(
-                    action_from_code(code, board_size)
-                        .map_err(|error| invalid_data(format!("{}: {error}", path.display())))?,
-                );
+                let action = action_from_code(code, board_size)
+                    .map_err(|error| invalid_data(format!("{}: {error}", path.display())))?;
+                actions.push(action);
+                action_values.push(GoldenActionValue {
+                    action,
+                    outcome: Some(GoldenOutcome::Win),
+                    distance: Some(1),
+                });
             }
             actions.sort_by_key(|action| action.order());
             actions.dedup();
             previous_key = Some(key.clone());
             book.actions.insert(key, actions);
+            book.action_values
+                .insert(previous_key.clone().expect("key inserted"), action_values);
         }
         if offset != source.len() {
             return Err(invalid_data(format!(
@@ -375,36 +454,253 @@ impl GoldenActionBook {
         Ok(book)
     }
 
-    pub fn rows(&self) -> usize {
-        self.actions.len()
+    fn load_binary_v2(source: &[u8], path: &Path, board_size: u8) -> io::Result<Self> {
+        const HEADER_BYTES: usize = 16;
+        if source.len() < HEADER_BYTES {
+            return Err(invalid_data(format!(
+                "{}: truncated golden action-book v2 header",
+                path.display()
+            )));
+        }
+        if source[8] != board_size || source[9] != 14 {
+            return Err(invalid_data(format!(
+                "{}: action-book namespace does not match {}x{}/14",
+                path.display(),
+                board_size,
+                board_size
+            )));
+        }
+        let key_bytes = key_bytes_for_board_size(board_size).map_err(invalid_data)?;
+        if usize::from(source[10]) != key_bytes || source[11] != 0 {
+            return Err(invalid_data(format!(
+                "{}: unsupported action-book v2 key width",
+                path.display()
+            )));
+        }
+        let rows = u32::from_le_bytes(source[12..16].try_into().expect("four bytes")) as usize;
+        let mut offset = HEADER_BYTES;
+        let mut book = Self {
+            board_size,
+            actions: HashMap::with_capacity(rows),
+            action_values: HashMap::with_capacity(rows),
+            rows: HashMap::with_capacity(rows),
+        };
+        let mut previous_key = None;
+        for row_index in 0..rows {
+            let row_header_bytes = key_bytes + 1 + 1 + 2 + 2;
+            if offset + row_header_bytes > source.len() {
+                return Err(invalid_data(format!(
+                    "{}: truncated v2 action-book row {row_index}",
+                    path.display()
+                )));
+            }
+            let key = source[offset..offset + key_bytes].to_vec();
+            offset += key_bytes;
+            if previous_key
+                .as_ref()
+                .is_some_and(|previous: &Vec<u8>| *previous >= key)
+            {
+                return Err(invalid_data(format!(
+                    "{}: action-book v2 keys are not strictly sorted at row {row_index}",
+                    path.display()
+                )));
+            }
+            let flags = source[offset];
+            offset += 1;
+            if flags & !1 != 0 {
+                return Err(invalid_data(format!(
+                    "{}: unsupported v2 action-book flags at row {row_index}",
+                    path.display()
+                )));
+            }
+            let outcome = GoldenOutcome::from_byte(source[offset]).ok_or_else(|| {
+                invalid_data(format!(
+                    "{}: invalid v2 row outcome at row {row_index}",
+                    path.display()
+                ))
+            })?;
+            offset += 1;
+            let distance = u16::from_le_bytes(
+                source[offset..offset + 2]
+                    .try_into()
+                    .expect("two distance bytes"),
+            );
+            offset += 2;
+            if outcome == GoldenOutcome::Draw && distance != ACTION_BOOK_NONE_DISTANCE {
+                return Err(invalid_data(format!(
+                    "{}: draw v2 row has a terminal distance at row {row_index}",
+                    path.display()
+                )));
+            }
+            if outcome != GoldenOutcome::Draw && distance == ACTION_BOOK_NONE_DISTANCE {
+                return Err(invalid_data(format!(
+                    "{}: known v2 row lacks a terminal distance at row {row_index}",
+                    path.display()
+                )));
+            }
+            let count = u16::from_le_bytes(
+                source[offset..offset + 2]
+                    .try_into()
+                    .expect("two action-count bytes"),
+            ) as usize;
+            offset += 2;
+            let mut actions = Vec::with_capacity(count);
+            let mut action_values = Vec::with_capacity(count);
+            for action_index in 0..count {
+                if offset + 5 > source.len() {
+                    return Err(invalid_data(format!(
+                        "{}: truncated v2 action {action_index} in row {row_index}",
+                        path.display()
+                    )));
+                }
+                let code = u16::from_le_bytes(
+                    source[offset..offset + 2]
+                        .try_into()
+                        .expect("two action bytes"),
+                );
+                offset += 2;
+                let action = action_from_code(code, board_size)
+                    .map_err(|error| invalid_data(format!("{}: {error}", path.display())))?;
+                let action_outcome = match source[offset] {
+                    3 => None,
+                    value => GoldenOutcome::from_byte(value),
+                };
+                if source[offset] != 3 && action_outcome.is_none() {
+                    return Err(invalid_data(format!(
+                        "{}: invalid v2 action outcome at row {row_index}",
+                        path.display()
+                    )));
+                }
+                offset += 1;
+                let action_distance = u16::from_le_bytes(
+                    source[offset..offset + 2]
+                        .try_into()
+                        .expect("two action-distance bytes"),
+                );
+                offset += 2;
+                let action_distance =
+                    (action_distance != ACTION_BOOK_NONE_DISTANCE).then_some(action_distance);
+                if action_outcome.is_none() && action_distance.is_some() {
+                    return Err(invalid_data(format!(
+                        "{}: unknown v2 action has a distance at row {row_index}",
+                        path.display()
+                    )));
+                }
+                if action_outcome == Some(GoldenOutcome::Draw) && action_distance.is_some() {
+                    return Err(invalid_data(format!(
+                        "{}: draw v2 action has a terminal distance at row {row_index}",
+                        path.display()
+                    )));
+                }
+                if matches!(
+                    action_outcome,
+                    Some(GoldenOutcome::Loss | GoldenOutcome::Win)
+                ) && action_distance.is_none()
+                {
+                    return Err(invalid_data(format!(
+                        "{}: known v2 action lacks a terminal distance at row {row_index}",
+                        path.display()
+                    )));
+                }
+                if actions.contains(&action) {
+                    return Err(invalid_data(format!(
+                        "{}: duplicate v2 action at row {row_index}",
+                        path.display()
+                    )));
+                }
+                actions.push(action);
+                action_values.push(GoldenActionValue {
+                    action,
+                    outcome: action_outcome,
+                    distance: action_distance,
+                });
+            }
+            previous_key = Some(key.clone());
+            book.actions.insert(key.clone(), actions);
+            book.action_values.insert(key.clone(), action_values);
+            book.rows.insert(
+                key,
+                GoldenRowValue {
+                    outcome,
+                    distance: (distance != ACTION_BOOK_NONE_DISTANCE).then_some(distance),
+                    optimal_actions_complete: flags & 1 != 0,
+                },
+            );
+        }
+        if offset != source.len() {
+            return Err(invalid_data(format!(
+                "{}: trailing bytes after v2 action-book rows",
+                path.display()
+            )));
+        }
+        Ok(book)
     }
 
-    pub fn proven_action(&self, state: GameState) -> Option<Action> {
+    pub fn rows(&self) -> usize {
+        self.actions.len().max(self.rows.len())
+    }
+
+    pub fn row_value(&self, state: GameState) -> Option<GoldenRowValue> {
         if state.config.board_size != self.board_size {
             return None;
         }
-        let legal = state.legal_actions();
-        if legal.is_empty() {
+        let (key, _) = canonical_key(state);
+        self.rows.get(&key).copied()
+    }
+
+    pub fn optimal_actions_complete(&self, state: GameState) -> Option<bool> {
+        self.row_value(state)
+            .map(|value| value.optimal_actions_complete)
+    }
+
+    /// Return sparse action labels in the caller's board orientation. An
+    /// absent action on an incomplete row is unknown by contract.
+    pub fn action_values(&self, state: GameState) -> Option<Vec<GoldenActionValue>> {
+        if state.config.board_size != self.board_size {
             return None;
         }
         let (key, _) = canonical_key(state);
-        let candidates = self.actions.get(&key)?;
-        let mut best = None;
+        let candidates = self.action_values.get(&key)?;
+        let mut oriented = Vec::new();
         for symmetry in 0..8 {
             if pack_transformed(state, symmetry) != key {
                 continue;
             }
             let inverse = inverse_symmetry(symmetry);
-            for canonical_action in candidates {
-                let action = transform_action(*canonical_action, state.config.board_size, inverse);
-                if legal.contains(&action)
-                    && best.is_none_or(|current: Action| action.order() < current.order())
-                {
-                    best = Some(action);
+            for candidate in candidates {
+                let value = GoldenActionValue {
+                    action: transform_action(candidate.action, state.config.board_size, inverse),
+                    outcome: candidate.outcome,
+                    distance: candidate.distance,
+                };
+                if !oriented.contains(&value) {
+                    oriented.push(value);
                 }
             }
         }
-        best
+        Some(oriented)
+    }
+
+    pub fn proven_action(&self, state: GameState) -> Option<Action> {
+        let legal = state.legal_actions();
+        if legal.is_empty() {
+            return None;
+        }
+        self.action_values(state)?
+            .into_iter()
+            .filter(|value| value.outcome == Some(GoldenOutcome::Win))
+            .map(|value| value.action)
+            .filter(|action| legal.contains(action))
+            .min_by_key(|action| action.order())
+    }
+}
+
+fn parse_golden_outcome(value: &str) -> Option<GoldenOutcome> {
+    match value {
+        "loss" => Some(GoldenOutcome::Loss),
+        "draw" => Some(GoldenOutcome::Draw),
+        "win" => Some(GoldenOutcome::Win),
+        _ => None,
     }
 }
 
@@ -736,6 +1032,60 @@ mod tests {
     }
 
     #[test]
+    fn compact_action_book_v2_preserves_sparse_values_and_row_proof() {
+        let mut source = Vec::new();
+        source.extend_from_slice(ACTION_BOOK_V2_MAGIC);
+        source.extend_from_slice(&[7, 14, 14, 0]);
+        source.extend_from_slice(&1_u32.to_le_bytes());
+        source.extend_from_slice(&[0; 14]);
+        source.extend_from_slice(&[0, WIN]);
+        source.extend_from_slice(&1_u16.to_le_bytes());
+        source.extend_from_slice(&1_u16.to_le_bytes());
+        source.extend_from_slice(&0_u16.to_le_bytes());
+        source.push(WIN);
+        source.extend_from_slice(&1_u16.to_le_bytes());
+
+        let book = GoldenActionBook::from_bytes(&source, 7).expect("decode PGACT02");
+        let key = vec![0; 14];
+        assert_eq!(book.rows(), 1);
+        assert_eq!(
+            book.rows.get(&key),
+            Some(&GoldenRowValue {
+                outcome: GoldenOutcome::Win,
+                distance: Some(1),
+                optimal_actions_complete: false,
+            })
+        );
+        assert_eq!(
+            book.action_values.get(&key),
+            Some(&vec![GoldenActionValue {
+                action: Action::Place { to: 0 },
+                outcome: Some(GoldenOutcome::Win),
+                distance: Some(1),
+            }])
+        );
+    }
+
+    #[test]
+    fn legacy_compact_action_book_v1_remains_readable() {
+        let mut source = Vec::new();
+        source.extend_from_slice(ACTION_BOOK_V1_MAGIC);
+        source.extend_from_slice(&[7, 14, 14, 0]);
+        source.extend_from_slice(&1_u32.to_le_bytes());
+        source.extend_from_slice(&[0; 14]);
+        source.extend_from_slice(&1_u16.to_le_bytes());
+        source.extend_from_slice(&0_u16.to_le_bytes());
+
+        let book = GoldenActionBook::from_bytes(&source, 7).expect("decode PGACT01");
+        let key = vec![0; 14];
+        assert_eq!(book.rows(), 1);
+        assert_eq!(
+            book.action_values[&key][0].outcome,
+            Some(GoldenOutcome::Win)
+        );
+    }
+
+    #[test]
     fn promoted_ring1_action_is_legal_after_symmetry_inversion() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../research/20260830-endgame-retrograde-frontier/workspace/ring-01-candidates.jsonl");
@@ -786,6 +1136,19 @@ mod tests {
         let table = FlatGoldenTable::open(&table_path, 7, 14).expect("open Ring-1 table");
         let actions = GoldenActionBook::load(&sidecar_path, 7).expect("open Ring-1 sidecar");
         assert_eq!(table.lookup(state), Some(GoldenOutcome::Win));
+        assert_eq!(
+            actions.row_value(state),
+            Some(GoldenRowValue {
+                outcome: GoldenOutcome::Win,
+                distance: Some(1),
+                optimal_actions_complete: false,
+            })
+        );
+        assert!(actions.action_values(state).is_some_and(|values| {
+            values
+                .iter()
+                .any(|value| value.outcome == Some(GoldenOutcome::Win) && value.distance == Some(1))
+        }));
         let action = actions.proven_action(state).expect("recover Ring-1 action");
         assert!(
             state.legal_actions().contains(&action),
