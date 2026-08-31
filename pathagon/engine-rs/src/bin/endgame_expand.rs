@@ -6,14 +6,15 @@
 //! canonicalize each child, and retain exact terminal detection. An omitted or
 //! unexpanded stub remains incomplete and therefore unknown to the tablebase.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::env;
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::path::PathBuf;
 
 use pathagon_engine::corpus::encode_action;
 use pathagon_engine::golden::{canonical_position_key, decode_canonical_position_key};
+use pathagon_engine::tablebase::{read_nodes, RetrogradeGraph, RetrogradeNode};
 use pathagon_engine::{has_winning_path, GameState};
 use serde_json::{json, Map, Value};
 
@@ -25,12 +26,21 @@ fn main() {
     let input = required(&args, "input");
     let output = required(&args, "out");
     let max_expand = number(&args, "max-expand");
+    let format = args.get("format").map(String::as_str).unwrap_or("jsonl");
+    let focus_roots = args.get("focus-roots").map(PathBuf::from);
+    if !matches!(format, "jsonl" | "compact") {
+        fail("--format must be jsonl or compact");
+    }
     if input == output {
         fail("--input and --out must be different paths");
     }
     if let Some(parent) = output.parent().filter(|path| !path.as_os_str().is_empty()) {
         fs::create_dir_all(parent)
             .unwrap_or_else(|error| fail(&format!("cannot create output directory: {error}")));
+    }
+    if format == "compact" || is_compact_graph(&input) {
+        run_graph_mode(&input, &output, max_expand, format, focus_roots.as_ref());
+        return;
     }
     let reader = BufReader::new(
         File::open(&input).unwrap_or_else(|error| fail(&format!("cannot open input: {error}"))),
@@ -114,6 +124,117 @@ fn main() {
     println!(
         "{}",
         json!({
+                "schemaVersion": 1,
+                "tableFamily": "pathagon-retrograde-wdl-v1",
+                "input": input,
+                "out": output,
+                "records": records,
+                "expanded": expanded,
+                "terminalized": terminalized,
+                "completeForwardEdges": edges,
+                "remainingUnexpandedUnknownStubs": remaining_unknown,
+            "appendedUnknownStubs": appended_stubs,
+            "outputRecords": records + appended_stubs,
+            "maxExpand": max_expand,
+            "format": format,
+            "status": "pass",
+        })
+    );
+}
+
+fn run_graph_mode(
+    input: &PathBuf,
+    output: &PathBuf,
+    max_expand: usize,
+    format: &str,
+    focus_roots: Option<&PathBuf>,
+) {
+    let graph =
+        read_nodes(input).unwrap_or_else(|error| fail(&format!("cannot read graph: {error}")));
+    let mut nodes = graph.into_nodes();
+    let records = nodes.len();
+    let mut expanded = 0_usize;
+    let mut terminalized = 0_usize;
+    let mut edges = 0_usize;
+    let mut remaining_unknown = 0_usize;
+    let known_keys = nodes
+        .iter()
+        .map(|node| node.key.clone())
+        .collect::<BTreeSet<_>>();
+    let mut new_child_keys = BTreeSet::new();
+
+    let expansion_order = focus_roots
+        .map(|path| prioritized_indices(&nodes, path))
+        .transpose()
+        .unwrap_or_else(|error| fail(&format!("cannot read focus roots: {error}")))
+        .unwrap_or_else(|| (0..nodes.len()).collect());
+    let expandable = nodes
+        .iter()
+        .enumerate()
+        .filter_map(|(index, node)| (!node.complete && node.seed.is_none()).then_some(index))
+        .collect::<BTreeSet<_>>();
+    let expansion_budget = if max_expand == 0 {
+        usize::MAX
+    } else {
+        max_expand
+    };
+    let selected = expansion_order
+        .iter()
+        .copied()
+        .filter(|index| expandable.contains(index))
+        .take(expansion_budget)
+        .collect::<BTreeSet<_>>();
+
+    for (index, node) in nodes.iter_mut().enumerate() {
+        if selected.contains(&index) {
+            let mut record = serde_json::to_value(&*node)
+                .unwrap_or_else(|error| fail(&format!("cannot encode graph node: {error}")));
+            let (was_terminal, generated_edges, generated_children) = expand_record(&mut record)
+                .unwrap_or_else(|error| fail(&format!("cannot expand {}: {error}", node.key)));
+            *node = serde_json::from_value(record)
+                .unwrap_or_else(|error| fail(&format!("cannot decode expanded node: {error}")));
+            expanded += 1;
+            edges += generated_edges;
+            terminalized += usize::from(was_terminal);
+            new_child_keys.extend(generated_children);
+        } else if expandable.contains(&index) {
+            remaining_unknown += 1;
+        }
+    }
+
+    let mut appended_stubs = 0_usize;
+    for key in new_child_keys {
+        if known_keys.contains(&key) {
+            continue;
+        }
+        nodes.push(RetrogradeNode {
+            key,
+            children: Vec::new(),
+            complete: false,
+            terminal: None,
+            seed: None,
+            actions: Vec::new(),
+        });
+        appended_stubs += 1;
+    }
+    let mut output_graph = RetrogradeGraph::default();
+    for node in nodes {
+        output_graph
+            .insert(node)
+            .unwrap_or_else(|error| fail(&format!("cannot assemble expanded graph: {error}")));
+    }
+    if format == "compact" {
+        output_graph
+            .write_compact_graph(output)
+            .unwrap_or_else(|error| fail(&format!("cannot write compact graph: {error}")));
+    } else {
+        output_graph
+            .write_jsonl(output)
+            .unwrap_or_else(|error| fail(&format!("cannot write JSONL graph: {error}")));
+    }
+    println!(
+        "{}",
+        json!({
             "schemaVersion": 1,
             "tableFamily": "pathagon-retrograde-wdl-v1",
             "input": input,
@@ -124,11 +245,73 @@ fn main() {
             "completeForwardEdges": edges,
             "remainingUnexpandedUnknownStubs": remaining_unknown,
             "appendedUnknownStubs": appended_stubs,
-            "outputRecords": records + appended_stubs,
+            "outputRecords": output_graph.len(),
             "maxExpand": max_expand,
+            "format": format,
+            "focusRoots": focus_roots,
             "status": "pass",
         })
     );
+}
+
+fn prioritized_indices(
+    nodes: &[RetrogradeNode],
+    roots_path: &PathBuf,
+) -> Result<Vec<usize>, String> {
+    let node_indices = nodes
+        .iter()
+        .enumerate()
+        .map(|(index, node)| (node.key.as_str(), index))
+        .collect::<BTreeMap<_, _>>();
+    let source = fs::read_to_string(roots_path)
+        .map_err(|error| format!("{}: {error}", roots_path.display()))?;
+    let roots = source
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(ToOwned::to_owned)
+        .collect::<BTreeSet<_>>();
+    if roots.is_empty() {
+        return Err("focus root file contains no keys".to_owned());
+    }
+    let mut distances = BTreeMap::new();
+    let mut queue = VecDeque::new();
+    for root in roots {
+        let Some(&index) = node_indices.get(root.as_str()) else {
+            return Err(format!("focus root {root} is absent from the graph"));
+        };
+        if distances.insert(index, 0_usize).is_none() {
+            queue.push_back(index);
+        }
+    }
+    while let Some(index) = queue.pop_front() {
+        let distance = distances[&index];
+        for child in &nodes[index].children {
+            let Some(&child_index) = node_indices.get(child.as_str()) else {
+                continue;
+            };
+            if distances.insert(child_index, distance + 1).is_none() {
+                queue.push_back(child_index);
+            }
+        }
+    }
+
+    let mut order = (0..nodes.len()).collect::<Vec<_>>();
+    order.sort_by_key(|index| {
+        (
+            distances.get(index).copied().unwrap_or(usize::MAX),
+            nodes[*index].key.clone(),
+        )
+    });
+    Ok(order)
+}
+
+fn is_compact_graph(path: &PathBuf) -> bool {
+    let Ok(mut file) = File::open(path) else {
+        return false;
+    };
+    let mut magic = [0_u8; 8];
+    file.read_exact(&mut magic).is_ok() && magic == *b"PGGRF01\0"
 }
 
 fn expand_record(record: &mut Value) -> Result<(bool, usize, BTreeSet<String>), String> {
@@ -328,5 +511,49 @@ mod tests {
         // under the board symmetries.
         assert_eq!(record["children"].as_array().expect("children").len(), 16);
         assert!(record["position"].is_object());
+    }
+
+    #[test]
+    fn focus_order_walks_roots_before_descendants() {
+        let nodes = vec![
+            RetrogradeNode {
+                key: "0000".to_owned(),
+                children: vec!["0001".to_owned(), "0002".to_owned()],
+                complete: true,
+                terminal: None,
+                seed: None,
+                actions: Vec::new(),
+            },
+            RetrogradeNode {
+                key: "0001".to_owned(),
+                children: vec!["0003".to_owned()],
+                complete: true,
+                terminal: None,
+                seed: None,
+                actions: Vec::new(),
+            },
+            RetrogradeNode {
+                key: "0002".to_owned(),
+                children: Vec::new(),
+                complete: false,
+                terminal: None,
+                seed: None,
+                actions: Vec::new(),
+            },
+            RetrogradeNode {
+                key: "0003".to_owned(),
+                children: Vec::new(),
+                complete: false,
+                terminal: None,
+                seed: None,
+                actions: Vec::new(),
+            },
+        ];
+        let path =
+            std::env::temp_dir().join(format!("pathagon-focus-roots-{}.txt", std::process::id()));
+        std::fs::write(&path, "0000\n").unwrap();
+        let order = prioritized_indices(&nodes, &path).unwrap();
+        assert_eq!(order, vec![0, 1, 2, 3]);
+        let _ = std::fs::remove_file(path);
     }
 }

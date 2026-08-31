@@ -1,6 +1,7 @@
 # 20260830 Endgame retrograde frontier
 
-Status: Ring-1 pilot complete; Ring-2 generation, compact persistence, and restartable propagation validated
+Status: Ring-1 pilot complete; Ring-2 generation, compact persistence, corrected
+propagation, and bounded focused expansion validated
 
 ## Idea
 
@@ -145,6 +146,24 @@ reachable child only when its path state proves a loss or a no-action draw. A
 unknown child records; a second 100-stub pass emitted another 19,992 edges.
 The tablebase re-read the resulting 42,201-record graph and still left all
 incomplete branches unknown.
+
+The expander now accepts compact graphs directly and can take a
+`--focus-roots <keys.txt>` list. It orders candidates by BFS distance from the
+replay-witnessed roots, then by canonical key, so bounded passes spend budget on
+direct Ring-2 children before deeper descendants. A 50,000-stub broad pass
+added 1,500,613 edges and 5,514 terminal proofs; corrected minimax propagation
+raised exact rows from 35,561 to 45,735. The promotion verifier passed its
+inventory, transition, and contradiction gates but found zero closed Ring-2
+parents, so no approximate rows were promoted. A focused 50,000-direct-child
+pass produced no immediate terminals and 4,414,520 descendants, confirming
+that breadth-first closure needs a narrower deepening budget before it is
+cost-effective.
+
+The retrograde resolver now implements the monotonic early-win rule directly:
+one known child loss proves a parent win even when sibling branches remain
+unknown. Loss still requires every legal child to be a known win, and draws
+still require complete graph/cycle evidence. This distinction is covered by a
+regression test and is material to future Ring-2/Ring-3 closure.
 
 The first training gate is intentionally not a promotion: a linear
 gold-aware policy/value/urgency adapter trained on 1,815 Ring-1 rows reached

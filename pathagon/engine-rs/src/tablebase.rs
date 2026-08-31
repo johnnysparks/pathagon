@@ -11,7 +11,7 @@ use std::fs::{self, File};
 use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
-use crate::ground_truth::{GroundTruthOutcome, GroundTruthValue};
+use crate::ground_truth::GroundTruthOutcome;
 use serde::{Deserialize, Serialize};
 
 const COMPACT_VALUE_MAGIC: &[u8; 8] = b"PGTBV01\0";
@@ -200,6 +200,13 @@ impl RetrogradeGraph {
 
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
+    }
+
+    /// Consume the graph in deterministic key order. This is used by
+    /// bounded research transforms that must rebuild a graph without keeping
+    /// both the old map and the transformed map alive indefinitely.
+    pub fn into_nodes(self) -> Vec<RetrogradeNode> {
+        self.nodes.into_values().collect()
     }
 
     pub fn edge_count(&self) -> usize {
@@ -392,41 +399,63 @@ impl RetrogradeGraph {
                 distance: None,
             });
         }
-        let mut child_values = Vec::with_capacity(node.children.len());
+        let mut all_children_known = true;
+        let mut all_parent_moves_are_losses = true;
+        let mut winning_distances = Vec::new();
+        let mut winning_move_has_unknown_distance = false;
+        let mut losing_distances = Vec::new();
+        let mut losing_move_has_unknown_distance = false;
         for child in &node.children {
-            child_values.push(values.get(child)?);
+            let Some(child_value) = values.get(child) else {
+                all_children_known = false;
+                all_parent_moves_are_losses = false;
+                continue;
+            };
+            match child_value.outcome.negate() {
+                GroundTruthOutcome::Win => {
+                    all_parent_moves_are_losses = false;
+                    if let Some(distance) = child_value.distance {
+                        winning_distances.push(distance.saturating_add(1));
+                    } else {
+                        winning_move_has_unknown_distance = true;
+                    }
+                }
+                GroundTruthOutcome::Loss => {
+                    if let Some(distance) = child_value.distance {
+                        losing_distances.push(distance.saturating_add(1));
+                    } else {
+                        losing_move_has_unknown_distance = true;
+                    }
+                }
+                GroundTruthOutcome::Draw | GroundTruthOutcome::Unknown => {
+                    all_parent_moves_are_losses = false;
+                }
+            }
         }
-        let parent_values = child_values
-            .iter()
-            .map(|value| GroundTruthValue {
-                outcome: value.outcome.negate(),
-                distance: value.distance.map(|distance| distance.saturating_add(1)),
-            })
-            .collect::<Vec<_>>();
-        if let Some(distance) = parent_values
-            .iter()
-            .filter(|value| value.outcome == GroundTruthOutcome::Win)
-            .filter_map(|value| value.distance)
-            .min()
-        {
+        // A single proven child loss is enough to prove a parent win, even
+        // while sibling branches remain unexplored. This is the key monotonic
+        // frontier rule: unknown alternatives cannot invalidate a known win.
+        if !winning_distances.is_empty() || winning_move_has_unknown_distance {
             return Some(RetrogradeValue {
                 outcome: GroundTruthOutcome::Win,
-                distance: Some(distance),
+                distance: if winning_move_has_unknown_distance {
+                    None
+                } else {
+                    winning_distances.into_iter().min()
+                },
             });
         }
-        if parent_values
-            .iter()
-            .all(|value| value.outcome == GroundTruthOutcome::Loss)
-        {
+        if all_children_known && all_parent_moves_are_losses {
             return Some(RetrogradeValue {
                 outcome: GroundTruthOutcome::Loss,
-                distance: parent_values
-                    .iter()
-                    .filter_map(|value| value.distance)
-                    .max(),
+                distance: if losing_move_has_unknown_distance {
+                    None
+                } else {
+                    losing_distances.into_iter().max()
+                },
             });
         }
-        if parent_values.iter().all(|value| value.outcome.is_known()) {
+        if all_children_known {
             Some(RetrogradeValue {
                 outcome: GroundTruthOutcome::Draw,
                 distance: None,
@@ -1539,6 +1568,28 @@ mod tests {
         let (values, _) = graph.solve();
         assert_eq!(values["root"].outcome, GroundTruthOutcome::Win);
         assert_eq!(values["root"].distance, Some(1));
+    }
+
+    #[test]
+    fn known_child_loss_proves_parent_win_before_sibling_expansion() {
+        let mut graph = RetrogradeGraph::default();
+        graph
+            .insert(node("root", &["terminal-loss", "unknown"]))
+            .unwrap();
+        graph
+            .insert(RetrogradeNode {
+                key: "terminal-loss".to_owned(),
+                children: Vec::new(),
+                complete: true,
+                terminal: Some("loss".to_owned()),
+                seed: None,
+                actions: Vec::new(),
+            })
+            .unwrap();
+        let (values, _) = graph.solve();
+        assert_eq!(values["root"].outcome, GroundTruthOutcome::Win);
+        assert_eq!(values["root"].distance, Some(1));
+        assert!(!values.contains_key("unknown"));
     }
 
     #[test]
