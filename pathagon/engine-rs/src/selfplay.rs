@@ -2844,6 +2844,154 @@ mod tests {
         assert_eq!(random.next_u32(), 3_661_312_704);
     }
 
+    #[test]
+    fn constructors_specs_and_default_agents_cover_the_native_roster() {
+        let config = SearchConfig {
+            depth: 1,
+            max_nodes: 32,
+            beam_width: 2,
+            weights: EvaluationWeights::default(),
+            tactical_proof_horizon: None,
+        };
+        let configs = [config; 4];
+        let model = crate::transition_policy::TransitionPolicyModel::from_json(
+            &serde_json::json!({
+                "schemaVersion": 1,
+                "model": "tanh-action-state-transition-policy-v2",
+                "encoding": "explicit-source-kind",
+                "featureOrder": (0..crate::transition_policy::FEATURE_COUNT).map(|i| format!("f{i}")).collect::<Vec<_>>(),
+                "mean": vec![0.0; crate::transition_policy::FEATURE_COUNT],
+                "scale": vec![1.0; crate::transition_policy::FEATURE_COUNT],
+                "layers": [
+                    {"weights": vec![vec![0.0; crate::transition_policy::FEATURE_COUNT]], "bias": [0.0]},
+                    {"weights": vec![vec![0.0]], "bias": [0.0]},
+                    {"weights": vec![vec![0.0]], "bias": [0.0]}
+                ]
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let agents = vec![
+            Agent::random("random"),
+            Agent::lunatic("lunatic"),
+            Agent::search("search", config),
+            Agent::search_with_deadline("search-deadline", config, 1),
+            Agent::search_probe("probe", config, 1, 32, 2),
+            Agent::search_tt_order("tt", config),
+            Agent::search_tactical_guard("guard", config),
+            Agent::search_tactical_filter("filter", config),
+            Agent::search_tactical_filter_with_deadline("filter-deadline", config, 1),
+            Agent::contextual("contextual", configs),
+            Agent::contextual_with_deadline("contextual-deadline", configs, 1),
+            Agent::contextual_by_player_with_deadline("contextual-by-player", configs, configs, 1),
+            Agent::transition_policy_with_deadline(
+                "transition-policy",
+                config,
+                Arc::new(model.clone()),
+                1,
+            ),
+            Agent::search_tactical_proof("proof", config, 1, 32),
+            Agent::learned(
+                "learned",
+                config,
+                Arc::new(crate::learned::LearnedBook::default()),
+                1,
+            ),
+        ];
+        for agent in &agents {
+            let specification: serde_json::Value =
+                serde_json::from_str(&agent_spec_json(agent)).expect("valid agent specification");
+            assert_eq!(specification["id"], agent.id());
+            let decision = agent.choose(
+                GameState::new(),
+                &mut Mulberry32::new(7),
+                &HashSet::new(),
+                1,
+            );
+            assert!(decision
+                .action
+                .is_none_or(|action| GameState::new().legal_actions().contains(&action)));
+        }
+
+        let mut book = StrategyBook::default();
+        book.record_game(&GameRecord {
+            seed: 1,
+            max_plies: 8,
+            board_size: 7,
+            reserve_per_player: 14,
+            light_agent: "book-agent".to_owned(),
+            dark_agent: "other".to_owned(),
+            light_specification: "{}".to_owned(),
+            dark_specification: "{}".to_owned(),
+            winner: Some(Player::Light),
+            reason: TerminationReason::Path,
+            moves: vec![MoveRecord {
+                ply: 1,
+                player: Player::Light,
+                action: Action::Place { to: 0 },
+                captured: 0,
+                score: 99,
+                nodes: 12,
+                completed_depth: 1,
+                table_hits: 0,
+                book_hit: false,
+                root_q: None,
+            }],
+        })
+        .unwrap();
+        let search_with_book = Agent::search("book-agent", config).with_book(Arc::new(book));
+        let decision = search_with_book.choose(
+            GameState::new(),
+            &mut Mulberry32::new(1),
+            &HashSet::new(),
+            1,
+        );
+        assert_eq!(decision.action, Some(Action::Place { to: 0 }));
+        assert!(decision.book_hit);
+        assert_eq!(
+            Agent::random("unchanged")
+                .with_book(Arc::new(StrategyBook::default()))
+                .id(),
+            "unchanged"
+        );
+    }
+
+    #[test]
+    fn random_helpers_and_match_termination_cover_empty_and_fallback_paths() {
+        let mut random = Mulberry32::new(1);
+        assert_eq!(random.choose::<u8>(&[]), None);
+        assert_eq!(random.weighted_choose::<u8>(&[], &[]), None);
+        assert_eq!(random.weighted_choose(&[1, 2], &[1.0]), None);
+        assert!(random.weighted_choose(&[1, 2], &[0.0, f32::NAN]).is_some());
+        assert!(random.weighted_choose(&[1, 2], &[1.0, 1.0]).is_some());
+        assert_eq!(TerminationReason::Path.as_str(), "path");
+        assert_eq!(
+            TerminationReason::ThreefoldRepetition.as_str(),
+            "threefold-repetition"
+        );
+        assert_eq!(TerminationReason::MaxPlies.as_str(), "max-plies");
+        assert_eq!(TerminationReason::NoLegalAction.as_str(), "no-legal-action");
+        assert_eq!(json_escape("a\\b\"c"), "a\\\\b\\\"c");
+
+        let light = Agent::random("light");
+        let dark = Agent::random("dark");
+        let record = play_game(
+            &light,
+            &dark,
+            MatchOptions {
+                seed: 1,
+                max_plies: 1,
+                opening_random_plies: 0,
+                ..MatchOptions::default()
+            },
+        );
+        assert_eq!(record.reason, TerminationReason::MaxPlies);
+        assert_eq!(record.moves.len(), 1);
+        let serialized = record.to_json();
+        assert!(serialized.contains("\"result\":\"draw\""));
+        assert!(crate::contract::ReplayRecord::from_json(&serialized).is_ok());
+    }
+
     #[cfg(feature = "inference")]
     #[test]
     fn qadv_ordered_proof_overrides_a_bad_q_on_a_seven_by_seven_win() {

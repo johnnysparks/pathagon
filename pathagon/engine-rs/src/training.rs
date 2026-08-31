@@ -497,6 +497,17 @@ fn trial_json(trial: &CandidateTrial) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static TEMP_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    fn temp_path(label: &str) -> std::path::PathBuf {
+        let number = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!(
+            "pathagon-training-{label}-{}-{number}",
+            std::process::id()
+        ))
+    }
 
     #[test]
     fn training_is_reproducible_and_uses_held_out_games() {
@@ -569,5 +580,192 @@ mod tests {
         )
         .is_err());
         assert!(parse_weights_spec("path=241").is_err());
+    }
+
+    #[test]
+    fn manifest_and_weight_parsers_cover_json_aliases_and_errors() {
+        let baseline = Champion::baseline(EvaluationWeights::default());
+        assert_eq!(baseline.id, "rust-handcrafted-g0");
+        assert_eq!(baseline.generation, 0);
+        let from_json = Champion::from_manifest_json(
+            r#"{"weights":{"path":1,"material":2,"capture":3,"structure":4,"threat":5,"edge":6}}"#,
+        )
+        .unwrap();
+        assert_eq!(from_json.id, "rust-initial-evaluator");
+        assert_eq!(from_json.weights.edge, 6);
+        assert!(Champion::from_manifest_json("not json").is_err());
+        assert!(Champion::from_manifest_json(r#"{"id":"missing"}"#).is_err());
+        assert!(
+            Champion::from_manifest_file(Path::new("/definitely/missing/manifest.json")).is_err()
+        );
+        let path = temp_path("manifest");
+        fs::write(&path, r#"{"generation":3,"weights":{"path":1,"material":1,"capture":1,"structure":1,"threat":1,"edge":1}}"#).unwrap();
+        assert_eq!(Champion::from_manifest_file(&path).unwrap().generation, 3);
+        let _ = fs::remove_file(path);
+
+        assert!(parse_weights_spec("{").is_err());
+        assert!(parse_weights_spec("path=1,bad").is_err());
+        assert!(parse_weights_spec("unknown=1").is_err());
+        assert!(
+            parse_weights_spec("path=x,material=1,capture=1,structure=1,threat=1,edge=1").is_err()
+        );
+        assert!(
+            parse_weights_spec("path=-1,material=1,capture=1,structure=1,threat=1,edge=1").is_err()
+        );
+        assert!(parse_weights_spec("material=1,capture=1,structure=1,threat=1,edge=1").is_err());
+        assert_eq!(
+            parse_weights_spec("  path=1,material=2,capture=3,structure=4,threat=5,edge=6,")
+                .unwrap()
+                .path,
+            1
+        );
+        assert!(parse_weights_spec(r#"{"path":"bad"}"#).is_err());
+    }
+
+    #[test]
+    fn scoring_mutation_and_serialization_helpers_cover_empty_and_populated_results() {
+        let empty = MatchScore::default();
+        assert_eq!(empty.net(), 0);
+        assert_eq!(empty.points_rate_per_mille(), 0);
+        let score = MatchScore {
+            games: 4,
+            wins: 2,
+            losses: 1,
+            draws: 1,
+        };
+        assert_eq!(score.net(), 1);
+        assert_eq!(score.points_rate_per_mille(), 625);
+        let mut random = Mulberry32::new(4);
+        assert!(mutate_weight(0, &mut random, 200) >= 1);
+        assert!(mutate_weight(10, &mut random, 0) >= 1);
+        let weights = EvaluationWeights {
+            path: 1,
+            material: 2,
+            capture: 3,
+            structure: 4,
+            threat: 5,
+            edge: 6,
+        };
+        assert_eq!(candidate_id(2, 3, weights), "rust-evo-g2-c3-1-2-3-4-5-6");
+        assert!(score_json(score).contains("pointsRatePerMille"));
+        assert_eq!(
+            weights_json(weights),
+            r#"{"path":1,"material":2,"capture":3,"structure":4,"threat":5,"edge":6}"#
+        );
+        let config = SearchConfig {
+            tactical_proof_horizon: Some(3),
+            ..SearchConfig::default()
+        };
+        assert!(search_json(config).contains("tacticalProofHorizon"));
+        assert!(champion_json(&Champion::baseline(weights)).contains("rust-handcrafted-g0"));
+
+        let result = TrainingResult {
+            config: TrainingConfig::default(),
+            initial: Champion::baseline(weights),
+            champion: Champion {
+                id: "winner".to_owned(),
+                generation: 2,
+                weights,
+            },
+            trials: vec![
+                CandidateTrial {
+                    id: "candidate".to_owned(),
+                    generation: 1,
+                    weights,
+                    training: score,
+                    evaluation: None,
+                    promoted: false,
+                },
+                CandidateTrial {
+                    id: "promoted".to_owned(),
+                    generation: 2,
+                    weights,
+                    training: score,
+                    evaluation: Some(score),
+                    promoted: true,
+                },
+            ],
+            training_records: Vec::new(),
+            evaluation_records: Vec::new(),
+        };
+        let json = result.to_json();
+        assert!(json.contains("\"promotions\":1"));
+        assert!(json.contains("\"evaluation\":null"));
+        assert!(json.contains("\"evaluation\":{"));
+    }
+
+    #[test]
+    fn training_handles_empty_generations_tactical_filter_and_output_files() {
+        let mut config = TrainingConfig {
+            generations: 0,
+            population: 0,
+            training_pairs: 0,
+            evaluation_pairs: 0,
+            ..TrainingConfig::default()
+        };
+        let initial = Champion::baseline(config.search.weights);
+        let empty = train(initial.clone(), config);
+        assert_eq!(empty.champion, initial);
+        assert!(empty.trials.is_empty());
+
+        config.generations = 1;
+        config.population = 1;
+        config.training_pairs = 1;
+        config.evaluation_pairs = 1;
+        config.max_plies = 2;
+        config.opening_random_plies = 0;
+        config.tactical_filter = true;
+        config.search = SearchConfig {
+            depth: 1,
+            max_nodes: 32,
+            beam_width: 4,
+            ..SearchConfig::default()
+        };
+        let result = train(initial, config);
+        assert_eq!(result.trials.len(), 1);
+        assert_eq!(result.training_records.len(), 2);
+        assert_eq!(result.evaluation_records.len(), 2);
+
+        let directory = temp_path("output");
+        let output = write_training_output(&directory, &empty).unwrap();
+        assert_eq!(output.training.games, 0);
+        assert_eq!(output.evaluation.games, 0);
+        assert!(directory.join("champion.json").exists());
+        assert!(directory.join("report.json").exists());
+        let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn summarize_classifies_candidate_from_both_sides_and_draws() {
+        let make = |light_agent: &str, dark_agent: &str, winner: Option<Player>| -> GameRecord {
+            GameRecord {
+                seed: 1,
+                max_plies: 1,
+                board_size: 7,
+                reserve_per_player: 14,
+                light_agent: light_agent.to_owned(),
+                dark_agent: dark_agent.to_owned(),
+                light_specification: "{}".to_owned(),
+                dark_specification: "{}".to_owned(),
+                winner,
+                reason: crate::selfplay::TerminationReason::MaxPlies,
+                moves: Vec::new(),
+            }
+        };
+        let records = vec![
+            make("candidate", "incumbent", Some(Player::Light)),
+            make("incumbent", "candidate", Some(Player::Light)),
+            make("candidate", "incumbent", None),
+        ];
+        let score = summarize(&records, "candidate");
+        assert_eq!(
+            score,
+            MatchScore {
+                games: 3,
+                wins: 1,
+                losses: 1,
+                draws: 1
+            }
+        );
     }
 }

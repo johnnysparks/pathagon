@@ -421,6 +421,7 @@ pub fn action_features(
 mod tests {
     use super::*;
     use crate::BoardConfig;
+    use std::path::Path;
 
     fn fixture() -> String {
         serde_json::json!({
@@ -454,5 +455,171 @@ mod tests {
             action_features(state, action, true, false).len(),
             FEATURE_COUNT
         );
+    }
+
+    #[test]
+    fn model_constructors_and_validation_reject_each_bad_shape() {
+        let model = TransitionPolicyModel::from_json(&fixture()).unwrap();
+        assert_eq!(
+            TransitionPolicyModel::from_bytes(fixture().as_bytes())
+                .unwrap()
+                .model,
+            model.model
+        );
+        assert!(TransitionPolicyModel::from_bytes(&[0xff]).is_err());
+        assert!(
+            TransitionPolicyModel::from_path(Path::new("/definitely/missing/model.json")).is_err()
+        );
+
+        let mut document: serde_json::Value;
+        let cases = [
+            ("schemaVersion", serde_json::json!(2)),
+            ("model", serde_json::json!("other")),
+            ("encoding", serde_json::json!("other")),
+            ("featureOrder", serde_json::json!([])),
+            ("mean", serde_json::json!([])),
+            ("scale", serde_json::json!([])),
+            ("layers", serde_json::json!([])),
+        ];
+        for (field, value) in cases {
+            document = serde_json::from_str(&fixture()).unwrap();
+            document[field] = value;
+            assert!(
+                TransitionPolicyModel::from_json(&document.to_string()).is_err(),
+                "field {field}"
+            );
+        }
+        document = serde_json::from_str(&fixture()).unwrap();
+        document["layers"][0]["weights"] = serde_json::json!(vec![vec![0.0; FEATURE_COUNT + 1]; 2]);
+        assert!(TransitionPolicyModel::from_json(&document.to_string()).is_err());
+        document = serde_json::from_str(&fixture()).unwrap();
+        document["layers"][0]["bias"] = serde_json::json!([0.0]);
+        assert!(TransitionPolicyModel::from_json(&document.to_string()).is_err());
+        document = serde_json::from_str(&fixture()).unwrap();
+        document["layers"][0]["weights"] = serde_json::json!([]);
+        assert!(TransitionPolicyModel::from_json(&document.to_string()).is_err());
+        document = serde_json::from_str(&fixture()).unwrap();
+        document["layers"][0]["weights"][0][0] = serde_json::json!(f32::NAN);
+        assert!(TransitionPolicyModel::from_json(&document.to_string()).is_err());
+        document = serde_json::from_str(&fixture()).unwrap();
+        document["scale"][0] = serde_json::json!(0.0);
+        assert!(TransitionPolicyModel::from_json(&document.to_string()).is_err());
+        document = serde_json::from_str(&fixture()).unwrap();
+        document["layers"][2]["bias"] = serde_json::json!([0.0, 0.0]);
+        assert!(TransitionPolicyModel::from_json(&document.to_string()).is_err());
+
+        let virtual_model = serde_json::json!({
+            "schemaVersion": 1,
+            "model": "tanh-unified-move-policy-v2",
+            "encoding": "virtual-offboard-source",
+            "featureOrder": (0..FEATURE_COUNT).map(|index| format!("f{index}")).collect::<Vec<_>>(),
+            "mean": vec![0.0; FEATURE_COUNT],
+            "scale": vec![1.0; FEATURE_COUNT],
+            "layers": [
+                {"weights": vec![vec![0.0; FEATURE_COUNT]; 2], "bias": [0.0, 0.0]},
+                {"weights": vec![vec![0.0; 2]; 2], "bias": [0.0, 0.0]},
+                {"weights": vec![vec![0.0; 2]], "bias": [0.0]}
+            ]
+        });
+        assert!(TransitionPolicyModel::from_json(&virtual_model.to_string()).is_ok());
+    }
+
+    #[test]
+    fn action_features_cover_players_relocations_and_phase_channels() {
+        let model = TransitionPolicyModel::from_json(&fixture()).unwrap();
+        let mut opening = GameState::new();
+        let place = Action::Place { to: 0 };
+        let virtual_features = action_features(opening, place, false, true);
+        let regular_features = action_features(opening, place, true, false);
+        assert_eq!(virtual_features.len(), FEATURE_COUNT);
+        assert_eq!(virtual_features[8], 0.0);
+        assert_eq!(virtual_features[9], 0.0);
+        assert!(virtual_features[12] > 0.0);
+        assert_eq!(regular_features[8], 1.0);
+        assert_eq!(regular_features[12], 0.0);
+        assert_eq!(regular_features[13], 0.0);
+
+        opening.turn = Player::Dark;
+        let dark_features = action_features(opening, Action::Place { to: 6 }, true, false);
+        assert_eq!(dark_features[19], 1.0);
+        assert!(dark_features[14] > 0.0);
+
+        let mut movement = GameState::new();
+        movement.turn = Player::Light;
+        movement.light = 1;
+        movement.reserve = [0, 0];
+        movement.ply = 20;
+        let relocate = Action::Relocate { from: 0, to: 8 };
+        let features = action_features(movement, relocate, false, false);
+        assert_eq!(features[8], 0.0);
+        assert_eq!(features[9], 1.0);
+        assert!(features[12] >= 0.0);
+        assert!(features[13] >= 0.0);
+        assert_eq!(model.score(movement, relocate, false), 0.0);
+    }
+
+    #[test]
+    fn ranking_prioritizes_immediate_wins_and_search_has_safe_fallbacks() {
+        let model = TransitionPolicyModel::from_json(&fixture()).unwrap();
+        let ranked = model.ranked_actions(GameState::new(), EvaluationWeights::default());
+        assert_eq!(ranked.len(), 49);
+        assert!(ranked.iter().all(|item| item.safe));
+        assert!(ranked.windows(2).all(|pair| {
+            pair[0].immediate_win >= pair[1].immediate_win
+                && pair[0].action.order() <= pair[1].action.order()
+        }));
+
+        let mut winning = GameState::new();
+        winning.light = (1_u64 << 7)
+            | (1_u64 << 14)
+            | (1_u64 << 21)
+            | (1_u64 << 28)
+            | (1_u64 << 35)
+            | (1_u64 << 42);
+        winning.reserve = [8, 13];
+        let ranked = model.ranked_actions(winning, EvaluationWeights::default());
+        assert!(ranked.iter().any(|item| item.immediate_win));
+        assert!(ranked.first().unwrap().immediate_win);
+
+        let config = crate::search::SearchConfig {
+            depth: 1,
+            max_nodes: 32,
+            beam_width: 4,
+            ..Default::default()
+        };
+        assert!(model
+            .search(GameState::new(), config, None)
+            .action
+            .is_some());
+        assert!(model
+            .search(GameState::new(), config, Some(1))
+            .action
+            .is_some());
+        assert!(model
+            .search_with_progress(GameState::new(), config, 1, Box::new(|_, _| {}))
+            .action
+            .is_some());
+
+        let mut no_actions = GameState::new();
+        no_actions.light = (1_u64 << 49) - 1;
+        no_actions.dark = 0;
+        no_actions.reserve = [0, 0];
+        no_actions.forbidden = 0;
+        no_actions.winner = None;
+        assert!(model
+            .ranked_actions(no_actions, EvaluationWeights::default())
+            .is_empty());
+        assert!(model.search(no_actions, config, None).action.is_none());
+        assert!(model
+            .search_with_progress(no_actions, config, 1, Box::new(|_, _| {}))
+            .action
+            .is_none());
+
+        let small = GameState::with_config(BoardConfig::new(5, 5).unwrap());
+        assert!(model.search(small, config, None).action.is_some());
+        assert!(model
+            .search_with_progress(small, config, 1, Box::new(|_, _| {}))
+            .action
+            .is_some());
     }
 }

@@ -435,4 +435,197 @@ mod tests {
         assert_eq!(analysis.outcome, GroundTruthOutcome::Draw);
         assert!(analysis.optimal_actions_complete);
     }
+
+    #[test]
+    fn outcomes_and_aggregation_preserve_unknown_semantics() {
+        for (outcome, known, negated) in [
+            (GroundTruthOutcome::Loss, true, GroundTruthOutcome::Win),
+            (GroundTruthOutcome::Draw, true, GroundTruthOutcome::Draw),
+            (GroundTruthOutcome::Win, true, GroundTruthOutcome::Loss),
+            (
+                GroundTruthOutcome::Unknown,
+                false,
+                GroundTruthOutcome::Unknown,
+            ),
+        ] {
+            assert_eq!(outcome.is_known(), known);
+            assert_eq!(outcome.negate(), negated);
+        }
+        assert_eq!(
+            aggregate_values(
+                &[GroundTruthValue {
+                    outcome: GroundTruthOutcome::Win,
+                    distance: Some(3)
+                }],
+                false,
+            ),
+            GroundTruthValue {
+                outcome: GroundTruthOutcome::Win,
+                distance: Some(3)
+            }
+        );
+        assert_eq!(
+            aggregate_values(
+                &[
+                    GroundTruthValue {
+                        outcome: GroundTruthOutcome::Win,
+                        distance: None
+                    },
+                    GroundTruthValue {
+                        outcome: GroundTruthOutcome::Win,
+                        distance: Some(2)
+                    },
+                ],
+                false,
+            ),
+            GroundTruthValue {
+                outcome: GroundTruthOutcome::Win,
+                distance: Some(2)
+            }
+        );
+        assert_eq!(
+            aggregate_values(
+                &[GroundTruthValue {
+                    outcome: GroundTruthOutcome::Unknown,
+                    distance: None
+                }],
+                true,
+            )
+            .outcome,
+            GroundTruthOutcome::Unknown
+        );
+        assert_eq!(
+            aggregate_values(
+                &[GroundTruthValue {
+                    outcome: GroundTruthOutcome::Loss,
+                    distance: Some(2)
+                }],
+                true,
+            ),
+            GroundTruthValue {
+                outcome: GroundTruthOutcome::Loss,
+                distance: Some(2)
+            }
+        );
+        assert_eq!(
+            aggregate_values(
+                &[
+                    GroundTruthValue {
+                        outcome: GroundTruthOutcome::Loss,
+                        distance: Some(2)
+                    },
+                    GroundTruthValue {
+                        outcome: GroundTruthOutcome::Loss,
+                        distance: Some(4)
+                    },
+                ],
+                true,
+            )
+            .distance,
+            Some(4)
+        );
+        assert_eq!(
+            aggregate_values(
+                &[GroundTruthValue {
+                    outcome: GroundTruthOutcome::Draw,
+                    distance: None
+                }],
+                true,
+            )
+            .outcome,
+            GroundTruthOutcome::Draw
+        );
+    }
+
+    #[test]
+    fn solver_history_cache_and_terminal_precedence_are_explicit() {
+        let state = non_terminal_state();
+        let mut history = HashMap::new();
+        let key = EndgameRepetitionKey::from(state);
+        history.insert(key, 0);
+        let signature = Solver::history_signature(&history);
+        assert!(signature.is_empty());
+        let next = Solver::next_history(&history, state);
+        assert_eq!(next[&key], 1);
+        assert_eq!(Solver::key(state, Some(2), &next).horizon, Some(2));
+
+        let mut solver = Solver::new(GroundTruthConfig::default());
+        assert!(solver.terminal_value(state, &next, None).is_none());
+        let horizon = solver.terminal_value(state, &next, Some(0)).unwrap();
+        assert_eq!(horizon.outcome, GroundTruthOutcome::Unknown);
+        let mut repeated = next.clone();
+        repeated.insert(key, 3);
+        assert_eq!(
+            solver
+                .terminal_value(state, &repeated, None)
+                .unwrap()
+                .outcome,
+            GroundTruthOutcome::Draw
+        );
+        let mut finite = solver.config;
+        finite.max_plies = Some(state.ply);
+        let finite_solver = Solver::new(finite);
+        assert_eq!(
+            finite_solver
+                .terminal_value(state, &next, None)
+                .unwrap()
+                .outcome,
+            GroundTruthOutcome::Draw
+        );
+
+        let mut won = state;
+        won.winner = Some(Player::Light);
+        won.turn = Player::Light;
+        assert_eq!(
+            solver.terminal_value(won, &next, None).unwrap().outcome,
+            GroundTruthOutcome::Win
+        );
+        won.turn = Player::Dark;
+        assert_eq!(
+            solver.terminal_value(won, &next, None).unwrap().outcome,
+            GroundTruthOutcome::Loss
+        );
+
+        let first = solver.solve(state, &next, Some(0));
+        let entries_before = solver.table.len();
+        let second = solver.solve(state, &next, Some(0));
+        assert_eq!(first, second);
+        assert_eq!(solver.table.len(), entries_before);
+        assert_eq!(solver.cache_hits, 1);
+    }
+
+    #[test]
+    fn analysis_handles_terminal_and_no_legal_action_positions() {
+        let mut terminal = non_terminal_state();
+        terminal.winner = Some(Player::Light);
+        terminal.turn = Player::Light;
+        let winning = analyze(terminal, GroundTruthConfig::default());
+        assert_eq!(winning.outcome, GroundTruthOutcome::Win);
+        assert!(winning.actions.is_empty());
+        assert!(winning.optimal_actions.is_empty());
+        terminal.turn = Player::Dark;
+        assert_eq!(
+            analyze(terminal, GroundTruthConfig::default()).outcome,
+            GroundTruthOutcome::Loss
+        );
+
+        let no_moves = GameState {
+            config: BoardConfig::new(3, 4).unwrap(),
+            light: (1_u64 << 0) | (1_u64 << 1) | (1_u64 << 3) | (1_u64 << 4),
+            dark: (1_u64 << 2) | (1_u64 << 5) | (1_u64 << 6) | (1_u64 << 7),
+            reserve: [0, 0],
+            turn: Player::Light,
+            forbidden: 1_u64 << 8,
+            last_relocated_to: [None, None],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: 3,
+        };
+        let analysis = analyze(no_moves, GroundTruthConfig::default());
+        assert_eq!(analysis.outcome, GroundTruthOutcome::Draw);
+        assert!(analysis.optimal_actions_complete);
+        assert!(analysis.actions.is_empty());
+        assert_eq!(analysis.stats.nodes, 1);
+    }
 }

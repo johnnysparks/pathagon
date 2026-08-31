@@ -202,8 +202,19 @@ fn invalid_error(line_number: usize, message: &str) -> io::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::corpus::compact_game_line;
-    use crate::selfplay::{play_game, Agent, MatchOptions};
+    use crate::corpus::{compact_game_line, CompactGame};
+    use crate::selfplay::{play_game, Agent, MatchOptions, TerminationReason};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static TEMP_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    fn temp_path(label: &str) -> std::path::PathBuf {
+        let number = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!(
+            "pathagon-learned-{label}-{}-{number}",
+            std::process::id()
+        ))
+    }
 
     #[test]
     fn learned_book_round_trips_a_replay_corpus() {
@@ -226,5 +237,202 @@ mod tests {
         assert_eq!(book.games(), 1);
         assert_eq!(book.moves(), record.moves.len() as u64);
         assert_eq!(book.len(), record.moves.len());
+
+        let path = temp_path("round-trip");
+        book.write(&path).unwrap();
+        let loaded = LearnedBook::load(&path).unwrap();
+        assert_eq!(loaded.games(), 0);
+        assert_eq!(loaded.moves(), 0);
+        assert_eq!(loaded.len(), book.len());
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn learned_choice_uses_rate_visits_wins_and_action_order_ties() {
+        assert_eq!(
+            LearnedChoice {
+                action: Action::Place { to: 0 },
+                visits: 0,
+                wins: 0,
+                losses: 0,
+                draws: 0
+            }
+            .points_rate_per_mille(),
+            0
+        );
+        assert_eq!(
+            LearnedChoice {
+                action: Action::Place { to: 0 },
+                visits: 4,
+                wins: 1,
+                losses: 1,
+                draws: 2
+            }
+            .points_rate_per_mille(),
+            500
+        );
+
+        let state = GameState::new();
+        let mut book = LearnedBook::default();
+        book.entries.insert(
+            BookKey {
+                state,
+                action: Action::Place { to: 0 },
+            },
+            BookEntry {
+                visits: 2,
+                wins: 1,
+                losses: 0,
+                draws: 0,
+            },
+        );
+        book.entries.insert(
+            BookKey {
+                state,
+                action: Action::Place { to: 1 },
+            },
+            BookEntry {
+                visits: 4,
+                wins: 2,
+                losses: 0,
+                draws: 0,
+            },
+        );
+        book.entries.insert(
+            BookKey {
+                state,
+                action: Action::Place { to: 2 },
+            },
+            BookEntry {
+                visits: 20,
+                wins: 20,
+                losses: 0,
+                draws: 0,
+            },
+        );
+        book.entries.insert(
+            BookKey {
+                state,
+                action: Action::Relocate { from: 0, to: 1 },
+            },
+            BookEntry {
+                visits: 100,
+                wins: 100,
+                losses: 0,
+                draws: 0,
+            },
+        );
+        assert_eq!(
+            book.choose(state, 5).unwrap().action,
+            Action::Place { to: 2 }
+        );
+        assert_eq!(book.choose(state, 21), None);
+
+        book.entries.remove(&BookKey {
+            state,
+            action: Action::Place { to: 2 },
+        });
+        assert_eq!(
+            book.choose(state, 0).unwrap().action,
+            Action::Place { to: 1 }
+        );
+        book.entries
+            .get_mut(&BookKey {
+                state,
+                action: Action::Place { to: 0 },
+            })
+            .unwrap()
+            .visits = 4;
+        book.entries
+            .get_mut(&BookKey {
+                state,
+                action: Action::Place { to: 1 },
+            })
+            .unwrap()
+            .wins = 1;
+        assert_eq!(
+            book.choose(state, 0).unwrap().action,
+            Action::Place { to: 0 }
+        );
+        let choice = book.choose(state, 0).unwrap();
+        assert_eq!(choice.visits, 4);
+        assert_eq!(choice.wins, 1);
+        assert_eq!(choice.losses, 0);
+        assert_eq!(choice.draws, 0);
+    }
+
+    #[test]
+    fn learned_book_loads_comments_rejects_bad_rows_and_records_outcomes() {
+        let path = temp_path("load");
+        let game = CompactGame {
+            seed: 1,
+            light_agent: "light".to_owned(),
+            dark_agent: "dark".to_owned(),
+            winner: Some(crate::Player::Light),
+            reason: TerminationReason::Path,
+            actions: vec![Action::Place { to: 0 }, Action::Place { to: 1 }],
+        };
+        let line = format!(
+            "# comment\n\n{}\n",
+            compact_game_line(&crate::selfplay::GameRecord {
+                seed: 1,
+                max_plies: 10,
+                board_size: 7,
+                reserve_per_player: 14,
+                light_agent: "light".to_owned(),
+                dark_agent: "dark".to_owned(),
+                light_specification: "{}".to_owned(),
+                dark_specification: "{}".to_owned(),
+                winner: Some(crate::Player::Light),
+                reason: TerminationReason::Path,
+                moves: vec![],
+            })
+        );
+        std::fs::write(&path, line).unwrap();
+        let loaded = LearnedBook::from_games_file(&path).unwrap();
+        assert_eq!(loaded.games(), 1);
+        assert_eq!(loaded.moves(), 0);
+        let _ = std::fs::remove_file(&path);
+
+        std::fs::write(&path, "bad\n").unwrap();
+        assert!(LearnedBook::from_games_file(&path).is_err());
+        std::fs::write(&path, "too\tfew\tfields\n").unwrap();
+        assert!(LearnedBook::load(&path).is_err());
+        std::fs::write(&path, format!("{}\n", "x".repeat(6))).unwrap();
+        assert!(LearnedBook::load(&path).is_err());
+        std::fs::write(
+            &path,
+            format!(
+                "{}\t{}\tx\t1\t2\t3\n",
+                crate::corpus::encode_state(GameState::new()),
+                crate::corpus::encode_action(Action::Place { to: 0 })
+            ),
+        )
+        .unwrap();
+        assert!(LearnedBook::load(&path).is_err());
+
+        let mut book = LearnedBook::default();
+        book.record_game(&game).unwrap();
+        assert_eq!(book.games(), 1);
+        assert_eq!(book.moves(), 2);
+        assert_eq!(book.choose(GameState::new(), 1).unwrap().wins, 1);
+        let draw = CompactGame {
+            winner: None,
+            ..game.clone()
+        };
+        book.record_game(&draw).unwrap();
+        assert_eq!(book.choose(GameState::new(), 1).unwrap().draws, 1);
+        let dark_win = CompactGame {
+            winner: Some(crate::Player::Dark),
+            ..game.clone()
+        };
+        book.record_game(&dark_win).unwrap();
+        assert_eq!(book.choose(GameState::new(), 1).unwrap().losses, 1);
+        let illegal = CompactGame {
+            actions: vec![Action::Place { to: 49 }],
+            ..game
+        };
+        assert!(book.record_game(&illegal).is_err());
+        let _ = std::fs::remove_file(path);
     }
 }

@@ -182,6 +182,22 @@ fn action_sort_key(action: Action) -> u32 {
 mod tests {
     use super::*;
 
+    fn no_move_state() -> GameState {
+        GameState {
+            config: crate::BoardConfig::new(3, 4).expect("valid board config"),
+            light: (1_u64 << 0) | (1_u64 << 1) | (1_u64 << 3) | (1_u64 << 4),
+            dark: (1_u64 << 2) | (1_u64 << 5) | (1_u64 << 6) | (1_u64 << 7),
+            reserve: [0, 0],
+            turn: Player::Light,
+            forbidden: 1_u64 << 8,
+            last_relocated_to: [None, None],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: 3,
+        }
+    }
+
     #[test]
     fn scores_all_root_actions_and_respects_budget() {
         let state = GameState::new();
@@ -195,5 +211,125 @@ mod tests {
         let scores = guide.score_actions(state, &actions);
         assert_eq!(scores.len(), actions.len());
         assert!(scores.iter().all(|score| score.is_finite()));
+    }
+
+    #[test]
+    fn config_validation_defaults_and_action_sort_keys_are_stable() {
+        assert_eq!(PathfinderConfig::default().depth, 2);
+        for config in [
+            PathfinderConfig {
+                depth: 0,
+                ..PathfinderConfig::default()
+            },
+            PathfinderConfig {
+                beam_width: 0,
+                ..PathfinderConfig::default()
+            },
+            PathfinderConfig {
+                max_nodes: 0,
+                ..PathfinderConfig::default()
+            },
+        ] {
+            assert!(PathfinderGuide::new(config).is_err());
+        }
+        assert!(PathfinderGuide::new(PathfinderConfig::default()).is_ok());
+        assert_eq!(action_sort_key(Action::Place { to: 7 }), 7);
+        assert_eq!(action_sort_key(Action::Relocate { from: 3, to: 9 }), 30_009);
+    }
+
+    #[test]
+    fn score_actions_covers_root_wins_empty_roots_and_all_budget_limits() {
+        let mut terminal = GameState::new();
+        terminal.winner = Some(Player::Light);
+        let mut guide = PathfinderGuide::new(PathfinderConfig::default()).unwrap();
+        assert!(guide.score_actions(terminal, &[]).is_empty());
+
+        let mut guide = PathfinderGuide::new(PathfinderConfig {
+            depth: 1,
+            beam_width: 1,
+            max_nodes: 1,
+        })
+        .unwrap();
+        let actions = GameState::new().legal_actions();
+        let scores = guide.score_actions(GameState::new(), &actions);
+        assert_eq!(scores.len(), actions.len());
+        assert_eq!(guide.nodes, 1);
+
+        let config = crate::BoardConfig::new(7, 14)
+            .unwrap()
+            .with_max_plies(180)
+            .unwrap();
+        let winning_state = GameState {
+            config,
+            light: [7_u8, 14, 21, 28, 35, 42, 48]
+                .into_iter()
+                .fold(0_u64, |mask, square| mask | (1_u64 << square)),
+            dark: [1_u8, 2, 3, 4, 5, 6]
+                .into_iter()
+                .fold(0_u64, |mask, square| mask | (1_u64 << square)),
+            reserve: [0, 0],
+            turn: Player::Light,
+            forbidden: 0,
+            last_relocated_to: [None, None],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: 20,
+        };
+        let winning_action = Action::Relocate { from: 48, to: 0 };
+        let actions = winning_state.legal_actions();
+        assert!(actions.contains(&winning_action));
+        let scores = guide.score_actions(winning_state, &actions);
+        assert_eq!(
+            scores[actions.iter().position(|a| *a == winning_action).unwrap()],
+            WIN_SCORE as f32
+        );
+    }
+
+    #[test]
+    fn recursive_search_covers_leaf_terminal_empty_minimizing_and_pruning_paths() {
+        let weights = EvaluationWeights::default();
+        let mut guide = PathfinderGuide::new(PathfinderConfig::default()).unwrap();
+        let state = GameState::new();
+        assert_eq!(
+            guide.search(state, Player::Light, 0, i64::MIN / 4, i64::MAX / 4, weights),
+            evaluate(state, Player::Light, weights) as i64
+        );
+
+        let mut terminal = state;
+        terminal.winner = Some(Player::Light);
+        assert_eq!(
+            guide.search(
+                terminal,
+                Player::Light,
+                2,
+                i64::MIN / 4,
+                i64::MAX / 4,
+                weights
+            ),
+            evaluate(terminal, Player::Light, weights) as i64
+        );
+        assert_eq!(
+            guide.search(
+                no_move_state(),
+                Player::Light,
+                2,
+                i64::MIN / 4,
+                i64::MAX / 4,
+                weights
+            ),
+            evaluate(no_move_state(), Player::Light, weights) as i64
+        );
+
+        let minimizing = guide.search(state, Player::Dark, 1, i64::MIN / 4, i64::MAX / 4, weights);
+        assert!(minimizing <= i64::MAX / 4);
+        guide.nodes = 0;
+        let _ = guide.search(state, Player::Light, 1, 0, 0, weights);
+        assert!(guide.nodes <= 1);
+        guide.nodes = guide.config.max_nodes;
+        assert_eq!(
+            guide.search(state, Player::Light, 2, i64::MIN / 4, i64::MAX / 4, weights),
+            evaluate(state, Player::Light, weights) as i64
+        );
     }
 }

@@ -432,3 +432,337 @@ fn validate_squares(squares: &[u8], cells: u8, label: &str) -> Result<(), String
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config() -> GameConfig {
+        GameConfig {
+            rules_version: RULES_VERSION.to_owned(),
+            board_size: 3,
+            reserve_per_player: 2,
+            max_plies: 30,
+            repetition_limit: 3,
+        }
+    }
+
+    fn position() -> Position {
+        Position {
+            contract_version: CONTRACT_VERSION,
+            config: config(),
+            board: vec![None; 9],
+            reserve: PlayerNumbers { light: 2, dark: 2 },
+            turn: ContractPlayer::Light,
+            forbidden: Vec::new(),
+            last_relocated_to: PlayerSquares {
+                light: None,
+                dark: None,
+            },
+            winner: None,
+            ply: 0,
+        }
+    }
+
+    fn metadata() -> EngineMetadata {
+        EngineMetadata {
+            id: "rust-bitboard".to_owned(),
+            runtime: "rust".to_owned(),
+            version: "1.0.0".to_owned(),
+            rules_version: RULES_VERSION.to_owned(),
+        }
+    }
+
+    fn manifest() -> AgentManifest {
+        AgentManifest {
+            manifest_version: 1,
+            runtime: "rust".to_owned(),
+            rules_version: RULES_VERSION.to_owned(),
+            evaluator_weights: EvaluatorWeights {
+                path: 1,
+                material: 2,
+                capture: 3,
+                structure: 4,
+                threat: 5,
+                edge: 6,
+            },
+            depth: 4,
+            node_budget: 256_000,
+            beam: 150,
+            model_hash: None,
+        }
+    }
+
+    fn specification(id: &str) -> AgentSpecification {
+        AgentSpecification {
+            id: id.to_owned(),
+            name: format!("{id} agent"),
+            version: "1.0.0".to_owned(),
+            kind: "search".to_owned(),
+            engine_id: "rust-bitboard".to_owned(),
+            manifest: manifest(),
+            parameters: None,
+        }
+    }
+
+    fn replay() -> ReplayRecord {
+        ReplayRecord {
+            contract_version: CONTRACT_VERSION,
+            seed: 7,
+            config: config(),
+            engine: metadata(),
+            agents: PlayerAgents {
+                light: "light".to_owned(),
+                dark: "dark".to_owned(),
+            },
+            agent_specifications: AgentSpecifications {
+                light: specification("light"),
+                dark: specification("dark"),
+            },
+            initial_position: None,
+            provenance: None,
+            winner: None,
+            result: "draw".to_owned(),
+            reason: "max-plies".to_owned(),
+            plies: 0,
+            moves: Vec::new(),
+        }
+    }
+
+    fn movement(action: ContractAction) -> ContractMove {
+        ContractMove {
+            ply: 1,
+            player: ContractPlayer::Light,
+            action,
+            captured: Vec::new(),
+            nodes: 10,
+            completed_depth: 2,
+            table_hits: 1,
+            policy: None,
+            action_values: None,
+            action_visits: None,
+            action_value_source: None,
+            score: Some(3),
+            book_hit: Some(false),
+        }
+    }
+
+    #[test]
+    fn root_q_targets_validate_shape_and_range() {
+        assert!(RootQTargets::new(vec![], vec![]).is_err());
+        assert!(RootQTargets::new(vec![0.0], vec![]).is_err());
+        assert!(RootQTargets::new(vec![-1.0, 1.0], vec![1, 2]).is_ok());
+        assert!(RootQTargets::new(vec![f32::NAN], vec![1]).is_err());
+        assert!(RootQTargets::new(vec![f32::INFINITY], vec![1]).is_err());
+        assert!(RootQTargets::new(vec![1.01], vec![1]).is_err());
+        assert!(RootQTargets::new(vec![-1.01], vec![1]).is_err());
+    }
+
+    #[test]
+    fn game_config_and_action_validation_cover_bounds() {
+        let mut invalid = config();
+        invalid.rules_version = "other-rules".to_owned();
+        assert_eq!(invalid.validate().unwrap_err(), "unsupported rules version");
+        invalid = config();
+        invalid.board_size = 2;
+        assert!(invalid.validate().is_err());
+        invalid.board_size = 9;
+        assert!(invalid.validate().is_err());
+        invalid = config();
+        invalid.reserve_per_player = 0;
+        assert!(invalid.validate().is_err());
+        invalid.reserve_per_player = 65;
+        assert!(invalid.validate().is_err());
+        invalid = config();
+        invalid.max_plies = 0;
+        assert!(invalid.validate().is_err());
+        invalid.max_plies = 4097;
+        assert!(invalid.validate().is_err());
+        invalid = config();
+        invalid.repetition_limit = 2;
+        assert!(invalid.validate().is_err());
+
+        assert!(ContractAction::Place { to: 8 }.validate(9).is_ok());
+        assert!(ContractAction::Place { to: 9 }.validate(9).is_err());
+        assert!(ContractAction::Relocate { from: 0, to: 8 }
+            .validate(9)
+            .is_ok());
+        assert!(ContractAction::Relocate { from: 9, to: 0 }
+            .validate(9)
+            .is_err());
+        assert!(ContractAction::Relocate { from: 0, to: 9 }
+            .validate(9)
+            .is_err());
+    }
+
+    #[test]
+    fn position_validation_rejects_each_boundary_invariant() {
+        let mut invalid = position();
+        invalid.contract_version = 2;
+        assert!(invalid.validate().is_err());
+
+        invalid = position();
+        invalid.board.pop();
+        assert!(invalid.validate().is_err());
+        invalid = position();
+        invalid.config.rules_version = "bad".to_owned();
+        assert!(invalid.validate().is_err());
+        invalid = position();
+        invalid.forbidden = vec![0, 0];
+        assert!(invalid.validate().is_err());
+        invalid.forbidden = vec![9];
+        assert!(invalid.validate().is_err());
+        invalid = position();
+        invalid.last_relocated_to.light = Some(9);
+        assert!(invalid.validate().is_err());
+        invalid = position();
+        invalid.ply = invalid.config.max_plies + 1;
+        assert!(invalid.validate().is_err());
+
+        let valid = position();
+        assert!(valid.validate().is_ok());
+    }
+
+    #[test]
+    fn metadata_agent_and_manifest_validation_rejects_bad_values() {
+        let mut invalid = metadata();
+        invalid.id.clear();
+        assert!(invalid.validate().is_err());
+        invalid = metadata();
+        invalid.version.clear();
+        assert!(invalid.validate().is_err());
+        invalid = metadata();
+        invalid.runtime = "go".to_owned();
+        assert!(invalid.validate().is_err());
+        invalid = metadata();
+        invalid.rules_version = "bad".to_owned();
+        assert!(invalid.validate().is_err());
+        invalid = metadata();
+        invalid.id = "x".repeat(129);
+        assert!(invalid.validate().is_err());
+        invalid = metadata();
+        invalid.version = "x".repeat(33);
+        assert!(invalid.validate().is_err());
+
+        let mut agent = specification("agent");
+        assert!(agent.validate().is_ok());
+        agent.id.clear();
+        assert!(agent.validate().is_err());
+        agent = specification("agent");
+        agent.name.clear();
+        assert!(agent.validate().is_err());
+        agent = specification("agent");
+        agent.version.clear();
+        assert!(agent.validate().is_err());
+        agent = specification("agent");
+        agent.engine_id.clear();
+        assert!(agent.validate().is_err());
+        agent = specification("agent");
+        agent.kind = "random".to_owned();
+        assert!(agent.validate().is_ok());
+        agent.kind = "invalid".to_owned();
+        assert!(agent.validate().is_err());
+
+        let mut agent_manifest = manifest();
+        agent_manifest.manifest_version = 2;
+        assert!(agent_manifest.validate().is_err());
+        agent_manifest = manifest();
+        agent_manifest.runtime = "go".to_owned();
+        assert!(agent_manifest.validate().is_err());
+        agent_manifest = manifest();
+        agent_manifest.rules_version = "bad".to_owned();
+        assert!(agent_manifest.validate().is_err());
+        agent_manifest = manifest();
+        agent_manifest.model_hash = Some("sha256:bad".to_owned());
+        assert!(agent_manifest.validate().is_err());
+        agent_manifest.model_hash = Some(format!("sha256:{}", "a".repeat(64)));
+        assert!(agent_manifest.validate().is_ok());
+        agent_manifest.model_hash = Some("a".repeat(64));
+        assert!(agent_manifest.validate().is_err());
+    }
+
+    #[test]
+    fn replay_validation_covers_metadata_moves_policy_and_root_q() {
+        let mut invalid = replay();
+        invalid.contract_version = 2;
+        assert!(invalid.validate().is_err());
+        invalid = replay();
+        invalid.seed = u32::MAX as u64 + 1;
+        assert!(invalid.validate().is_err());
+        invalid = replay();
+        invalid.initial_position = Some(position());
+        invalid.initial_position.as_mut().unwrap().config.board_size = 4;
+        assert!(invalid.validate().is_err());
+        invalid = replay();
+        invalid.initial_position = Some(position());
+        invalid.initial_position.as_mut().unwrap().winner = Some(ContractPlayer::Light);
+        assert!(invalid.validate().is_err());
+        invalid = replay();
+        invalid.engine.runtime = "go".to_owned();
+        assert!(invalid.validate().is_err());
+        invalid = replay();
+        invalid.agents.light = "wrong".to_owned();
+        assert!(invalid.validate().is_err());
+        invalid = replay();
+        invalid.winner = Some(ContractPlayer::Light);
+        assert!(invalid.validate().is_err());
+        invalid = replay();
+        invalid.reason = "unknown".to_owned();
+        assert!(invalid.validate().is_err());
+        invalid = replay();
+        invalid.plies = 1;
+        assert!(invalid.validate().is_err());
+
+        let mut valid = replay();
+        valid.moves = vec![movement(ContractAction::Place { to: 0 })];
+        valid.plies = 1;
+        valid.winner = Some(ContractPlayer::Light);
+        valid.result = "win".to_owned();
+        valid.moves[0].policy = Some(vec![0.25, 0.75]);
+        valid.moves[0].action_values = Some(vec![-0.5, 0.5]);
+        valid.moves[0].action_visits = Some(vec![2, 3]);
+        valid.moves[0].action_value_source = Some(ROOT_Q_SOURCE.to_owned());
+        assert!(valid.validate().is_ok());
+
+        let mut bad_move = valid.clone();
+        bad_move.moves[0].ply = 2;
+        assert!(bad_move.validate().is_err());
+        bad_move = valid.clone();
+        bad_move.moves[0].action = ContractAction::Place { to: 9 };
+        assert!(bad_move.validate().is_err());
+        bad_move = valid.clone();
+        bad_move.moves[0].captured = vec![0, 0];
+        assert!(bad_move.validate().is_err());
+        for policy in [
+            Vec::new(),
+            vec![f32::NAN],
+            vec![-0.1],
+            vec![1.1],
+            vec![0.0, 0.0],
+        ] {
+            bad_move = valid.clone();
+            bad_move.moves[0].policy = Some(policy);
+            assert!(bad_move.validate().is_err());
+        }
+        for (values, visits, source) in [
+            (Some(vec![0.0]), None, Some(ROOT_Q_SOURCE.to_owned())),
+            (Some(vec![0.0]), Some(vec![1]), None),
+            (Some(vec![0.0]), Some(vec![1]), Some("other".to_owned())),
+            (
+                Some(vec![2.0]),
+                Some(vec![1]),
+                Some(ROOT_Q_SOURCE.to_owned()),
+            ),
+        ] {
+            bad_move = valid.clone();
+            bad_move.moves[0].action_values = values;
+            bad_move.moves[0].action_visits = visits;
+            bad_move.moves[0].action_value_source = source;
+            assert!(bad_move.validate().is_err());
+        }
+
+        let json = r#"{"contractVersion":1,"seed":1,"config":{"rulesVersion":"pathagon-rules-v1","boardSize":3,"reservePerPlayer":2,"maxPlies":30,"repetitionLimit":3},"engine":{"id":"engine","runtime":"rust","version":"1","rulesVersion":"pathagon-rules-v1"},"agents":{"light":"light","dark":"dark"},"agentSpecifications":{"light":{"id":"light","name":"light","version":"1","kind":"search","engineId":"rust-bitboard","manifest":{"manifestVersion":1,"runtime":"rust","rulesVersion":"pathagon-rules-v1","evaluatorWeights":{"path":0,"material":0,"capture":0,"structure":0,"threat":0,"edge":0},"depth":1,"nodeBudget":1,"beam":1,"modelHash":null},"parameters":null},"dark":{"id":"dark","name":"dark","version":"1","kind":"search","engineId":"rust-bitboard","manifest":{"manifestVersion":1,"runtime":"rust","rulesVersion":"pathagon-rules-v1","evaluatorWeights":{"path":0,"material":0,"capture":0,"structure":0,"threat":0,"edge":0},"depth":1,"nodeBudget":1,"beam":1,"modelHash":null},"parameters":null}},"winner":null,"result":"draw","reason":"max-plies","plies":0,"moves":[]}"#;
+        assert!(ReplayRecord::from_json(json).is_ok());
+        assert!(ReplayRecord::from_json("not json").is_err());
+    }
+}

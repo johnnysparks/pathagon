@@ -1294,6 +1294,55 @@ fn hex_digit(value: u8) -> Result<u8, String> {
 mod tests {
     use super::*;
     use crate::BoardConfig;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static TEMP_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    fn temp_path(label: &str) -> PathBuf {
+        let number = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!(
+            "pathagon-golden-{label}-{}-{number}",
+            std::process::id()
+        ))
+    }
+
+    fn hex_key(key: &[u8]) -> String {
+        key.iter().map(|byte| format!("{byte:02x}")).collect()
+    }
+
+    fn v1_source(action_code: u16) -> Vec<u8> {
+        let mut source = Vec::new();
+        source.extend_from_slice(ACTION_BOOK_V1_MAGIC);
+        source.extend_from_slice(&[7, 14, 14, 0]);
+        source.extend_from_slice(&1_u32.to_le_bytes());
+        source.extend_from_slice(&[0; 14]);
+        source.extend_from_slice(&1_u16.to_le_bytes());
+        source.extend_from_slice(&action_code.to_le_bytes());
+        source
+    }
+
+    fn v2_source(
+        flags: u8,
+        row_outcome: u8,
+        row_distance: u16,
+        action_code: u16,
+        action_outcome: u8,
+        action_distance: u16,
+    ) -> Vec<u8> {
+        let mut source = Vec::new();
+        source.extend_from_slice(ACTION_BOOK_V2_MAGIC);
+        source.extend_from_slice(&[7, 14, 14, 0]);
+        source.extend_from_slice(&1_u32.to_le_bytes());
+        source.extend_from_slice(&[0; 14]);
+        source.push(flags);
+        source.push(row_outcome);
+        source.extend_from_slice(&row_distance.to_le_bytes());
+        source.extend_from_slice(&1_u16.to_le_bytes());
+        source.extend_from_slice(&action_code.to_le_bytes());
+        source.push(action_outcome);
+        source.extend_from_slice(&action_distance.to_le_bytes());
+        source
+    }
 
     #[test]
     fn canonical_key_matches_python_codec_for_simple_position() {
@@ -1388,6 +1437,215 @@ mod tests {
         let mut key = canonical_position_key(GameState::with_config(BoardConfig::DEFAULT));
         *key.last_mut().expect("key has bytes") |= 0x80;
         assert!(decode_canonical_position_key(&key, 7, 14).is_err());
+    }
+
+    #[test]
+    fn golden_outcomes_codecs_and_tables_cover_lookup_boundaries() {
+        assert_eq!(GoldenOutcome::Loss.as_str(), "loss");
+        assert_eq!(GoldenOutcome::Draw.as_str(), "draw");
+        assert_eq!(GoldenOutcome::Win.as_str(), "win");
+        for outcome in [GoldenOutcome::Loss, GoldenOutcome::Draw, GoldenOutcome::Win] {
+            assert_eq!(GoldenOutcome::from_byte(outcome.as_byte()), Some(outcome));
+        }
+        assert_eq!(GoldenOutcome::from_byte(99), None);
+        assert_eq!(key_bytes_for_board_size(3), Ok(4));
+        assert!(key_bytes_for_board_size(2).is_err());
+        assert!(key_bytes_for_board_size(8).is_err());
+
+        let state = GameState::new();
+        let key = canonical_position_key(state);
+        let mut table_bytes = key.clone();
+        table_bytes.push(WIN);
+        let memory = MemoryGoldenTable::from_bytes(&table_bytes, 7, 14).unwrap();
+        assert_eq!(memory.rows(), 1);
+        assert_eq!(memory.lookup(state), Some(GoldenOutcome::Win));
+        assert_eq!(memory.lookup_key(&key), Some(GoldenOutcome::Win));
+        assert_eq!(memory.lookup_key(&[]), None);
+        assert_eq!(memory.lookup(GameState::with_board_size(5)), None);
+        assert!(MemoryGoldenTable::from_bytes(&[0], 7, 14).is_err());
+
+        let path = temp_path("table");
+        std::fs::write(&path, &table_bytes).unwrap();
+        let disk = FlatGoldenTable::open(&path, 7, 14).unwrap();
+        assert_eq!(disk.path(), path.as_path());
+        assert_eq!(disk.rows(), 1);
+        assert_eq!(disk.lookup(state), Some(GoldenOutcome::Win));
+        assert_eq!(disk.lookup_key(&key), Some(GoldenOutcome::Win));
+        assert_eq!(disk.lookup_key(&[]), None);
+        assert_eq!(disk.lookup(GameState::with_board_size(5)), None);
+        std::fs::write(&path, [0_u8; 2]).unwrap();
+        assert!(FlatGoldenTable::open(&path, 7, 14).is_err());
+        assert!(FlatGoldenTable::open(&path, 8, 14).is_err());
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn canonical_key_decoding_rejects_invalid_width_markers_and_inventory() {
+        let key = canonical_position_key(GameState::new());
+        assert!(decode_canonical_position_key(&key[..key.len() - 1], 7, 14).is_err());
+        assert!(decode_canonical_position_key(&key, 8, 14).is_err());
+        let marker = 50_u128 << (2 * 49 + 1);
+        let mut marker_key = [0_u8; 16];
+        marker_key.copy_from_slice(&marker.to_le_bytes());
+        assert!(decode_canonical_position_key(&marker_key[..14], 7, 14).is_err());
+
+        let mut packed = 0_u128;
+        for square in 0..15 {
+            packed |= 1_u128 << (2 * square);
+        }
+        let inventory_key = packed.to_le_bytes();
+        assert!(decode_canonical_position_key(&inventory_key[..14], 7, 14).is_err());
+
+        let state = GameState {
+            config: BoardConfig::DEFAULT,
+            light: (1_u64 << 0) | (1_u64 << 17),
+            dark: (1_u64 << 8) | (1_u64 << 31),
+            reserve: [12, 12],
+            turn: Player::Dark,
+            forbidden: 1_u64 << 24,
+            last_relocated_to: [Some(17), Some(31)],
+            last_capture: 2,
+            last_player: Some(Player::Light),
+            winner: Some(Player::Dark),
+            ply: 12,
+        };
+        for symmetry in 0..8 {
+            let transformed = transform_position(state, symmetry);
+            assert_eq!(
+                canonical_position_key(transformed),
+                canonical_position_key(state)
+            );
+            let transformed_action = transform_action(Action::Place { to: 3 }, 7, symmetry);
+            assert_eq!(
+                transform_action(transformed_action, 7, inverse_symmetry(symmetry)),
+                Action::Place { to: 3 }
+            );
+        }
+        assert_eq!(inverse_symmetry(1), 3);
+        assert_eq!(inverse_symmetry(3), 1);
+    }
+
+    #[test]
+    fn json_action_book_parses_rows_and_rejects_malformed_artifacts() {
+        let key = canonical_position_key(GameState::new());
+        let row = serde_json::json!({
+            "schemaVersion": 1,
+            "tableFamily": "fresh-frontier-wdl-v1",
+            "key": hex_key(&key),
+            "outcome": "win",
+            "distance": 1,
+            "optimalActionsKnown": true,
+            "provenActions": [
+                {"token": "00", "outcome": "win", "distance": 1},
+                {"token": "00", "outcome": null}
+            ]
+        });
+        let path = temp_path("json");
+        std::fs::write(&path, format!("# comment\n\n{}\n", row)).unwrap();
+        let book = GoldenActionBook::load(&path, 7).unwrap();
+        assert_eq!(book.rows(), 1);
+        assert_eq!(
+            book.row_value(GameState::new()).unwrap().outcome,
+            GoldenOutcome::Win
+        );
+        assert_eq!(book.optimal_actions_complete(GameState::new()), Some(true));
+        assert_eq!(
+            book.proven_action(GameState::new()),
+            Some(Action::Place { to: 0 })
+        );
+        assert!(book.action_values(GameState::new()).unwrap().len() >= 2);
+        assert_eq!(book.rows_with_actions().len(), 1);
+
+        let invalid_rows = [
+            "not json".to_owned(),
+            serde_json::json!({"schemaVersion": 2, "tableFamily": "fresh-frontier-wdl-v1"}).to_string(),
+            serde_json::json!({"schemaVersion": 1, "tableFamily": "fresh-frontier-wdl-v1"}).to_string(),
+            serde_json::json!({"schemaVersion": 1, "tableFamily": "fresh-frontier-wdl-v1", "key": "0"}).to_string(),
+            serde_json::json!({"schemaVersion": 1, "tableFamily": "fresh-frontier-wdl-v1", "key": "zz".repeat(14), "provenActions": []}).to_string(),
+            serde_json::json!({"schemaVersion": 1, "tableFamily": "fresh-frontier-wdl-v1", "key": hex_key(&key), "provenActions": [{"outcome": "win"}]}).to_string(),
+            serde_json::json!({"schemaVersion": 1, "tableFamily": "fresh-frontier-wdl-v1", "key": hex_key(&key), "provenActions": [{"token": "~0"}]}).to_string(),
+        ];
+        for (index, invalid) in invalid_rows.iter().enumerate() {
+            std::fs::write(&path, invalid).unwrap();
+            assert!(
+                GoldenActionBook::load(&path, 7).is_err(),
+                "invalid row {index}"
+            );
+        }
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn binary_action_books_reject_bad_headers_rows_flags_distances_and_actions() {
+        let mut source = v1_source(0);
+        assert!(GoldenActionBook::from_bytes(&source[..8], 7).is_err());
+        source[8] = 6;
+        assert!(GoldenActionBook::from_bytes(&source, 7).is_err());
+        source = v1_source(0);
+        source[10] = 13;
+        assert!(GoldenActionBook::from_bytes(&source, 7).is_err());
+        source = v1_source(0);
+        source.truncate(source.len() - 1);
+        assert!(GoldenActionBook::from_bytes(&source, 7).is_err());
+        source = v1_source(0);
+        source.extend_from_slice(&[0]);
+        assert!(GoldenActionBook::from_bytes(&source, 7).is_err());
+        assert!(GoldenActionBook::from_bytes(&v1_source(u16::MAX), 7).is_err());
+        let mut unsupported = vec![0_u8; 16];
+        unsupported[..8].copy_from_slice(b"BADMAGIC");
+        assert!(GoldenActionBook::from_bytes(&unsupported, 7).is_err());
+
+        assert!(GoldenActionBook::from_bytes(&v2_source(2, WIN, 1, 0, WIN, 1), 7).is_err());
+        assert!(GoldenActionBook::from_bytes(&v2_source(0, 99, 1, 0, WIN, 1), 7).is_err());
+        assert!(GoldenActionBook::from_bytes(&v2_source(0, DRAW, 1, 0, WIN, 1), 7).is_err());
+        assert!(GoldenActionBook::from_bytes(&v2_source(0, WIN, u16::MAX, 0, WIN, 1), 7).is_err());
+        assert!(GoldenActionBook::from_bytes(&v2_source(0, WIN, 1, 0, 99, 1), 7).is_err());
+        assert!(GoldenActionBook::from_bytes(&v2_source(0, WIN, 1, 0, 3, 1), 7).is_err());
+        assert!(GoldenActionBook::from_bytes(&v2_source(0, WIN, 1, 0, 3, 2), 7).is_err());
+        assert!(GoldenActionBook::from_bytes(&v2_source(0, WIN, 1, 0, DRAW, 1), 7).is_err());
+        assert!(GoldenActionBook::from_bytes(&v2_source(0, WIN, 1, 0, WIN, u16::MAX), 7).is_err());
+        let mut trailing = v2_source(0, WIN, 1, 0, WIN, 1);
+        trailing.push(0);
+        assert!(GoldenActionBook::from_bytes(&trailing, 7).is_err());
+        let mut truncated = v2_source(0, WIN, 1, 0, WIN, 1);
+        truncated.truncate(truncated.len() - 1);
+        assert!(GoldenActionBook::from_bytes(&truncated, 7).is_err());
+    }
+
+    #[test]
+    fn memory_and_layered_lookups_cover_empty_and_namespace_fallbacks() {
+        assert!(MemoryGoldenLookupLayers::open_bytes(&[], 7, 14).is_err());
+        assert!(GoldenLookupLayers::open(&[], 7, 14).is_err());
+        let key = canonical_position_key(GameState::new());
+        let mut table = key.clone();
+        table.push(WIN);
+        let memory = MemoryGoldenLookup::open_bytes(&table, Some(&[]), 7, 14).unwrap();
+        assert_eq!(memory.lookup(GameState::new()), Some(GoldenOutcome::Win));
+        assert_eq!(memory.proven_action(GameState::new()), None);
+        assert_eq!(memory.row_value(GameState::new()), None);
+        assert_eq!(memory.action_values(GameState::new()), None);
+        assert_eq!(memory.lookup(GameState::with_board_size(5)), None);
+        let path = temp_path("layers");
+        std::fs::write(&path, &table).unwrap();
+        let opened = GoldenLookup::open(&path, Option::<&Path>::None, 7, 14).unwrap();
+        assert_eq!(opened.lookup(GameState::new()), Some(GoldenOutcome::Win));
+        assert_eq!(opened.proven_action(GameState::new()), None);
+        assert_eq!(opened.row_value(GameState::new()), None);
+        assert_eq!(opened.action_values(GameState::new()), None);
+        let layers = GoldenLookupLayers::from_lookup(opened);
+        assert_eq!(layers.layer_count(), 1);
+        assert_eq!(layers.rows(), 1);
+        assert_eq!(layers.lookup(GameState::new()), Some(GoldenOutcome::Win));
+        assert_eq!(layers.proven_action(GameState::new()), None);
+        let bytes = std::fs::read(&path).unwrap();
+        let memory_layers = MemoryGoldenLookupLayers::open_bytes(&[(&bytes, None)], 7, 14).unwrap();
+        assert_eq!(memory_layers.layer_count(), 1);
+        assert_eq!(memory_layers.rows(), 1);
+        assert_eq!(
+            memory_layers.lookup(GameState::new()),
+            Some(GoldenOutcome::Win)
+        );
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]

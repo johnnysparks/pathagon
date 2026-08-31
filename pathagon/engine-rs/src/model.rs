@@ -410,4 +410,138 @@ mod tests {
         let inputs = PolicyValueInputs::from_state(state).expect("encode configured position");
         assert!((inputs.global_features[7] - 0.5).abs() < f32::EPSILON);
     }
+
+    #[test]
+    fn action_specs_and_board_channels_encode_both_players_and_markers() {
+        assert_eq!(
+            ActionSpec::from(Action::Place { to: 7 }),
+            ActionSpec {
+                kind: 0,
+                from: 0,
+                to: 7
+            }
+        );
+        assert_eq!(
+            ActionSpec::from(Action::Relocate { from: 7, to: 8 }),
+            ActionSpec {
+                kind: 1,
+                from: 7,
+                to: 8
+            }
+        );
+
+        let mut state = GameState::new();
+        state.light = 1;
+        state.dark = 1_u64 << 48;
+        state.forbidden = 1_u64 << 24;
+        state.last_relocated_to = [Some(1), Some(47)];
+        state.reserve = [3, 4];
+        state.turn = Player::Dark;
+        state.last_capture = 4;
+        state.last_player = Some(Player::Light);
+        state.ply = 10;
+        let inputs = PolicyValueInputs::from_state(state).expect("encode annotated position");
+        let index = |channel: usize, square: usize| channel * DEPLOYED_CELL_COUNT + square;
+        assert_eq!(inputs.board_features[index(1, 0)], 1.0);
+        assert_eq!(inputs.board_features[index(2, 48)], 1.0);
+        assert_eq!(inputs.board_features[index(3, 24)], 1.0);
+        assert_eq!(inputs.board_features[index(4, 1)], 1.0);
+        assert_eq!(inputs.board_features[index(5, 47)], 1.0);
+        assert_eq!(inputs.board_features[index(8, 0)], 1.0);
+        assert_eq!(inputs.board_features[index(9, 42)], 1.0);
+        assert_eq!(inputs.board_features[index(10, 0)], 1.0);
+        assert_eq!(inputs.board_features[index(11, 48)], 1.0);
+        assert_eq!(inputs.board_features[index(14, 24)], 0.0);
+        assert_eq!(inputs.board_features[index(15, 24)], 1.0);
+        assert_eq!(inputs.global_features[2], 0.0);
+        assert_eq!(inputs.global_features[3], 1.0);
+        assert_eq!(inputs.global_features[4], 1.0);
+        assert_eq!(inputs.global_features[5], 1.0);
+        assert_eq!(inputs.global_features[6], 0.0);
+    }
+
+    #[test]
+    fn graph_inputs_encode_boundary_nodes_and_custom_actions() {
+        let state = GameState::new();
+        let graph = GnnPolicyValueInputs::from_state(state).expect("encode graph input");
+        assert_eq!(
+            graph.node_features.len(),
+            GNN_GRAPH_NODE_COUNT * GNN_NODE_FEATURE_COUNT
+        );
+        assert_eq!(graph.global_features.len(), GLOBAL_FEATURE_COUNT);
+        assert_eq!(
+            graph.action_specs[24],
+            ActionSpec {
+                kind: 0,
+                from: 0,
+                to: 24
+            }
+        );
+        assert_eq!(
+            graph
+                .action_mask
+                .iter()
+                .filter(|value| **value == 1.0)
+                .count(),
+            49
+        );
+        for boundary in 0..4 {
+            let node = DEPLOYED_CELL_COUNT + boundary;
+            assert_eq!(graph.node_features[node * GNN_NODE_FEATURE_COUNT + 13], 1.0);
+            assert_eq!(
+                graph.node_features[node * GNN_NODE_FEATURE_COUNT + 17 + boundary],
+                1.0
+            );
+        }
+
+        let actions = vec![Action::Relocate { from: 1, to: 2 }, Action::Place { to: 3 }];
+        let graph = GnnPolicyValueInputs::from_state_with_actions(state, &actions)
+            .expect("encode custom graph actions");
+        assert_eq!(
+            graph.action_specs[0],
+            ActionSpec {
+                kind: 1,
+                from: 1,
+                to: 2
+            }
+        );
+        assert_eq!(
+            graph.action_specs[1],
+            ActionSpec {
+                kind: 0,
+                from: 0,
+                to: 3
+            }
+        );
+        assert_eq!(graph.action_mask[0], 1.0);
+        assert_eq!(graph.action_mask[2], 0.0);
+
+        let qadv = GnnQAdvInputs::from_state_with_actions(state, &actions)
+            .expect("encode qadv graph actions");
+        assert_eq!(
+            qadv.transition_features.len(),
+            MAX_ACTIONS * QADV_TRANSITION_FEATURE_COUNT
+        );
+        assert!(
+            qadv.transition_features[..QADV_TRANSITION_FEATURE_COUNT * actions.len()]
+                .iter()
+                .any(|value| *value != 0.0)
+        );
+        let qadv_from_state = GnnQAdvInputs::from_state(state).expect("encode qadv state");
+        assert_eq!(qadv_from_state.action_mask[0], 1.0);
+    }
+
+    #[test]
+    fn model_inputs_reject_wrong_boards_and_oversized_action_lists() {
+        let small = GameState::with_config(BoardConfig::new(5, 10).unwrap());
+        assert!(PolicyValueInputs::from_state(small).is_err());
+        assert!(GnnPolicyValueInputs::from_state(small).is_err());
+        assert!(GnnQAdvInputs::from_state(small).is_err());
+
+        let too_many = vec![Action::Place { to: 0 }; MAX_ACTIONS + 1];
+        assert!(
+            GnnPolicyValueInputs::from_state_with_actions(GameState::new(), &too_many).is_err()
+        );
+        assert!(GnnQAdvInputs::from_state_with_actions(GameState::new(), &too_many).is_err());
+    }
 }

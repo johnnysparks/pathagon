@@ -638,6 +638,34 @@ fn parse_square(text: &str) -> Result<u8, String> {
 mod tests {
     use super::*;
 
+    fn contract_position(
+        board: Vec<Option<crate::contract::ContractPlayer>>,
+        light: u16,
+        dark: u16,
+        forbidden: Vec<u8>,
+    ) -> crate::contract::Position {
+        crate::contract::Position {
+            contract_version: crate::contract::CONTRACT_VERSION,
+            config: crate::contract::GameConfig {
+                rules_version: crate::contract::RULES_VERSION.to_owned(),
+                board_size: 7,
+                reserve_per_player: 14,
+                max_plies: DEFAULT_MAX_PLIES,
+                repetition_limit: 3,
+            },
+            board,
+            reserve: crate::contract::PlayerNumbers { light, dark },
+            turn: crate::contract::ContractPlayer::Light,
+            forbidden,
+            last_relocated_to: crate::contract::PlayerSquares {
+                light: None,
+                dark: None,
+            },
+            winner: None,
+            ply: 0,
+        }
+    }
+
     #[test]
     fn empty_board_has_49_moves() {
         assert_eq!(GameState::new().legal_actions().len(), 49);
@@ -711,5 +739,169 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn configuration_player_action_and_parser_helpers_cover_bounds() {
+        assert!(BoardConfig::new(2, 1).is_err());
+        assert!(BoardConfig::new(9, 1).is_err());
+        assert!(BoardConfig::new(3, 0).is_err());
+        assert!(BoardConfig::new(3, 65).is_err());
+        assert!(BoardConfig::DEFAULT.with_max_plies(0).is_err());
+        assert!(BoardConfig::DEFAULT.with_max_plies(4097).is_err());
+        let eight = BoardConfig::new(8, 1).unwrap();
+        assert_eq!(eight.cells(), 64);
+        assert_eq!(eight.full_board(), u64::MAX);
+        let contract = crate::contract::GameConfig {
+            rules_version: crate::contract::RULES_VERSION.to_owned(),
+            board_size: 4,
+            reserve_per_player: 6,
+            max_plies: 40,
+            repetition_limit: 3,
+        };
+        assert_eq!(BoardConfig::from_contract(&contract).unwrap().cells(), 16);
+        let mut bad_contract = contract.clone();
+        bad_contract.repetition_limit = 2;
+        assert!(BoardConfig::from_contract(&bad_contract).is_err());
+
+        assert_eq!(Player::Light.other(), Player::Dark);
+        assert_eq!(Player::Dark.other(), Player::Light);
+        assert_eq!(Player::Light.index(), 0);
+        assert_eq!(Player::Dark.index(), 1);
+        assert_eq!(Player::Light.as_str(), "light");
+        assert_eq!(Player::Dark.as_str(), "dark");
+        assert_eq!(Action::Place { to: 4 }.destination(), 4);
+        assert_eq!(Action::Relocate { from: 2, to: 9 }.destination(), 9);
+        assert!(Action::Place { to: 4 }.order() < Action::Relocate { from: 1, to: 0 }.order());
+        assert_eq!(Action::Place { to: 4 }.to_string(), "P4");
+        assert_eq!(Action::Relocate { from: 2, to: 9 }.to_string(), "R2>9");
+
+        assert_eq!(parse_action("P12").unwrap(), Action::Place { to: 12 });
+        assert_eq!(
+            parse_action("R2>17").unwrap(),
+            Action::Relocate { from: 2, to: 17 }
+        );
+        for text in ["", "X2", "Pno", "R2", "R2>x", "P64"] {
+            assert!(
+                parse_action(text).is_err(),
+                "expected parser rejection for {text}"
+            );
+        }
+        assert_eq!(bit_squares(0), Vec::<u8>::new());
+        assert_eq!(bit_squares((1_u64 << 1) | (1_u64 << 63)), vec![1, 63]);
+        assert_eq!(row_mask(3, 1), 0b000_111_000);
+        assert_eq!(column_mask(3, 2), 0b100_100_100);
+        assert_eq!(neighbor_mask_for(3, 0), (1_u64 << 1) | (1_u64 << 3));
+        assert_eq!(
+            neighbor_mask_for(3, 4),
+            (1_u64 << 1) | (1_u64 << 3) | (1_u64 << 5) | (1_u64 << 7)
+        );
+    }
+
+    #[test]
+    fn seeded_positions_enforce_inventory_paths_and_legal_actions() {
+        let empty = contract_position(vec![None; 49], 14, 14, Vec::new());
+        assert_eq!(GameState::from_position(&empty).unwrap(), GameState::new());
+
+        let mut overlap = contract_position(vec![None; 49], 14, 14, vec![0]);
+        overlap.board[0] = Some(crate::contract::ContractPlayer::Light);
+        assert!(GameState::from_position(&overlap).is_err());
+        overlap = contract_position(vec![None; 49], 13, 14, Vec::new());
+        overlap.board[0] = Some(crate::contract::ContractPlayer::Light);
+        overlap.forbidden = vec![0];
+        assert!(GameState::from_position(&overlap).is_err());
+        overlap = contract_position(vec![None; 49], 14, 14, Vec::new());
+        overlap.board[0] = Some(crate::contract::ContractPlayer::Light);
+        assert!(GameState::from_position(&overlap).is_err());
+
+        let mut path_board = vec![None; 49];
+        for square in [0, 7, 14, 21, 28, 35, 42] {
+            path_board[square] = Some(crate::contract::ContractPlayer::Light);
+        }
+        let path = contract_position(path_board, 7, 14, Vec::new());
+        assert!(GameState::from_position(&path).is_err());
+
+        let mut no_moves = vec![None; 9];
+        for square in [0, 1, 3, 4] {
+            no_moves[square] = Some(crate::contract::ContractPlayer::Light);
+        }
+        for square in [2, 5, 6, 7] {
+            no_moves[square] = Some(crate::contract::ContractPlayer::Dark);
+        }
+        let no_move_position = crate::contract::Position {
+            contract_version: crate::contract::CONTRACT_VERSION,
+            config: crate::contract::GameConfig {
+                rules_version: crate::contract::RULES_VERSION.to_owned(),
+                board_size: 3,
+                reserve_per_player: 4,
+                max_plies: 20,
+                repetition_limit: 3,
+            },
+            board: no_moves,
+            reserve: crate::contract::PlayerNumbers { light: 0, dark: 0 },
+            turn: crate::contract::ContractPlayer::Light,
+            forbidden: vec![8],
+            last_relocated_to: crate::contract::PlayerSquares {
+                light: None,
+                dark: None,
+            },
+            winner: None,
+            ply: 3,
+        };
+        assert!(GameState::from_position(&no_move_position).is_err());
+        let no_move_state = GameState {
+            config: BoardConfig::new(3, 4).unwrap(),
+            light: (1_u64 << 0) | (1_u64 << 1) | (1_u64 << 3) | (1_u64 << 4),
+            dark: (1_u64 << 2) | (1_u64 << 5) | (1_u64 << 6) | (1_u64 << 7),
+            reserve: [0, 0],
+            turn: Player::Light,
+            forbidden: 1_u64 << 8,
+            last_relocated_to: [None, None],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: 3,
+        };
+        assert!(no_move_state.legal_actions().is_empty());
+        assert_eq!(no_move_state.legal_action_count(), 0);
+        let mut won = GameState::new();
+        won.winner = Some(Player::Dark);
+        assert!(won.legal_actions().is_empty());
+        assert_eq!(won.legal_action_count(), 0);
+    }
+
+    #[test]
+    fn action_application_and_capture_helpers_cover_place_relocate_and_edges() {
+        let mut state = GameState::new();
+        assert_eq!(state.legal_action_count(), 49);
+        state.forbidden = 1_u64 << 0;
+        assert!(!state.legal_actions().contains(&Action::Place { to: 0 }));
+        assert_eq!(state.legal_action_count(), 48);
+        assert!(state.apply(Action::Place { to: 0 }).is_err());
+
+        state = GameState::new();
+        state.light = 1_u64 << 21;
+        state.dark = 1_u64 << 22;
+        let transition = state.apply(Action::Place { to: 23 }).unwrap();
+        assert_eq!(transition.captured, 1_u64 << 22);
+        assert_eq!(transition.state.last_capture, 1);
+        assert_eq!(captures_from(state, 23, Player::Light), 1_u64 << 22);
+
+        let mut movement = transition.state;
+        movement.reserve = [0, 0];
+        movement.light |= 1_u64 << 30;
+        movement.turn = Player::Light;
+        let moved = movement
+            .apply(Action::Relocate { from: 30, to: 40 })
+            .unwrap();
+        assert_eq!(
+            moved.state.last_relocated_to[Player::Light.index()],
+            Some(40)
+        );
+        assert!(!moved
+            .state
+            .legal_actions()
+            .iter()
+            .any(|action| { matches!(action, Action::Relocate { from: 40, .. }) }));
     }
 }

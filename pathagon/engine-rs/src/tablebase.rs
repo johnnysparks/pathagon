@@ -186,11 +186,13 @@ impl RetrogradeGraph {
                 node.key
             ));
         }
-        if let Some(previous) = self.nodes.insert(node.key.clone(), node.clone()) {
-            if previous != node {
+        if let Some(previous) = self.nodes.get(&node.key) {
+            if previous != &node {
                 return Err(format!("contradictory retrograde node {}", node.key));
             }
+            return Ok(());
         }
+        self.nodes.insert(node.key.clone(), node);
         Ok(())
     }
 
@@ -933,7 +935,12 @@ fn decode_hex_key(key: &str, width: usize) -> io::Result<Vec<u8>> {
                 format!("retrograde key {key} contains non-hex digits"),
             )
         })?;
-        let low = hex_value(bytes[index + 1]).expect("validated key pair");
+        let low = hex_value(bytes[index + 1]).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("retrograde key {key} contains non-hex digits"),
+            )
+        })?;
         output.push((high << 4) | low);
     }
     Ok(output)
@@ -1966,5 +1973,224 @@ mod tests {
         assert_eq!(slice.len(), 2);
         assert_eq!(slice.edge_count(), 1);
         assert_eq!(slice.solve().0.len(), 2);
+    }
+
+    #[test]
+    fn graph_validation_and_slice_reject_malformed_edges_and_seeds() {
+        let mut graph = RetrogradeGraph::default();
+        assert!(graph
+            .insert(RetrogradeNode {
+                key: String::new(),
+                ..node("placeholder", &[])
+            })
+            .is_err());
+        assert!(graph.insert(node("root", &[""])).is_err());
+        assert!(graph
+            .insert(RetrogradeNode {
+                terminal: Some("invalid".to_owned()),
+                ..node("terminal", &[])
+            })
+            .is_err());
+        assert!(graph
+            .insert(RetrogradeNode {
+                seed: Some(RetrogradeValue {
+                    outcome: GroundTruthOutcome::Unknown,
+                    distance: None,
+                }),
+                ..node("unknown-seed", &[])
+            })
+            .is_err());
+        assert!(graph
+            .insert(RetrogradeNode {
+                actions: vec![RetrogradeEdge {
+                    action: String::new(),
+                    child: "child".to_owned(),
+                }],
+                children: vec!["child".to_owned()],
+                ..node("empty-action", &[])
+            })
+            .is_err());
+        assert!(graph
+            .insert(RetrogradeNode {
+                actions: vec![RetrogradeEdge {
+                    action: "a".to_owned(),
+                    child: String::new(),
+                }],
+                children: vec!["child".to_owned()],
+                ..node("empty-child", &[])
+            })
+            .is_err());
+        assert!(graph
+            .insert(RetrogradeNode {
+                actions: vec![
+                    RetrogradeEdge {
+                        action: "a".to_owned(),
+                        child: "child".to_owned()
+                    },
+                    RetrogradeEdge {
+                        action: "a".to_owned(),
+                        child: "child".to_owned()
+                    },
+                ],
+                children: vec!["child".to_owned()],
+                ..node("duplicate-action", &[])
+            })
+            .is_err());
+        assert!(graph
+            .insert(RetrogradeNode {
+                children: vec!["child".to_owned(), "child".to_owned()],
+                ..node("duplicate-child", &[])
+            })
+            .is_err());
+        assert!(graph
+            .insert(RetrogradeNode {
+                actions: vec![RetrogradeEdge {
+                    action: "a".to_owned(),
+                    child: "other".to_owned()
+                }],
+                children: vec!["child".to_owned()],
+                ..node("misaligned", &[])
+            })
+            .is_err());
+
+        graph.insert(node("root", &[])).unwrap();
+        assert!(graph.insert(node("root", &["different"])).is_err());
+        assert!(graph.insert(node("root", &[])).is_ok());
+        assert!(graph.slice_from_roots(&BTreeSet::new()).is_err());
+        assert!(graph
+            .slice_from_roots(&BTreeSet::from(["missing".to_owned()]))
+            .is_err());
+        assert_eq!(graph.into_nodes().len(), 1);
+    }
+
+    #[test]
+    fn compact_helpers_and_value_files_cover_shape_and_encoding_errors() {
+        assert_eq!(key_width_from_keys(Vec::<&String>::new()).unwrap(), 0);
+        let odd = String::from("0");
+        assert!(key_width_from_keys([&odd].into_iter()).is_err());
+        let wide = "00".repeat(256);
+        assert!(key_width_from_keys([&wide].into_iter()).is_err());
+        let first = String::from("0000");
+        let second = String::from("00");
+        assert!(key_width_from_keys([&first, &second].into_iter()).is_err());
+        assert!(decode_hex_key("0", 1).is_err());
+        assert!(decode_hex_key("0x", 1).is_err());
+        assert_eq!(decode_hex_key("00ff", 2).unwrap(), vec![0, 255]);
+        assert_eq!(hex_value(b'0'), Some(0));
+        assert_eq!(hex_value(b'9'), Some(9));
+        assert_eq!(hex_value(b'a'), Some(10));
+        assert_eq!(hex_value(b'f'), Some(15));
+        assert_eq!(hex_value(b'A'), Some(10));
+        assert_eq!(hex_value(b'F'), Some(15));
+        assert_eq!(hex_value(b'x'), None);
+        assert_eq!(hex_key(&[0, 15, 255]), "000fff");
+        for outcome in [
+            GroundTruthOutcome::Loss,
+            GroundTruthOutcome::Draw,
+            GroundTruthOutcome::Win,
+            GroundTruthOutcome::Unknown,
+        ] {
+            assert_eq!(outcome_from_byte(outcome_byte(outcome)), Some(outcome));
+        }
+        assert_eq!(outcome_from_byte(9), None);
+        assert!(distance_bytes(Some(COMPACT_NONE_DISTANCE)).is_err());
+        assert_eq!(distance_bytes(None).unwrap(), u16::MAX.to_le_bytes());
+        assert_eq!(compact_action_code("00").unwrap(), 0);
+        assert_eq!(compact_action_from_code(0).as_deref(), Some("00"));
+        assert_eq!(compact_action_from_code(u16::MAX), None);
+        assert!(compact_action_code("0").is_err());
+        assert!(compact_action_code("~0").is_err());
+        let path = Path::new("<test>");
+        let mut offset = usize::MAX;
+        assert!(compact_take(&[], &mut offset, 1, path, "field").is_err());
+        let mut offset = 0;
+        assert!(compact_take(&[], &mut offset, 1, path, "field").is_err());
+
+        let mut values = BTreeMap::new();
+        values.insert(
+            "0000".to_owned(),
+            RetrogradeValue {
+                outcome: GroundTruthOutcome::Win,
+                distance: Some(2),
+            },
+        );
+        let value_path =
+            std::env::temp_dir().join(format!("pathagon-value-errors-{}", std::process::id()));
+        write_compact_values(&value_path, &values, 2).unwrap();
+        assert_eq!(read_compact_values(&value_path).unwrap(), values);
+        let mut bytes = fs::read(&value_path).unwrap();
+        bytes[0] = b'X';
+        fs::write(&value_path, &bytes).unwrap();
+        assert!(read_compact_values(&value_path).is_err());
+        write_compact_values(&value_path, &values, 2).unwrap();
+        bytes = fs::read(&value_path).unwrap();
+        bytes[9] = 1;
+        fs::write(&value_path, &bytes).unwrap();
+        assert!(read_compact_values(&value_path).is_err());
+        write_compact_values(&value_path, &values, 2).unwrap();
+        bytes = fs::read(&value_path).unwrap();
+        bytes.pop();
+        fs::write(&value_path, &bytes).unwrap();
+        assert!(read_compact_values(&value_path).is_err());
+        let unknown = BTreeMap::from([(
+            "0000".to_owned(),
+            RetrogradeValue {
+                outcome: GroundTruthOutcome::Unknown,
+                distance: None,
+            },
+        )]);
+        assert!(write_compact_values(&value_path, &unknown, 2).is_err());
+        let sentinel = BTreeMap::from([(
+            "0000".to_owned(),
+            RetrogradeValue {
+                outcome: GroundTruthOutcome::Win,
+                distance: Some(u16::MAX),
+            },
+        )]);
+        assert!(write_compact_values(&value_path, &sentinel, 2).is_err());
+        assert!(write_compact_values(&value_path, &values, 1).is_err());
+        let json_path = value_path.with_extension("json");
+        write_merged_values(&json_path, &values).unwrap();
+        assert_eq!(
+            serde_json::from_str::<BTreeMap<String, RetrogradeValue>>(
+                &fs::read_to_string(&json_path).unwrap()
+            )
+            .unwrap(),
+            values
+        );
+        let _ = fs::remove_file(value_path);
+        let _ = fs::remove_file(json_path);
+    }
+
+    #[test]
+    fn node_and_shard_readers_reject_invalid_inputs() {
+        let path =
+            std::env::temp_dir().join(format!("pathagon-node-errors-{}", std::process::id()));
+        fs::write(&path, [0xff, 0xfe]).unwrap();
+        assert!(read_nodes(&path).is_err());
+        fs::write(&path, "not json\n").unwrap();
+        assert!(read_nodes(&path).is_err());
+        fs::write(&path, "# comment\n\n").unwrap();
+        assert!(read_nodes(&path).unwrap().is_empty());
+        let directory = path.with_extension("shards");
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("manifest.json"), "{}").unwrap();
+        assert!(read_value_shards(&directory).is_err());
+        fs::write(directory.join("manifest.json"), r#"{"shardCount":0}"#).unwrap();
+        assert!(read_value_shards(&directory).is_err());
+        fs::write(
+            directory.join("manifest.json"),
+            r#"{"shardCount":1,"shards":[1]}"#,
+        )
+        .unwrap();
+        assert!(read_value_shards(&directory).is_err());
+        fs::write(
+            directory.join("manifest.json"),
+            r#"{"shardCount":2,"shards":[]}"#,
+        )
+        .unwrap();
+        assert!(read_value_shards(&directory).is_err());
+        let _ = fs::remove_file(path);
+        let _ = fs::remove_dir_all(directory);
     }
 }

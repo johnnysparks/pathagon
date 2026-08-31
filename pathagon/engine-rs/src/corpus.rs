@@ -604,7 +604,69 @@ fn invalid_data<T>(line_number: usize, message: &str) -> io::Result<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::selfplay::{play_game, Agent, MatchOptions};
+    use crate::selfplay::{play_game, Agent, MatchOptions, MoveRecord};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static TEMP_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    fn temp_path(label: &str) -> std::path::PathBuf {
+        let number = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!(
+            "pathagon-corpus-{label}-{}-{number}",
+            std::process::id()
+        ))
+    }
+
+    fn move_record(ply: u16, player: Player, action: Action, depth: u8, nodes: u64) -> MoveRecord {
+        MoveRecord {
+            ply,
+            player,
+            action,
+            captured: 0,
+            score: i32::from(depth),
+            nodes,
+            completed_depth: depth,
+            table_hits: 1,
+            book_hit: false,
+            root_q: None,
+        }
+    }
+
+    fn record(
+        winner: Option<Player>,
+        reason: TerminationReason,
+        moves: Vec<MoveRecord>,
+    ) -> GameRecord {
+        GameRecord {
+            seed: 17,
+            max_plies: 80,
+            board_size: BoardConfig::DEFAULT.board_size,
+            reserve_per_player: BoardConfig::DEFAULT.reserve_per_player,
+            light_agent: "light".to_owned(),
+            dark_agent: "dark".to_owned(),
+            light_specification: "{}".to_owned(),
+            dark_specification: "{}".to_owned(),
+            winner,
+            reason,
+            moves,
+        }
+    }
+
+    fn valid_book_line(agent: &str) -> String {
+        format!(
+            "{}\t{}\t{}\t1\t2\t3\t4\t5\t6\t7",
+            encode_state(GameState::new()),
+            agent,
+            encode_action(Action::Place { to: 0 }),
+        )
+    }
+
+    fn unified_line(plies: usize, actions: &str) -> String {
+        format!(
+            "g1_{}\tpathagon-rules-v1\t3\t2\t3\t{plies}\t{actions}",
+            "A".repeat(43)
+        )
+    }
 
     #[test]
     fn every_action_round_trips_through_two_bytes() {
@@ -654,5 +716,404 @@ mod tests {
         assert_eq!(game.config.reserve_per_player, 10);
         assert_eq!(game.actions.len(), 3);
         assert_eq!(game.replay().unwrap().ply, 3);
+    }
+
+    #[test]
+    fn strategy_book_round_trips_entries_and_handles_missing_or_malformed_files() {
+        let missing = temp_path("missing");
+        let book = StrategyBook::load(&missing).unwrap();
+        assert!(book.is_empty());
+
+        let path = temp_path("book");
+        fs::write(
+            &path,
+            format!("# comment\n\n{}\n", valid_book_line("agent")),
+        )
+        .unwrap();
+        let loaded = StrategyBook::load(&path).unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(
+            loaded.choose("agent", GameState::new(), 1).unwrap().action,
+            Action::Place { to: 0 }
+        );
+
+        fs::write(&path, "too\tfew\tfields\n").unwrap();
+        assert!(StrategyBook::load(&path).is_err());
+        fs::write(&path, format!("bad\t{}\n", "x".repeat(9))).unwrap();
+        assert!(StrategyBook::load(&path).is_err());
+        fs::write(
+            &path,
+            format!(
+                "{}\tagent\t~0\t1\t2\t3\t4\t5\t6\t7\n",
+                encode_state(GameState::new())
+            ),
+        )
+        .unwrap();
+        assert!(StrategyBook::load(&path).is_err());
+        fs::write(
+            &path,
+            format!(
+                "{}\tagent\t{}\tx\t2\t3\t4\t5\t6\t7\n",
+                encode_state(GameState::new()),
+                encode_action(Action::Place { to: 0 })
+            ),
+        )
+        .unwrap();
+        assert!(StrategyBook::load(&path).is_err());
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn strategy_book_choose_filters_and_applies_all_tie_breakers() {
+        let state = GameState::new();
+        let mut book = StrategyBook::default();
+        book.entries.insert(
+            BookKey {
+                state,
+                agent: "agent".to_owned(),
+                action: Action::Place { to: 0 },
+            },
+            BookEntry {
+                score: 10,
+                completed_depth: 3,
+                prior_nodes: 30,
+                visits: 2,
+                wins: 1,
+                losses: 0,
+                draws: 0,
+            },
+        );
+        book.entries.insert(
+            BookKey {
+                state,
+                agent: "agent".to_owned(),
+                action: Action::Place { to: 1 },
+            },
+            BookEntry {
+                score: 20,
+                completed_depth: 2,
+                prior_nodes: 20,
+                visits: 100,
+                wins: 100,
+                losses: 0,
+                draws: 0,
+            },
+        );
+        book.entries.insert(
+            BookKey {
+                state,
+                agent: "other".to_owned(),
+                action: Action::Place { to: 2 },
+            },
+            BookEntry {
+                score: 30,
+                completed_depth: 9,
+                prior_nodes: 90,
+                visits: 90,
+                wins: 90,
+                losses: 0,
+                draws: 0,
+            },
+        );
+        book.entries.insert(
+            BookKey {
+                state,
+                agent: "agent".to_owned(),
+                action: Action::Relocate { from: 0, to: 1 },
+            },
+            BookEntry {
+                score: 40,
+                completed_depth: 9,
+                prior_nodes: 90,
+                visits: 90,
+                wins: 90,
+                losses: 0,
+                draws: 0,
+            },
+        );
+        assert_eq!(
+            book.choose("agent", state, 3).unwrap().action,
+            Action::Place { to: 0 }
+        );
+        assert!(book.choose("agent", state, 4).is_none());
+
+        book.entries.clear();
+        for (action, visits, wins, losses) in [
+            (Action::Place { to: 0 }, 2, 1, 0),
+            (Action::Place { to: 1 }, 4, 2, 0),
+        ] {
+            book.entries.insert(
+                BookKey {
+                    state,
+                    agent: "agent".to_owned(),
+                    action,
+                },
+                BookEntry {
+                    score: 0,
+                    completed_depth: 2,
+                    prior_nodes: 0,
+                    visits,
+                    wins,
+                    losses,
+                    draws: 0,
+                },
+            );
+        }
+        assert_eq!(
+            book.choose("agent", state, 0).unwrap().action,
+            Action::Place { to: 1 }
+        );
+
+        book.entries
+            .get_mut(&BookKey {
+                state,
+                agent: "agent".to_owned(),
+                action: Action::Place { to: 0 },
+            })
+            .unwrap()
+            .visits = 4;
+        book.entries
+            .get_mut(&BookKey {
+                state,
+                agent: "agent".to_owned(),
+                action: Action::Place { to: 1 },
+            })
+            .unwrap()
+            .losses = 1;
+        assert_eq!(
+            book.choose("agent", state, 0).unwrap().action,
+            Action::Place { to: 0 }
+        );
+        let choice = book.choose("agent", state, 0).unwrap();
+        assert_eq!(choice.score, 0);
+        assert_eq!(choice.completed_depth, 2);
+        assert_eq!(choice.prior_nodes, 0);
+        assert_eq!(choice.visits, 4);
+    }
+
+    #[test]
+    fn strategy_book_records_results_depths_nodes_and_draws() {
+        let first = || {
+            record(
+                Some(Player::Light),
+                TerminationReason::Path,
+                vec![move_record(
+                    1,
+                    Player::Light,
+                    Action::Place { to: 0 },
+                    2,
+                    10,
+                )],
+            )
+        };
+        let mut book = StrategyBook::default();
+        book.record_game(&first()).unwrap();
+        book.record_game(&record(
+            Some(Player::Dark),
+            TerminationReason::ThreefoldRepetition,
+            vec![move_record(1, Player::Light, Action::Place { to: 0 }, 2, 8)],
+        ))
+        .unwrap();
+        book.record_game(&record(
+            None,
+            TerminationReason::MaxPlies,
+            vec![move_record(
+                1,
+                Player::Light,
+                Action::Place { to: 0 },
+                0,
+                100,
+            )],
+        ))
+        .unwrap();
+        book.record_game(&record(
+            None,
+            TerminationReason::NoLegalAction,
+            vec![move_record(
+                1,
+                Player::Light,
+                Action::Place { to: 0 },
+                2,
+                20,
+            )],
+        ))
+        .unwrap();
+        let path = temp_path("record");
+        book.write(&path).unwrap();
+        let text = fs::read_to_string(&path).unwrap();
+        assert!(text.contains("\t2\t2\t20\t3\t1\t1\t1\n"));
+        assert_eq!(book.len(), 1);
+        assert!(!book.is_empty());
+
+        let invalid = record(
+            None,
+            TerminationReason::Path,
+            vec![move_record(1, Player::Light, Action::Place { to: 0 }, 1, 1)],
+        );
+        let mut invalid = invalid;
+        invalid.board_size = 2;
+        assert!(StrategyBook::default().record_game(&invalid).is_err());
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn corpus_export_is_deduplicated_and_writes_manifest_and_book() {
+        let directory = temp_path("export");
+        let game = record(
+            Some(Player::Light),
+            TerminationReason::Path,
+            vec![
+                move_record(1, Player::Light, Action::Place { to: 0 }, 2, 10),
+                move_record(2, Player::Dark, Action::Place { to: 1 }, 1, 5),
+            ],
+        );
+        let first = write_corpus(&directory, std::slice::from_ref(&game)).unwrap();
+        assert_eq!(first.games, 1);
+        assert_eq!(first.added_games, 1);
+        let second = write_corpus(&directory, std::slice::from_ref(&game)).unwrap();
+        assert_eq!(second.games, 1);
+        assert_eq!(second.added_games, 0);
+        let manifest = fs::read_to_string(directory.join("manifest.json")).unwrap();
+        assert!(manifest.contains("\"games\":1"));
+        assert!(manifest.contains("\"positions\":2"));
+
+        let mut wrong = game.clone();
+        wrong.board_size = 5;
+        assert!(write_corpus(&directory.join("wrong"), &[wrong]).is_err());
+        let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn compact_games_cover_codes_safe_fields_and_replay_mismatch() {
+        for (winner, reason, winner_code, reason_code_value) in [
+            (Some(Player::Light), TerminationReason::Path, "L", "P"),
+            (
+                Some(Player::Dark),
+                TerminationReason::ThreefoldRepetition,
+                "D",
+                "R",
+            ),
+            (None, TerminationReason::MaxPlies, "-", "M"),
+            (None, TerminationReason::NoLegalAction, "-", "N"),
+        ] {
+            let line = compact_game_line(&record(winner, reason, Vec::new()));
+            assert!(line.contains(&format!("\t{winner_code}\t{reason_code_value}\t")));
+            let parsed = parse_compact_game(&line).unwrap();
+            assert_eq!(parsed.winner, winner);
+            assert_eq!(parsed.reason, reason);
+            assert!(parsed.replay().is_ok() == winner.is_none());
+        }
+        let mut unsafe_record = record(None, TerminationReason::MaxPlies, Vec::new());
+        unsafe_record.light_agent = "light\tagent\nname\r".to_owned();
+        let parsed = parse_compact_game(&compact_game_line(&unsafe_record)).unwrap();
+        assert_eq!(parsed.light_agent, "light_agent_name_");
+
+        assert!(parse_compact_game("bad").is_err());
+        assert!(parse_compact_game("p1\tzzzzzzzzzzz\tl\td\t-\tM\t").is_err());
+        assert!(parse_compact_game("p1\tH\tl\td\tX\tM\t").is_err());
+        assert!(parse_compact_game("p1\tH\tl\td\t-\tX\t").is_err());
+        assert!(parse_compact_game("p1\tH\tl\td\t-\tM\t0").is_err());
+        assert!(parse_compact_game("p1\tH\tl\td\t-\tM\t€0").is_err());
+        assert!(parse_compact_game("p1\tH\tl\td\t-\tM\t~0").is_err());
+        let mismatch = CompactGame {
+            seed: 1,
+            light_agent: "l".to_owned(),
+            dark_agent: "d".to_owned(),
+            winner: Some(Player::Light),
+            reason: TerminationReason::Path,
+            actions: Vec::new(),
+        };
+        assert!(mismatch.replay().is_err());
+    }
+
+    #[test]
+    fn unified_games_cover_parse_errors_and_replay_errors() {
+        let valid = parse_unified_game(&unified_line(3, "000102")).unwrap();
+        assert_eq!(valid.replay().unwrap().ply, 3);
+        let mut invalid = valid.clone();
+        invalid.actions = vec![Action::Place { to: 9 }];
+        assert!(invalid.replay().is_err());
+
+        assert!(parse_unified_game("short").is_err());
+        assert!(parse_unified_game(&format!("x{}", &unified_line(0, "")[1..])).is_err());
+        assert!(parse_unified_game(&format!(
+            "g1_{}\tpathagon-rules-v1\t3\t2\t3\t0\t",
+            "A".repeat(42)
+        ))
+        .is_err());
+        assert!(parse_unified_game(&unified_line(0, "")).is_ok());
+        let mut fields = unified_line(0, "")
+            .split('\t')
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        fields[1].clear();
+        assert!(parse_unified_game(&fields.join("\t")).is_err());
+        fields = unified_line(0, "").split('\t').map(str::to_owned).collect();
+        fields[2] = "x".to_owned();
+        assert!(parse_unified_game(&fields.join("\t")).is_err());
+        fields[2] = "2".to_owned();
+        assert!(parse_unified_game(&fields.join("\t")).is_err());
+        fields[2] = "3".to_owned();
+        fields[3] = "x".to_owned();
+        assert!(parse_unified_game(&fields.join("\t")).is_err());
+        fields[3] = "0".to_owned();
+        assert!(parse_unified_game(&fields.join("\t")).is_err());
+        fields[3] = "2".to_owned();
+        fields[4] = "x".to_owned();
+        assert!(parse_unified_game(&fields.join("\t")).is_err());
+        fields[4] = "0".to_owned();
+        assert!(parse_unified_game(&fields.join("\t")).is_err());
+        fields[4] = "3".to_owned();
+        fields[5] = "x".to_owned();
+        assert!(parse_unified_game(&fields.join("\t")).is_err());
+        fields[5] = "1".to_owned();
+        fields[6] = "0".to_owned();
+        assert!(parse_unified_game(&fields.join("\t")).is_err());
+        fields[6] = "€0".to_owned();
+        assert!(parse_unified_game(&fields.join("\t")).is_err());
+        fields[6] = "~0".to_owned();
+        assert!(parse_unified_game(&fields.join("\t")).is_err());
+        fields[6] = "0001".to_owned();
+        fields[5] = "1".to_owned();
+        assert!(parse_unified_game(&fields.join("\t")).is_err());
+        fields[6] = "09".to_owned();
+        assert!(parse_unified_game(&fields.join("\t")).is_err());
+    }
+
+    #[test]
+    fn state_and_radix_helpers_cover_optional_and_overflow_paths() {
+        let state = GameState {
+            config: BoardConfig::DEFAULT,
+            light: 1,
+            dark: 2,
+            reserve: [5, 6],
+            turn: Player::Dark,
+            forbidden: 8,
+            last_relocated_to: [Some(4), None],
+            last_capture: 2,
+            last_player: Some(Player::Light),
+            winner: None,
+            ply: 17,
+        };
+        assert_eq!(decode_state(&encode_state(state)).unwrap(), state);
+        assert_eq!(encode_radix(0), "0");
+        assert_eq!(decode_radix("0").unwrap(), 0);
+        assert!(decode_state("short").is_err());
+        assert!(decode_radix("").is_err());
+        assert!(decode_radix("~").is_err());
+        assert!(decode_radix("zzzzzzzzzzz").is_err());
+        assert!(small_radix("zzzzzzzzzz").is_err());
+        assert!(optional_square("-").unwrap().is_none());
+        assert!(optional_square("9").unwrap().is_some());
+        assert!(required_player("-").is_err());
+        assert_eq!(required_player("L").unwrap(), Player::Light);
+        assert_eq!(optional_player("D").unwrap(), Some(Player::Dark));
+        assert!(optional_player("X").is_err());
+        assert!(decode_state(&format!("{}.~.0.0.L.0.-.-.0.-.0", encode_radix(1))).is_err());
+        assert!(decode_state("0.0.0.0.-.0.-.-.0.-.0").is_err());
+        assert!(decode_state("0.0.0.0.L.0.-.-.0.-.zzzzzzzzzz").is_err());
+        assert!(decode_action("0").is_err());
+        assert!(decode_action("~0").is_err());
+        assert!(decode_action("__").is_err());
     }
 }

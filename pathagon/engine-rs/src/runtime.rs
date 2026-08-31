@@ -804,4 +804,82 @@ mod tests {
         let action = result.action.expect("initial position has an action");
         assert!(GameState::new().legal_actions().contains(&action.into()));
     }
+
+    #[test]
+    fn runtime_json_boundaries_cover_errors_and_all_search_endpoints() {
+        assert!(parse_position("not json").is_err());
+        let position = position_json(GameState::new()).expect("serialize position");
+        let mut malformed: serde_json::Value = serde_json::from_str(&position).unwrap();
+        malformed["lastCapture"] = serde_json::json!(5);
+        assert!(parse_position(&malformed.to_string()).is_err());
+        assert!(legal_actions_json("not json").is_err());
+        assert!(apply_action_json(&position, "not json").is_err());
+        assert!(apply_action_json(
+            &position,
+            &serde_json::to_string(&ContractAction::Place { to: 49 }).unwrap()
+        )
+        .is_err());
+        assert!(apply_action_transition_json(&position, "not json").is_err());
+
+        let config = serde_json::json!({
+            "depth": 1,
+            "maxNodes": 32,
+            "beamWidth": 8,
+            "weights": {"path": 240, "material": 110, "capture": 700, "structure": 55, "threat": 130, "edge": 80}
+        })
+        .to_string();
+        assert!(search_best_action_json(&position, &config).is_ok());
+        assert!(search_best_action_json(&position, "not json").is_err());
+        assert!(search_best_action_with_tactical_filter_json(&position, &config).is_ok());
+        assert!(
+            search_best_action_with_tactical_filter_deadline_json(&position, &config, 1).is_ok()
+        );
+        assert!(
+            search_best_action_with_tactical_filter_deadline_progress_json(
+                &position,
+                &config,
+                1,
+                Box::new(|_, _| {}),
+            )
+            .is_ok()
+        );
+        assert!(lunatic_action_json(&position).is_ok());
+        assert!(analyze_action_json(&position, "not json", &config).is_err());
+        assert!(analyze_actions_json(&position, &config, 0).is_ok());
+        assert!(
+            search_best_action_with_golden_bytes_json(&position, &config, &[1, 2, 3], None)
+                .is_err()
+        );
+
+        let model = TransitionPolicyModel::from_json(
+            &serde_json::json!({
+                "schemaVersion": 1,
+                "model": "tanh-action-state-transition-policy-v2",
+                "encoding": "explicit-source-kind",
+                "featureOrder": (0..crate::transition_policy::FEATURE_COUNT).map(|i| format!("f{i}")).collect::<Vec<_>>(),
+                "mean": vec![0.0; crate::transition_policy::FEATURE_COUNT],
+                "scale": vec![1.0; crate::transition_policy::FEATURE_COUNT],
+                "layers": [
+                    {"weights": vec![vec![0.0; crate::transition_policy::FEATURE_COUNT]], "bias": [0.0]},
+                    {"weights": vec![vec![0.0]], "bias": [0.0]},
+                    {"weights": vec![vec![0.0]], "bias": [0.0]}
+                ]
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let ranked: Vec<RuntimeTransitionPolicyAction> =
+            serde_json::from_str(&rank_transition_policy_json(&position, &model, 0).unwrap())
+                .unwrap();
+        assert_eq!(ranked.len(), 49);
+        assert!(search_transition_policy_with_progress_json(
+            &position,
+            &config,
+            &model,
+            1,
+            Box::new(|_, _| {}),
+        )
+        .is_ok());
+        assert!(rank_transition_policy_json("not json", &model, 1).is_err());
+    }
 }
