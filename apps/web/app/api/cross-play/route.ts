@@ -2,7 +2,7 @@ import { countSelfPlayGames, querySelfPlayGames, querySelfPlayResults } from "..
 import type { SelfPlayGameRecord } from "../../selfplay-record";
 import type { SelfPlayResult } from "../../../db/selfplay-games";
 import { applyAction, createGame } from "../../pathagon";
-import { PATHFINDER_TACTICAL_FILTER_ID, TRANSITION_PATHFINDER_ID, TRAINED_PATHFINDER_ID } from "../../agent-ids";
+import { LEAGUE_MODELS, RANKED_LEAGUE_MODELS, isRankedLeagueModel, leagueModel } from "../../league-models";
 
 const MAX_QUERY_GAMES = 500;
 const DEFAULT_HISTORY_LIMIT = 24;
@@ -10,47 +10,8 @@ const MAX_HISTORY_LIMIT = 50;
 const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
 const RUN_ID_PATTERN = /^[a-zA-Z0-9._:-]{1,120}$/;
 const WEB_GENERATED_ENGINE = "typescript-live-cross-play";
-const AGENTS = [
-  { id: TRANSITION_PATHFINDER_ID, label: "The Pathfinder · Transition v4", kind: "heuristic" as const, tone: "green" },
-  { id: TRAINED_PATHFINDER_ID, label: "The Pathfinder · Trained", kind: "heuristic" as const, tone: "green" },
-  { id: PATHFINDER_TACTICAL_FILTER_ID, label: "The Pathfinder", kind: "heuristic" as const, tone: "green" },
-  { id: "surveyor-v0.2.0", label: "The Surveyor", kind: "heuristic" as const, tone: "violet" },
-  { id: "lunatic-v0.1.0", label: "Lunatic", kind: "heuristic" as const, tone: "gold" },
-  { id: "coin-flip-v0.0.1", label: "Coin Flip", kind: "random" as const, tone: "muted" },
-  { id: "gnn-warmstart-7x7", label: "GNN Learner", kind: "gnn" as const, tone: "green" },
-  { id: "qadv-arbiter-7x7-v0.1.0", label: "The Q-Arbiter", kind: "learned" as const, tone: "violet" },
-  { id: "qadv-arbiter-guided-7x7-v0.2.0", label: "The Q-Arbiter · Guided Search", kind: "learned" as const, tone: "green" },
-  { id: "gnn-reval30k-7x7", label: "Re-evaluated GNN 30k", kind: "gnn" as const, tone: "green" },
-  { id: "cnn-baseline-7x7", label: "CNN baseline", kind: "cnn" as const, tone: "gold" },
-  { id: "cnn-reval30k-7x7", label: "Re-evaluated CNN 30k", kind: "cnn" as const, tone: "gold" },
-  { id: "gnn-scout-7x7", label: "GNN Scout", kind: "gnn" as const, tone: "violet" },
-  { id: "gnn-scout-puct32-7x7", label: "Scout + PUCT", kind: "gnn" as const, tone: "violet" },
-  { id: "gnn-scout-beam-7x7", label: "Scout + Neural Beam", kind: "gnn" as const, tone: "green" },
-  { id: "gnn-scout-hybrid-beam-7x7", label: "Scout + Hybrid Beam", kind: "gnn" as const, tone: "gold" },
-  { id: "pathfinder-deep-10k-7x7", label: "Pathfinder + Deep Search", kind: "heuristic" as const, tone: "green" },
-  { id: "gnn-scout-beam10k-7x7", label: "Scout + 10k Beam", kind: "gnn" as const, tone: "violet" },
-] as const;
-
-const BASELINE_RATINGS: Record<string, number> = {
-  [TRANSITION_PATHFINDER_ID]: 1_160,
-  [TRAINED_PATHFINDER_ID]: 1_160,
-  [PATHFINDER_TACTICAL_FILTER_ID]: 1_142,
-  "surveyor-v0.2.0": 1_085,
-  "lunatic-v0.1.0": 1_059,
-  "coin-flip-v0.0.1": 935,
-  "gnn-warmstart-7x7": 957,
-  "qadv-arbiter-7x7-v0.1.0": 1_000,
-  "qadv-arbiter-guided-7x7-v0.2.0": 1_000,
-  "gnn-reval30k-7x7": 1_000,
-  "cnn-baseline-7x7": 950,
-  "cnn-reval30k-7x7": 1_000,
-  "gnn-scout-7x7": 940,
-  "gnn-scout-puct32-7x7": 940,
-  "gnn-scout-beam-7x7": 940,
-  "gnn-scout-hybrid-beam-7x7": 940,
-  "pathfinder-deep-10k-7x7": 940,
-  "gnn-scout-beam10k-7x7": 940,
-};
+const ARCHIVE_AGENTS = LEAGUE_MODELS;
+const BASELINE_RATINGS = Object.fromEntries(RANKED_LEAGUE_MODELS.map((agent) => [agent.id, agent.initialRating]));
 
 export async function GET(request: Request) {
   try {
@@ -67,12 +28,14 @@ export async function GET(request: Request) {
     const results = await queryAllCrossPlayResults(filters);
     if (!results.length) return Response.json({ found: false, error: "No imported cross-play games yet" }, { status: 404 });
     const latestRecords = await querySelfPlayGames({ ...filters, limit: 5, offset: 0 });
-    const standings = buildStandings(results);
-    const headToHead = buildHeadToHead(results);
+    const rankedResults = results.filter((result) => isRankedLeagueModel(result.lightAgent) && isRankedLeagueModel(result.darkAgent));
+    const standings = buildStandings(rankedResults);
+    const headToHead = buildHeadToHead(rankedResults);
     return Response.json({
       runId,
       targetGames: results.length,
       games: results.length,
+      rankedGames: rankedResults.length,
       status: "complete",
       standings,
       headToHead,
@@ -123,7 +86,7 @@ function sortResults<T extends { recordedAt: string; id: string; seed: number }>
 
 function buildStandings(records: Awaited<ReturnType<typeof queryAllCrossPlayResults>>) {
   const ratings = new Map(Object.entries(BASELINE_RATINGS));
-  const summaries = new Map(AGENTS.map((agent) => [agent.id, { games: 0, wins: 0, losses: 0, draws: 0, points: 0 }]));
+  const summaries = new Map(RANKED_LEAGUE_MODELS.map((agent) => [agent.id, { games: 0, wins: 0, losses: 0, draws: 0, points: 0 }]));
   for (const result of sortResults(records)) {
     updateElo(ratings, result.lightAgent, result.darkAgent, result.winner);
     for (const agent of [result.lightAgent, result.darkAgent]) {
@@ -136,17 +99,18 @@ function buildStandings(records: Awaited<ReturnType<typeof queryAllCrossPlayResu
       summary.points = summary.wins + summary.draws * 0.5;
     }
   }
-  return AGENTS.map((agent) => ({
+  return RANKED_LEAGUE_MODELS.map((agent) => ({
     id: agent.id,
-    label: agent.label,
+    label: agent.name,
     tone: agent.tone,
+    rustEngine: true,
     rating: Math.round(ratings.get(agent.id) ?? BASELINE_RATINGS[agent.id]),
     ...(summaries.get(agent.id) ?? { games: 0, wins: 0, losses: 0, draws: 0, points: 0 }),
   })).sort((left, right) => right.rating - left.rating || right.points - left.points);
 }
 
 function buildHeadToHead(records: Awaited<ReturnType<typeof queryAllCrossPlayResults>>) {
-  const agentIndex = new Map(AGENTS.map((agent, index) => [agent.id, index]));
+  const agentIndex = new Map(RANKED_LEAGUE_MODELS.map((agent, index) => [agent.id, index]));
   const pairings = new Map<string, {
     leftId: string;
     rightId: string;
@@ -162,15 +126,15 @@ function buildHeadToHead(records: Awaited<ReturnType<typeof queryAllCrossPlayRes
     rightLightGames: number;
   }>();
 
-  for (let leftIndex = 0; leftIndex < AGENTS.length; leftIndex += 1) {
-    for (let rightIndex = leftIndex + 1; rightIndex < AGENTS.length; rightIndex += 1) {
-      const left = AGENTS[leftIndex];
-      const right = AGENTS[rightIndex];
+  for (let leftIndex = 0; leftIndex < RANKED_LEAGUE_MODELS.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < RANKED_LEAGUE_MODELS.length; rightIndex += 1) {
+      const left = RANKED_LEAGUE_MODELS[leftIndex]!;
+      const right = RANKED_LEAGUE_MODELS[rightIndex]!;
       pairings.set(`${left.id}|${right.id}`, {
         leftId: left.id,
         rightId: right.id,
-        leftLabel: left.label,
-        rightLabel: right.label,
+        leftLabel: left.name,
+        rightLabel: right.name,
         games: 0,
         leftWins: 0,
         rightWins: 0,
@@ -189,8 +153,8 @@ function buildHeadToHead(records: Awaited<ReturnType<typeof queryAllCrossPlayRes
     if (lightIndex === undefined || darkIndex === undefined || lightIndex === darkIndex) continue;
     const leftIndex = Math.min(lightIndex, darkIndex);
     const rightIndex = Math.max(lightIndex, darkIndex);
-    const left = AGENTS[leftIndex];
-    const right = AGENTS[rightIndex];
+    const left = RANKED_LEAGUE_MODELS[leftIndex]!;
+    const right = RANKED_LEAGUE_MODELS[rightIndex]!;
     const pairing = pairings.get(`${left.id}|${right.id}`);
     if (!pairing) continue;
     pairing.games += 1;
@@ -245,7 +209,7 @@ function summarizeGame(id: string, recordedAt: string, record: SelfPlayGameRecor
 }
 
 function labelFor(id: string) {
-  return AGENTS.find((agent) => agent.id === id)?.label ?? id;
+  return leagueModel(id)?.name ?? id;
 }
 
 function validateRunId(value: unknown): string {
@@ -255,7 +219,7 @@ function validateRunId(value: unknown): string {
 
 function validateAgent(value: string | null) {
   if (value === null) return undefined;
-  if (!AGENTS.some((agent) => agent.id === value)) throw new Error("Invalid pairwise agent");
+  if (!ARCHIVE_AGENTS.some((agent) => agent.id === value)) throw new Error("Invalid pairwise agent");
   return value;
 }
 

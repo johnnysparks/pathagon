@@ -9,7 +9,7 @@
 - Runtime-error evidence: `/var/folders/bx/l9zszz055x7b9bdwkp3c4p8w0000gn/T/TemporaryItems/NSIRD_screencaptureui_qCQHAs/Screenshot 2026-08-26 at 10.46.26 AM.png`, showing the hosted Games panel failing with `boundedInteger is not defined`.
 - Latest layout evidence: `/var/folders/bx/l9zszz055x7b9bdwkp3c4p8w0000gn/T/TemporaryItems/NSIRD_screencaptureui_IHzMtK/Screenshot 2026-08-26 at 10.51.45 AM.png` (1142 × 438 px), showing the undersized preview and dead space that prompted this iteration.
 - Revised implementation screenshot: `/tmp/pathagon-layout-thumbnail-fixed.jpg` (1280 × 720 px, hosted browser capture; CSS viewport 1280 × 720 at device scale 1).
-- State: hosted `/lab`, dark theme, archive loaded with 940 games and 16 agents, default Elo ladder selected. The narrow browser pane exercises the mobile sets-first state.
+- State: historical hosted `/lab` capture from before the current research cleanup, dark theme, archive loaded with 940 games and 16 displayed agents, default Elo ladder selected. The current implementation ranks only six Rust-engine opponents; research-only identities remain archive evidence and are not ranked.
 - Density normalization: source screenshot retained at its supplied density; implementation was cropped from a 3420 × 2224 px desktop capture and resized for comparison, with browser chrome excluded from the implementation crop.
 
 ## Comparison evidence

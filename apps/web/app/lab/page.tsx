@@ -4,211 +4,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { applyAction, createGame, type GameState } from "../pathagon";
 import type { ContractMove, ContractReplayRecord } from "../contract";
-import { PATHFINDER_TACTICAL_FILTER_ID, TRANSITION_PATHFINDER_ID, TRAINED_PATHFINDER_ID } from "../agent-ids";
+import {
+  LATEST_RESEARCH,
+  LEAGUE_MODELS,
+  RANKED_LEAGUE_MODELS,
+  RESEARCH_LANES,
+} from "../league-models";
 
 const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
 const GAME_THUMBNAIL_RESOLUTION = 256;
+const CROSS_PLAY_POLL_MS = 15_000;
 
-const MODELS = [
-  {
-    id: TRANSITION_PATHFINDER_ID,
-    name: "The Pathfinder · Transition v4",
-    family: "4-ply iterative · action-transition policy",
-    role: "default playable opponent",
-    budget: "",
-    tone: "green",
-    glyph: "V4",
-    planned: false,
-    disabled: false,
-  },
-  {
-    id: TRAINED_PATHFINDER_ID,
-    name: "The Pathfinder · Trained",
-    family: "4-ply iterative · trained evaluator",
-    role: "playable opponent",
-    budget: "",
-    tone: "green",
-    glyph: "T",
-    planned: false,
-    disabled: false,
-  },
-  {
-    id: PATHFINDER_TACTICAL_FILTER_ID,
-    name: "The Pathfinder",
-    family: "4-ply iterative · tactical-safe",
-    role: "playable opponent",
-    budget: "",
-    tone: "green",
-    glyph: "P",
-    planned: false,
-    disabled: false,
-  },
-  {
-    id: "surveyor-v0.2.0",
-    name: "The Surveyor",
-    family: "2-ply broad-beam search",
-    role: "playable opponent",
-    budget: "",
-    tone: "violet",
-    glyph: "S",
-    planned: false,
-    disabled: false,
-  },
-  {
-    id: "lunatic-v0.1.0",
-    name: "Lunatic",
-    family: "1-ply pattern heuristic",
-    role: "playable opponent",
-    budget: "",
-    tone: "gold",
-    glyph: "L",
-    planned: false,
-    disabled: false,
-  },
-  {
-    id: "coin-flip-v0.0.1",
-    name: "Coin Flip",
-    family: "Random legal action",
-    role: "playable opponent",
-    budget: "",
-    tone: "muted",
-    glyph: "C",
-    planned: false,
-    disabled: false,
-  },
-  {
-    id: "gnn-warmstart-7x7",
-    name: "GNN Learner",
-    family: "64 channels · 8 message layers",
-    role: "neural candidate",
-    budget: "",
-    tone: "green",
-    glyph: "G",
-    planned: false,
-    disabled: false,
-  },
-  {
-    id: "qadv-arbiter-7x7-v0.1.0",
-    name: "The Q-Arbiter",
-    family: "Transition-aware Q / Advantage action ranking",
-    role: "learned action selector",
-    budget: "",
-    tone: "violet",
-    glyph: "Q",
-    planned: false,
-    disabled: false,
-  },
-  {
-    id: "qadv-arbiter-guided-7x7-v0.2.0",
-    name: "The Q-Arbiter · Guided Search",
-    family: "QAdv top-k ranking · shallow reply verification",
-    role: "learned search candidate",
-    budget: "",
-    tone: "green",
-    glyph: "Q",
-    planned: false,
-    disabled: false,
-  },
-  {
-    id: "gnn-reval30k-7x7",
-    name: "Re-evaluated GNN 30k",
-    family: "Re-evaluated GNN · 4 PUCT simulations",
-    role: "neural reference",
-    budget: "",
-    tone: "green",
-    glyph: "G",
-    planned: false,
-    disabled: false,
-  },
-  {
-    id: "cnn-baseline-7x7",
-    name: "CNN baseline",
-    family: "7×7 residual CNN · 87.4k params",
-    role: "neural candidate",
-    budget: "",
-    tone: "gold",
-    glyph: "C",
-    planned: false,
-    disabled: false,
-  },
-  {
-    id: "cnn-reval30k-7x7",
-    name: "Re-evaluated CNN 30k",
-    family: "Re-evaluated CNN · 4 PUCT simulations",
-    role: "neural reference",
-    budget: "",
-    tone: "gold",
-    glyph: "C",
-    planned: false,
-    disabled: false,
-  },
-  {
-    id: "gnn-scout-7x7",
-    name: "GNN Scout",
-    family: "Compact message passing · 17.5k params",
-    role: "neural data generator",
-    budget: "",
-    tone: "violet",
-    glyph: "S",
-    planned: false,
-    disabled: false,
-  },
-  {
-    id: "gnn-scout-puct32-7x7",
-    name: "Scout + PUCT",
-    family: "GNN Scout policy/value · neural tree search",
-    role: "search candidate",
-    budget: "32 PUCT simulations / move",
-    tone: "violet",
-    glyph: "P",
-    planned: true,
-    disabled: false,
-  },
-  {
-    id: "gnn-scout-beam-7x7",
-    name: "Scout + Neural Beam",
-    family: "GNN Scout policy · 8-move iterative beam",
-    role: "search candidate",
-    budget: "1,000 node budget / move",
-    tone: "green",
-    glyph: "B",
-    planned: true,
-    disabled: false,
-  },
-  {
-    id: "gnn-scout-hybrid-beam-7x7",
-    name: "Scout + Hybrid Beam",
-    family: "Scout policy + Pathfinder value · 8-move beam",
-    role: "hybrid candidate",
-    budget: "1,000 node budget / move",
-    tone: "gold",
-    glyph: "H",
-    planned: true,
-    disabled: false,
-  },
-  {
-    id: "pathfinder-deep-10k-7x7",
-    name: "Pathfinder + Deep Search",
-    family: "Pathfinder heuristic · 4-ply iterative search",
-    role: "high-budget heuristic",
-    budget: "10,000 node budget / move",
-    tone: "green",
-    glyph: "P",
-    planned: true,
-    disabled: false,
-  },
-  {
-    id: "gnn-scout-beam10k-7x7",
-    name: "Scout + 10k Beam",
-    family: "GNN Scout policy · 5-ply neural beam",
-    role: "high-budget learned",
-    budget: "10,000 node budget / move",
-    tone: "violet",
-    glyph: "B",
-    planned: true,
-    disabled: false,
-  },
-] as const;
+const MODELS = LEAGUE_MODELS;
+const RANKED_MODEL_IDS = new Set(RANKED_LEAGUE_MODELS.map((model) => model.id));
 
 type LiveStanding = {
   id: string;
@@ -219,6 +27,7 @@ type LiveStanding = {
   losses: number;
   draws: number;
   points: number;
+  rustEngine?: boolean;
 };
 
 type LiveGame = {
@@ -263,6 +72,7 @@ type CrossPlayState = {
   runId: string;
   targetGames: number;
   games: number;
+  rankedGames?: number;
   status: "ready" | "running" | "complete";
   standings: LiveStanding[];
   headToHead: HeadToHead[];
@@ -278,9 +88,7 @@ type HistoryPage = {
   hasMore: boolean;
 };
 
-type StandingFilter = "all" | "rated" | "candidate" | "waiting" | "disabled";
 type StandingSort = "rank" | "elo-desc" | "games-desc" | "name-asc";
-type HeadToHeadFilter = "all" | "active" | "inactive";
 type HeadToHeadSort = "games-desc" | "games-asc" | "win-rate-desc" | "loss-rate-asc" | "draw-rate-desc" | "score-rate-desc" | "pairing-asc";
 
 type HeadToHeadView = {
@@ -332,11 +140,9 @@ export default function LearningLab() {
   const [replayError, setReplayError] = useState<string | null>(null);
   const [replayModalOpen, setReplayModalOpen] = useState(false);
   const [standingSearch, setStandingSearch] = useState("");
-  const [standingFilter, setStandingFilter] = useState<StandingFilter>("all");
   const [standingSort, setStandingSort] = useState<StandingSort>("rank");
   const [headToHeadSearch, setHeadToHeadSearch] = useState("");
   const [headToHeadFocus, setHeadToHeadFocus] = useState("all");
-  const [headToHeadFilter, setHeadToHeadFilter] = useState<HeadToHeadFilter>("active");
   const [headToHeadSort, setHeadToHeadSort] = useState<HeadToHeadSort>("games-desc");
   const replayRequest = useRef(0);
   const historySentinel = useRef<HTMLDivElement | null>(null);
@@ -350,16 +156,18 @@ export default function LearningLab() {
     [crossPlay],
   );
   const liveRankById = useMemo(
-    () => new Map((crossPlay?.standings ?? []).map((standing, index) => [standing.id, String(index + 1).padStart(2, "0")])),
+    () => new Map(
+      (crossPlay?.standings ?? [])
+        .filter((standing) => standing.rustEngine ?? RANKED_MODEL_IDS.has(standing.id))
+        .map((standing, index) => [standing.id, String(index + 1).padStart(2, "0")]),
+    ),
     [crossPlay],
   );
   const visibleModels = useMemo(() => {
     const query = standingSearch.trim().toLowerCase();
-    const filtered = MODELS.filter((model) => {
-      const live = liveStandingById.get(model.id);
-      const status = modelStandingStatus(model, live);
+    const filtered = RANKED_LEAGUE_MODELS.filter((model) => {
       const searchable = `${model.name} ${model.family} ${model.role} ${model.id}`.toLowerCase();
-      return (!query || searchable.includes(query)) && (standingFilter === "all" || status === standingFilter);
+      return !query || searchable.includes(query);
     });
 
     return [...filtered].sort((left, right) => {
@@ -367,21 +175,22 @@ export default function LearningLab() {
       const rightLive = liveStandingById.get(right.id);
       if (standingSort === "elo-desc") return compareNullableNumbers(leftLive?.rating, rightLive?.rating, left, right);
       if (standingSort === "games-desc") return compareNullableNumbers(leftLive?.games, rightLive?.games, left, right);
-      if (standingSort === "name-asc") return left.name.localeCompare(right.name) || MODELS.indexOf(left) - MODELS.indexOf(right);
+      if (standingSort === "name-asc") return left.name.localeCompare(right.name) || RANKED_LEAGUE_MODELS.indexOf(left) - RANKED_LEAGUE_MODELS.indexOf(right);
 
       const leftRank = liveRankById.get(left.id);
       const rightRank = liveRankById.get(right.id);
       if (leftRank && rightRank) return Number(leftRank) - Number(rightRank);
       if (leftRank) return -1;
       if (rightRank) return 1;
-      return MODELS.indexOf(left) - MODELS.indexOf(right);
+      return RANKED_LEAGUE_MODELS.indexOf(left) - RANKED_LEAGUE_MODELS.indexOf(right);
     });
-  }, [liveRankById, liveStandingById, standingFilter, standingSearch, standingSort]);
+  }, [liveRankById, liveStandingById, standingSearch, standingSort]);
 
   const scopedHeadToHead = useMemo(() => {
     if (!crossPlay) return [];
-    if (headToHeadFocus === "all") return crossPlay.headToHead;
-    return crossPlay.headToHead.filter((pairing) => pairing.leftId === headToHeadFocus || pairing.rightId === headToHeadFocus);
+    const rankedPairings = crossPlay.headToHead.filter((pairing) => RANKED_MODEL_IDS.has(pairing.leftId) && RANKED_MODEL_IDS.has(pairing.rightId));
+    if (headToHeadFocus === "all") return rankedPairings;
+    return rankedPairings.filter((pairing) => pairing.leftId === headToHeadFocus || pairing.rightId === headToHeadFocus);
   }, [crossPlay, headToHeadFocus]);
 
   const visibleHeadToHead = useMemo(() => {
@@ -391,7 +200,7 @@ export default function LearningLab() {
         const active = pairing.games > 0;
         const searchable = `${pairing.leftLabel} ${pairing.rightLabel} ${pairing.leftId} ${pairing.rightId}`.toLowerCase();
         return (!query || searchable.includes(query))
-          && (headToHeadFilter === "all" || (headToHeadFilter === "active" ? active : !active));
+          && active;
       })
       .map((pairing) => orientHeadToHead(pairing, headToHeadFocus));
 
@@ -404,13 +213,11 @@ export default function LearningLab() {
       if (headToHeadSort === "pairing-asc") return `${left.focusLabel} ${left.opponentLabel}`.localeCompare(`${right.focusLabel} ${right.opponentLabel}`);
       return right.games - left.games || left.opponentLabel.localeCompare(right.opponentLabel);
     });
-  }, [headToHeadFilter, headToHeadFocus, headToHeadSearch, headToHeadSort, scopedHeadToHead]);
+  }, [headToHeadFocus, headToHeadSearch, headToHeadSort, scopedHeadToHead]);
 
-  const headToHeadFocusLabel = MODELS.find((model) => model.id === headToHeadFocus)?.name;
-
-  const strengthLeaderLive = crossPlay?.standings[0];
+  const strengthLeaderLive = crossPlay?.standings.find((standing) => (standing.rustEngine ?? RANKED_MODEL_IDS.has(standing.id)) && standing.games > 0);
   const strengthLeader = MODELS.find((model) => model.id === strengthLeaderLive?.id) ?? MODELS[0];
-  const ratedAgentCount = crossPlay?.standings.filter((standing) => standing.games > 0).length ?? MODELS.filter((model) => !model.planned).length;
+  const ratedAgentCount = crossPlay?.standings.filter((standing) => (standing.rustEngine ?? RANKED_MODEL_IDS.has(standing.id)) && standing.games > 0).length ?? RANKED_LEAGUE_MODELS.length;
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("pathagon-lab-theme");
@@ -547,7 +354,7 @@ export default function LearningLab() {
         });
     };
     refresh();
-    const timer = window.setInterval(refresh, 900);
+    const timer = window.setInterval(refresh, CROSS_PLAY_POLL_MS);
     return () => {
       active = false;
       window.clearInterval(timer);
@@ -627,12 +434,13 @@ export default function LearningLab() {
         <div className="leaderboard-compact-copy">
           <span className="portal-kicker">7×7 model league</span>
           <h1>Model league.</h1>
-          <p>Browse ranked agents, compare pairings, and replay the games behind the results.</p>
+          <p>Browse the supported ladder, compare pairings, replay archived games, and see why Transition v4 is the current default.</p>
         </div>
         <div className="leaderboard-compact-meta" aria-label="Archive summary">
           <span className="leaderboard-status polling-status"><span /> {crossPlay ? "Polling" : "Connecting"}</span>
-          <div><strong>{crossPlay?.games ?? "—"}</strong><span>games</span></div>
-          <div><strong>{MODELS.length}</strong><span>agents</span></div>
+          <div><strong>{crossPlay?.games ?? "—"}</strong><span>archive games</span></div>
+          <div><strong>{crossPlay?.rankedGames ?? "—"}</strong><span>ranked games</span></div>
+          <div><strong>{RANKED_LEAGUE_MODELS.length}</strong><span>ranked agents</span></div>
         </div>
       </header>
 
@@ -641,7 +449,7 @@ export default function LearningLab() {
       <div className={`game-browser mobile-view-${mobileView}`}>
       <section className="leaderboard-panel game-sets-panel" aria-labelledby="game-sets-title">
         <div className="game-section-heading">
-          <div><span className="portal-kicker">Section one</span><h2 id="game-sets-title">Game sets</h2><p>Choose the lens that controls the game list.</p></div>
+          <div><span className="portal-kicker">Section one</span><h2 id="game-sets-title">Game sets</h2><p>Official ladder evidence, with research-only identities kept out of rank.</p></div>
           <span className="leaderboard-status"><span /> {crossPlay ? `${ratedAgentCount} rated` : "Waiting for poll"}</span>
         </div>
         <div className="game-set-tabs" role="tablist" aria-label="Game sets">
@@ -655,7 +463,7 @@ export default function LearningLab() {
 
         {activeSet === "ladder" ? <div className="game-set-content" role="tabpanel">
           <div className="game-set-summary">
-            <div><span className="game-set-label">Cumulative rating</span><strong>Model league</strong><p>All imported cross-play games, ordered by live Elo.</p></div>
+            <div><span className="game-set-label">Cumulative rating</span><strong>Supported league</strong><p>Rankable supported and baseline agents, ordered by live Elo.</p></div>
             <div className="game-set-highlight"><span>Leader</span><strong>{strengthLeaderLive?.label ?? strengthLeader.name}</strong><small>{strengthLeaderLive ? `${strengthLeaderLive.rating.toLocaleString()} Elo · ${formatRecord(strengthLeaderLive)}` : "Waiting for live standings"}</small></div>
           </div>
           <div className="table-toolbar compact-table-toolbar" aria-label="Standings table controls">
@@ -669,10 +477,10 @@ export default function LearningLab() {
           </div>
           <button className="mobile-section-cta" type="button" onClick={() => setMobileView("games")}>View {crossPlay?.games ?? "all"} games <span>→</span></button>
         </div> : <div className="game-set-content" role="tabpanel">
-          <p className="game-set-intro">Select a played matchup to make it the active game list. Pairings are read from the same imported archive as the ladder.</p>
+          <p className="game-set-intro">Select a played matchup to make it the active game list. Only rankable agents appear here; research-only runs remain available in the archive below.</p>
           <div className="table-toolbar compact-table-toolbar pairwise-toolbar" aria-label="Pairwise table controls">
             <label className="table-control table-search" htmlFor="head-to-head-search"><span>Search</span><input id="head-to-head-search" type="search" value={headToHeadSearch} onChange={(event) => setHeadToHeadSearch(event.target.value)} placeholder="Model or pairing" /></label>
-            <label className="table-control" htmlFor="head-to-head-focus"><span>Focus</span><select id="head-to-head-focus" value={headToHeadFocus} onChange={(event) => setHeadToHeadFocus(event.target.value)}><option value="all">All models</option>{MODELS.map((model) => <option value={model.id} key={model.id}>{model.name}</option>)}</select></label>
+            <label className="table-control" htmlFor="head-to-head-focus"><span>Focus</span><select id="head-to-head-focus" value={headToHeadFocus} onChange={(event) => setHeadToHeadFocus(event.target.value)}><option value="all">All models</option>{RANKED_LEAGUE_MODELS.map((model) => <option value={model.id} key={model.id}>{model.name}</option>)}</select></label>
             <label className="table-control" htmlFor="head-to-head-sort"><span>Sort</span><select id="head-to-head-sort" value={headToHeadSort} onChange={(event) => setHeadToHeadSort(event.target.value as HeadToHeadSort)}><option value="games-desc">Play count</option><option value="win-rate-desc">Win rate</option><option value="score-rate-desc">Score rate</option><option value="pairing-asc">Opponent · A to Z</option></select></label>
             <span className="table-result-count" aria-live="polite">{visibleHeadToHead.length} matchups</span>
           </div>
@@ -705,52 +513,40 @@ export default function LearningLab() {
       </section>
       </div>
 
-      {false ? <section className="leaderboard-panel" id="standings" aria-labelledby="standings-title">
-        <div className="leaderboard-panel-heading">
-          <div><span className="portal-kicker">Standings · imported archive</span><h2 id="standings-title">Every model in the ladder.</h2></div>
-          <span className="leaderboard-status"><span /> {crossPlay ? `${ratedAgentCount} rated · archive polling` : "Polling archive"}</span>
-        </div>
-        <p className="leaderboard-intro">Rankings and records are cumulative across all imported and offline 7×7 cross-play games. Search candidates are shown with their planned budgets until they have games; benchmark metrics remain separate from ladder evidence.</p>
-
-        <div className="table-toolbar" aria-label="Standings table controls">
-          <label className="table-control table-search" htmlFor="standings-search"><span>Search models</span><input id="standings-search" type="search" value={standingSearch} onChange={(event) => setStandingSearch(event.target.value)} placeholder="Name, family, or role" /></label>
-          <label className="table-control" htmlFor="standings-filter"><span>Status</span><select id="standings-filter" value={standingFilter} onChange={(event) => setStandingFilter(event.target.value as StandingFilter)}><option value="all">All models</option><option value="rated">Rated</option><option value="candidate">Candidates</option><option value="waiting">Waiting</option><option value="disabled">Disabled</option></select></label>
-          <label className="table-control" htmlFor="standings-sort"><span>Sort by</span><select id="standings-sort" value={standingSort} onChange={(event) => setStandingSort(event.target.value as StandingSort)}><option value="rank">Leaderboard rank</option><option value="elo-desc">Elo · high to low</option><option value="games-desc">Games · high to low</option><option value="name-asc">Name · A to Z</option></select></label>
-          {standingSearch || standingFilter !== "all" ? <button className="table-clear-button" type="button" onClick={() => { setStandingSearch(""); setStandingFilter("all"); }}>Clear</button> : null}
-          <span className="table-result-count" aria-live="polite">Showing {visibleModels.length} of {MODELS.length} models</span>
-        </div>
-
-        <div className="leaderboard-table" role="table" aria-label="Current model standings">
-          <div className="leaderboard-table-row leaderboard-table-header" role="row">
-            <span>#</span><span>Agent</span><span>Role</span><span>Elo</span><span>Record</span><span>Signal</span>
+      <section className="leaderboard-panel research-panel" aria-labelledby="research-title">
+        <div className="research-panel-heading">
+          <div>
+            <span className="portal-kicker">Research ledger · {LATEST_RESEARCH.researchPath}</span>
+            <h2 id="research-title">The latest signal is shipped.</h2>
+            <p>Transition v4 is the promoted Pathfinder default. The ladder stays limited to rankable identities; historical candidates and controls remain documented here without being presented as supported strength.</p>
           </div>
-          {visibleModels.length ? visibleModels.map((model) => <ModelStanding key={model.id} model={model} live={liveStandingById.get(model.id)} liveRank={liveRankById.get(model.id)} snapshotLoaded={Boolean(crossPlay)} />) : <div className="table-empty-state" role="row"><strong>No models match those filters.</strong><span>Try a different search or clear the status filter.</span></div>}
+          <span className="research-promotion-badge"><span /> {LATEST_RESEARCH.status}</span>
         </div>
-      </section> : null}
-
-      {false ? <section className="leaderboard-panel head-to-head-panel" id="head-to-head" aria-labelledby="head-to-head-title">
-        <div className="leaderboard-panel-heading">
-          <div><span className="portal-kicker">Head-to-head · imported archive</span><h2 id="head-to-head-title">Pairwise results.</h2></div>
-          <span className="leaderboard-status"><span /> {crossPlay ? `${crossPlay.headToHead.filter((pairing) => pairing.games > 0).length} active pairings` : "Waiting for poll"}</span>
+        <div className="research-evidence-layout">
+          <article className="research-feature-card">
+            <div className="research-feature-topline"><span>Current default</span><strong>{LATEST_RESEARCH.title}</strong></div>
+            <p>Explicit placement/relocation transition scoring with tactical-safe root ordering, trained from a {LATEST_RESEARCH.trainingViewRoots.toLocaleString()}-root corpus ({LATEST_RESEARCH.trainingRoots.toLocaleString()} train · {LATEST_RESEARCH.heldoutRoots.toLocaleString()} held out), and evaluated with the same bounded search envelope as the incumbent.</p>
+            <dl className="research-metric-grid">
+              <div><dt>Arena</dt><dd>{LATEST_RESEARCH.arenaWins}–{LATEST_RESEARCH.arenaLosses}–{LATEST_RESEARCH.arenaDraws}</dd><small>{LATEST_RESEARCH.arenaGames} paired games</small></div>
+              <div><dt>Game points</dt><dd>{formatPercent(LATEST_RESEARCH.arenaPointRate)}</dd><small>{formatPercent(LATEST_RESEARCH.lightPointRate)} Light · {formatPercent(LATEST_RESEARCH.darkPointRate)} Dark</small></div>
+              <div><dt>Held-out top 1</dt><dd>{formatPercent(LATEST_RESEARCH.heldoutTop1 / LATEST_RESEARCH.heldoutRoots)}</dd><small>{LATEST_RESEARCH.heldoutTop1.toLocaleString()} / {LATEST_RESEARCH.heldoutRoots.toLocaleString()} roots · top 3 {formatPercent(LATEST_RESEARCH.heldoutTop3 / LATEST_RESEARCH.heldoutRoots)}</small></div>
+              <div><dt>Replay audit</dt><dd>0</dd><small>legality or capture mismatches</small></div>
+            </dl>
+            <p className="research-audit-note">{LATEST_RESEARCH.replayAudit}</p>
+          </article>
+          <div className="research-ledger-column">
+            <div className="research-lineage-card">
+              <div className="research-card-heading"><span className="portal-kicker">Promotion trail</span><span>v4 → v3 → v0.5</span></div>
+              <ul className="research-lane-list">
+                {RESEARCH_LANES.map((lane) => <li key={lane.label} className={`research-lane ${lane.tone}`}><span className="research-lane-dot" /><div><strong>{lane.label}</strong><p>{lane.detail}</p></div></li>)}
+              </ul>
+            </div>
+            <div className="research-retention-card"><span className="portal-kicker">Retained controls</span><strong>Rollback and history stay visible.</strong><p>{LATEST_RESEARCH.retainedControls}. No discarded research artifact is treated as a current opponent.</p></div>
+          </div>
         </div>
-        <p className="leaderboard-intro">{headToHeadFocusLabel ? `${headToHeadFocusLabel} is the focus model in every row. Its W–L–D, rates, and score are ranked against each opponent.` : "Choose a focus model to see every matchup from that model's perspective. With no focus selected, each row uses the left model's perspective."} Human games stay in their separate archive.</p>
+      </section>
 
-        <div className="table-toolbar" aria-label="Head-to-head table controls">
-          <label className="table-control table-search" htmlFor="head-to-head-search"><span>Search models</span><input id="head-to-head-search" type="search" value={headToHeadSearch} onChange={(event) => setHeadToHeadSearch(event.target.value)} placeholder="Name or model ID" /></label>
-          <label className="table-control" htmlFor="head-to-head-focus"><span>Focus model</span><select id="head-to-head-focus" value={headToHeadFocus} onChange={(event) => setHeadToHeadFocus(event.target.value)}><option value="all">All models</option>{MODELS.map((model) => <option value={model.id} key={model.id}>{model.name}</option>)}</select></label>
-          <label className="table-control" htmlFor="head-to-head-filter"><span>Games</span><select id="head-to-head-filter" value={headToHeadFilter} onChange={(event) => setHeadToHeadFilter(event.target.value as HeadToHeadFilter)}><option value="all">All matchups</option><option value="active">Played only</option><option value="inactive">No games</option></select></label>
-          <label className="table-control" htmlFor="head-to-head-sort"><span>Rank by</span><select id="head-to-head-sort" value={headToHeadSort} onChange={(event) => setHeadToHeadSort(event.target.value as HeadToHeadSort)}><option value="games-desc">Play count · high to low</option><option value="games-asc">Play count · low to high</option><option value="win-rate-desc">Win rate · high to low</option><option value="loss-rate-asc">Loss rate · low to high</option><option value="draw-rate-desc">Draw rate · high to low</option><option value="score-rate-desc">Score rate · high to low</option><option value="pairing-asc">Opponent · A to Z</option></select></label>
-          {headToHeadSearch || headToHeadFocus !== "all" || headToHeadFilter !== "all" ? <button className="table-clear-button" type="button" onClick={() => { setHeadToHeadSearch(""); setHeadToHeadFocus("all"); setHeadToHeadFilter("all"); }}>Clear</button> : null}
-          <span className="table-result-count" aria-live="polite">Showing {visibleHeadToHead.length} of {scopedHeadToHead.length} matchups</span>
-        </div>
-
-        {crossPlay?.headToHead.length ? visibleHeadToHead.length ? <div className="head-to-head-table" role="table" aria-label="Head-to-head model results">
-          <div className="head-to-head-row head-to-head-header" role="row"><span>Matchup</span><span>Games</span><span>W–L–D</span><span>Rates · W / L / D</span><span>Score rate</span><span>Light starts</span></div>
-          {visibleHeadToHead.map((pairing) => <HeadToHeadRow key={`${pairing.focusLabel}-${pairing.opponentId}`} pairing={pairing} />)}
-        </div> : <p className="table-empty-state" role="status"><strong>No pairings match those filters.</strong><span>Try a different model name or clear the status filter.</span></p> : <p className="live-run-empty">Waiting for imported pairwise results.</p>}
-      </section> : null}
-
-      <footer className="portal-footer"><span>7×7 model leaderboard</span><span>Read-only view · polling the imported archive</span></footer>
+      <footer className="portal-footer"><span>7×7 Rust-engine model leaderboard</span><span>Read-only archive · research lanes are not ranked</span></footer>
       {replayModalOpen ? <ReplayModal summary={replaySummary} game={replayGame} loading={Boolean(replayLoadingId)} error={replayError} ply={replayPly} playing={replayPlaying} onClose={closeReplay} onPlayPause={() => setReplayPlaying((current) => !current)} onPlyChange={changeReplayPly} /> : null}
     </main>
   );
@@ -800,31 +596,24 @@ function formatRate(rate: number) {
   return `${(rate * 100).toFixed(1)}%`;
 }
 
-function modelStandingStatus(model: (typeof MODELS)[number], live?: LiveStanding): Exclude<StandingFilter, "all"> {
-  if (live?.games) return "rated";
-  if (model.disabled) return "disabled";
-  if (model.planned) return "candidate";
-  return "waiting";
+function formatPercent(rate: number) {
+  return `${(rate * 100).toFixed(1)}%`;
 }
 
-function compareNullableNumbers<T extends (typeof MODELS)[number]>(left: number | undefined, right: number | undefined, leftModel: T, rightModel: T) {
-  if (left === undefined && right === undefined) return MODELS.indexOf(leftModel) - MODELS.indexOf(rightModel);
+function compareNullableNumbers(left: number | undefined, right: number | undefined, leftModel: (typeof RANKED_LEAGUE_MODELS)[number], rightModel: (typeof RANKED_LEAGUE_MODELS)[number]) {
+  if (left === undefined && right === undefined) return RANKED_LEAGUE_MODELS.indexOf(leftModel) - RANKED_LEAGUE_MODELS.indexOf(rightModel);
   if (left === undefined) return 1;
   if (right === undefined) return -1;
-  return right - left || MODELS.indexOf(leftModel) - MODELS.indexOf(rightModel);
+  return right - left || RANKED_LEAGUE_MODELS.indexOf(leftModel) - RANKED_LEAGUE_MODELS.indexOf(rightModel);
 }
 
 function ModelStanding({ model, live, liveRank, snapshotLoaded }: { model: (typeof MODELS)[number]; live?: LiveStanding; liveRank?: string; snapshotLoaded: boolean }) {
   const liveActive = Boolean(live?.games);
-  const planned = Boolean(model.planned);
-  const disabled = Boolean(model.disabled);
-  const waiting = !liveActive && !disabled && !planned;
   const rank = liveActive ? liveRank ?? "—" : "—";
-  const record = liveActive ? formatRecord(live!) : disabled || planned ? "not rated" : "—";
-  const signal = liveActive ? `${live!.games} games` : disabled ? "offline only" : planned ? model.budget ?? "candidate spec" : snapshotLoaded ? "no live games" : "waiting for poll";
-  const signalDetail = liveActive ? `${live!.points.toFixed(1)} points · cumulative` : disabled ? "not rated" : planned ? "planned · awaiting evaluation" : "no ladder evidence";
-  const stateClass = disabled ? "disabled" : liveActive ? "" : planned ? "candidate" : waiting ? "disabled" : "";
-  return <div className={`leaderboard-table-row model-standing ${rank === "01" ? "leader" : ""} ${stateClass}`} role="row"><span className="model-rank">{rank}</span><div className="standing-model"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><strong>{model.name}</strong><span>{model.family}</span></div></div><div className="standing-role"><strong>{disabled ? "Disabled" : liveActive ? "Live ladder" : planned ? "Candidate" : "Waiting"}</strong><span>{model.role}</span></div><span className="standing-elo">{liveActive ? live!.rating.toLocaleString() : "—"}</span><div className="standing-record"><strong>{record}</strong><span>{liveActive ? "cumulative" : disabled || planned ? "not rated" : "no games"}</span></div><div className="standing-signal"><strong>{signal}</strong><span>{signalDetail}</span></div></div>;
+  const record = liveActive ? formatRecord(live!) : "—";
+  const signal = liveActive ? `${live!.games} games` : snapshotLoaded ? "no live games" : "waiting for poll";
+  const signalDetail = liveActive ? `${live!.points.toFixed(1)} points · cumulative` : model.role;
+  return <div className={`leaderboard-table-row model-standing ${rank === "01" ? "leader" : ""}`} role="row"><span className="model-rank">{rank}</span><div className="standing-model"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><strong>{model.name}</strong><span>{model.family}</span></div></div><div className="standing-role"><strong>{liveActive ? "Live ladder" : "Waiting"}</strong><span>{model.role}</span></div><span className="standing-elo">{liveActive ? live!.rating.toLocaleString() : "—"}</span><div className="standing-record"><strong>{record}</strong><span>{liveActive ? "cumulative" : "no games"}</span></div><div className="standing-signal"><strong>{signal}</strong><span>{signalDetail}</span></div></div>;
 }
 
 function formatRecord(standing: Pick<LiveStanding, "wins" | "losses" | "draws">) {

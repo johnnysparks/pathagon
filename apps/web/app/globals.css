@@ -1088,6 +1088,40 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
 .game-list-empty.error strong { color: #ad5f4d; }
 .history-load-sentinel { display: grid; min-height: 34px; place-items: center; margin-top: 8px; color: var(--portal-muted); font-size: 10px; }
 .history-load-sentinel button { border: 0; padding: 0; color: var(--portal-green); background: transparent; cursor: pointer; font: inherit; font-weight: 850; text-decoration: underline; }
+.research-panel { margin-top: 12px; }
+.research-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.research-panel-heading h2 { margin: 5px 0 0; color: var(--portal-ink); font-family: Georgia, serif; font-size: 29px; font-weight: 500; letter-spacing: -.04em; }
+.research-panel-heading p { max-width: 700px; margin: 9px 0 0; color: var(--portal-muted); font-size: 12px; line-height: 1.55; }
+.research-promotion-badge { display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto; border-radius: 999px; padding: 7px 10px; color: #35734f; background: var(--portal-green-soft); font-size: 10px; font-weight: 850; white-space: nowrap; }
+.research-promotion-badge > span { width: 7px; height: 7px; border-radius: 50%; background: #79ad84; }
+.research-evidence-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); gap: 12px; margin-top: 18px; }
+.research-feature-card, .research-lineage-card, .research-retention-card { border: 1px solid var(--portal-line); border-radius: 12px; background: rgba(255,255,255,.44); }
+.research-feature-card { padding: 17px; border-color: #b8d3bc; background: linear-gradient(135deg, rgba(234,246,233,.88), rgba(255,255,255,.48)); }
+.research-feature-topline, .research-card-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.research-feature-topline span, .research-card-heading span:first-child { color: var(--portal-muted); font-size: 9px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.research-feature-topline strong { color: var(--portal-green); font-family: Georgia, serif; font-size: 22px; font-weight: 500; }
+.research-feature-card > p { max-width: 650px; margin: 9px 0 0; color: var(--portal-muted); font-size: 11px; line-height: 1.5; }
+.research-metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin: 17px 0 0; }
+.research-metric-grid > div { min-width: 0; border-top: 2px solid #c2dcc5; padding: 8px 7px 0; }
+.research-metric-grid dt { color: var(--portal-muted); font-size: 9px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.research-metric-grid dd { margin: 5px 0 0; color: var(--portal-ink); font-family: Georgia, serif; font-size: 21px; font-weight: 500; letter-spacing: -.03em; }
+.research-metric-grid small { display: block; margin-top: 3px; color: var(--portal-muted); font-size: 9px; line-height: 1.35; }
+.research-audit-note { margin-top: 14px !important; padding-top: 10px; border-top: 1px solid rgba(174,194,171,.72); font-size: 10px !important; }
+.research-ledger-column { display: grid; gap: 10px; }
+.research-lineage-card { padding: 15px; }
+.research-card-heading span:last-child { color: var(--portal-green); font-size: 10px; font-weight: 850; }
+.research-lane-list { display: grid; gap: 11px; margin: 15px 0 0; padding: 0; list-style: none; }
+.research-lane { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 9px; align-items: start; }
+.research-lane-dot { width: 8px; height: 8px; margin-top: 3px; border-radius: 50%; background: var(--portal-line); }
+.research-lane.green .research-lane-dot { background: var(--portal-green); }
+.research-lane.violet .research-lane-dot { background: var(--portal-violet); }
+.research-lane.gold .research-lane-dot { background: var(--portal-gold); }
+.research-lane strong { color: var(--portal-ink); font-size: 10px; }
+.research-lane p { margin: 3px 0 0; color: var(--portal-muted); font-size: 10px; line-height: 1.4; }
+.research-retention-card { padding: 14px 15px; background: rgba(231,239,230,.5); }
+.research-retention-card > span { display: block; }
+.research-retention-card strong { display: block; margin-top: 6px; color: var(--portal-ink); font-family: Georgia, serif; font-size: 17px; font-weight: 500; }
+.research-retention-card p { margin: 5px 0 0; color: var(--portal-muted); font-size: 10px; line-height: 1.45; }
 .leaderboard-app.dark .leaderboard-compact-header { border-color: var(--portal-line); }
 .leaderboard-app.dark .game-set-tabs { border-color: #355240; background: rgba(40,67,50,.42); }
 .leaderboard-app.dark .game-set-tab:hover { background: rgba(55,91,63,.48); }
@@ -1096,6 +1130,10 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
 .leaderboard-app.dark .game-set-standings, .leaderboard-app.dark .game-card { border-color: #355240; background: rgba(40,67,50,.38); }
 .leaderboard-app.dark .game-card:hover, .leaderboard-app.dark .game-set-pairings button.head-to-head-row:not(:disabled):hover, .leaderboard-app.dark .game-set-pairings button.head-to-head-row.selected { background: rgba(55,91,63,.58); }
 .leaderboard-app.dark .game-list-empty { border-color: #355240; }
+.leaderboard-app.dark .research-feature-card, .leaderboard-app.dark .research-lineage-card, .leaderboard-app.dark .research-retention-card { border-color: #355240; background: rgba(40,67,50,.42); }
+.leaderboard-app.dark .research-feature-card { border-color: #3f7650; background: linear-gradient(135deg, rgba(32,59,43,.94), rgba(40,67,50,.46)); }
+.leaderboard-app.dark .research-metric-grid > div { border-color: #3f7650; }
+.leaderboard-app.dark .research-audit-note { border-color: #355240; }
 
 @media (max-width: 960px) {
   .game-browser { display: block; }
@@ -1109,6 +1147,8 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
   .leaderboard-compact-header { align-items: flex-start; flex-direction: column; gap: 17px; margin-top: 22px; padding: 21px 0 19px; }
   .leaderboard-compact-meta { width: 100%; justify-content: space-between; gap: 12px; }
   .game-card-grid { grid-template-columns: 1fr; }
+  .research-panel-heading { flex-direction: column; gap: 11px; }
+  .research-evidence-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
   .leaderboard-compact-copy h1 { font-size: 44px; }
@@ -1136,4 +1176,8 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
   .game-card > .live-game-thumbnail { width: 78px; height: auto; }
   .game-list-heading { align-items: flex-start; }
   .game-list-heading-meta { align-items: flex-end; }
+  .research-panel { padding: 15px !important; }
+  .research-panel-heading h2 { font-size: 25px; }
+  .research-metric-grid { grid-template-columns: repeat(2, 1fr); }
+  .research-feature-topline { align-items: flex-start; flex-direction: column; gap: 3px; }
 }

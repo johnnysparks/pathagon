@@ -4,6 +4,13 @@ The archive is the durable record of completed games. Leaderboard standings
 are computed from imported records; the browser does not generate official
 leaderboard matches.
 
+The `/lab` page has two deliberately separate surfaces: the official ladder and
+pairwise standings include only the six opponents implemented through the Rust/
+WASM engine (Transition v4, v0.5, v0.4, Surveyor, Lunatic, and Coin Flip).
+Historical Python, neural, and other research identities remain queryable and
+replayable in the archive, but cannot receive Elo or affect official pairwise
+results until they are ported, validated, and promoted.
+
 ## Storage
 
 Cloudflare D1 has two tables:
