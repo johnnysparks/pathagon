@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "artifactId": "pathfinder-action-transition-v3-xent",
+  "model": "tanh-action-state-transition-policy-v2",
+  "encoding": "explicit-source-kind",
+  "rulesVersion": "pathagon-rules-v1",
+  "featureCount": 32,
+  "layerWidths": [24, 24, 1],
+  "sha256": "4f08a5a68057051e99c469aaf4a6e839885ebdcb167e6b82b076836c0b24b7f4",
+  "sourceResearch": "research/20260829-nextgen-action-transition",
+  "sourceArtifact": "workspace/model-v3-xent/transition-policy.json",
+  "trainingRoots": 7962,
+  "heldoutRoots": 2038,
+  "heldoutTop1": 594,
+  "heldoutTop3": 949,
+  "arenaGames": 800,
+  "arenaWins": 427,
+  "arenaLosses": 335,
+  "arenaDraws": 38,
+  "promotionStatus": "research-candidate-wasm-packaged"
+}

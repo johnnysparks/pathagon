@@ -4,12 +4,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { applyAction, createGame, type GameState } from "../pathagon";
 import type { ContractMove, ContractReplayRecord } from "../contract";
-import { PATHFINDER_TACTICAL_FILTER_ID, TRAINED_PATHFINDER_ID } from "../agent-ids";
+import { PATHFINDER_TACTICAL_FILTER_ID, TRANSITION_PATHFINDER_ID, TRAINED_PATHFINDER_ID } from "../agent-ids";
 
 const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
 const GAME_THUMBNAIL_RESOLUTION = 256;
 
 const MODELS = [
+  {
+    id: TRANSITION_PATHFINDER_ID,
+    name: "The Pathfinder · Transition v4",
+    family: "4-ply iterative · action-transition policy",
+    role: "default playable opponent",
+    budget: "",
+    tone: "green",
+    glyph: "V4",
+    planned: false,
+    disabled: false,
+  },
   {
     id: TRAINED_PATHFINDER_ID,
     name: "The Pathfinder · Trained",

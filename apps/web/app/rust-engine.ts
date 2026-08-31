@@ -24,6 +24,23 @@ type RuntimeMoveEvaluation = Omit<MoveEvaluation, "beforeScore" | "completedDept
   tableHits: number;
 };
 
+export type TransitionPolicyRankedAction = {
+  action: Action;
+  safe: boolean;
+  immediateWin: boolean;
+  score: number;
+};
+
+export type TransitionPolicySearchResult = RuntimeSearchResult;
+
+type TransitionPolicyModelHandle = {
+  modelName(): string;
+  encoding(): string;
+  score(position: string, action: string, safe: boolean): number;
+  rankActions(position: string, maxActions: number): string;
+  searchBestAction(position: string, config: string, deadlineMs: number): string;
+};
+
 type RustWasmModule = {
   default(input?: string | URL): Promise<unknown>;
   pathagon_legal_actions(position: string): string;
@@ -34,9 +51,20 @@ type RustWasmModule = {
   pathagon_lunatic_action(position: string): string;
   pathagon_analyze_action(position: string, action: string, config: string): string;
   pathagon_analyze_actions(position: string, config: string, maxActions: number): string;
+  PathagonTransitionPolicyModel: new (bytes: Uint8Array) => TransitionPolicyModelHandle;
 };
 
 let modulePromise: Promise<RustWasmModule> | null = null;
+
+function loadRustWasmModule(): Promise<RustWasmModule> {
+  const moduleUrl = ["/engine/pathagon_engine", ".js"].join("");
+  modulePromise ??= import(/* @vite-ignore */ moduleUrl).then(async (module) => {
+    const wasm = module as unknown as RustWasmModule;
+    await wasm.default();
+    return wasm;
+  });
+  return modulePromise;
+}
 
 export type RustEngine = {
   legalActions(state: GameState): Action[];
@@ -49,14 +77,16 @@ export type RustEngine = {
   analyzeActions(state: GameState, config: SearchConfig, maxActions: number): MoveEvaluation[];
 };
 
+export type TransitionPolicyEngine = {
+  modelName: string;
+  encoding: string;
+  score(state: GameState, action: Action, safe?: boolean): number;
+  rankActions(state: GameState, maxActions?: number): TransitionPolicyRankedAction[];
+  searchBestAction(state: GameState, config: SearchConfig, deadlineMs?: number): TransitionPolicySearchResult;
+};
+
 export function loadRustEngine(): Promise<RustEngine> {
-  const moduleUrl = ["/engine/pathagon_engine", ".js"].join("");
-  modulePromise ??= import(/* @vite-ignore */ moduleUrl).then(async (module) => {
-    const wasm = module as unknown as RustWasmModule;
-    await wasm.default();
-    return wasm;
-  });
-  return modulePromise.then((wasm) => ({
+  return loadRustWasmModule().then((wasm) => ({
     legalActions(state) {
       return JSON.parse(wasm.pathagon_legal_actions(JSON.stringify(toRuntimePosition(state)))) as Action[];
     },
@@ -95,6 +125,35 @@ export function loadRustEngine(): Promise<RustEngine> {
       )) as RuntimeMoveEvaluation[];
     },
   }));
+}
+
+/** Load the versioned explicit transition scorer through the Rust/WASM ABI. */
+export function loadTransitionPolicyEngine(
+  modelUrl = "/models/pathfinder-action-transition-v4-xent.json",
+): Promise<TransitionPolicyEngine> {
+  return loadRustWasmModule().then(async (wasm) => {
+    const response = await fetch(modelUrl);
+    if (!response.ok) throw new Error(`transition-policy model request failed (${response.status})`);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const model = new wasm.PathagonTransitionPolicyModel(bytes);
+    return {
+      modelName: model.modelName(),
+      encoding: model.encoding(),
+      score(state: GameState, action: Action, safe = true) {
+        return model.score(JSON.stringify(toRuntimePosition(state)), JSON.stringify(action), safe);
+      },
+      rankActions(state: GameState, maxActions = 0) {
+        return JSON.parse(model.rankActions(JSON.stringify(toRuntimePosition(state)), maxActions)) as TransitionPolicyRankedAction[];
+      },
+      searchBestAction(state: GameState, config: SearchConfig, deadlineMs = 2_800) {
+        return JSON.parse(model.searchBestAction(
+          JSON.stringify(toRuntimePosition(state)),
+          JSON.stringify(config),
+          deadlineMs,
+        )) as TransitionPolicySearchResult;
+      },
+    };
+  });
 }
 
 export function toRuntimePosition(state: GameState): RuntimePosition {

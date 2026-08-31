@@ -20,6 +20,7 @@ import {
   PATHFINDER_DEADLINE_MS,
   PATHFINDER_DEPTH_OPTIONS,
   PATHFINDER_OPPONENT,
+  TRANSITION_PATHFINDER_OPPONENT,
   TRAINED_PATHFINDER_OPPONENT,
   getOpponent,
   pathfinderSearchAtDepth,
@@ -59,7 +60,7 @@ export default function Home() {
   const [coachingAction, setCoachingAction] = useState<Action | null>(null);
   const [coachingEvaluation, setCoachingEvaluation] = useState<MoveEvaluation | null>(null);
   const [coachingStatus, setCoachingStatus] = useState<"idle" | "searching" | "ready">("idle");
-  const [opponentId, setOpponentId] = useState(TRAINED_PATHFINDER_OPPONENT.id);
+  const [opponentId, setOpponentId] = useState(TRANSITION_PATHFINDER_OPPONENT.id);
   const [pathfinderDepth, setPathfinderDepth] = useState<number>(initialPathfinderDepth);
   const [rustEngine, setRustEngine] = useState<RustEngine | null>(null);
   const [searchClient] = useState<RustSearchClient | null>(() =>
@@ -137,7 +138,9 @@ export default function Home() {
     if (!rustEngine || !cnnReady || game.winner || game.turn !== AI) return;
     let cancelled = false;
     const current = game;
-    const isPathfinder = opponent.id === PATHFINDER_OPPONENT.id || opponent.id === TRAINED_PATHFINDER_OPPONENT.id;
+    const isPathfinder = opponent.id === PATHFINDER_OPPONENT.id
+      || opponent.id === TRAINED_PATHFINDER_OPPONENT.id
+      || opponent.id === TRANSITION_PATHFINDER_OPPONENT.id;
     const commitDecision = (decision: Action | null) => {
       if (!decision || cancelled) return;
       setHistory((items) => [...items, current]);
@@ -646,7 +649,9 @@ export default function Home() {
 }
 
 function isPathfinderOpponent(id: string) {
-  return id === PATHFINDER_OPPONENT.id || id === TRAINED_PATHFINDER_OPPONENT.id;
+  return id === PATHFINDER_OPPONENT.id
+    || id === TRAINED_PATHFINDER_OPPONENT.id
+    || id === TRANSITION_PATHFINDER_OPPONENT.id;
 }
 
 function PieceTray({ label, player, count, active }: { label: string; player: Player; count: number; active: boolean }) {

@@ -1,9 +1,9 @@
 import { connectionDistance, PATHFINDER_SEARCH, searchBestAction, SURVEYOR_SEARCH, type SearchConfig } from "./ai.ts";
-import { PATHFINDER_TACTICAL_FILTER_ID, TRAINED_PATHFINDER_ID } from "./agent-ids.ts";
+import { PATHFINDER_TACTICAL_FILTER_ID, TRANSITION_PATHFINDER_ID, TRAINED_PATHFINDER_ID } from "./agent-ids.ts";
 import { applyLegalAction, legalActions, otherPlayer } from "./pathagon.ts";
 import type { Action, GameState } from "./pathagon.ts";
 import type { CnnEngine } from "./cnn-engine.ts";
-import type { RustEngine } from "./rust-engine.ts";
+import type { RustEngine, TransitionPolicyEngine } from "./rust-engine.ts";
 
 export type Opponent = {
   id: string;
@@ -141,6 +141,24 @@ export const TRAINED_PATHFINDER_OPPONENT: Opponent = {
   },
 };
 
+/**
+ * The strongest validated transition-policy opponent. Its model is loaded by
+ * the Rust search worker; chooseOpponentAction retains the trained evaluator
+ * as a safe fallback if the model asset cannot be fetched.
+ */
+export const TRANSITION_PATHFINDER_OPPONENT: Opponent = {
+  id: TRANSITION_PATHFINDER_ID,
+  name: "The Pathfinder · Transition v4",
+  version: "4.0.0",
+  engine: "4-ply iterative · action-transition policy",
+  elo: "Provisional · scaled research",
+  personality: "Learns which moves change the board, then searches the consequences.",
+  searchDepth: 4,
+  chooseAction(state) {
+    return searchBestAction(state, trainedPathfinderSearchAtDepth(PATHFINDER_SEARCH.depth)).action;
+  },
+};
+
 export const CNN_OPPONENT: Opponent = {
   id: "cnn-puct-v0",
   name: "The Convolutionist",
@@ -157,7 +175,7 @@ export const CNN_OPPONENT: Opponent = {
 export const CNN_SEARCH = { simulations: 64, cpuct: 1.5 } as const;
 export const PATHFINDER_DEADLINE_MS = 2_800;
 
-export const OPPONENTS = [CNN_OPPONENT, TRAINED_PATHFINDER_OPPONENT, PATHFINDER_OPPONENT, LUNATIC_OPPONENT, SURVEYOR_OPPONENT, RANDOM_OPPONENT] as const;
+export const OPPONENTS = [CNN_OPPONENT, TRANSITION_PATHFINDER_OPPONENT, TRAINED_PATHFINDER_OPPONENT, PATHFINDER_OPPONENT, LUNATIC_OPPONENT, SURVEYOR_OPPONENT, RANDOM_OPPONENT] as const;
 
 export function getOpponent(id: string): Opponent {
   return OPPONENTS.find((opponent) => opponent.id === id) ?? SURVEYOR_OPPONENT;
@@ -171,6 +189,7 @@ export function chooseOpponentAction(
   cnnEngine?: CnnEngine,
   pathfinderDepth: number = PATHFINDER_SEARCH.depth,
   deadlineMs?: number,
+  transitionPolicyEngine?: TransitionPolicyEngine,
 ): Action | null {
   if (opponent.id === RANDOM_OPPONENT.id) {
     const actions = engine.legalActions(state);
@@ -180,12 +199,16 @@ export function chooseOpponentAction(
     return cnnEngine?.selectAction(state, CNN_SEARCH).action ?? null;
   }
   if (opponent.id === LUNATIC_OPPONENT.id) return engine.lunaticAction(state).action;
-  const isPathfinder = opponent.id === PATHFINDER_OPPONENT.id || opponent.id === TRAINED_PATHFINDER_OPPONENT.id;
+  const isTransitionPathfinder = opponent.id === TRANSITION_PATHFINDER_OPPONENT.id;
+  const isPathfinder = opponent.id === PATHFINDER_OPPONENT.id || opponent.id === TRAINED_PATHFINDER_OPPONENT.id || isTransitionPathfinder;
   const config = isPathfinder
-    ? opponent.id === TRAINED_PATHFINDER_OPPONENT.id
+    ? opponent.id === TRAINED_PATHFINDER_OPPONENT.id || isTransitionPathfinder
       ? trainedPathfinderSearchAtDepth(pathfinderDepth)
       : pathfinderSearchAtDepth(pathfinderDepth)
     : SURVEYOR_SEARCH;
+  if (isTransitionPathfinder && transitionPolicyEngine) {
+    return transitionPolicyEngine.searchBestAction(state, config, deadlineMs).action;
+  }
   return isPathfinder
     ? deadlineMs === undefined
       ? engine.searchBestTacticalAction(state, config).action

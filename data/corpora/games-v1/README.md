@@ -28,6 +28,13 @@ provenance/observation metadata. They are separate from the action-only
 `g1_...` shards because a seeded sequence is not necessarily legal from the
 empty board.
 
+The `pathfinder-depth8-disagreements-20260830-v1.jsonl` sidecar is a small,
+heldout-only target set: it preserves the 51 roots where the depth-8/2M-node
+teacher changed the depth-7 action. The v2 sidecar preserves the 39 changed
+roots from the scaled 4,000-root calibration (20 train and 19 heldout) that
+were used for selective replacement in the v4 training corpus. Both are
+versioned evidence, not promoted opponents or default training lanes.
+
 ## Rebuild
 
 ```bash

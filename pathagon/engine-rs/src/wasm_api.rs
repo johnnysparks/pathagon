@@ -9,10 +9,11 @@ use wasm_bindgen::prelude::*;
 
 use crate::runtime::{
     analyze_action_json, analyze_actions_json, apply_action_json, apply_action_transition_json,
-    legal_actions_json, lunatic_action_json, position_json, search_best_action_json,
-    search_best_action_with_tactical_filter_deadline_json,
-    search_best_action_with_tactical_filter_json,
+    legal_actions_json, lunatic_action_json, position_json, rank_transition_policy_json,
+    search_best_action_json, search_best_action_with_tactical_filter_deadline_json,
+    search_best_action_with_tactical_filter_json, search_transition_policy_json,
 };
+use crate::transition_policy::TransitionPolicyModel;
 use crate::{BoardConfig, GameState};
 
 #[cfg(feature = "inference")]
@@ -103,6 +104,62 @@ pub fn pathagon_analyze_actions(
     max_actions: u32,
 ) -> Result<String, JsValue> {
     analyze_actions_json(position, config, max_actions as usize).map_err(js_error)
+}
+
+/// Packaged explicit action-transition policy. The model is loaded from the
+/// versioned JSON artifact by JavaScript, while all state transitions and
+/// legality checks remain in Rust.
+#[wasm_bindgen]
+pub struct PathagonTransitionPolicyModel {
+    model: TransitionPolicyModel,
+}
+
+#[wasm_bindgen]
+impl PathagonTransitionPolicyModel {
+    #[wasm_bindgen(constructor)]
+    pub fn new(bytes: &[u8]) -> Result<PathagonTransitionPolicyModel, JsValue> {
+        let model = TransitionPolicyModel::from_bytes(bytes).map_err(js_error)?;
+        Ok(Self { model })
+    }
+
+    #[wasm_bindgen(js_name = modelName)]
+    pub fn model_name(&self) -> String {
+        self.model.model.clone()
+    }
+
+    #[wasm_bindgen(js_name = encoding)]
+    pub fn encoding(&self) -> String {
+        self.model.encoding.clone()
+    }
+
+    #[wasm_bindgen(js_name = score)]
+    pub fn score(&self, position: &str, action: &str, safe: bool) -> Result<f32, JsValue> {
+        let state = crate::runtime::parse_position(position).map_err(js_error)?;
+        let contract_action: crate::contract::ContractAction =
+            serde_json::from_str(action).map_err(|error| js_error(error.to_string()))?;
+        let action = contract_action.into();
+        if !state.legal_actions().contains(&action) {
+            return Err(js_error(
+                "transition-policy score received an illegal action".to_owned(),
+            ));
+        }
+        Ok(self.model.score(state, action, safe))
+    }
+
+    #[wasm_bindgen(js_name = rankActions)]
+    pub fn rank_actions(&self, position: &str, max_actions: u32) -> Result<String, JsValue> {
+        rank_transition_policy_json(position, &self.model, max_actions as usize).map_err(js_error)
+    }
+
+    #[wasm_bindgen(js_name = searchBestAction)]
+    pub fn search_best_action(
+        &self,
+        position: &str,
+        config: &str,
+        deadline_ms: u32,
+    ) -> Result<String, JsValue> {
+        search_transition_policy_json(position, config, &self.model, deadline_ms).map_err(js_error)
+    }
 }
 
 #[cfg(feature = "inference")]

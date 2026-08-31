@@ -395,6 +395,28 @@ pub fn search_best_action_with_root_order_and_root_limit(
     )
 }
 
+/// Search with an external root order, root limit, and wall-clock deadline.
+/// This is the deadline-aware counterpart used by research hybrid agents that
+/// add a policy hint without replacing Pathfinder's recursive evaluator.
+pub fn search_best_action_with_root_order_and_root_limit_deadline(
+    state: GameState,
+    config: SearchConfig,
+    root_order: &[Action],
+    tactical_extension: bool,
+    root_limit: Option<usize>,
+    deadline_ms: u32,
+) -> SearchResult {
+    search_best_action_with_root_order_and_root_limit_internal_deadline(
+        state,
+        config,
+        root_order,
+        tactical_extension,
+        root_limit,
+        true,
+        Some(deadline_after_ms(deadline_ms.max(1))),
+    )
+}
+
 /// Spend a bounded scout budget on the first root actions, then run the normal
 /// Pathfinder search over the full root set ordered by those scout scores.
 ///

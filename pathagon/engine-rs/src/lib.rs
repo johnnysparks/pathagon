@@ -21,6 +21,7 @@ pub mod runtime;
 pub mod search;
 pub mod selfplay;
 pub mod training;
+pub mod transition_policy;
 #[cfg(feature = "wasm")]
 pub mod wasm_api;
 

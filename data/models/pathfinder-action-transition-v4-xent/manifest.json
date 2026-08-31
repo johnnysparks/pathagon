@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "artifactId": "pathfinder-action-transition-v4-xent",
+  "model": "tanh-action-state-transition-policy-v2",
+  "encoding": "explicit-source-kind",
+  "rulesVersion": "pathagon-rules-v1",
+  "featureCount": 32,
+  "layerWidths": [32, 32, 1],
+  "sha256": "f11d7ddee101ccab35ee162e53c95ced076b1fb10242443ad562dbd51c1085d4",
+  "sourceResearch": "research/20260830-nextgen-scaled",
+  "sourceArtifact": "workspace/model-next-xent-hidden32/transition-policy.json",
+  "trainingRoots": 11145,
+  "heldoutRoots": 2855,
+  "heldoutTop1": 895,
+  "heldoutTop3": 1369,
+  "heldoutMeanTeacherRank": 14.87145,
+  "selectiveDepth8Replacements": 39,
+  "arenaGames": 1000,
+  "arenaWins": 565,
+  "arenaLosses": 401,
+  "arenaDraws": 34,
+  "arenaPointRate": 0.582,
+  "arenaLightPointRate": 0.575,
+  "arenaDarkPointRate": 0.589,
+  "arenaReplayAudit": {
+    "games": 1000,
+    "plies": 46604,
+    "captures": 10859,
+    "reasons": {
+      "path": 966,
+      "max-plies": 34
+    },
+    "duplicateActionSequences": 86,
+    "uniqueActionSequences": 914
+  },
+  "candidateMeanNodes": 238888.6065721263,
+  "incumbentMeanNodes": 237246.8534582814,
+  "promotionStatus": "supported-user-facing-default"
+}

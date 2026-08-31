@@ -1,0 +1,12 @@
+[package]
+name = "nextgen-arena-audit"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "arena-replay-audit"
+path = "src/main.rs"
+
+[dependencies]
+pathagon-engine = { path = "../../../pathagon/engine-rs" }
+serde_json = "1"

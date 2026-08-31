@@ -2,7 +2,7 @@ import { countSelfPlayGames, querySelfPlayGames, querySelfPlayResults } from "..
 import type { SelfPlayGameRecord } from "../../selfplay-record";
 import type { SelfPlayResult } from "../../../db/selfplay-games";
 import { applyAction, createGame } from "../../pathagon";
-import { PATHFINDER_TACTICAL_FILTER_ID, TRAINED_PATHFINDER_ID } from "../../agent-ids";
+import { PATHFINDER_TACTICAL_FILTER_ID, TRANSITION_PATHFINDER_ID, TRAINED_PATHFINDER_ID } from "../../agent-ids";
 
 const MAX_QUERY_GAMES = 500;
 const DEFAULT_HISTORY_LIMIT = 24;
@@ -11,6 +11,7 @@ const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
 const RUN_ID_PATTERN = /^[a-zA-Z0-9._:-]{1,120}$/;
 const WEB_GENERATED_ENGINE = "typescript-live-cross-play";
 const AGENTS = [
+  { id: TRANSITION_PATHFINDER_ID, label: "The Pathfinder · Transition v4", kind: "heuristic" as const, tone: "green" },
   { id: TRAINED_PATHFINDER_ID, label: "The Pathfinder · Trained", kind: "heuristic" as const, tone: "green" },
   { id: PATHFINDER_TACTICAL_FILTER_ID, label: "The Pathfinder", kind: "heuristic" as const, tone: "green" },
   { id: "surveyor-v0.2.0", label: "The Surveyor", kind: "heuristic" as const, tone: "violet" },
@@ -31,6 +32,7 @@ const AGENTS = [
 ] as const;
 
 const BASELINE_RATINGS: Record<string, number> = {
+  [TRANSITION_PATHFINDER_ID]: 1_160,
   [TRAINED_PATHFINDER_ID]: 1_160,
   [PATHFINDER_TACTICAL_FILTER_ID]: 1_142,
   "surveyor-v0.2.0": 1_085,

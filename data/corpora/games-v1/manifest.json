@@ -17,6 +17,31 @@
       "observations": 72,
       "sha256": "fd470ba8fe59d25ab7b9db37fe5bc3aa9ea39779c92ef5c1769f5747dab006bf",
       "bytes": 72578
+    },
+    {
+      "path": "sidecars/pathfinder-depth8-disagreements-20260830-v1.jsonl",
+      "schemaVersion": 1,
+      "identity": "sha256(root-target-jsonl)",
+      "roots": 51,
+      "labels": 51,
+      "partition": "heldout",
+      "teacher": "pathfinder-teacher-v2-depth8-2000k-beam32",
+      "sha256": "f65590f656347fa70590bf4114788f8b40086057213011279354c8808b00061d",
+      "bytes": 938432
+    },
+    {
+      "path": "sidecars/pathfinder-depth8-disagreements-20260830-v2.jsonl",
+      "schemaVersion": 1,
+      "identity": "sha256(root-target-jsonl)",
+      "roots": 39,
+      "labels": 39,
+      "partitions": {
+        "train": 20,
+        "heldout": 19
+      },
+      "teacher": "pathfinder-teacher-v2-depth8-2000k-beam32",
+      "sha256": "68b7eb884e19243a2d40bc0d5525fcff70886100a445c8e518e50e0200c6c1f8",
+      "bytes": 626738
     }
   ],
   "observations": 128953,

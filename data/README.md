@@ -9,6 +9,8 @@ formats, deterministic generation where practical, and automated validation.
 | [`corpora/games-v1/`](corpora/games-v1/) | Content-addressed move histories, outcomes, observations, and reusable sidecars. |
 | [`fixtures/`](fixtures/) | Cross-runtime, tactical, and regression fixtures. |
 | [`golden/`](golden/) | Exact position values and their manifests. |
+| [`models/pathfinder-action-transition-v3-xent/`](models/pathfinder-action-transition-v3-xent/) | Versioned explicit placement/relocation transition scorer and provenance manifest. |
+| [`models/pathfinder-action-transition-v4-xent/`](models/pathfinder-action-transition-v4-xent/) | Scaled, selectively deep-labeled explicit transition scorer and provenance manifest; current user-facing default. |
 
 Do not use `data/` as a landing zone for a new experiment. Generate locally in
 the dated research path, then deliberately promote only reusable, reviewable

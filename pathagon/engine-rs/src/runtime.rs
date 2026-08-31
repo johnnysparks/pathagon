@@ -17,6 +17,7 @@ use crate::search::{
     search_best_action_with_tactical_filter, search_best_action_with_tactical_filter_deadline,
     MoveEvaluation, SearchConfig, SearchResult,
 };
+use crate::transition_policy::{RankedTransitionAction, TransitionPolicyModel};
 use crate::{bit_squares, Action, BoardConfig, GameState, Player};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -88,6 +89,29 @@ pub struct RuntimeMoveEvaluation {
     pub completed_depth: u8,
     #[serde(rename = "tableHits")]
     pub table_hits: u64,
+}
+
+/// Browser-facing policy ranking. Actions are already legal and tactical-safe
+/// when this response is produced; the recursive search still decides the
+/// final move when called through `search_transition_policy_json`.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct RuntimeTransitionPolicyAction {
+    pub action: ContractAction,
+    pub safe: bool,
+    #[serde(rename = "immediateWin")]
+    pub immediate_win: bool,
+    pub score: f32,
+}
+
+impl From<RankedTransitionAction> for RuntimeTransitionPolicyAction {
+    fn from(item: RankedTransitionAction) -> Self {
+        Self {
+            action: item.action.into(),
+            safe: item.safe,
+            immediate_win: item.immediate_win,
+            score: item.score,
+        }
+    }
 }
 
 impl From<MoveEvaluation> for RuntimeMoveEvaluation {
@@ -375,6 +399,44 @@ pub fn analyze_actions_json(
     serde_json::to_string(&results).map_err(|error| error.to_string())
 }
 
+/// Rank legal roots through the explicit action-transition model. This is a
+/// model-inspection endpoint; use `search_transition_policy_json` to combine
+/// the ranking with the rules-authoritative alpha-beta search.
+pub fn rank_transition_policy_json(
+    state_json: &str,
+    model: &TransitionPolicyModel,
+    max_actions: usize,
+) -> Result<String, String> {
+    let state = parse_position(state_json)?;
+    let ranked = model
+        .ranked_actions(state, crate::search::EvaluationWeights::default())
+        .into_iter()
+        .take(if max_actions == 0 {
+            usize::MAX
+        } else {
+            max_actions
+        })
+        .map(Into::into)
+        .collect::<Vec<RuntimeTransitionPolicyAction>>();
+    serde_json::to_string(&ranked).map_err(|error| error.to_string())
+}
+
+/// Search with the packaged explicit transition scorer. The model only
+/// orders the tactical-safe root; legal-action generation and recursive
+/// evaluation remain in the Rust rules/search engine.
+pub fn search_transition_policy_json(
+    state_json: &str,
+    config_json: &str,
+    model: &TransitionPolicyModel,
+    deadline_ms: u32,
+) -> Result<String, String> {
+    let state = parse_position(state_json)?;
+    let config: RuntimeSearchConfig =
+        serde_json::from_str(config_json).map_err(|error| error.to_string())?;
+    let result = model.search(state, config.into(), Some(deadline_ms.max(1)));
+    serde_json::to_string(&RuntimeSearchResult::from(result)).map_err(|error| error.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -575,5 +637,57 @@ mod tests {
         )
         .expect("decode tactical proof search config");
         assert_eq!(SearchConfig::from(config).tactical_proof_horizon, Some(3));
+    }
+
+    #[test]
+    fn transition_policy_runtime_endpoints_keep_actions_legal() {
+        let model = TransitionPolicyModel::from_json(
+            &serde_json::json!({
+                "schemaVersion": 1,
+                "model": "tanh-action-state-transition-policy-v2",
+                "encoding": "explicit-source-kind",
+                "featureOrder": (0..crate::transition_policy::FEATURE_COUNT).map(|i| format!("f{i}")).collect::<Vec<_>>(),
+                "mean": vec![0.0; crate::transition_policy::FEATURE_COUNT],
+                "scale": vec![1.0; crate::transition_policy::FEATURE_COUNT],
+                "layers": [
+                    {"weights": vec![vec![0.0; crate::transition_policy::FEATURE_COUNT]], "bias": [0.0]},
+                    {"weights": vec![vec![0.0]], "bias": [0.0]},
+                    {"weights": vec![vec![0.0]], "bias": [0.0]}
+                ]
+            })
+            .to_string(),
+        )
+        .expect("valid transition model");
+        let position = position_json(GameState::new()).expect("serialize position");
+        let ranked: Vec<RuntimeTransitionPolicyAction> = serde_json::from_str(
+            &rank_transition_policy_json(&position, &model, 7).expect("rank roots"),
+        )
+        .expect("decode ranked roots");
+        assert_eq!(ranked.len(), 7);
+        assert!(ranked.iter().all(|item| {
+            let action: Action = item.action.clone().into();
+            GameState::new().legal_actions().contains(&action)
+        }));
+        let config = serde_json::json!({
+            "depth": 3,
+            "maxNodes": 2_000,
+            "beamWidth": 8,
+            "weights": {
+                "path": 241,
+                "material": 112,
+                "capture": 887,
+                "structure": 40,
+                "threat": 154,
+                "edge": 74
+            }
+        })
+        .to_string();
+        let result: RuntimeSearchResult = serde_json::from_str(
+            &search_transition_policy_json(&position, &config, &model, 25)
+                .expect("search transition policy"),
+        )
+        .expect("decode transition-policy search result");
+        let action = result.action.expect("initial position has an action");
+        assert!(GameState::new().legal_actions().contains(&action.into()));
     }
 }

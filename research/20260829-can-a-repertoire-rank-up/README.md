@@ -1,6 +1,6 @@
 # 20260829 Can a repertoire rank up?
 
-Status: running
+Status: inconclusive
 
 ## Idea
 
@@ -35,26 +35,34 @@ authoritative for move selection.
 
 ## What happened
 
-Running. The protocol freezes corpus-derived opening statistics, teacher-label
-seeds, selection seeds, and final arena seeds before promotion. Generated
-games, labels, reports, and logs stay under `workspace/` until a compact,
-versioned repertoire qualifies for `data/`.
+The protocol froze corpus-derived opening statistics, teacher-label seeds,
+selection seeds, and final arena seeds before promotion. Aggregation covered
+38,322 games and produced 238,223 raw state/action records, consolidated to
+222,753 canonical records. The strongest tactical-safe teacher book covered
+609 roots, but only 106 roots reached the selected depth-6 quality threshold.
+
+The resulting repertoire was tested in paired, color-balanced arenas. The
+opening-only candidate scored 109-122-9 in 240 games and 199-191-10 in the
+untouched 400-game arena (52.0% game points); the wider ply-2-8 candidate
+scored 111-122-7 in its 240-game screen. Coverage and legality were sound, but
+whole-game strength did not clear the promotion threshold. No repertoire was
+promoted.
 
 ## Data and artifacts
 
-The experiment will keep one-time aggregation and labeling code beside this
-narrative. Bulk labels and arenas belong in ignored `workspace/`. A promoted
-repertoire must live in a strict versioned path under `data/`, include source
-and teacher provenance, and be consumed by the Rust engine with focused tests.
+The experiment keeps one-time aggregation and labeling code beside this
+narrative. Bulk labels and arenas remain in ignored `workspace/`; no strict
+versioned repertoire was added under `data/`, and no runtime book remains in
+the supported Rust path.
 
 ## Project impact
 
-None yet. No opponent identity or runtime behavior is supported until the
-candidate passes legality, tactical, coverage, latency, and whole-game gates.
+No opponent identity or runtime behavior was promoted. The negative result is
+retained as evidence against repeating a sparse opening-book approach without
+stronger contextual features.
 
 ## Next decision
 
-Promote only if the frozen candidate improves on v0.5 in an untouched paired
-arena, remains positive in both colors, passes all existing regression suites,
-and adds negligible browser latency. Otherwise retain the narrative and retire
-the candidate without changing the supported ladder.
+Retain the narrative and retire the candidate without changing the supported
+ladder. The next effort should spend the larger teacher budget on richer state
+representations rather than expanding this sparse book.

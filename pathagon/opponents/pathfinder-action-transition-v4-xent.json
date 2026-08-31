@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "pathfinder-action-transition-v4-xent",
+  "name": "The Pathfinder · Transition v4",
+  "version": "4.0.0",
+  "kind": "search",
+  "runtime": "rust-wasm",
+  "rulesVersion": "pathagon-rules-v1",
+  "boardSize": 7,
+  "reservePerPlayer": 14,
+  "search": {
+    "depth": 4,
+    "nodeBudget": 2000,
+    "beam": 8,
+    "tacticalRootFilter": true,
+    "deadlineMs": 2800,
+    "transitionPolicyRootOrdering": "tactical-safe-full-root"
+  },
+  "evaluatorWeights": {
+    "path": 241,
+    "material": 112,
+    "capture": 887,
+    "structure": 40,
+    "threat": 154,
+    "edge": 74
+  },
+  "model": {
+    "artifact": "data/models/pathfinder-action-transition-v4-xent/transition-policy.json",
+    "model": "tanh-action-state-transition-policy-v2",
+    "encoding": "explicit-source-kind",
+    "sha256": "f11d7ddee101ccab35ee162e53c95ced076b1fb10242443ad562dbd51c1085d4"
+  },
+  "training": {
+    "method": "selective depth-8 teacher replacement plus cross-entropy transition scoring",
+    "sourceResearch": "research/20260830-nextgen-scaled",
+    "trainingRoots": 11145,
+    "heldoutRoots": 2855,
+    "selectiveDepth8Replacements": 39,
+    "heldoutTop1": 0.3134851138353765,
+    "heldoutTop3": 0.4795096322241681
+  },
+  "evidence": {
+    "control": "pathfinder-v0.5.0-trained-evaluator",
+    "games": 1000,
+    "wins": 565,
+    "losses": 401,
+    "draws": 34,
+    "pointRate": 0.582,
+    "lightPointRate": 0.575,
+    "darkPointRate": 0.589,
+    "openingRandomPlies": 2,
+    "maxPlies": 80,
+    "seed": 2026083002,
+    "nodes": 1000000,
+    "beam": 32,
+    "replayAudit": "46,604 plies; 10,859 captures; no legality, ownership, or capture mismatch"
+  },
+  "promotionStatus": "supported-user-facing-default",
+  "modelHash": "f11d7ddee101ccab35ee162e53c95ced076b1fb10242443ad562dbd51c1085d4"
+}

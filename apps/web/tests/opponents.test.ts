@@ -5,6 +5,7 @@ import {
   LUNATIC_OPPONENT,
   PATHFINDER_DEPTH_OPTIONS,
   PATHFINDER_OPPONENT,
+  TRANSITION_PATHFINDER_OPPONENT,
   TRAINED_PATHFINDER_OPPONENT,
   TRAINED_PATHFINDER_WEIGHTS,
   pathfinderSearchAtDepth,
@@ -13,7 +14,7 @@ import {
 } from "../app/opponents.ts";
 import { applyAction, createGame, legalActions } from "../app/pathagon.ts";
 import type { GameState, Player } from "../app/pathagon.ts";
-import { PATHFINDER_TACTICAL_FILTER_ID, TRAINED_PATHFINDER_ID } from "../app/agent-ids.ts";
+import { PATHFINDER_TACTICAL_FILTER_ID, TRANSITION_PATHFINDER_ID, TRAINED_PATHFINDER_ID } from "../app/agent-ids.ts";
 
 function position(pieces: Partial<Record<number, Player>>, options: Partial<GameState> = {}) {
   const state = createGame();
@@ -80,6 +81,15 @@ test("trained Pathfinder keeps its promoted search envelope and evaluator weight
   assert.equal(config.depth, 4);
   assert.equal(config.maxNodes, 2_000);
   assert.equal(config.beamWidth, 8);
+});
+
+test("transition-policy v4 is the strongest user-facing Pathfinder identity", () => {
+  assert.equal(TRANSITION_PATHFINDER_OPPONENT.id, TRANSITION_PATHFINDER_ID);
+  assert.equal(TRANSITION_PATHFINDER_OPPONENT.version, "4.0.0");
+  assert.equal(TRANSITION_PATHFINDER_OPPONENT.searchDepth, 4);
+  const action = TRANSITION_PATHFINDER_OPPONENT.chooseAction(createGame());
+  assert.ok(action);
+  assert.ok(legalActions(createGame()).some((candidate) => JSON.stringify(candidate) === JSON.stringify(action)));
 });
 
 test("Lunatic takes an obvious automatic capture", () => {

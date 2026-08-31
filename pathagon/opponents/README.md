@@ -27,3 +27,15 @@ provisional rating pending a longer post-deployment ladder. A reproduction
 after the alpha-beta sentinel-bound fix scored 70–48–2 with 5,886,532 nodes;
 the original 70–47–3 evidence remains recorded in the opponent manifest, with
 the difference explained in the budgeted Pathfinder research record.
+
+## `pathfinder-action-transition-v4-xent`
+
+The Pathfinder · Transition v4 is the current user-facing default. It uses the
+Rust/WASM tactical-safe search wrapper with the versioned explicit
+placement/relocation transition model in
+[`data/models/pathfinder-action-transition-v4-xent/`](../../data/models/pathfinder-action-transition-v4-xent/).
+The 1,000-game paired arena scored 565–401–34 against the v0.5 trained
+evaluator (58.2% points), with positive point rates in both colors and a
+complete native replay audit. Its stable identity, search envelope, model hash,
+and provenance are recorded in
+[`pathfinder-action-transition-v4-xent.json`](pathfinder-action-transition-v4-xent.json).

@@ -23,8 +23,24 @@ use crate::search::{
 #[cfg(feature = "inference")]
 use crate::search::{
     ordered_root_actions_with_tactical_guard, search_best_action_with_root_order_and_root_limit,
+    search_best_action_with_root_order_and_root_limit_deadline, tactical_root_safe_actions,
 };
+use crate::transition_policy::TransitionPolicyModel;
 use crate::{bit_squares, Action, BoardConfig, GameState, Player};
+
+fn contextual_phase_index(state: GameState) -> usize {
+    let occupied = (state.light | state.dark).count_ones();
+    let reserves = u32::from(state.reserve[0]) + u32::from(state.reserve[1]);
+    if occupied < 8 {
+        0 // opening
+    } else if reserves == 0 {
+        2 // movement
+    } else if occupied >= 20 {
+        3 // late-game
+    } else {
+        1 // placement
+    }
+}
 
 #[derive(Clone)]
 pub enum Agent {
@@ -63,6 +79,29 @@ pub enum Agent {
         config: SearchConfig,
         deadline_ms: Option<u32>,
     },
+    /// Pathfinder with a phase-conditioned evaluator. The four configs are
+    /// selected from the current board state without changing legal actions.
+    Contextual {
+        id: String,
+        configs: [SearchConfig; 4],
+        deadline_ms: Option<u32>,
+    },
+    /// Pathfinder with phase-conditioned evaluators selected by the player to
+    /// move. This is a research variant for testing color/turn asymmetry.
+    ContextualByPlayer {
+        id: String,
+        light_configs: [SearchConfig; 4],
+        dark_configs: [SearchConfig; 4],
+        deadline_ms: Option<u32>,
+    },
+    /// Pathfinder with a compact action-transition policy used only to order
+    /// the tactical-safe root. The native search remains authoritative.
+    TransitionPolicy {
+        id: String,
+        config: SearchConfig,
+        model: Arc<TransitionPolicyModel>,
+        deadline_ms: Option<u32>,
+    },
     /// Pathfinder with a selective, bounded rule-grounded tactical proof.
     SearchTacticalProof {
         id: String,
@@ -80,6 +119,24 @@ pub enum Agent {
         min_margin: f32,
         max_heuristic_gap: i32,
         model: Arc<OnnxGnnPolicyValueModel>,
+    },
+    /// Pathfinder with a board-aware policy/value model ordering the complete
+    /// tactical-safe root. The model never changes the legal action set.
+    #[cfg(feature = "inference")]
+    BoardPolicySorter {
+        id: String,
+        config: SearchConfig,
+        model: Arc<OnnxGnnPolicyValueModel>,
+        deadline_ms: Option<u32>,
+    },
+    /// Pathfinder with a board-aware Q/advantage head ordering the complete
+    /// tactical-safe root.
+    #[cfg(feature = "inference")]
+    BoardQAdvSorter {
+        id: String,
+        config: SearchConfig,
+        model: Arc<OnnxQAdvModel>,
+        deadline_ms: Option<u32>,
     },
     #[cfg(feature = "inference")]
     QAdvSorter {
@@ -258,6 +315,66 @@ impl Agent {
         }
     }
 
+    pub fn contextual(id: impl Into<String>, configs: [SearchConfig; 4]) -> Self {
+        Self::Contextual {
+            id: id.into(),
+            configs,
+            deadline_ms: None,
+        }
+    }
+
+    pub fn contextual_with_deadline(
+        id: impl Into<String>,
+        configs: [SearchConfig; 4],
+        deadline_ms: u32,
+    ) -> Self {
+        assert!(
+            deadline_ms > 0,
+            "contextual search deadline must be positive"
+        );
+        Self::Contextual {
+            id: id.into(),
+            configs,
+            deadline_ms: Some(deadline_ms),
+        }
+    }
+
+    pub fn contextual_by_player_with_deadline(
+        id: impl Into<String>,
+        light_configs: [SearchConfig; 4],
+        dark_configs: [SearchConfig; 4],
+        deadline_ms: u32,
+    ) -> Self {
+        assert!(
+            deadline_ms > 0,
+            "contextual-by-player search deadline must be positive"
+        );
+        Self::ContextualByPlayer {
+            id: id.into(),
+            light_configs,
+            dark_configs,
+            deadline_ms: Some(deadline_ms),
+        }
+    }
+
+    pub fn transition_policy_with_deadline(
+        id: impl Into<String>,
+        config: SearchConfig,
+        model: Arc<TransitionPolicyModel>,
+        deadline_ms: u32,
+    ) -> Self {
+        assert!(
+            deadline_ms > 0,
+            "transition policy deadline must be positive"
+        );
+        Self::TransitionPolicy {
+            id: id.into(),
+            config,
+            model,
+            deadline_ms: Some(deadline_ms),
+        }
+    }
+
     pub fn search_tactical_proof(
         id: impl Into<String>,
         config: SearchConfig,
@@ -341,6 +458,44 @@ impl Agent {
     }
 
     #[cfg(feature = "inference")]
+    pub fn board_policy_sorter_with_deadline(
+        id: impl Into<String>,
+        config: SearchConfig,
+        model: Arc<OnnxGnnPolicyValueModel>,
+        deadline_ms: u32,
+    ) -> Self {
+        assert!(
+            deadline_ms > 0,
+            "board policy sorter deadline must be positive"
+        );
+        Self::BoardPolicySorter {
+            id: id.into(),
+            config,
+            model,
+            deadline_ms: Some(deadline_ms),
+        }
+    }
+
+    #[cfg(feature = "inference")]
+    pub fn board_qadv_sorter_with_deadline(
+        id: impl Into<String>,
+        config: SearchConfig,
+        model: Arc<OnnxQAdvModel>,
+        deadline_ms: u32,
+    ) -> Self {
+        assert!(
+            deadline_ms > 0,
+            "board QAdv sorter deadline must be positive"
+        );
+        Self::BoardQAdvSorter {
+            id: id.into(),
+            config,
+            model,
+            deadline_ms: Some(deadline_ms),
+        }
+    }
+
+    #[cfg(feature = "inference")]
     pub fn qadv_sorter(
         id: impl Into<String>,
         config: SearchConfig,
@@ -396,10 +551,17 @@ impl Agent {
             | Self::SearchTtOrder { id, .. }
             | Self::SearchTacticalGuard { id, .. }
             | Self::SearchTacticalFilter { id, .. }
+            | Self::Contextual { id, .. }
+            | Self::ContextualByPlayer { id, .. }
+            | Self::TransitionPolicy { id, .. }
             | Self::SearchTacticalProof { id, .. }
             | Self::Learned { id, .. } => id,
             #[cfg(feature = "inference")]
-            Self::Gnn { id, .. } | Self::GnnSorter { id, .. } | Self::QAdvSorter { id, .. } => id,
+            Self::Gnn { id, .. }
+            | Self::GnnSorter { id, .. }
+            | Self::BoardPolicySorter { id, .. }
+            | Self::BoardQAdvSorter { id, .. }
+            | Self::QAdvSorter { id, .. } => id,
             #[cfg(feature = "inference")]
             Self::GnnGuided { id, .. } => id,
             #[cfg(feature = "inference")]
@@ -522,6 +684,62 @@ impl Agent {
                     root_q: None,
                 }
             }
+            Self::Contextual {
+                configs,
+                deadline_ms,
+                ..
+            } => {
+                let config = configs[contextual_phase_index(state)];
+                let result = deadline_ms.map_or_else(
+                    || search_best_action_with_tactical_filter(state, config),
+                    |deadline_ms| {
+                        search_best_action_with_tactical_filter_deadline(state, config, deadline_ms)
+                    },
+                );
+                Decision {
+                    action: result.action,
+                    score: result.score,
+                    nodes: result.nodes,
+                    completed_depth: result.completed_depth,
+                    table_hits: result.table_hits,
+                    book_hit: false,
+                    root_q: None,
+                }
+            }
+            Self::ContextualByPlayer {
+                light_configs,
+                dark_configs,
+                deadline_ms,
+                ..
+            } => {
+                let configs = if state.turn == Player::Light {
+                    light_configs
+                } else {
+                    dark_configs
+                };
+                let config = configs[contextual_phase_index(state)];
+                let result = deadline_ms.map_or_else(
+                    || search_best_action_with_tactical_filter(state, config),
+                    |deadline_ms| {
+                        search_best_action_with_tactical_filter_deadline(state, config, deadline_ms)
+                    },
+                );
+                Decision {
+                    action: result.action,
+                    score: result.score,
+                    nodes: result.nodes,
+                    completed_depth: result.completed_depth,
+                    table_hits: result.table_hits,
+                    book_hit: false,
+                    root_q: None,
+                }
+            }
+            Self::TransitionPolicy {
+                config,
+                model,
+                deadline_ms,
+                ..
+            } => choose_transition_policy(state, *config, model.as_ref(), *deadline_ms),
             Self::SearchTacticalProof {
                 config,
                 proof_horizon,
@@ -632,6 +850,20 @@ impl Agent {
                 *max_heuristic_gap,
                 model.as_ref(),
             ),
+            #[cfg(feature = "inference")]
+            Self::BoardPolicySorter {
+                config,
+                model,
+                deadline_ms,
+                ..
+            } => choose_board_policy_sorter(state, *config, model.as_ref(), *deadline_ms),
+            #[cfg(feature = "inference")]
+            Self::BoardQAdvSorter {
+                config,
+                model,
+                deadline_ms,
+                ..
+            } => choose_board_qadv_sorter(state, *config, model.as_ref(), *deadline_ms),
             #[cfg(feature = "inference")]
             Self::QAdvSorter {
                 config,
@@ -871,6 +1103,33 @@ fn agent_spec_json(agent: &Agent) -> String {
             config.weights,
             config.tactical_proof_horizon,
         ),
+        Agent::Contextual { configs, .. } => (
+            "search",
+            "Rust Pathfinder · contextual evaluator",
+            u32::from(configs[0].depth),
+            configs[0].max_nodes,
+            configs[0].beam_width as u32,
+            configs[0].weights,
+            configs[0].tactical_proof_horizon,
+        ),
+        Agent::ContextualByPlayer { light_configs, .. } => (
+            "search",
+            "Rust Pathfinder · contextual evaluator by player",
+            u32::from(light_configs[0].depth),
+            light_configs[0].max_nodes,
+            light_configs[0].beam_width as u32,
+            light_configs[0].weights,
+            light_configs[0].tactical_proof_horizon,
+        ),
+        Agent::TransitionPolicy { config, .. } => (
+            "search",
+            "Pathfinder · action-transition policy",
+            u32::from(config.depth),
+            config.max_nodes,
+            config.beam_width as u32,
+            config.weights,
+            config.tactical_proof_horizon,
+        ),
         Agent::SearchTacticalProof { config, .. } => (
             "search",
             "Rust Pathfinder · proof-guided tactical search",
@@ -893,6 +1152,26 @@ fn agent_spec_json(agent: &Agent) -> String {
         Agent::GnnSorter { config, .. } => (
             "search",
             "Pathfinder · ONNX root sorter",
+            u32::from(config.depth),
+            config.max_nodes,
+            config.beam_width as u32,
+            config.weights,
+            config.tactical_proof_horizon,
+        ),
+        #[cfg(feature = "inference")]
+        Agent::BoardPolicySorter { config, .. } => (
+            "search",
+            "Pathfinder · board-aware policy/value sorter",
+            u32::from(config.depth),
+            config.max_nodes,
+            config.beam_width as u32,
+            config.weights,
+            config.tactical_proof_horizon,
+        ),
+        #[cfg(feature = "inference")]
+        Agent::BoardQAdvSorter { config, .. } => (
+            "search",
+            "Pathfinder · board-aware Q/advantage sorter",
             u32::from(config.depth),
             config.max_nodes,
             config.beam_width as u32,
@@ -1018,6 +1297,96 @@ fn agent_spec_json(agent: &Agent) -> String {
     {
         parameters.insert("deadlineMs".to_owned(), serde_json::json!(deadline_ms));
     }
+    if let Agent::Contextual {
+        configs,
+        deadline_ms,
+        ..
+    } = agent
+    {
+        let phase_names = ["opening", "placement", "movement", "late-game"];
+        let contextual_weights = phase_names
+            .iter()
+            .zip(configs.iter())
+            .map(|(phase, config)| {
+                (
+                    (*phase).to_owned(),
+                    serde_json::json!({
+                        "path": config.weights.path,
+                        "material": config.weights.material,
+                        "capture": config.weights.capture,
+                        "structure": config.weights.structure,
+                        "threat": config.weights.threat,
+                        "edge": config.weights.edge,
+                    }),
+                )
+            })
+            .collect::<serde_json::Map<_, _>>();
+        parameters.insert(
+            "contextualWeights".to_owned(),
+            serde_json::Value::Object(contextual_weights),
+        );
+        if let Some(deadline_ms) = deadline_ms {
+            parameters.insert("deadlineMs".to_owned(), serde_json::json!(deadline_ms));
+        }
+    }
+    if let Agent::ContextualByPlayer {
+        light_configs,
+        dark_configs,
+        deadline_ms,
+        ..
+    } = agent
+    {
+        let phase_names = ["opening", "placement", "movement", "late-game"];
+        let vectors = |configs: &[SearchConfig; 4]| {
+            phase_names
+                .iter()
+                .zip(configs.iter())
+                .map(|(phase, config)| {
+                    (
+                        (*phase).to_owned(),
+                        serde_json::json!({
+                            "path": config.weights.path,
+                            "material": config.weights.material,
+                            "capture": config.weights.capture,
+                            "structure": config.weights.structure,
+                            "threat": config.weights.threat,
+                            "edge": config.weights.edge,
+                        }),
+                    )
+                })
+                .collect::<serde_json::Map<_, _>>()
+        };
+        parameters.insert(
+            "contextualWeightsByPlayer".to_owned(),
+            serde_json::json!({
+                "light": vectors(light_configs),
+                "dark": vectors(dark_configs),
+            }),
+        );
+        if let Some(deadline_ms) = deadline_ms {
+            parameters.insert("deadlineMs".to_owned(), serde_json::json!(deadline_ms));
+        }
+    }
+    if let Agent::TransitionPolicy {
+        model, deadline_ms, ..
+    } = agent
+    {
+        parameters.insert(
+            "transitionPolicyModel".to_owned(),
+            serde_json::json!({
+                "schemaVersion": model.schema_version,
+                "model": model.model.as_str(),
+                "featureOrder": &model.feature_order,
+            }),
+        );
+        parameters.insert(
+            "transitionPolicyRootOrdering".to_owned(),
+            serde_json::json!("tactical-safe-full-root"),
+        );
+        if let Some(deadline_ms) = deadline_ms {
+            parameters.insert("deadlineMs".to_owned(), serde_json::json!(deadline_ms));
+        }
+    }
     #[cfg(feature = "inference")]
     if let Agent::GnnSorter {
         top_k,
@@ -1044,6 +1413,34 @@ fn agent_spec_json(agent: &Agent) -> String {
             "sorterMaxHeuristicGap".to_owned(),
             serde_json::json!(max_heuristic_gap),
         );
+    }
+    #[cfg(feature = "inference")]
+    if let Agent::BoardPolicySorter { deadline_ms, .. } = agent {
+        parameters.insert(
+            "boardPolicyValueModel".to_owned(),
+            serde_json::json!("residual-mean-message-passing-v1"),
+        );
+        parameters.insert(
+            "rootOrdering".to_owned(),
+            serde_json::json!("tactical-safe-full-root"),
+        );
+        if let Some(deadline_ms) = deadline_ms {
+            parameters.insert("deadlineMs".to_owned(), serde_json::json!(deadline_ms));
+        }
+    }
+    #[cfg(feature = "inference")]
+    if let Agent::BoardQAdvSorter { deadline_ms, .. } = agent {
+        parameters.insert(
+            "boardPolicyValueModel".to_owned(),
+            serde_json::json!("residual-mean-message-passing-qadv-v1"),
+        );
+        parameters.insert(
+            "rootOrdering".to_owned(),
+            serde_json::json!("tactical-safe-full-root-q-values"),
+        );
+        if let Some(deadline_ms) = deadline_ms {
+            parameters.insert("deadlineMs".to_owned(), serde_json::json!(deadline_ms));
+        }
     }
     #[cfg(feature = "inference")]
     if let Agent::QAdvSorter {
@@ -1311,6 +1708,24 @@ impl Mulberry32 {
     }
 }
 
+fn choose_transition_policy(
+    state: GameState,
+    config: SearchConfig,
+    model: &TransitionPolicyModel,
+    deadline_ms: Option<u32>,
+) -> Decision {
+    let result = model.search(state, config, deadline_ms);
+    Decision {
+        action: result.action,
+        score: result.score,
+        nodes: result.nodes,
+        completed_depth: result.completed_depth,
+        table_hits: result.table_hits,
+        book_hit: false,
+        root_q: None,
+    }
+}
+
 #[cfg(feature = "inference")]
 fn choose_gnn_sorter(
     state: GameState,
@@ -1400,6 +1815,190 @@ fn choose_gnn_sorter(
         } else {
             root_limit
         }),
+    );
+    Decision {
+        action: result.action,
+        score: result.score,
+        nodes: result.nodes,
+        completed_depth: result.completed_depth,
+        table_hits: result.table_hits,
+        book_hit: false,
+        root_q: None,
+    }
+}
+
+#[cfg(feature = "inference")]
+fn choose_board_policy_sorter(
+    state: GameState,
+    config: SearchConfig,
+    model: &OnnxGnnPolicyValueModel,
+    deadline_ms: Option<u32>,
+) -> Decision {
+    if state.config.board_size != 7 {
+        let result = deadline_ms.map_or_else(
+            || search_best_action_with_tactical_filter(state, config),
+            |deadline| search_best_action_with_tactical_filter_deadline(state, config, deadline),
+        );
+        return Decision {
+            action: result.action,
+            score: result.score,
+            nodes: result.nodes,
+            completed_depth: result.completed_depth,
+            table_hits: result.table_hits,
+            book_hit: false,
+            root_q: None,
+        };
+    }
+    let fallback = tactical_root_safe_actions(state, state.turn, config.weights);
+    if fallback.is_empty() {
+        return Decision {
+            action: None,
+            score: 0,
+            nodes: 0,
+            completed_depth: 0,
+            table_hits: 0,
+            book_hit: false,
+            root_q: None,
+        };
+    }
+    let output = model
+        .evaluate_with_actions(state, &fallback)
+        .unwrap_or_else(|error| panic!("native board policy/value sorter failed: {error}"));
+    let mut ranked = fallback
+        .iter()
+        .copied()
+        .zip(output.policy_logits.into_iter().take(fallback.len()))
+        .map(|(action, logit)| {
+            (
+                action,
+                state.apply_legal(action).state.winner == Some(state.turn),
+                logit,
+            )
+        })
+        .collect::<Vec<_>>();
+    ranked.sort_by(|left, right| {
+        right
+            .1
+            .cmp(&left.1)
+            .then_with(|| right.2.total_cmp(&left.2))
+            .then_with(|| left.0.order().cmp(&right.0.order()))
+    });
+    let root_order = ranked
+        .iter()
+        .map(|(action, _, _)| *action)
+        .collect::<Vec<_>>();
+    let result = deadline_ms.map_or_else(
+        || {
+            search_best_action_with_root_order_and_root_limit(
+                state,
+                config,
+                &root_order,
+                false,
+                Some(fallback.len()),
+            )
+        },
+        |deadline| {
+            search_best_action_with_root_order_and_root_limit_deadline(
+                state,
+                config,
+                &root_order,
+                false,
+                Some(fallback.len()),
+                deadline,
+            )
+        },
+    );
+    Decision {
+        action: result.action,
+        score: result.score,
+        nodes: result.nodes,
+        completed_depth: result.completed_depth,
+        table_hits: result.table_hits,
+        book_hit: false,
+        root_q: None,
+    }
+}
+
+#[cfg(feature = "inference")]
+fn choose_board_qadv_sorter(
+    state: GameState,
+    config: SearchConfig,
+    model: &OnnxQAdvModel,
+    deadline_ms: Option<u32>,
+) -> Decision {
+    if state.config.board_size != 7 {
+        let result = deadline_ms.map_or_else(
+            || search_best_action_with_tactical_filter(state, config),
+            |deadline| search_best_action_with_tactical_filter_deadline(state, config, deadline),
+        );
+        return Decision {
+            action: result.action,
+            score: result.score,
+            nodes: result.nodes,
+            completed_depth: result.completed_depth,
+            table_hits: result.table_hits,
+            book_hit: false,
+            root_q: None,
+        };
+    }
+    let fallback = tactical_root_safe_actions(state, state.turn, config.weights);
+    if fallback.is_empty() {
+        return Decision {
+            action: None,
+            score: 0,
+            nodes: 0,
+            completed_depth: 0,
+            table_hits: 0,
+            book_hit: false,
+            root_q: None,
+        };
+    }
+    let output = model
+        .evaluate_qadv_with_actions(state, &fallback)
+        .unwrap_or_else(|error| panic!("native board QAdv sorter failed: {error}"));
+    let mut ranked = fallback
+        .iter()
+        .copied()
+        .zip(output.q_values.into_iter().take(fallback.len()))
+        .map(|(action, q_value)| {
+            (
+                action,
+                state.apply_legal(action).state.winner == Some(state.turn),
+                q_value,
+            )
+        })
+        .collect::<Vec<_>>();
+    ranked.sort_by(|left, right| {
+        right
+            .1
+            .cmp(&left.1)
+            .then_with(|| right.2.total_cmp(&left.2))
+            .then_with(|| left.0.order().cmp(&right.0.order()))
+    });
+    let root_order = ranked
+        .iter()
+        .map(|(action, _, _)| *action)
+        .collect::<Vec<_>>();
+    let result = deadline_ms.map_or_else(
+        || {
+            search_best_action_with_root_order_and_root_limit(
+                state,
+                config,
+                &root_order,
+                false,
+                Some(fallback.len()),
+            )
+        },
+        |deadline| {
+            search_best_action_with_root_order_and_root_limit_deadline(
+                state,
+                config,
+                &root_order,
+                false,
+                Some(fallback.len()),
+                deadline,
+            )
+        },
     );
     Decision {
         action: result.action,
@@ -2014,6 +2613,7 @@ fn json_escape(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::search::EvaluationWeights;
 
     #[test]
     fn seeded_random_games_are_reproducible() {
@@ -2072,6 +2672,98 @@ mod tests {
             replay.agent_specifications.light.manifest.node_budget,
             2_000
         );
+    }
+
+    #[test]
+    fn contextual_agent_selects_phase_and_records_all_weight_vectors() {
+        let weights = EvaluationWeights::default();
+        let agent = Agent::contextual_with_deadline(
+            "contextual-test",
+            [
+                SearchConfig {
+                    depth: 1,
+                    max_nodes: 32,
+                    beam_width: 2,
+                    weights,
+                    tactical_proof_horizon: None,
+                },
+                SearchConfig {
+                    depth: 1,
+                    max_nodes: 32,
+                    beam_width: 2,
+                    weights,
+                    tactical_proof_horizon: None,
+                },
+                SearchConfig {
+                    depth: 1,
+                    max_nodes: 32,
+                    beam_width: 2,
+                    weights,
+                    tactical_proof_horizon: None,
+                },
+                SearchConfig {
+                    depth: 1,
+                    max_nodes: 32,
+                    beam_width: 2,
+                    weights,
+                    tactical_proof_horizon: None,
+                },
+            ],
+            50,
+        );
+        let opponent = Agent::random("contextual-random");
+        let record = play_game(
+            &agent,
+            &opponent,
+            MatchOptions {
+                seed: 91,
+                max_plies: 8,
+                opening_random_plies: 0,
+                board_size: 4,
+                reserve_per_player: 8,
+            },
+        );
+        let replay = crate::contract::ReplayRecord::from_json(&record.to_json())
+            .expect("contextual replay follows contract");
+        let parameters = replay
+            .agent_specifications
+            .light
+            .parameters
+            .expect("contextual parameters");
+        assert_eq!(parameters["deadlineMs"], serde_json::json!(50));
+        assert_eq!(
+            parameters["contextualWeights"]["opening"]["path"],
+            serde_json::json!(240)
+        );
+        assert_eq!(
+            parameters["contextualWeights"]["late-game"]["capture"],
+            serde_json::json!(700)
+        );
+    }
+
+    #[test]
+    fn contextual_phase_boundaries_match_training_labels() {
+        let mut state = GameState::with_board_size(7);
+        assert_eq!(contextual_phase_index(state), 0);
+        state.light = (1_u64 << 0) | (1_u64 << 1) | (1_u64 << 2) | (1_u64 << 3);
+        state.dark = (1_u64 << 7) | (1_u64 << 8) | (1_u64 << 9) | (1_u64 << 10);
+        assert_eq!(contextual_phase_index(state), 1);
+        state.reserve = [0, 0];
+        assert_eq!(contextual_phase_index(state), 2);
+        state.light |= (1_u64 << 4)
+            | (1_u64 << 5)
+            | (1_u64 << 6)
+            | (1_u64 << 11)
+            | (1_u64 << 12)
+            | (1_u64 << 13)
+            | (1_u64 << 14)
+            | (1_u64 << 15)
+            | (1_u64 << 16)
+            | (1_u64 << 17)
+            | (1_u64 << 18)
+            | (1_u64 << 19);
+        state.reserve = [1, 1];
+        assert_eq!(contextual_phase_index(state), 3);
     }
 
     #[test]

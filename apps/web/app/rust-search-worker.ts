@@ -1,5 +1,6 @@
 import { chooseOpponentAction, getOpponent } from "./opponents";
-import { loadRustEngine } from "./rust-engine";
+import { TRANSITION_PATHFINDER_ID } from "./agent-ids";
+import { loadRustEngine, loadTransitionPolicyEngine } from "./rust-engine";
 import type { GameState } from "./pathagon";
 
 type SearchRequest = {
@@ -16,6 +17,12 @@ type WorkerRequest = SearchRequest | CancelRequest;
 
 const cancelled = new Set<number>();
 const enginePromise = loadRustEngine();
+let transitionPolicyPromise: ReturnType<typeof loadTransitionPolicyEngine> | null = null;
+
+function loadDefaultTransitionPolicy() {
+  transitionPolicyPromise ??= loadTransitionPolicyEngine();
+  return transitionPolicyPromise;
+}
 
 self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
   const request = event.data;
@@ -24,9 +31,12 @@ self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
     return;
   }
 
-  void enginePromise.then((engine) => {
+  void enginePromise.then(async (engine) => {
     if (cancelled.delete(request.requestId)) return;
     const opponent = getOpponent(request.opponentId);
+    const transitionPolicy = request.opponentId === TRANSITION_PATHFINDER_ID
+      ? await loadDefaultTransitionPolicy()
+      : undefined;
     const action = chooseOpponentAction(
       engine,
       opponent,
@@ -34,6 +44,7 @@ self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
       undefined,
       request.pathfinderDepth,
       request.deadlineMs,
+      transitionPolicy,
     );
     if (cancelled.delete(request.requestId)) return;
     self.postMessage({ type: "result", requestId: request.requestId, action });

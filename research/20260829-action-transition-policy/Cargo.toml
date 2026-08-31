@@ -1,0 +1,9 @@
+[package]
+name = "pathagon-action-transition-policy-research"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pathagon-engine = { path = "../../pathagon/engine-rs" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

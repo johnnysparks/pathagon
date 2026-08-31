@@ -31,3 +31,8 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for a new path. The current direction is in
 - [`20260826-adversarial-self-play/`](20260826-adversarial-self-play/)
 - [`20260827-pathfinder-rust-sorter/`](20260827-pathfinder-rust-sorter/)
 - [`20260828-seeded-position-curriculum/`](20260828-seeded-position-curriculum/)
+- [`20260829-superdeep-contextual-evaluator/`](20260829-superdeep-contextual-evaluator/)
+- [`20260829-turn-balanced-contextual-evaluator/`](20260829-turn-balanced-contextual-evaluator/)
+- [`20260829-action-transition-policy/`](20260829-action-transition-policy/)
+- [`20260829-board-aware-policy-value/`](20260829-board-aware-policy-value/)
+- [`20260829-nextgen-action-transition/`](20260829-nextgen-action-transition/)
