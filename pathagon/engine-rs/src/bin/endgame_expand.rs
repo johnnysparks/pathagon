@@ -296,7 +296,10 @@ fn prioritized_indices(
         }
     }
 
-    let mut order = (0..nodes.len()).collect::<Vec<_>>();
+    // A focused run must not spend its budget on unrelated graph regions once
+    // the reachable BFS frontier is exhausted. The caller can run another
+    // pass with the same roots after newly discovered descendants are added.
+    let mut order = distances.keys().copied().collect::<Vec<_>>();
     order.sort_by_key(|index| {
         (
             distances.get(index).copied().unwrap_or(usize::MAX),

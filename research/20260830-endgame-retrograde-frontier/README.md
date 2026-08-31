@@ -1,7 +1,8 @@
 # 20260830 Endgame retrograde frontier
 
 Status: Ring-1 pilot complete; Ring-2 generation, compact persistence, corrected
-propagation, and bounded focused expansion validated
+propagation, bounded focused expansion, and a first singleton promotion
+validated
 
 ## Idea
 
@@ -57,11 +58,24 @@ seed set. The promotion audit therefore retained all Ring-2 parents as
 unknown and promoted zero rows. This is an expected proof boundary, not a
 training failure.
 
+After correcting retrograde early-win propagation and adding bounded Rust
+expansion, a focused low-branching experiment selected one 21-child Ring-2
+root. The three-pass slice expanded 103,009 reachable stubs and produced a
+1,312,242-node compact graph. Its exact solve proved 182 rows, including the
+selected root as a side-to-move loss at distance 2; the remaining rows stayed
+unknown because the slice is not closed. The promotion verifier replayed the
+root against the original full graph and passed every gate: inventory/seeded,
+forward transition witness, symmetry, complete action sets, and zero
+contradictory existing gold. That singleton is the first non-empty durable
+Ring-2 promotion.
+
 ## Data and artifacts
 
 Disposable extractor output, checkpoints, and summaries belong in this path's
 ignored `workspace/`. The promoted
 `fresh-frontier-wdl-v1` artifacts are [the 533,415-byte WDL shard](../../data/golden/tables/fresh-frontier-wdl-v1/7x7-r14/shard-00.bin), [the 889,046-byte action metadata sidecar](../../data/golden/sidecars/fresh-frontier-wdl-v1/7x7-r14/ring-01.bin), and [their manifest](../../data/golden/fresh-frontier-wdl-v1-manifest.json). The compact sidecar is a sorted binary key-to-sparse-action-metadata index so durable data stays below the repository's 5 MiB file limit. Do not place solver traces, queues, or implementation-shaped tensors in durable data.
+
+The first promoted Ring-2 control is [a 15-byte WDL shard](../../data/golden/tables/fresh-frontier-wdl-v2/7x7-r14/shard-00.bin), [a 141-byte action sidecar](../../data/golden/sidecars/fresh-frontier-wdl-v2/7x7-r14/ring-02.bin), and [its manifest](../../data/golden/fresh-frontier-wdl-v2-manifest.json). It is intentionally a standalone proof shard rather than a replacement for Ring-1; the current runtime lookup takes one table/sidecar pair. The manifest records the full-graph source and the `closed-ring-2-only` promotion decision.
 
 The tablebase executable uses compact binary values and action labels for
 large research outputs: a fixed-width key plus one outcome byte and one `u16`
@@ -159,6 +173,12 @@ pass produced no immediate terminals and 4,414,520 descendants, confirming
 that breadth-first closure needs a narrower deepening budget before it is
 cost-effective.
 
+The new `pathagon-endgame-slice` Rust executable extracts only nodes reachable
+from a supplied root list, preserving missing children as unknown. This keeps
+deepening experiments bounded and makes a single-root proof auditable without
+copying unrelated graph regions. It accepts the same compact graph format and
+can expand it to deterministic graph-only JSONL evidence when needed.
+
 The retrograde resolver now implements the monotonic early-win rule directly:
 one known child loss proves a parent win even when sibling branches remain
 unknown. Loss still requires every legal child to be a known win, and draws
@@ -175,10 +195,11 @@ stronger model.
 ## Next decision
 
 Continue bounded expansion passes over Ring-2 unknown stubs, retaining each
-pass under `workspace/`, until a measured resource budget is reached. Close the
-Ring-2 frontier by supplying verified records for its missing child states (or
-by adding independently replay-witnessed constructive admissions), then rerun
-the exact minimax and promotion gates. After a non-empty Ring-2
-promotion, train and evaluate against the permanent held-out split and user
-games before promoting a stronger model. Keep this Ring-1 artifact as the
-rollback/control layer until that later ring is independently validated.
+pass under `workspace/`, until a measured resource budget is reached. Close
+additional low-branching roots by supplying verified records for their missing
+child states (or by adding independently replay-witnessed constructive
+admissions), then rerun the exact minimax and promotion gates. The first
+singleton promotion is now available for training/evaluation against the
+permanent held-out split and user games, while Ring-1 remains the
+rollback/control layer until a broader Ring-2 slice is independently
+validated.

@@ -87,6 +87,21 @@ cargo run --release --manifest-path pathagon/engine-rs/Cargo.toml \
 Known Ring-1 actions become explicit policy/value/distance metadata; positions
 without a proven action continue through ordinary search.
 
+The first promoted Ring-2 proof is kept as a separate one-row control shard:
+`fresh-frontier-wdl-v2/7x7-r14`. Its root is an exact side-to-move loss at
+distance 2 with a complete 21-action label set. Ring-1 remains the default
+control table; the Ring-2 shard is not automatically overlaid because the
+current flat lookup accepts one table and one sidecar. Use the v2 table and
+sidecar explicitly when reproducing this experiment, and keep the manifest
+with them as the source/proof boundary.
+
+```bash
+cargo run --release --manifest-path pathagon/engine-rs/Cargo.toml \
+  --bin pathfinder_targets -- \
+  --golden-table data/golden/tables/fresh-frontier-wdl-v2/7x7-r14/shard-00.bin \
+  --golden-sidecar data/golden/sidecars/fresh-frontier-wdl-v2/7x7-r14/ring-02.bin
+```
+
 To rebuild that seed table:
 
 ```bash

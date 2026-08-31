@@ -6,7 +6,7 @@
 //! become draws. A closed unresolved region is a draw only when every node in
 //! that region is marked complete.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
 use std::io::{self, BufWriter, Write};
 use std::path::Path;
@@ -207,6 +207,46 @@ impl RetrogradeGraph {
     /// both the old map and the transformed map alive indefinitely.
     pub fn into_nodes(self) -> Vec<RetrogradeNode> {
         self.nodes.into_values().collect()
+    }
+
+    /// Copy only nodes reachable from the supplied roots. Missing child keys
+    /// remain omitted and therefore retain the solver's Unknown semantics;
+    /// this is a research slice, not an assertion that the slice is closed.
+    pub fn slice_from_roots(&self, roots: &BTreeSet<String>) -> Result<Self, String> {
+        if roots.is_empty() {
+            return Err("graph slice requires at least one root".to_owned());
+        }
+        let mut selected = BTreeSet::new();
+        let mut pending = roots.iter().cloned().collect::<Vec<_>>();
+        for root in roots {
+            if !self.nodes.contains_key(root) {
+                return Err(format!("graph slice root {root} is absent"));
+            }
+        }
+        while let Some(key) = pending.pop() {
+            if !selected.insert(key.clone()) {
+                continue;
+            }
+            let node = self
+                .nodes
+                .get(&key)
+                .expect("validated graph slice key exists");
+            for child in &node.children {
+                if self.nodes.contains_key(child) && !selected.contains(child) {
+                    pending.push(child.clone());
+                }
+            }
+        }
+        let mut slice = Self::default();
+        for key in selected {
+            slice.insert(
+                self.nodes
+                    .get(&key)
+                    .expect("selected graph slice key exists")
+                    .clone(),
+            )?;
+        }
+        Ok(slice)
     }
 
     pub fn edge_count(&self) -> usize {
@@ -1913,5 +1953,18 @@ mod tests {
         assert_eq!(read_nodes(&jsonl_path).unwrap().solve(), expected);
         let _ = std::fs::remove_file(path);
         let _ = std::fs::remove_file(jsonl_path);
+    }
+
+    #[test]
+    fn graph_slice_keeps_only_root_reachable_nodes() {
+        let mut graph = RetrogradeGraph::default();
+        graph.insert(node("root", &["child"])).unwrap();
+        graph.insert(node("child", &[])).unwrap();
+        graph.insert(node("unrelated", &[])).unwrap();
+        let roots = BTreeSet::from(["root".to_owned()]);
+        let slice = graph.slice_from_roots(&roots).unwrap();
+        assert_eq!(slice.len(), 2);
+        assert_eq!(slice.edge_count(), 1);
+        assert_eq!(slice.solve().0.len(), 2);
     }
 }

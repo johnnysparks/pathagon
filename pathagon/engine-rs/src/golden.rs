@@ -1311,4 +1311,34 @@ mod tests {
         assert!(exact_action);
         assert_eq!(memory_result.action, Some(action));
     }
+
+    #[test]
+    fn promoted_ring2_singleton_preserves_exact_value_and_actions() {
+        let table_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/golden/tables/fresh-frontier-wdl-v2/7x7-r14/shard-00.bin");
+        let sidecar_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/golden/sidecars/fresh-frontier-wdl-v2/7x7-r14/ring-02.bin");
+        if !(table_path.exists() && sidecar_path.exists()) {
+            return;
+        }
+        let key = decode_hex("00000000004556969aa5aa5b6263").expect("Ring-2 root key");
+        let state = decode_canonical_position_key(&key, 7, 14).expect("decode Ring-2 root");
+        let table = FlatGoldenTable::open(&table_path, 7, 14).expect("open Ring-2 table");
+        let actions = GoldenActionBook::load(&sidecar_path, 7).expect("open Ring-2 sidecar");
+
+        assert_eq!(table.lookup(state), Some(GoldenOutcome::Loss));
+        assert_eq!(
+            actions.row_value(state),
+            Some(GoldenRowValue {
+                outcome: GoldenOutcome::Loss,
+                distance: Some(2),
+                optimal_actions_complete: true,
+            })
+        );
+        let action_values = actions
+            .action_values(state)
+            .expect("Ring-2 row has action values");
+        assert_eq!(action_values.len(), state.legal_actions().len());
+        assert!(action_values.iter().all(|value| value.outcome.is_some()));
+    }
 }
