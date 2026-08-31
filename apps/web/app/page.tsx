@@ -18,16 +18,18 @@ import {
   CNN_SEARCH,
   OPPONENTS,
   PATHFINDER_DEADLINE_MS,
+  PATHFINDER_DEADLINE_OPTIONS,
   PATHFINDER_DEPTH_OPTIONS,
   PATHFINDER_OPPONENT,
   TRANSITION_PATHFINDER_OPPONENT,
   TRAINED_PATHFINDER_OPPONENT,
   getOpponent,
   pathfinderSearchAtDepth,
+  trainedPathfinderSearchAtDepth,
 } from "./opponents";
-import { COACHING_SEARCH, PATHFINDER_SEARCH, type MoveEvaluation } from "./ai";
+import { COACHING_SEARCH, PATHFINDER_SEARCH, type MoveEvaluation, type SearchConfig } from "./ai";
 import { loadRustEngine, type RustEngine } from "./rust-engine";
-import { createRustSearchClient, type RustSearchClient } from "./rust-search-client";
+import { createRustSearchClient, type RustSearchClient, type SearchProgress } from "./rust-search-client";
 import { loadCnnEngine, type CnnEngine } from "./cnn-engine";
 
 const HUMAN: Player = "light";
@@ -44,6 +46,40 @@ function initialPathfinderDepth(): number {
     return PATHFINDER_SEARCH.depth;
   }
 }
+
+function initialPathfinderDeadline(): number {
+  if (typeof window === "undefined") return PATHFINDER_DEADLINE_MS;
+  try {
+    const stored = Number(window.localStorage.getItem("pathagon:pathfinder-deadline-ms"));
+    return PATHFINDER_DEADLINE_OPTIONS.includes(stored as (typeof PATHFINDER_DEADLINE_OPTIONS)[number])
+      ? stored
+      : PATHFINDER_DEADLINE_MS;
+  } catch {
+    return PATHFINDER_DEADLINE_MS;
+  }
+}
+
+type SearchCheckpoint = Pick<SearchProgress, "completedDepth" | "nodes" | "elapsedMs" | "action">;
+
+type PathfinderMoveTelemetry = {
+  ply: number;
+  action: Action;
+  searchTimeMs: number;
+  positions: number;
+  targetDepth: number;
+  completedDepth: number;
+  tableHits: number;
+  exhausted: boolean;
+  interrupted: boolean;
+  modelCard: {
+    id: string;
+    name: string;
+    version: string;
+    engine: string;
+  };
+  config: SearchConfig & { deadlineMs: number };
+  checkpoints: SearchCheckpoint[];
+};
 
 export default function Home() {
   const [game, setGame] = useState<GameState>(() => createGame());
@@ -64,6 +100,7 @@ export default function Home() {
   // Keep the first render deterministic for SSR/hydration. The saved browser
   // preference is applied after mount in the effect below.
   const [pathfinderDepth, setPathfinderDepth] = useState<number>(PATHFINDER_SEARCH.depth);
+  const [pathfinderDeadlineMs, setPathfinderDeadlineMs] = useState<number>(PATHFINDER_DEADLINE_MS);
   const [pathfinderDepthReady, setPathfinderDepthReady] = useState(false);
   const [pendingOpponentId, setPendingOpponentId] = useState<string | null>(null);
   const [rustEngine, setRustEngine] = useState<RustEngine | null>(null);
@@ -73,8 +110,13 @@ export default function Home() {
   const [engineError, setEngineError] = useState<string | null>(null);
   const [cnnEngine, setCnnEngine] = useState<CnnEngine | null>(null);
   const [cnnError, setCnnError] = useState<string | null>(null);
+  const [pathfinderProgress, setPathfinderProgress] = useState<SearchProgress | null>(null);
+  const [lastPathfinderSearch, setLastPathfinderSearch] = useState<PathfinderMoveTelemetry | null>(null);
+  const [pathfinderSearches, setPathfinderSearches] = useState<PathfinderMoveTelemetry[]>([]);
+  const [configCopyStatus, setConfigCopyStatus] = useState<"idle" | "copied" | "error">("idle");
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiRequest = useRef<number | null>(null);
+  const activePathfinderSearch = useRef<{ requestId: number; checkpoints: SearchCheckpoint[] } | null>(null);
   const resultRef = useRef<HTMLDivElement | null>(null);
   const opponentSwitchDialogRef = useRef<HTMLDivElement | null>(null);
   const coachingRequest = useRef(0);
@@ -99,6 +141,15 @@ export default function Home() {
       : `Trap! ${opponent.name} returned ${captureCount} ${captureCount === 1 ? "piece" : "pieces"} to your hand.`
     : null;
   const bestCoachingMove = coachingMoves[0] ?? null;
+  const pathfinderConfig = useMemo(
+    () => ({
+      ...(opponent.id === TRAINED_PATHFINDER_OPPONENT.id || opponent.id === TRANSITION_PATHFINDER_OPPONENT.id
+        ? trainedPathfinderSearchAtDepth(pathfinderDepth)
+        : pathfinderSearchAtDepth(pathfinderDepth)),
+      deadlineMs: pathfinderDeadlineMs,
+    }),
+    [opponent.id, pathfinderDeadlineMs, pathfinderDepth],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -147,25 +198,63 @@ export default function Home() {
     const isPathfinder = opponent.id === PATHFINDER_OPPONENT.id
       || opponent.id === TRAINED_PATHFINDER_OPPONENT.id
       || opponent.id === TRANSITION_PATHFINDER_OPPONENT.id;
-    const commitDecision = (decision: Action | null) => {
+    const commitDecision = (decision: Action | null, search?: SearchProgress, checkpoints: SearchCheckpoint[] = []) => {
       if (!decision || cancelled) return;
+      const telemetry = search && isPathfinder
+        ? createPathfinderMoveTelemetry(current.ply + 1, decision, search, checkpoints, opponent, pathfinderDepth, pathfinderDeadlineMs)
+        : null;
       setHistory((items) => [...items, current]);
       setMoveHistory((items) => [...items, decision]);
+      if (telemetry) {
+        setLastPathfinderSearch(telemetry);
+        setPathfinderSearches((items) => [...items, telemetry]);
+      }
+      setPathfinderProgress(null);
+      activePathfinderSearch.current = null;
       setGame((latest) => latest === current ? rustEngine.applyAction(current, decision) : latest);
     };
     aiTimer.current = setTimeout(() => {
       if (isPathfinder && searchClient) {
-        const request = searchClient.search(current, opponent.id, pathfinderDepth, PATHFINDER_DEADLINE_MS);
+        const checkpoints: SearchCheckpoint[] = [];
+        let requestId = 0;
+        const request = searchClient.search(current, opponent.id, pathfinderDepth, pathfinderDeadlineMs, (progress) => {
+          if (cancelled || aiRequest.current !== requestId) return;
+          checkpoints.push({
+            action: progress.action,
+            completedDepth: progress.completedDepth,
+            elapsedMs: progress.elapsedMs,
+            nodes: progress.nodes,
+          });
+          setPathfinderProgress(progress);
+        });
+        requestId = request.requestId;
         aiRequest.current = request.requestId;
-        void request.promise.then((decision) => {
+        activePathfinderSearch.current = { requestId: request.requestId, checkpoints };
+        void request.promise.then((progress) => {
           if (cancelled || aiRequest.current !== request.requestId) return;
           aiRequest.current = null;
-          commitDecision(decision);
+          if (!progress) return;
+          commitDecision(progress.action, progress, checkpoints);
         }).catch((error: unknown) => {
           if (cancelled || aiRequest.current !== request.requestId) return;
           aiRequest.current = null;
           console.error("Rust search worker failed; using the local fallback:", error);
-          commitDecision(chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined, pathfinderDepth));
+          const fallback = chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined, pathfinderDepth);
+          commitDecision(
+            fallback,
+            isPathfinder && fallback
+              ? {
+                action: fallback,
+                score: 0,
+                nodes: 0,
+                exhausted: true,
+                completedDepth: 0,
+                tableHits: 0,
+                elapsedMs: 0,
+                targetDepth: pathfinderDepth,
+              }
+              : undefined,
+          );
         });
         return;
       }
@@ -178,12 +267,15 @@ export default function Home() {
         searchClient.cancel(aiRequest.current);
         aiRequest.current = null;
       }
+      activePathfinderSearch.current = null;
+      setPathfinderProgress(null);
     };
-  }, [cnnEngine, cnnReady, game, opponent, pathfinderDepth, rustEngine, searchClient]);
+  }, [cnnEngine, cnnReady, game, opponent, pathfinderDeadlineMs, pathfinderDepth, rustEngine, searchClient]);
 
   useEffect(() => {
     const hydrationTimer = window.setTimeout(() => {
       setPathfinderDepth(initialPathfinderDepth());
+      setPathfinderDeadlineMs(initialPathfinderDeadline());
       setPathfinderDepthReady(true);
     }, 0);
     return () => window.clearTimeout(hydrationTimer);
@@ -193,10 +285,11 @@ export default function Home() {
     if (!pathfinderDepthReady) return;
     try {
       window.localStorage.setItem("pathagon:pathfinder-depth", String(pathfinderDepth));
+      window.localStorage.setItem("pathagon:pathfinder-deadline-ms", String(pathfinderDeadlineMs));
     } catch {
       // Device storage can be disabled; the in-memory control still works.
     }
-  }, [pathfinderDepth, pathfinderDepthReady]);
+  }, [pathfinderDeadlineMs, pathfinderDepth, pathfinderDepthReady]);
 
   useEffect(() => {
     coachingRequest.current += 1;
@@ -249,7 +342,13 @@ export default function Home() {
         const response = await fetch("/api/games", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ id: gameId, opponentId: opponent.id, winner: game.winner, actions: moveHistory }),
+          body: JSON.stringify({
+            id: gameId,
+            opponentId: opponent.id,
+            winner: game.winner,
+            actions: moveHistory,
+            metadata: buildPathfinderGameMetadata(opponent, pathfinderDepth, pathfinderDeadlineMs, pathfinderSearches),
+          }),
         });
         const payload = await response.json().catch(() => null) as { error?: unknown } | null;
         if (!response.ok) {
@@ -266,7 +365,7 @@ export default function Home() {
         setArchiveStatus("error");
       }
     })();
-  }, [game.winner, game.ply, moveHistory, opponent.id, gameId]);
+  }, [game.winner, game.ply, moveHistory, opponent, pathfinderDeadlineMs, pathfinderDepth, pathfinderSearches, gameId]);
 
   useEffect(() => {
     if (!captureCount) return;
@@ -366,6 +465,7 @@ export default function Home() {
 
   function newGame() {
     if (aiTimer.current) clearTimeout(aiTimer.current);
+    cancelActivePathfinderSearch();
     setPendingOpponentId(null);
     setGame(createGame());
     setHistory([]);
@@ -378,6 +478,9 @@ export default function Home() {
     clearCoaching();
     setArchiveStatus("idle");
     setArchiveError(null);
+    setLastPathfinderSearch(null);
+    setPathfinderSearches([]);
+    setConfigCopyStatus("idle");
     recordedGame.current = null;
     recordable.current = true;
   }
@@ -386,6 +489,7 @@ export default function Home() {
     if (!history.length || thinking) return;
     let targetIndex = history.length - 1;
     while (targetIndex > 0 && history[targetIndex].turn !== HUMAN) targetIndex -= 1;
+    const targetPly = history[targetIndex].ply;
     setGame(history[targetIndex]);
     setHistory(history.slice(0, targetIndex));
     setMoveHistory(moveHistory.slice(0, targetIndex));
@@ -393,6 +497,9 @@ export default function Home() {
     setResultDismissed(false);
     setCaptureNoticeDismissedPly(null);
     clearCoaching();
+    setPathfinderProgress(null);
+    setPathfinderSearches((items) => items.filter((item) => item.ply <= targetPly));
+    setLastPathfinderSearch(null);
     setArchiveStatus("idle");
     setArchiveError(null);
     recordedGame.current = null;
@@ -400,6 +507,7 @@ export default function Home() {
 
   function changeOpponent(id: string) {
     if (aiTimer.current) clearTimeout(aiTimer.current);
+    cancelActivePathfinderSearch();
     setPendingOpponentId(null);
     setOpponentId(id);
     setGame(createGame());
@@ -412,6 +520,9 @@ export default function Home() {
     setCaptureNoticeDismissedPly(null);
     clearCoaching();
     setArchiveStatus("idle");
+    setLastPathfinderSearch(null);
+    setPathfinderSearches([]);
+    setConfigCopyStatus("idle");
     recordedGame.current = null;
     recordable.current = true;
   }
@@ -436,6 +547,47 @@ export default function Home() {
   function changePathfinderDepth(depth: number) {
     const tuned = pathfinderSearchAtDepth(depth).depth;
     setPathfinderDepth(tuned);
+    setPathfinderProgress(null);
+  }
+
+  function changePathfinderDeadline(deadlineMs: number) {
+    if (!PATHFINDER_DEADLINE_OPTIONS.includes(deadlineMs as (typeof PATHFINDER_DEADLINE_OPTIONS)[number])) return;
+    setPathfinderDeadlineMs(deadlineMs);
+    setPathfinderProgress(null);
+  }
+
+  function cancelActivePathfinderSearch() {
+    if (aiRequest.current !== null && searchClient) {
+      searchClient.cancel(aiRequest.current);
+      aiRequest.current = null;
+    }
+    activePathfinderSearch.current = null;
+    setPathfinderProgress(null);
+  }
+
+  function playCurrentBestMove() {
+    const progress = pathfinderProgress;
+    const active = activePathfinderSearch.current;
+    if (!rustEngine || !progress?.action || !active || active.requestId !== aiRequest.current) return;
+    if (game.winner || game.turn !== AI || !actionKeys.has(actionKey(progress.action))) return;
+
+    const checkpoints = [...active.checkpoints];
+    cancelActivePathfinderSearch();
+    const telemetry = createPathfinderMoveTelemetry(
+      game.ply + 1,
+      progress.action,
+      progress,
+      checkpoints,
+      opponent,
+      pathfinderDepth,
+      pathfinderDeadlineMs,
+      true,
+    );
+    setHistory((items) => [...items, game]);
+    setMoveHistory((items) => [...items, progress.action!]);
+    setLastPathfinderSearch(telemetry);
+    setPathfinderSearches((items) => [...items, telemetry]);
+    setGame((latest) => latest === game ? rustEngine.applyAction(game, progress.action!) : latest);
   }
 
   async function copyGameId() {
@@ -456,13 +608,37 @@ export default function Home() {
     }
   }
 
+  async function copyPathfinderConfig() {
+    const config = {
+      opponent: {
+        id: opponent.id,
+        name: opponent.name,
+        version: opponent.version,
+        engine: opponent.engine,
+      },
+      dials: {
+        depth: pathfinderDepth,
+        deadlineMs: pathfinderDeadlineMs,
+      },
+      search: pathfinderConfig,
+    };
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(config, null, 2));
+      setConfigCopyStatus("copied");
+    } catch {
+      setConfigCopyStatus("error");
+    }
+    window.setTimeout(() => setConfigCopyStatus("idle"), 2200);
+  }
+
   const status = game.winner
     ? game.winner === HUMAN ? "You win" : `${opponent.name} wins`
-    : game.turn === HUMAN
-      ? humanMovementTurn
-        ? selected === null ? "Choose a piece to move" : "Choose its destination"
+      : game.turn === HUMAN
+        ? humanMovementTurn
+          ? selected === null ? "Choose a piece to move" : "Choose its destination"
         : "Place a light piece"
       : thinking ? `${opponent.name} is choosing…` : `${opponent.name}'s turn`;
+  const pathfinderDepthIndex = Math.max(0, PATHFINDER_DEPTH_OPTIONS.indexOf(pathfinderDepth as (typeof PATHFINDER_DEPTH_OPTIONS)[number]));
 
   return (
     <main className="app-shell">
@@ -606,21 +782,59 @@ export default function Home() {
                 aria-valuetext={`${pathfinderDepth}-ply ${pathfinderDepthTier(pathfinderDepth)}`}
                 className="lookahead-slider"
                 type="range"
-                min={PATHFINDER_DEPTH_OPTIONS[0]}
-                max={PATHFINDER_DEPTH_OPTIONS[PATHFINDER_DEPTH_OPTIONS.length - 1]}
+                min={0}
+                max={PATHFINDER_DEPTH_OPTIONS.length - 1}
                 step="1"
-                value={pathfinderDepth}
-                onChange={(event) => changePathfinderDepth(Number(event.target.value))}
+                value={pathfinderDepthIndex}
+                onChange={(event) => changePathfinderDepth(PATHFINDER_DEPTH_OPTIONS[Number(event.target.value)] ?? pathfinderDepth)}
               />
-              <div id="pathfinder-lookahead-scale" className="lookahead-scale"><span>2 · Quick</span><span>4 · Balanced</span><span>6 · Deep</span></div>
-              <p id="pathfinder-lookahead-help">More ply lets the Pathfinder answer farther ahead. Deeper settings spend more time on the next dark turn.</p>
+              <div id="pathfinder-lookahead-scale" className="lookahead-scale"><span>2 · Quick</span><span>4 · Balanced</span><span>20 · Long</span><span>100 · Horizon</span></div>
+              <p id="pathfinder-lookahead-help">More ply lets the Pathfinder answer farther ahead. 20, 50, and 100 ply are horizon targets; time and position caps may stop earlier.</p>
+              <div className="search-dial-row">
+                <label className="search-time-picker">
+                  <span>Max search time</span>
+                  <select
+                    aria-label="Pathfinder maximum search time"
+                    value={pathfinderDeadlineMs}
+                    onChange={(event) => changePathfinderDeadline(Number(event.target.value))}
+                  >
+                    {PATHFINDER_DEADLINE_OPTIONS.map((option) => <option key={option} value={option}>{formatSearchTime(option)}</option>)}
+                  </select>
+                </label>
+                <button className="config-copy-button" type="button" onClick={copyPathfinderConfig}>
+                  {configCopyStatus === "copied" ? "Config copied" : configCopyStatus === "error" ? "Copy unavailable" : "Copy config"}
+                </button>
+              </div>
+              <span className="search-cap-note">Checkpoints: ~10,000 positions or 500ms · cap: {pathfinderConfig.maxNodes.toLocaleString()}</span>
+              {pathfinderProgress && (
+                <div className="search-progress" role="status" aria-live="polite">
+                  <div className="search-progress-heading">
+                    <span className="stat-label">Live search checkpoint</span>
+                    <strong>{pathfinderProgress.completedDepth}/{pathfinderProgress.targetDepth} ply</strong>
+                  </div>
+                  <div className="search-progress-stats">
+                    <span>{pathfinderProgress.nodes.toLocaleString()} positions</span>
+                    <span>{formatSearchTime(pathfinderProgress.elapsedMs)} elapsed</span>
+                  </div>
+                  <p>{pathfinderProgress.action ? `Best so far: ${formatAction(pathfinderProgress.action)}` : "Finding a legal first candidate…"}</p>
+                  <button className="play-best-button" type="button" onClick={playCurrentBestMove} disabled={!pathfinderProgress.action}>
+                    Play current best
+                  </button>
+                </div>
+              )}
+              {!pathfinderProgress && lastPathfinderSearch && (
+                <div className="search-last-result" role="status">
+                  <span className="stat-label">Last dark search</span>
+                  <p>{lastPathfinderSearch.completedDepth}/{lastPathfinderSearch.targetDepth} ply · {lastPathfinderSearch.positions.toLocaleString()} positions · {formatSearchTime(lastPathfinderSearch.searchTimeMs)}</p>
+                </div>
+              )}
             </section>
           )}
           <dl className="telemetry">
             <div><dt>Legal actions</dt><dd>{actions.length}</dd></div>
             <div><dt>Phase</dt><dd>{game.winner ? "Complete" : game.reserve[game.turn] ? "Placement" : "Movement"}</dd></div>
             <div><dt>Captured last turn</dt><dd>{game.lastAction?.captured.length ?? 0}</dd></div>
-            <div><dt>{opponent.searchDepth === null ? "Search budget" : "Search depth"}</dt><dd>{isPathfinderOpponent(opponent.id) ? `${pathfinderDepth} ply` : opponent.searchDepth === null ? `${CNN_SEARCH.simulations} PUCT simulations` : `${opponent.searchDepth} ply`}</dd></div>
+            <div><dt>{opponent.searchDepth === null ? "Search budget" : "Search depth"}</dt><dd>{isPathfinderOpponent(opponent.id) ? `${pathfinderDepth} ply · ${formatSearchTime(pathfinderDeadlineMs)}` : opponent.searchDepth === null ? `${CNN_SEARCH.simulations} PUCT simulations` : `${opponent.searchDepth} ply`}</dd></div>
           </dl>
           <div className="event-log"><span className="stat-label">Latest event</span><p>{game.lastAction ? describeAction(game.lastAction) : "The board is empty. You have the first move."}</p></div>
           <div className="rules-note"><strong>{engineError || cnnError ? "Engine unavailable" : !rustEngine ? "Loading Rust engine…" : opponent.id === CNN_OPPONENT.id && !cnnEngine ? "Loading CNN model…" : "Rust/WASM engine"}</strong><p>{engineError ?? cnnError ?? "Light connects near-to-far; dark connects side-to-side. Orthogonal paths. Automatic A–B–A captures."}</p></div>
@@ -739,7 +953,76 @@ function isPathfinderOpponent(id: string) {
 }
 
 function pathfinderDepthTier(depth: number) {
-  return depth <= 3 ? "Quick" : depth === 4 ? "Balanced" : "Deep";
+  if (depth <= 3) return "Quick";
+  if (depth === 4) return "Balanced";
+  if (depth < 20) return "Deep";
+  if (depth < 50) return "Long";
+  if (depth < 100) return "Extreme";
+  return "Horizon";
+}
+
+function formatSearchTime(milliseconds: number) {
+  if (milliseconds < 1_000) return `${Math.max(0, Math.round(milliseconds))}ms`;
+  const seconds = milliseconds / 1_000;
+  return `${Number(seconds.toFixed(seconds < 10 ? 1 : 0))}s`;
+}
+
+function pathfinderModelCard(opponent: { id: string; name: string; version: string; engine: string }) {
+  return {
+    id: opponent.id,
+    name: opponent.name,
+    version: opponent.version,
+    engine: opponent.engine,
+  };
+}
+
+function createPathfinderMoveTelemetry(
+  ply: number,
+  action: Action,
+  progress: SearchProgress,
+  checkpoints: SearchCheckpoint[],
+  opponent: ReturnType<typeof getOpponent>,
+  depth: number,
+  deadlineMs: number,
+  interrupted = false,
+): PathfinderMoveTelemetry {
+  const searchConfig = opponent.id === TRAINED_PATHFINDER_OPPONENT.id || opponent.id === TRANSITION_PATHFINDER_OPPONENT.id
+    ? trainedPathfinderSearchAtDepth(depth)
+    : pathfinderSearchAtDepth(depth);
+  return {
+    ply,
+    action,
+    searchTimeMs: progress.elapsedMs,
+    positions: progress.nodes,
+    targetDepth: progress.targetDepth,
+    completedDepth: progress.completedDepth,
+    tableHits: progress.tableHits,
+    exhausted: progress.exhausted,
+    interrupted,
+    modelCard: {
+      id: opponent.id,
+      name: opponent.name,
+      version: opponent.version,
+      engine: opponent.engine,
+    },
+    config: { ...searchConfig, deadlineMs },
+    checkpoints: checkpoints.map((checkpoint) => ({ ...checkpoint })),
+  };
+}
+
+function buildPathfinderGameMetadata(
+  opponent: ReturnType<typeof getOpponent>,
+  depth: number,
+  deadlineMs: number,
+  searches: PathfinderMoveTelemetry[],
+) {
+  if (!isPathfinderOpponent(opponent.id)) return {};
+  return {
+    searchExperiment: "pathfinder-browser-v1",
+    modelCard: pathfinderModelCard(opponent),
+    dials: { depth, deadlineMs },
+    moves: searches,
+  };
 }
 
 function PieceTray({ label, player, count, active }: { label: string; player: Player; count: number; active: boolean }) {

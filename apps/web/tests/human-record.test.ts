@@ -14,9 +14,20 @@ const winningActions: Action[] = [
 ];
 
 test("completed human games replay before compact encoding", () => {
-  const game = validateHumanGame({ opponentId: "surveyor-v0", winner: "light", actions: winningActions });
+  const game = validateHumanGame({
+    opponentId: "surveyor-v0",
+    winner: "light",
+    actions: winningActions,
+    metadata: { searchExperiment: "pathfinder-browser-v1", moves: [{ positions: 1200, searchTimeMs: 2800 }] },
+  });
   const compact = compactHumanGame(game);
   assert.match(compact, /^h1\tsurveyor-v0\tL\t[0-9A-Za-z_-]{26}$/);
+  assert.deepEqual(game.metadata, { searchExperiment: "pathfinder-browser-v1", moves: [{ positions: 1200, searchTimeMs: 2800 }] });
+});
+
+test("human archive keeps metadata bounded and object-shaped", () => {
+  assert.throws(() => validateHumanGame({ opponentId: "surveyor-v0", winner: "light", actions: winningActions, metadata: [] }), /metadata must be an object/);
+  assert.throws(() => validateHumanGame({ opponentId: "surveyor-v0", winner: "light", actions: winningActions, metadata: { trace: "x".repeat(100_001) } }), /metadata is too large/);
 });
 
 test("human archive accepts versioned opponent IDs", () => {

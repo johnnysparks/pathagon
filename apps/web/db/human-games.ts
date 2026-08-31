@@ -11,9 +11,9 @@ async function database() {
 export async function storeHumanGame(id: string, game: HumanGameSubmission, compact: string) {
   const d1 = await database();
   return d1.prepare(`INSERT OR IGNORE INTO human_games
-    (id, schema_version, opponent_id, winner, plies, actions, compact)
-    VALUES (?, 1, ?, ?, ?, ?, ?)`)
-    .bind(id, game.opponentId, game.winner, game.actions.length, JSON.stringify(game.actions), compact)
+    (id, schema_version, opponent_id, winner, plies, actions, compact, metadata)
+    VALUES (?, 2, ?, ?, ?, ?, ?, ?)`)
+    .bind(id, game.opponentId, game.winner, game.actions.length, JSON.stringify(game.actions), compact, JSON.stringify(game.metadata ?? {}))
     .run();
 }
 
@@ -25,12 +25,13 @@ type HumanGameRow = {
   plies: number;
   actions: string;
   compact: string;
+  metadata: string;
   source: string;
 };
 
 export async function getHumanGame(id: string) {
   const d1 = await database();
-  const row = await d1.prepare(`SELECT id, recorded_at, opponent_id, winner, plies, actions, compact, source
+  const row = await d1.prepare(`SELECT id, recorded_at, opponent_id, winner, plies, actions, compact, metadata, source
     FROM human_games WHERE id = ?`).bind(id).first<HumanGameRow>();
   if (!row) return null;
 
@@ -38,6 +39,7 @@ export async function getHumanGame(id: string) {
     opponentId: row.opponent_id,
     winner: row.winner,
     actions: JSON.parse(row.actions),
+    metadata: JSON.parse(row.metadata || "{}"),
   });
   if (game.actions.length !== row.plies || compactHumanGame(game) !== row.compact) {
     throw new Error("Stored game record failed integrity validation");
@@ -51,6 +53,7 @@ export async function getHumanGame(id: string) {
     plies: game.actions.length,
     actions: game.actions,
     compact: row.compact,
+    metadata: game.metadata ?? {},
     source: row.source,
   };
 }

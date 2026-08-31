@@ -11,7 +11,9 @@ use crate::runtime::{
     analyze_action_json, analyze_actions_json, apply_action_json, apply_action_transition_json,
     legal_actions_json, lunatic_action_json, position_json, rank_transition_policy_json,
     search_best_action_json, search_best_action_with_tactical_filter_deadline_json,
+    search_best_action_with_tactical_filter_deadline_progress_json,
     search_best_action_with_tactical_filter_json, search_transition_policy_json,
+    search_transition_policy_with_progress_json,
 };
 use crate::transition_policy::TransitionPolicyModel;
 use crate::{BoardConfig, GameState};
@@ -29,6 +31,17 @@ use serde::Serialize;
 
 fn js_error(error: String) -> JsValue {
     JsValue::from_str(&error)
+}
+
+fn search_progress_callback(callback: &js_sys::Function) -> crate::search::SearchProgressCallback {
+    let callback = callback.clone();
+    Box::new(move |nodes, table_hits| {
+        let _ = callback.call2(
+            &JsValue::NULL,
+            &JsValue::from_f64(nodes as f64),
+            &JsValue::from_f64(table_hits as f64),
+        );
+    })
 }
 
 #[wasm_bindgen]
@@ -81,6 +94,22 @@ pub fn pathagon_search_best_action_with_tactical_filter_deadline(
 ) -> Result<String, JsValue> {
     search_best_action_with_tactical_filter_deadline_json(position, config, deadline_ms)
         .map_err(js_error)
+}
+
+#[wasm_bindgen]
+pub fn pathagon_search_best_action_with_tactical_filter_deadline_progress(
+    position: &str,
+    config: &str,
+    deadline_ms: u32,
+    callback: &js_sys::Function,
+) -> Result<String, JsValue> {
+    search_best_action_with_tactical_filter_deadline_progress_json(
+        position,
+        config,
+        deadline_ms,
+        search_progress_callback(callback),
+    )
+    .map_err(js_error)
 }
 
 #[wasm_bindgen]
@@ -159,6 +188,24 @@ impl PathagonTransitionPolicyModel {
         deadline_ms: u32,
     ) -> Result<String, JsValue> {
         search_transition_policy_json(position, config, &self.model, deadline_ms).map_err(js_error)
+    }
+
+    #[wasm_bindgen(js_name = searchBestActionWithProgress)]
+    pub fn search_best_action_with_progress(
+        &self,
+        position: &str,
+        config: &str,
+        deadline_ms: u32,
+        callback: &js_sys::Function,
+    ) -> Result<String, JsValue> {
+        search_transition_policy_with_progress_json(
+            position,
+            config,
+            &self.model,
+            deadline_ms,
+            search_progress_callback(callback),
+        )
+        .map_err(js_error)
     }
 }
 

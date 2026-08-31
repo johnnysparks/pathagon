@@ -10,6 +10,7 @@ export const humanGames = sqliteTable("human_games", {
   plies: integer("plies").notNull(),
   actions: text("actions").notNull(),
   compact: text("compact").notNull(),
+  metadata: text("metadata").notNull().default("{}"),
   validation: text("validation").notNull().default("replay-valid"),
   source: text("source").notNull().default("web-human-v1"),
 }, (table) => [

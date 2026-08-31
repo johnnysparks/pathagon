@@ -9,7 +9,13 @@ export type HumanGameSubmission = {
   opponentId: string;
   winner: Player;
   actions: Action[];
+  /** Optional experimental annotations kept beside the replay contract. */
+  metadata?: HumanGameMetadata;
 };
+
+export type HumanGameMetadata = Record<string, unknown>;
+
+const MAX_METADATA_CHARS = 100_000;
 
 export function createGameId() {
   return globalThis.crypto.randomUUID();
@@ -49,7 +55,29 @@ export function validateHumanGame(value: unknown): HumanGameSubmission {
   if (state.winner !== input.winner || state.ply !== actions.length) {
     throw new Error("Recorded result does not match replayed result");
   }
-  return { opponentId: input.opponentId, winner: input.winner, actions };
+  return {
+    opponentId: input.opponentId,
+    winner: input.winner,
+    actions,
+    metadata: validateHumanGameMetadata(input.metadata),
+  };
+}
+
+export function validateHumanGameMetadata(value: unknown): HumanGameMetadata {
+  if (value === undefined) return {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Game metadata must be an object");
+  }
+  let encoded: string | undefined;
+  try {
+    encoded = JSON.stringify(value);
+  } catch {
+    throw new Error("Game metadata must be JSON-serializable");
+  }
+  if (!encoded || encoded.length > MAX_METADATA_CHARS) {
+    throw new Error("Game metadata is too large");
+  }
+  return value as HumanGameMetadata;
 }
 
 export function compactHumanGame(game: HumanGameSubmission) {

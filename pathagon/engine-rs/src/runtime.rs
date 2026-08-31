@@ -15,7 +15,8 @@ use crate::contract::{
 use crate::search::{
     analyze_action, analyze_actions, lunatic_action, search_best_action,
     search_best_action_with_tactical_filter, search_best_action_with_tactical_filter_deadline,
-    MoveEvaluation, SearchConfig, SearchResult,
+    search_best_action_with_tactical_filter_deadline_progress, MoveEvaluation, SearchConfig,
+    SearchProgressCallback, SearchResult,
 };
 use crate::transition_policy::{RankedTransitionAction, TransitionPolicyModel};
 use crate::{bit_squares, Action, BoardConfig, GameState, Player};
@@ -364,6 +365,25 @@ pub fn search_best_action_with_tactical_filter_deadline_json(
     serde_json::to_string(&response).map_err(|error| error.to_string())
 }
 
+pub fn search_best_action_with_tactical_filter_deadline_progress_json(
+    state_json: &str,
+    config_json: &str,
+    deadline_ms: u32,
+    progress: SearchProgressCallback,
+) -> Result<String, String> {
+    let state = parse_position(state_json)?;
+    let config: RuntimeSearchConfig =
+        serde_json::from_str(config_json).map_err(|error| error.to_string())?;
+    let result = search_best_action_with_tactical_filter_deadline_progress(
+        state,
+        config.into(),
+        deadline_ms,
+        progress,
+    );
+    let response = RuntimeSearchResult::from(result);
+    serde_json::to_string(&response).map_err(|error| error.to_string())
+}
+
 pub fn lunatic_action_json(state_json: &str) -> Result<String, String> {
     let state = parse_position(state_json)?;
     serde_json::to_string(&RuntimeSearchResult::from(lunatic_action(state)))
@@ -434,6 +454,20 @@ pub fn search_transition_policy_json(
     let config: RuntimeSearchConfig =
         serde_json::from_str(config_json).map_err(|error| error.to_string())?;
     let result = model.search(state, config.into(), Some(deadline_ms.max(1)));
+    serde_json::to_string(&RuntimeSearchResult::from(result)).map_err(|error| error.to_string())
+}
+
+pub fn search_transition_policy_with_progress_json(
+    state_json: &str,
+    config_json: &str,
+    model: &TransitionPolicyModel,
+    deadline_ms: u32,
+    progress: SearchProgressCallback,
+) -> Result<String, String> {
+    let state = parse_position(state_json)?;
+    let config: RuntimeSearchConfig =
+        serde_json::from_str(config_json).map_err(|error| error.to_string())?;
+    let result = model.search_with_progress(state, config.into(), deadline_ms, progress);
     serde_json::to_string(&RuntimeSearchResult::from(result)).map_err(|error| error.to_string())
 }
 

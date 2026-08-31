@@ -109,19 +109,84 @@ pub struct MoveEvaluation {
     pub table_hits: u64,
 }
 
+/// A deliberately coarse callback for browser-facing search telemetry. The
+/// callback receives cumulative node and transposition-table-hit counts. It is
+/// invoked from the WASM search budget, not from every node, so callers can
+/// surface long searches without putting a message boundary in the hot loop.
+pub type SearchProgressCallback = Box<dyn FnMut(u64, u64)>;
+
+#[cfg(target_arch = "wasm32")]
+const PROGRESS_NODE_INTERVAL: u64 = 10_000;
+#[cfg(target_arch = "wasm32")]
+const PROGRESS_TIME_INTERVAL_MS: f64 = 500.0;
+#[cfg(target_arch = "wasm32")]
+const PROGRESS_POLL_INTERVAL_NODES: u64 = 256;
+
 #[derive(Default)]
 struct Budget {
     nodes: u64,
     exhausted: bool,
     table_hits: u64,
     deadline: Option<Deadline>,
+    #[cfg(target_arch = "wasm32")]
+    progress: Option<SearchProgressCallback>,
+    #[cfg(target_arch = "wasm32")]
+    next_progress_nodes: u64,
+    #[cfg(target_arch = "wasm32")]
+    next_progress_at: Deadline,
+    #[cfg(target_arch = "wasm32")]
+    last_progress_poll: u64,
 }
 
 impl Budget {
-    fn with_deadline(deadline: Option<Deadline>) -> Self {
-        Self {
+    #[allow(unused_mut)]
+    fn with_deadline_and_progress(
+        deadline: Option<Deadline>,
+        progress: Option<SearchProgressCallback>,
+    ) -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
+        let _ = progress;
+        let mut budget = Self {
             deadline,
+            #[cfg(target_arch = "wasm32")]
+            progress,
             ..Self::default()
+        };
+        #[cfg(target_arch = "wasm32")]
+        if budget.progress.is_some() {
+            budget.next_progress_nodes = PROGRESS_NODE_INTERVAL;
+            budget.next_progress_at = deadline_after_ms(PROGRESS_TIME_INTERVAL_MS as u32);
+        }
+        budget
+    }
+
+    fn count_node(&mut self) {
+        self.nodes += 1;
+        #[cfg(target_arch = "wasm32")]
+        {
+            if self.progress.is_none() {
+                return;
+            }
+            let node_due = self.nodes >= self.next_progress_nodes;
+            let time_due = if self.nodes.saturating_sub(self.last_progress_poll)
+                >= PROGRESS_POLL_INTERVAL_NODES
+            {
+                self.last_progress_poll = self.nodes;
+                js_sys::Date::now() >= self.next_progress_at
+            } else {
+                false
+            };
+            if !node_due && !time_due {
+                return;
+            }
+            let now = js_sys::Date::now();
+            self.next_progress_nodes =
+                (self.nodes / PROGRESS_NODE_INTERVAL + 1) * PROGRESS_NODE_INTERVAL;
+            self.next_progress_at = now + PROGRESS_TIME_INTERVAL_MS;
+            if let Some(mut callback) = self.progress.take() {
+                callback(self.nodes, self.table_hits);
+                self.progress = Some(callback);
+            }
         }
     }
 
@@ -236,7 +301,7 @@ pub fn search_best_action_with_tactical_filter(
     state: GameState,
     config: SearchConfig,
 ) -> SearchResult {
-    search_best_action_with_tactical_filter_until(state, config, None)
+    search_best_action_with_tactical_filter_until(state, config, None, None)
 }
 
 /// Search through the tactical-safe Pathfinder root with a wall-clock
@@ -253,6 +318,23 @@ pub fn search_best_action_with_tactical_filter_deadline(
         state,
         config,
         Some(deadline_after_ms(deadline_ms.max(1))),
+        None,
+    )
+}
+
+/// Deadline-aware tactical-safe search with coarse progress callbacks for the
+/// browser worker. The callback cadence is controlled by `Budget`.
+pub fn search_best_action_with_tactical_filter_deadline_progress(
+    state: GameState,
+    config: SearchConfig,
+    deadline_ms: u32,
+    progress: SearchProgressCallback,
+) -> SearchResult {
+    search_best_action_with_tactical_filter_until(
+        state,
+        config,
+        Some(deadline_after_ms(deadline_ms.max(1))),
+        Some(progress),
     )
 }
 
@@ -260,6 +342,7 @@ fn search_best_action_with_tactical_filter_until(
     state: GameState,
     config: SearchConfig,
     deadline: Option<Deadline>,
+    progress: Option<SearchProgressCallback>,
 ) -> SearchResult {
     let fallback = ordered_root_actions(state, state.turn, config.weights);
     if fallback.is_empty() {
@@ -268,7 +351,7 @@ fn search_best_action_with_tactical_filter_until(
     let safe = tactical_root_safe_actions(state, state.turn, config.weights);
     let root_limit = (safe.len() < fallback.len()).then_some(safe.len());
     search_best_action_with_root_order_and_root_limit_internal_deadline(
-        state, config, &safe, false, root_limit, true, deadline,
+        state, config, &safe, false, root_limit, true, deadline, progress,
     )
 }
 
@@ -414,6 +497,30 @@ pub fn search_best_action_with_root_order_and_root_limit_deadline(
         root_limit,
         true,
         Some(deadline_after_ms(deadline_ms.max(1))),
+        None,
+    )
+}
+
+/// Deadline-aware root-ordered search with coarse progress callbacks. This is
+/// the transition-policy entry point used by the browser worker.
+pub fn search_best_action_with_root_order_and_root_limit_deadline_progress(
+    state: GameState,
+    config: SearchConfig,
+    root_order: &[Action],
+    tactical_extension: bool,
+    root_limit: Option<usize>,
+    deadline_ms: u32,
+    progress: SearchProgressCallback,
+) -> SearchResult {
+    search_best_action_with_root_order_and_root_limit_internal_deadline(
+        state,
+        config,
+        root_order,
+        tactical_extension,
+        root_limit,
+        true,
+        Some(deadline_after_ms(deadline_ms.max(1))),
+        Some(progress),
     )
 }
 
@@ -517,6 +624,7 @@ fn search_best_action_with_root_order_and_root_limit_internal(
         root_limit,
         tt_move_order,
         None,
+        None,
     )
 }
 
@@ -528,6 +636,7 @@ fn search_best_action_with_root_order_and_root_limit_internal_deadline(
     root_limit: Option<usize>,
     tt_move_order: bool,
     deadline: Option<Deadline>,
+    progress: Option<SearchProgressCallback>,
 ) -> SearchResult {
     if state.config.board_size <= 4 {
         if let Some(horizon) = config.tactical_proof_horizon {
@@ -567,7 +676,7 @@ fn search_best_action_with_root_order_and_root_limit_internal_deadline(
         };
     }
 
-    let mut budget = Budget::with_deadline(deadline);
+    let mut budget = Budget::with_deadline_and_progress(deadline, progress);
     let mut table = HashMap::new();
     let mut hints = SearchHints::default();
     let mut best_action = initial_actions[0];
@@ -589,7 +698,7 @@ fn search_best_action_with_root_order_and_root_limit_internal_deadline(
                 break;
             }
             let next = state.apply_legal(action).state;
-            budget.nodes += 1;
+            budget.count_node();
             let score = minimax(
                 next,
                 root_player,
@@ -798,7 +907,7 @@ pub fn analyze_action(
     let mut table = HashMap::new();
     let mut hints = SearchHints::default();
     let next = state.apply_legal(action).state;
-    budget.nodes += 1;
+    budget.count_node();
     let score = if next.winner.is_some() {
         evaluate(next, root_player, config.weights)
     } else {
@@ -853,7 +962,7 @@ pub fn analyze_actions(
             break;
         }
         let next = state.apply_legal(action).state;
-        budget.nodes += 1;
+        budget.count_node();
         let score = if next.winner.is_some() {
             evaluate(next, root_player, config.weights)
         } else {
@@ -994,7 +1103,7 @@ fn minimax(
                 .find(|action| state.apply_legal(*action).state.winner == Some(state.turn))
             {
                 if !budget.reached(config.max_nodes) {
-                    budget.nodes += 1;
+                    budget.count_node();
                     let score =
                         evaluate(state.apply_legal(action).state, root_player, config.weights);
                     budget.reached(config.max_nodes);
@@ -1057,7 +1166,7 @@ fn minimax(
             break;
         }
         let next = state.apply_legal(action).state;
-        budget.nodes += 1;
+        budget.count_node();
         let score = minimax(
             next,
             root_player,

@@ -18,6 +18,8 @@ type RuntimePosition = {
 
 type RuntimeSearchResult = Omit<SearchResult, "action"> & { action: Action | null };
 
+export type SearchProgressCallback = (nodes: number, tableHits: number) => void;
+
 type RuntimeMoveEvaluation = Omit<MoveEvaluation, "beforeScore" | "completedDepth" | "tableHits"> & {
   beforeScore: number;
   completedDepth: number;
@@ -39,6 +41,7 @@ type TransitionPolicyModelHandle = {
   score(position: string, action: string, safe: boolean): number;
   rankActions(position: string, maxActions: number): string;
   searchBestAction(position: string, config: string, deadlineMs: number): string;
+  searchBestActionWithProgress(position: string, config: string, deadlineMs: number, callback: SearchProgressCallback): string;
 };
 
 type RustWasmModule = {
@@ -48,6 +51,7 @@ type RustWasmModule = {
   pathagon_search_best_action(position: string, config: string): string;
   pathagon_search_best_action_with_tactical_filter(position: string, config: string): string;
   pathagon_search_best_action_with_tactical_filter_deadline(position: string, config: string, deadlineMs: number): string;
+  pathagon_search_best_action_with_tactical_filter_deadline_progress(position: string, config: string, deadlineMs: number, callback: SearchProgressCallback): string;
   pathagon_lunatic_action(position: string): string;
   pathagon_analyze_action(position: string, action: string, config: string): string;
   pathagon_analyze_actions(position: string, config: string, maxActions: number): string;
@@ -57,10 +61,15 @@ type RustWasmModule = {
 let modulePromise: Promise<RustWasmModule> | null = null;
 
 function loadRustWasmModule(): Promise<RustWasmModule> {
-  const moduleUrl = ["/engine/pathagon_engine", ".js"].join("");
+  // Keep the JS and WASM URLs together when the generated ABI changes. This
+  // prevents a long-lived browser tab or edge cache from pairing the new
+  // progress wrapper with an older binary that lacks its export.
+  const engineCacheKey = "search-progress-v1";
+  const moduleUrl = `/engine/pathagon_engine.js?v=${engineCacheKey}`;
+  const wasmUrl = `/engine/pathagon_engine_bg.wasm?v=${engineCacheKey}`;
   modulePromise ??= import(/* @vite-ignore */ moduleUrl).then(async (module) => {
     const wasm = module as unknown as RustWasmModule;
-    await wasm.default();
+    await wasm.default(wasmUrl);
     return wasm;
   });
   return modulePromise;
@@ -72,6 +81,7 @@ export type RustEngine = {
   searchBestAction(state: GameState, config: SearchConfig): RuntimeSearchResult;
   searchBestTacticalAction(state: GameState, config: SearchConfig): RuntimeSearchResult;
   searchBestTacticalActionWithDeadline(state: GameState, config: SearchConfig, deadlineMs: number): RuntimeSearchResult;
+  searchBestTacticalActionWithDeadlineProgress(state: GameState, config: SearchConfig, deadlineMs: number, onProgress: SearchProgressCallback): RuntimeSearchResult;
   lunaticAction(state: GameState): RuntimeSearchResult;
   analyzeAction(state: GameState, action: Action, config: SearchConfig): MoveEvaluation;
   analyzeActions(state: GameState, config: SearchConfig, maxActions: number): MoveEvaluation[];
@@ -83,6 +93,7 @@ export type TransitionPolicyEngine = {
   score(state: GameState, action: Action, safe?: boolean): number;
   rankActions(state: GameState, maxActions?: number): TransitionPolicyRankedAction[];
   searchBestAction(state: GameState, config: SearchConfig, deadlineMs?: number): TransitionPolicySearchResult;
+  searchBestActionWithProgress(state: GameState, config: SearchConfig, deadlineMs: number, onProgress: SearchProgressCallback): TransitionPolicySearchResult;
 };
 
 export function loadRustEngine(): Promise<RustEngine> {
@@ -105,6 +116,14 @@ export function loadRustEngine(): Promise<RustEngine> {
         JSON.stringify(toRuntimePosition(state)),
         JSON.stringify(config),
         deadlineMs,
+      )) as RuntimeSearchResult;
+    },
+    searchBestTacticalActionWithDeadlineProgress(state, config, deadlineMs, onProgress) {
+      return JSON.parse(wasm.pathagon_search_best_action_with_tactical_filter_deadline_progress(
+        JSON.stringify(toRuntimePosition(state)),
+        JSON.stringify(config),
+        deadlineMs,
+        onProgress,
       )) as RuntimeSearchResult;
     },
     lunaticAction(state) {
@@ -150,6 +169,14 @@ export function loadTransitionPolicyEngine(
           JSON.stringify(toRuntimePosition(state)),
           JSON.stringify(config),
           deadlineMs,
+        )) as TransitionPolicySearchResult;
+      },
+      searchBestActionWithProgress(state: GameState, config: SearchConfig, deadlineMs: number, onProgress: SearchProgressCallback) {
+        return JSON.parse(model.searchBestActionWithProgress(
+          JSON.stringify(toRuntimePosition(state)),
+          JSON.stringify(config),
+          deadlineMs,
+          onProgress,
         )) as TransitionPolicySearchResult;
       },
     };

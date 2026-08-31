@@ -13,8 +13,10 @@ use serde::Deserialize;
 use crate::search::{
     evaluate, search_best_action_with_root_order_and_root_limit,
     search_best_action_with_root_order_and_root_limit_deadline,
+    search_best_action_with_root_order_and_root_limit_deadline_progress,
     search_best_action_with_tactical_filter, search_best_action_with_tactical_filter_deadline,
-    tactical_root_safe_actions, EvaluationWeights, SearchResult,
+    search_best_action_with_tactical_filter_deadline_progress, tactical_root_safe_actions,
+    EvaluationWeights, SearchProgressCallback, SearchResult,
 };
 use crate::{Action, GameState, Player};
 
@@ -251,6 +253,47 @@ impl TransitionPolicyModel {
                     deadline,
                 )
             },
+        )
+    }
+
+    /// Deadline-aware transition-policy search with coarse browser progress.
+    /// The callback is fed by the recursive search budget and receives
+    /// cumulative nodes and table hits for the current pass.
+    pub fn search_with_progress(
+        &self,
+        state: GameState,
+        config: crate::search::SearchConfig,
+        deadline_ms: u32,
+        progress: SearchProgressCallback,
+    ) -> SearchResult {
+        if state.config.board_size != 7 {
+            return search_best_action_with_tactical_filter_deadline_progress(
+                state,
+                config,
+                deadline_ms,
+                progress,
+            );
+        }
+        let ranked = self.ranked_actions(state, config.weights);
+        if ranked.is_empty() {
+            return SearchResult {
+                action: None,
+                score: 0,
+                nodes: 0,
+                exhausted: false,
+                completed_depth: 0,
+                table_hits: 0,
+            };
+        }
+        let root_order = ranked.iter().map(|item| item.action).collect::<Vec<_>>();
+        search_best_action_with_root_order_and_root_limit_deadline_progress(
+            state,
+            config,
+            &root_order,
+            false,
+            Some(root_order.len()),
+            deadline_ms,
+            progress,
         )
     }
 }

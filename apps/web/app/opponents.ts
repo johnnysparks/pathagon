@@ -20,10 +20,10 @@ export type Opponent = {
 
 /**
  * Browser-safe Pathfinder horizons. The centre value preserves the shipped
- * baseline; the outer values make the speed/strength trade-off explicit
- * without allowing an accidental unbounded search in the UI.
+ * baseline; the long-horizon values make the speed/strength trade-off explicit
+ * while keeping the experiment bounded by both nodes and wall-clock time.
  */
-export const PATHFINDER_DEPTH_OPTIONS = [2, 3, 4, 5, 6] as const;
+export const PATHFINDER_DEPTH_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 20, 50, 100] as const;
 export type PathfinderDepth = typeof PATHFINDER_DEPTH_OPTIONS[number];
 
 const PATHFINDER_BUDGETS: Record<PathfinderDepth, number> = {
@@ -32,6 +32,15 @@ const PATHFINDER_BUDGETS: Record<PathfinderDepth, number> = {
   4: PATHFINDER_SEARCH.maxNodes,
   5: 4_000,
   6: 8_000,
+  7: 16_000,
+  8: 32_000,
+  9: 64_000,
+  10: 128_000,
+  11: 256_000,
+  12: 512_000,
+  20: 1_000_000,
+  50: 2_000_000,
+  100: 4_000_000,
 };
 
 const PATHFINDER_BEAMS: Record<PathfinderDepth, number> = {
@@ -40,6 +49,15 @@ const PATHFINDER_BEAMS: Record<PathfinderDepth, number> = {
   4: PATHFINDER_SEARCH.beamWidth,
   5: 6,
   6: 4,
+  7: 4,
+  8: 3,
+  9: 3,
+  10: 2,
+  11: 2,
+  12: 2,
+  20: 2,
+  50: 2,
+  100: 2,
 };
 
 export function pathfinderSearchAtDepth(depth: number): SearchConfig {
@@ -179,6 +197,7 @@ export const CNN_OPPONENT: Opponent = {
 
 export const CNN_SEARCH = { simulations: 64, cpuct: 1.5 } as const;
 export const PATHFINDER_DEADLINE_MS = 2_800;
+export const PATHFINDER_DEADLINE_OPTIONS = [2_800, 5_000, 10_000, 20_000, 30_000] as const;
 
 export const OPPONENTS = [CNN_OPPONENT, TRANSITION_PATHFINDER_OPPONENT, TRAINED_PATHFINDER_OPPONENT, PATHFINDER_OPPONENT, LUNATIC_OPPONENT, SURVEYOR_OPPONENT, RANDOM_OPPONENT] as const;
 

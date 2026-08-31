@@ -159,6 +159,22 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .lookahead-slider:focus-visible { outline: 3px solid rgba(56,95,76,.28); outline-offset: 3px; }
 .lookahead-scale { display: flex; justify-content: space-between; gap: 8px; color: #6c7e70; font-size: 10px; font-weight: 750; }
 .lookahead-control p { margin: 9px 0 0; color: #5e7162; font-size: 11px; line-height: 1.4; }
+.search-dial-row { display: flex; align-items: end; justify-content: space-between; gap: 10px; margin-top: 13px; }
+.search-time-picker { display: flex; flex: 1 1 auto; flex-direction: column; gap: 5px; }
+.search-time-picker > span { color: #6c7e70; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.search-time-picker select { width: 100%; min-height: 34px; border: 1px solid #b6cbb9; border-radius: 8px; padding: 0 8px; color: #294a3b; background: rgba(255,255,255,.58); cursor: pointer; font-size: 12px; font-weight: 750; }
+.config-copy-button, .play-best-button { min-height: 34px; border-radius: 8px; padding: 0 10px; cursor: pointer; font-size: 11px; font-weight: 850; }
+.config-copy-button { border: 1px solid #b6cbb9; color: #35614a; background: rgba(255,255,255,.54); white-space: nowrap; }
+.search-cap-note { display: block; margin-top: 6px; color: #6c7e70; font-size: 10px; }
+.search-progress, .search-last-result { margin-top: 12px; padding: 11px; border: 1px solid #b6cbb9; border-radius: 9px; color: #35614a; background: rgba(255,255,255,.42); }
+.search-progress-heading, .search-progress-stats { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.search-progress-heading strong { font-size: 12px; }
+.search-progress-stats { margin-top: 6px; color: #5e7162; font-size: 11px; font-weight: 750; }
+.search-progress p, .search-last-result p { margin: 7px 0 9px; color: #5e7162; font-size: 11px; line-height: 1.35; }
+.search-last-result p { margin-bottom: 0; }
+.play-best-button { width: 100%; border: 1px solid #35614a; color: #fff; background: #35614a; }
+.play-best-button:disabled { cursor: default; opacity: .45; }
+.config-copy-button:focus-visible, .search-time-picker select:focus-visible, .play-best-button:focus-visible { outline: 3px solid rgba(56,95,76,.28); outline-offset: 2px; }
 .telemetry { margin: 18px 0; }
 .telemetry div { display: flex; justify-content: space-between; padding: 10px 2px; border-bottom: 1px solid var(--line); }
 .telemetry dt { color: var(--muted); font-size: 13px; }
@@ -197,6 +213,7 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
   .goal-edge { font-size: 6px; letter-spacing: .13em; }
   .coaching-body { grid-template-columns: 170px minmax(0, 1fr); gap: 10px; }
   .lab-panel { padding: 16px; }
+  .search-dial-row { align-items: stretch; flex-direction: column; }
   .opponent-picker > span { display: none; }
   .result-scrim { align-items: end; padding: 0; }
   .result-card { width: 100%; border-radius: 22px 22px 0 0; padding: 24px 20px max(24px, env(safe-area-inset-bottom)); }
