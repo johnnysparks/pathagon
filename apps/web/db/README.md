@@ -21,9 +21,11 @@ Cloudflare D1 has two tables:
 
 Human-game rows also carry a bounded JSON `metadata` blob. The browser uses it
 for exploratory Pathfinder search traces (dial settings, model card, elapsed
-time, positions searched, checkpoints, and whether the current-best button
-interrupted the search). It is intentionally separate from the compact replay
-contract so older games remain readable.
+time, positions searched, representative checkpoints, and whether the
+current-best button interrupted the search). The archive keeps aggregate
+per-move metrics and at most three checkpoints per search; it does not persist
+the full high-frequency progress stream. Metadata is intentionally separate
+from the compact replay contract so older games remain readable.
 
 The complete contract-v1 replay is retained with searchable metadata: engine,
 mode, run ID, agents, result, termination reason, seed, and ply count. Git is

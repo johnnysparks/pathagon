@@ -31,7 +31,12 @@ import {
   pathfinderSearchAtDepth,
   trainedPathfinderSearchAtDepth,
 } from "./opponents";
-import { COACHING_SEARCH, PATHFINDER_SEARCH, type MoveEvaluation, type SearchConfig } from "./ai";
+import { COACHING_SEARCH, PATHFINDER_SEARCH, type MoveEvaluation } from "./ai";
+import {
+  compactPathfinderGameMetadata,
+  type PathfinderMoveTelemetry,
+  type SearchCheckpoint,
+} from "./archive-metadata";
 import { loadRustEngine, type RustEngine } from "./rust-engine";
 import { createRustSearchClient, type RustSearchClient, type SearchProgress } from "./rust-search-client";
 import { loadCnnEngine, type CnnEngine } from "./cnn-engine";
@@ -75,29 +80,6 @@ function initialPathfinderMaxNodes(depth: number): number {
   }
 }
 
-type SearchCheckpoint = Pick<SearchProgress, "completedDepth" | "nodes" | "maxNodes" | "nodeCapReached" | "elapsedMs" | "action">;
-
-type PathfinderMoveTelemetry = {
-  ply: number;
-  action: Action;
-  searchTimeMs: number;
-  positions: number;
-  maxNodes: number;
-  nodeCapReached: boolean;
-  targetDepth: number;
-  completedDepth: number;
-  tableHits: number;
-  exhausted: boolean;
-  interrupted: boolean;
-  modelCard: {
-    id: string;
-    name: string;
-    version: string;
-    engine: string;
-  };
-  config: SearchConfig & { deadlineMs: number };
-  checkpoints: SearchCheckpoint[];
-};
 
 export default function Home() {
   const [game, setGame] = useState<GameState>(() => createGame());
@@ -1070,12 +1052,7 @@ function buildPathfinderGameMetadata(
   searches: PathfinderMoveTelemetry[],
 ) {
   if (!isPathfinderOpponent(opponent.id)) return {};
-  return {
-    searchExperiment: "pathfinder-browser-v1",
-    modelCard: pathfinderModelCard(opponent),
-    dials: { depth, maxNodes, deadlineMs },
-    moves: searches,
-  };
+  return compactPathfinderGameMetadata(pathfinderModelCard(opponent), depth, maxNodes, deadlineMs, searches);
 }
 
 function PieceTray({ label, player, count, active }: { label: string; player: Player; count: number; active: boolean }) {
