@@ -714,7 +714,10 @@ mod tests {
             r#"{"depth":100,"maxNodes":999999999,"beamWidth":2,"weights":{"path":240,"material":110,"capture":700,"structure":55,"threat":130,"edge":80}}"#,
         )
         .expect("decode long-horizon search config");
-        assert_eq!(SearchConfig::from(config).max_nodes, MAX_RUNTIME_SEARCH_NODES);
+        assert_eq!(
+            SearchConfig::from(config).max_nodes,
+            MAX_RUNTIME_SEARCH_NODES
+        );
     }
 
     #[test]
