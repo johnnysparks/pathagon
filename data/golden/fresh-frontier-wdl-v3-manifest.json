@@ -1,0 +1,22 @@
+{
+  "promotion": "closed-ring-2-only",
+  "provenance": {
+    "proofLineage": "complete-forward-legal-edges-plus-exact-inner-seeds",
+    "rulesVersion": "pathagon-rules-v1",
+    "solverVersion": "pathagon-endgame-tablebase-v1"
+  },
+  "ring": 2,
+  "rows": 2,
+  "rulesVersion": "pathagon-rules-v1",
+  "schemaVersion": 1,
+  "shard": {
+    "path": "data/golden/tables/fresh-frontier-wdl-v3/7x7-r14/shard-00.bin",
+    "sha256": "30e17ce1b2d4f70500cc14ce75c8453cfc7570f55a9fae65d38c97948f6e498e"
+  },
+  "sidecar": {
+    "path": "data/golden/sidecars/fresh-frontier-wdl-v3/7x7-r14/ring-02.bin",
+    "sha256": "68acdd7b1ffe7abb73cad8af53a457cbec1688d830b27a977fac48d98fbdf94f"
+  },
+  "source": "research/20260830-endgame-retrograde-frontier/workspace/ring-02-full.jsonl",
+  "tableFamily": "fresh-frontier-wdl-v3"
+}

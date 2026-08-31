@@ -102,6 +102,13 @@ cargo run --release --manifest-path pathagon/engine-rs/Cargo.toml \
   --golden-sidecar data/golden/sidecars/fresh-frontier-wdl-v2/7x7-r14/ring-02.bin
 ```
 
+The Rust-native follow-up is `fresh-frontier-wdl-v3/7x7-r14`: two independently
+solved Ring-2 roots, stored as a 30-byte WDL shard and a 266-byte `PGACT02`
+sidecar. The promotion executable is
+`pathagon-endgame-promote`; it is the authoritative writer and gate for new
+Ring-2 rows. The earlier Python verifier remains useful as an independent
+cross-check, but is not required by the Rust promotion path.
+
 To rebuild that seed table:
 
 ```bash

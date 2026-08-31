@@ -1,8 +1,8 @@
 # 20260830 Endgame retrograde frontier
 
 Status: Ring-1 pilot complete; Ring-2 generation, compact persistence, corrected
-propagation, bounded focused expansion, and a first singleton promotion
-validated
+propagation, bounded focused expansion, two-root promotion, and Rust-native
+promotion gates validated
 
 ## Idea
 
@@ -66,8 +66,9 @@ selected root as a side-to-move loss at distance 2; the remaining rows stayed
 unknown because the slice is not closed. The promotion verifier replayed the
 root against the original full graph and passed every gate: inventory/seeded,
 forward transition witness, symmetry, complete action sets, and zero
-contradictory existing gold. That singleton is the first non-empty durable
-Ring-2 promotion.
+contradictory existing gold. That singleton was the first non-empty durable
+Ring-2 promotion; a second independent root has now passed the same gates and
+the two rows are consolidated in the Rust-native v3 artifact.
 
 ## Data and artifacts
 
@@ -76,6 +77,8 @@ ignored `workspace/`. The promoted
 `fresh-frontier-wdl-v1` artifacts are [the 533,415-byte WDL shard](../../data/golden/tables/fresh-frontier-wdl-v1/7x7-r14/shard-00.bin), [the 889,046-byte action metadata sidecar](../../data/golden/sidecars/fresh-frontier-wdl-v1/7x7-r14/ring-01.bin), and [their manifest](../../data/golden/fresh-frontier-wdl-v1-manifest.json). The compact sidecar is a sorted binary key-to-sparse-action-metadata index so durable data stays below the repository's 5 MiB file limit. Do not place solver traces, queues, or implementation-shaped tensors in durable data.
 
 The first promoted Ring-2 control is [a 15-byte WDL shard](../../data/golden/tables/fresh-frontier-wdl-v2/7x7-r14/shard-00.bin), [a 141-byte action sidecar](../../data/golden/sidecars/fresh-frontier-wdl-v2/7x7-r14/ring-02.bin), and [its manifest](../../data/golden/fresh-frontier-wdl-v2-manifest.json). It is intentionally a standalone proof shard rather than a replacement for Ring-1; the current runtime lookup takes one table/sidecar pair. The manifest records the full-graph source and the `closed-ring-2-only` promotion decision.
+
+The Rust-native follow-up is [a 30-byte two-root WDL shard](../../data/golden/tables/fresh-frontier-wdl-v3/7x7-r14/shard-00.bin), [a 266-byte action sidecar](../../data/golden/sidecars/fresh-frontier-wdl-v3/7x7-r14/ring-02.bin), and [its manifest](../../data/golden/fresh-frontier-wdl-v3-manifest.json). It was emitted by `pathagon-endgame-promote` after 35,562 Ring-2 records were scanned; both rows closed, all 16 D4 checks passed, and no contradictory gold was found.
 
 The tablebase executable uses compact binary values and action labels for
 large research outputs: a fixed-width key plus one outcome byte and one `u16`
@@ -179,6 +182,27 @@ deepening experiments bounded and makes a single-root proof auditable without
 copying unrelated graph regions. It accepts the same compact graph format and
 can expand it to deterministic graph-only JSONL evidence when needed.
 
+The new `pathagon-endgame-promote` Rust executable is now the authoritative
+Ring-2 promotion path. It reads compact value shards, replays every legal
+edge from the corpus graph, checks canonical D4 symmetry and child minimax,
+rejects contradictory existing gold, and writes the compact WDL table,
+`PGACT02` sidecar, SHA-256 manifest, and gate report without importing the
+Python rules package. Additional solved shard directories can be supplied with
+`--extra-shards`, keeping each independently solved slice separately
+auditable.
+
+```bash
+pathagon/engine-rs/target/debug/pathagon-endgame-promote \
+  --graph research/20260830-endgame-retrograde-frontier/workspace/ring-02-full.jsonl \
+  --shards research/20260830-endgame-retrograde-frontier/workspace/ring-02-one-root-pass-0003.shards \
+  --extra-shards research/20260830-endgame-retrograde-frontier/workspace/ring-02-second-root-pass-0003.resolved.shards \
+  --existing-table data/golden/tables/fresh-frontier-wdl-v1/7x7-r14/shard-00.bin \
+  --table data/golden/tables/fresh-frontier-wdl-v3/7x7-r14/shard-00.bin \
+  --sidecar data/golden/sidecars/fresh-frontier-wdl-v3/7x7-r14/ring-02.bin \
+  --manifest data/golden/fresh-frontier-wdl-v3-manifest.json \
+  --table-family fresh-frontier-wdl-v3 --ring 2
+```
+
 The retrograde resolver now implements the monotonic early-win rule directly:
 one known child loss proves a parent win even when sibling branches remain
 unknown. Loss still requires every legal child to be a known win, and draws
@@ -199,7 +223,7 @@ pass under `workspace/`, until a measured resource budget is reached. Close
 additional low-branching roots by supplying verified records for their missing
 child states (or by adding independently replay-witnessed constructive
 admissions), then rerun the exact minimax and promotion gates. The first
-singleton promotion is now available for training/evaluation against the
+two-root promotion is now available for training/evaluation against the
 permanent held-out split and user games, while Ring-1 remains the
 rollback/control layer until a broader Ring-2 slice is independently
 validated.

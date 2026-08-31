@@ -58,6 +58,10 @@ name = "pathagon-endgame-slice"
 path = "src/bin/endgame_slice.rs"
 
 [[bin]]
+name = "pathagon-endgame-promote"
+path = "src/bin/endgame_promote.rs"
+
+[[bin]]
 name = "pathagon-lambda-worker"
 path = "src/lambda_worker.rs"
 required-features = ["lambda"]
@@ -75,6 +79,7 @@ panic = "abort"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
 js-sys = { version = "0.3", optional = true }
 tract = { package = "tract-onnx", version = "0.23.4", default-features = false, optional = true }
 getrandom = { version = "0.4.3", optional = true }

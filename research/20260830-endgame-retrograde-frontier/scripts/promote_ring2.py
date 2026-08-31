@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Validate and, when closed, promote Rust replay-ring tablebase rows.
+"""Independently cross-check Rust replay-ring tablebase promotion.
 
 This script is intentionally conservative.  An exported Ring-2 node is not
 gold merely because it has a replay witness: every legal child must have an
 exact value in the solved inner tablebase.  A large incomplete graph therefore
 produces a report with zero promotions instead of silently turning unknowns
 into losses or draws.
+
+The authoritative promotion path is the Rust
+``pathagon-endgame-promote`` executable. This Python implementation remains
+for independent agreement checks and historical reproducibility only.
 """
 
 from __future__ import annotations

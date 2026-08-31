@@ -807,6 +807,14 @@ pub fn canonical_position_key(state: GameState) -> Vec<u8> {
     canonical_key(state).0
 }
 
+/// Apply one of the eight rules-preserving D4 transformations. This is
+/// public for Rust-side frontier validation; callers should canonicalize the
+/// transformed state with [`canonical_position_key`] rather than persisting
+/// an orientation-specific representation.
+pub fn transform_position(state: GameState, symmetry: u8) -> GameState {
+    transform_state(state, symmetry)
+}
+
 /// Decode a canonical key into its canonical representative state. Reserve
 /// counts are reconstructed from the fixed inventory and piece counts because
 /// the namespace already fixes the reserve-per-player value.
@@ -1340,5 +1348,40 @@ mod tests {
             .expect("Ring-2 row has action values");
         assert_eq!(action_values.len(), state.legal_actions().len());
         assert!(action_values.iter().all(|value| value.outcome.is_some()));
+    }
+
+    #[test]
+    fn rust_promoted_ring2_pair_preserves_exact_values_and_actions() {
+        let table_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/golden/tables/fresh-frontier-wdl-v3/7x7-r14/shard-00.bin");
+        let sidecar_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/golden/sidecars/fresh-frontier-wdl-v3/7x7-r14/ring-02.bin");
+        if !(table_path.exists() && sidecar_path.exists()) {
+            return;
+        }
+        let table = FlatGoldenTable::open(&table_path, 7, 14).expect("open Rust Ring-2 table");
+        let actions = GoldenActionBook::load(&sidecar_path, 7).expect("open Rust Ring-2 sidecar");
+        for key_hex in [
+            "00000000004556969aa5aa5b6263",
+            "0000000000545556aa95eaaaca62",
+        ] {
+            let key = decode_hex(key_hex).expect("Rust Ring-2 root key");
+            let state =
+                decode_canonical_position_key(&key, 7, 14).expect("decode Rust Ring-2 root");
+            assert_eq!(table.lookup(state), Some(GoldenOutcome::Loss));
+            assert_eq!(
+                actions.row_value(state),
+                Some(GoldenRowValue {
+                    outcome: GoldenOutcome::Loss,
+                    distance: Some(2),
+                    optimal_actions_complete: true,
+                })
+            );
+            let action_values = actions
+                .action_values(state)
+                .expect("Rust Ring-2 row has action values");
+            assert_eq!(action_values.len(), state.legal_actions().len());
+            assert!(action_values.iter().all(|value| value.outcome.is_some()));
+        }
     }
 }
