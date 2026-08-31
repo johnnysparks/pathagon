@@ -236,6 +236,14 @@ its value head still missed that forced-loss class (0/1). The report therefore
 fails the explicit Ring-2 value gate and keeps the candidate research-only;
 the exact Rust table remains the authoritative answer for promoted positions.
 
+The Rust `pathagon-endgame-match` executable now provides the complementary
+held-out match gate. It deliberately searches without consulting gold, applies
+the selected action through the Rust rules boundary, and records exact-action
+matches, terminal wins, exhaustion, depth, and node cost. A full baseline run
+over the 3,597-row Ring-1 partition was started but intentionally stopped when
+the Ring-2 expansion effort was paused; no partial match result is treated as
+evidence.
+
 The exporter caught and fixed a canonicalization defect during this gate:
 Ring-2 promotion had stored source-orientation actions beside canonical keys.
 Rust promotion now transforms action coordinates with the selected D4 symmetry,
