@@ -67,8 +67,8 @@ unknown because the slice is not closed. The promotion verifier replayed the
 root against the original full graph and passed every gate: inventory/seeded,
 forward transition witness, symmetry, complete action sets, and zero
 contradictory existing gold. That singleton was the first non-empty durable
-Ring-2 promotion; a second independent root has now passed the same gates and
-the two rows are consolidated in the Rust-native v3 artifact.
+Ring-2 promotion; a third independent root has now passed the same gates and
+the three rows are consolidated in the Rust-native v4 artifact.
 
 ## Data and artifacts
 
@@ -79,6 +79,8 @@ ignored `workspace/`. The promoted
 The first promoted Ring-2 control is [a 15-byte WDL shard](../../data/golden/tables/fresh-frontier-wdl-v2/7x7-r14/shard-00.bin), [a 141-byte action sidecar](../../data/golden/sidecars/fresh-frontier-wdl-v2/7x7-r14/ring-02.bin), and [its manifest](../../data/golden/fresh-frontier-wdl-v2-manifest.json). It is intentionally a standalone proof shard rather than a replacement for Ring-1; the current runtime lookup takes one table/sidecar pair. The manifest records the full-graph source and the `closed-ring-2-only` promotion decision.
 
 The Rust-native follow-up is [a 30-byte two-root WDL shard](../../data/golden/tables/fresh-frontier-wdl-v3/7x7-r14/shard-00.bin), [a 266-byte action sidecar](../../data/golden/sidecars/fresh-frontier-wdl-v3/7x7-r14/ring-02.bin), and [its manifest](../../data/golden/fresh-frontier-wdl-v3-manifest.json). It was emitted by `pathagon-endgame-promote` after 35,562 Ring-2 records were scanned; both rows closed, all 16 D4 checks passed, and no contradictory gold was found.
+
+The third-root pass is [a 45-byte three-root WDL shard](../../data/golden/tables/fresh-frontier-wdl-v4/7x7-r14/shard-00.bin), [a 391-byte action sidecar](../../data/golden/sidecars/fresh-frontier-wdl-v4/7x7-r14/ring-02.bin), and [its manifest](../../data/golden/fresh-frontier-wdl-v4-manifest.json). The third root's slice contained 1,290,536 nodes and 1,385,832 edges; exact propagation found 203 values, and the Rust promotion gate admitted the third closed parent alongside the two v3 roots. The unresolved remainder stayed unknown in ignored workspace artifacts.
 
 The tablebase executable uses compact binary values and action labels for
 large research outputs: a fixed-width key plus one outcome byte and one `u16`
@@ -195,12 +197,12 @@ auditable.
 pathagon/engine-rs/target/debug/pathagon-endgame-promote \
   --graph research/20260830-endgame-retrograde-frontier/workspace/ring-02-full.jsonl \
   --shards research/20260830-endgame-retrograde-frontier/workspace/ring-02-one-root-pass-0003.shards \
-  --extra-shards research/20260830-endgame-retrograde-frontier/workspace/ring-02-second-root-pass-0003.resolved.shards \
+  --extra-shards research/20260830-endgame-retrograde-frontier/workspace/ring-02-second-root-pass-0003.resolved.shards,research/20260830-endgame-retrograde-frontier/workspace/ring-02-third-root-pass-0003.shards \
   --existing-table data/golden/tables/fresh-frontier-wdl-v1/7x7-r14/shard-00.bin \
-  --table data/golden/tables/fresh-frontier-wdl-v3/7x7-r14/shard-00.bin \
-  --sidecar data/golden/sidecars/fresh-frontier-wdl-v3/7x7-r14/ring-02.bin \
-  --manifest data/golden/fresh-frontier-wdl-v3-manifest.json \
-  --table-family fresh-frontier-wdl-v3 --ring 2
+  --table data/golden/tables/fresh-frontier-wdl-v4/7x7-r14/shard-00.bin \
+  --sidecar data/golden/sidecars/fresh-frontier-wdl-v4/7x7-r14/ring-02.bin \
+  --manifest data/golden/fresh-frontier-wdl-v4-manifest.json \
+  --table-family fresh-frontier-wdl-v4 --ring 2
 ```
 
 The retrograde resolver now implements the monotonic early-win rule directly:

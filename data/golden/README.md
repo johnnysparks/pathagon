@@ -109,6 +109,13 @@ sidecar. The promotion executable is
 Ring-2 rows. The earlier Python verifier remains useful as an independent
 cross-check, but is not required by the Rust promotion path.
 
+The current expanded control is `fresh-frontier-wdl-v4/7x7-r14`: three
+independently solved Ring-2 roots, stored as a 45-byte WDL shard and a
+391-byte `PGACT02` sidecar. It passed the same Rust gates with 24 symmetry
+checks and zero contradictions. This is still a standalone Ring-2 experiment;
+the Ring-1 table remains the rollback/control artifact until layered loading
+is wired into the browser bundle.
+
 To rebuild that seed table:
 
 ```bash

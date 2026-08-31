@@ -1384,4 +1384,46 @@ mod tests {
             assert!(action_values.iter().all(|value| value.outcome.is_some()));
         }
     }
+
+    #[test]
+    fn rust_promoted_ring2_three_root_lookup_is_readable() {
+        let table_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/golden/tables/fresh-frontier-wdl-v4/7x7-r14/shard-00.bin");
+        let sidecar_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/golden/sidecars/fresh-frontier-wdl-v4/7x7-r14/ring-02.bin");
+        if !(table_path.exists() && sidecar_path.exists()) {
+            return;
+        }
+        let lookup = GoldenLookup::open(&table_path, Some(&sidecar_path), 7, 14)
+            .expect("open Rust three-root lookup");
+        for key_hex in [
+            "00000000004556969aa5aa5b6263",
+            "0000000000545556aa95eaaaca62",
+            "0000000000545a556a95aaabda62",
+        ] {
+            let key = decode_hex(key_hex).expect("three-root key");
+            let state = decode_canonical_position_key(&key, 7, 14).expect("decode three-root");
+            assert_eq!(lookup.lookup(state), Some(GoldenOutcome::Loss));
+            assert_eq!(
+                lookup
+                    .actions
+                    .as_ref()
+                    .expect("three-root sidecar")
+                    .row_value(state)
+                    .expect("three-root action row")
+                    .optimal_actions_complete,
+                true
+            );
+            assert_eq!(
+                lookup
+                    .actions
+                    .as_ref()
+                    .expect("three-root sidecar")
+                    .action_values(state)
+                    .expect("three-root action values")
+                    .len(),
+                state.legal_actions().len()
+            );
+        }
+    }
 }
