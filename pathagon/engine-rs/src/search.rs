@@ -1621,6 +1621,121 @@ mod tests {
         (best_action, best_score)
     }
 
+    fn exhaustive_root_order_best_action(
+        state: GameState,
+        config: SearchConfig,
+        root_order: &[Action],
+    ) -> (Action, i32) {
+        let root_player = state.turn;
+        let actions = root_ordered_actions(state, root_player, config.weights, root_order);
+        let mut best_action = actions[0];
+        let mut best_score = NEG_INF;
+        for action in actions {
+            let score = exhaustive_beam_score(
+                state.apply_legal(action).state,
+                root_player,
+                config.depth.saturating_sub(1),
+                config,
+            );
+            if score > best_score || (score == best_score && action.order() < best_action.order()) {
+                best_action = action;
+                best_score = score;
+            }
+        }
+        (best_action, best_score)
+    }
+
+    fn next_test_seed(seed: &mut u64) -> u64 {
+        *seed = seed
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        *seed
+    }
+
+    fn sampled_nonterminal_position(board_size: u8, seed: u64, target_plies: usize) -> GameState {
+        for attempt in 0..256_u64 {
+            let mut state = GameState::with_board_size(board_size);
+            let mut cursor = seed.wrapping_add(attempt);
+            for _ in 0..target_plies {
+                if state.winner.is_some() {
+                    break;
+                }
+                let actions = state.legal_actions();
+                if actions.is_empty() {
+                    break;
+                }
+                let action = actions[(next_test_seed(&mut cursor) as usize) % actions.len()];
+                state = state.apply_legal(action).state;
+            }
+            if state.winner.is_none() && !state.legal_actions().is_empty() {
+                return state;
+            }
+        }
+        panic!(
+            "could not sample a non-terminal {board_size}x{board_size} position after {target_plies} plies"
+        );
+    }
+
+    fn search_test_weights(index: usize) -> EvaluationWeights {
+        match index % 4 {
+            0 => EvaluationWeights::default(),
+            1 => EvaluationWeights {
+                path: 241,
+                material: 112,
+                capture: 887,
+                structure: 40,
+                threat: 154,
+                edge: 74,
+            },
+            2 => EvaluationWeights {
+                path: 1,
+                material: 1,
+                capture: 1,
+                structure: 1,
+                threat: 1,
+                edge: 1,
+            },
+            _ => EvaluationWeights {
+                path: -240,
+                material: 0,
+                capture: 1_100,
+                structure: -55,
+                threat: 260,
+                edge: 0,
+            },
+        }
+    }
+
+    fn assert_search_matches_reference(state: GameState, config: SearchConfig, context: &str) {
+        let (expected_action, expected_score) = exhaustive_beam_best_action(state, config);
+        let actual = search_best_action(state, config);
+        assert!(
+            !actual.exhausted,
+            "{context}: search exhausted its test budget"
+        );
+        assert_eq!(
+            actual.completed_depth, config.depth,
+            "{context}: incomplete depth"
+        );
+        assert_eq!(
+            actual.action,
+            Some(expected_action),
+            "{context}: action mismatch; expected {expected_action:?}, got {:?}",
+            actual.action
+        );
+        assert_eq!(
+            actual.score, expected_score,
+            "{context}: score mismatch for {:?}",
+            actual.action
+        );
+        assert!(
+            actual
+                .action
+                .is_some_and(|action| state.legal_actions().contains(&action)),
+            "{context}: search returned an illegal action"
+        );
+    }
+
     fn reference_connection_distance(state: GameState, player: Player) -> i32 {
         let opponent = player.other();
         let board_size = state.config.board_size;
@@ -1772,6 +1887,213 @@ mod tests {
                 if state.winner.is_some() {
                     state = GameState::with_board_size(3);
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn alpha_beta_matches_reference_across_reachable_position_matrix() {
+        let profiles = [
+            (1_u8, 1_usize),
+            (1, 4),
+            (2, 1),
+            (2, 4),
+            (3, 2),
+            (3, 8),
+            (4, 2),
+            (4, 8),
+            (5, 1),
+            (5, 4),
+            (5, 8),
+        ];
+        let samples = [
+            (3_u8, 0_usize),
+            (3, 1),
+            (3, 2),
+            (3, 4),
+            (3, 6),
+            (3, 8),
+            (3, 10),
+            (3, 12),
+            (4, 0),
+            (4, 2),
+            (4, 5),
+            (4, 8),
+            (4, 12),
+            (4, 16),
+            (5, 0),
+            (5, 3),
+            (5, 6),
+            (5, 10),
+        ];
+
+        for (position_index, (board_size, target_plies)) in samples.into_iter().enumerate() {
+            let state = sampled_nonterminal_position(
+                board_size,
+                0x9e37_79b9_7f4a_7c15_u64.wrapping_add(position_index as u64 * 97),
+                target_plies,
+            );
+            for (profile_index, (depth, beam_width)) in profiles.into_iter().enumerate() {
+                let config = SearchConfig {
+                    depth,
+                    max_nodes: 5_000_000,
+                    beam_width,
+                    weights: search_test_weights(position_index + profile_index),
+                    ..SearchConfig::default()
+                };
+                let context = format!(
+                    "matrix position={position_index} board={board_size} plies={target_plies} profile={depth}/{beam_width}"
+                );
+                assert_search_matches_reference(state, config, &context);
+            }
+        }
+    }
+
+    #[test]
+    fn root_ordering_cannot_change_a_completed_search_result() {
+        for position_index in 0..16_usize {
+            let state = sampled_nonterminal_position(
+                3,
+                0xa5a5_5a5a_1234_5678_u64.wrapping_add(position_index as u64 * 131),
+                [0_usize, 1, 3, 5, 7, 9, 11, 13][position_index % 8],
+            );
+            let config = SearchConfig {
+                depth: 4,
+                max_nodes: 2_000_000,
+                beam_width: 8,
+                weights: search_test_weights(position_index),
+                ..SearchConfig::default()
+            };
+            let legal = state.legal_actions();
+            let reversed = legal.iter().rev().copied().collect::<Vec<_>>();
+            let mut rotated = legal.clone();
+            let rotation = position_index % rotated.len();
+            rotated.rotate_left(rotation);
+            let mut noisy = reversed.clone();
+            noisy.push(reversed[0]);
+            noisy.push(Action::Place { to: 63 });
+
+            for (order_index, root_order) in [&reversed[..], &rotated[..], &noisy[..]]
+                .into_iter()
+                .enumerate()
+            {
+                let expected = exhaustive_root_order_best_action(state, config, root_order);
+                let actual = search_best_action_with_root_order(state, config, root_order);
+                assert!(
+                    !actual.exhausted,
+                    "position={position_index} order={order_index}"
+                );
+                assert_eq!(actual.completed_depth, config.depth);
+                assert_eq!(
+                    (actual.action, actual.score),
+                    (Some(expected.0), expected.1),
+                    "root order changed result at position={position_index} order={order_index}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn tt_move_ordering_matches_the_exhaustive_value_when_the_beam_is_complete() {
+        for position_index in 0..16_usize {
+            let state = sampled_nonterminal_position(
+                3,
+                0x0123_4567_89ab_cdef_u64.wrapping_add(position_index as u64 * 173),
+                [0_usize, 2, 4, 6, 8, 10, 12, 12][position_index % 8],
+            );
+            let config = SearchConfig {
+                depth: 5,
+                max_nodes: 5_000_000,
+                beam_width: 64,
+                weights: search_test_weights(position_index + 1),
+                ..SearchConfig::default()
+            };
+            let expected = exhaustive_beam_best_action(state, config);
+            let actual = search_best_action_with_tt_order(state, config);
+            assert!(
+                !actual.exhausted,
+                "TT search exhausted at position={position_index}"
+            );
+            assert_eq!(actual.completed_depth, config.depth);
+            assert_eq!(
+                (actual.action, actual.score),
+                (Some(expected.0), expected.1),
+                "TT move ordering changed the completed result at position={position_index}"
+            );
+        }
+    }
+
+    #[test]
+    fn bounded_search_respects_budget_and_keeps_results_inside_search_bounds() {
+        let states = [
+            sampled_nonterminal_position(3, 0x1111_2222_3333_4444, 6),
+            sampled_nonterminal_position(4, 0x5555_6666_7777_8888, 9),
+            sampled_nonterminal_position(5, 0x9999_aaaa_bbbb_cccc, 12),
+        ];
+        for (state_index, state) in states.into_iter().enumerate() {
+            for depth in [1_u8, 3, 5] {
+                for beam_width in [0_usize, 1, 2, 8, 64] {
+                    for max_nodes in [0_u64, 1, 2, 7, 31, 120, 512, 2_000] {
+                        let config = SearchConfig {
+                            depth,
+                            max_nodes,
+                            beam_width,
+                            weights: search_test_weights(state_index + depth as usize),
+                            ..SearchConfig::default()
+                        };
+                        let result = search_best_action(state, config);
+                        assert!(
+                            result.nodes <= max_nodes,
+                            "budget overrun state={state_index} depth={depth} beam={beam_width} budget={max_nodes}: {}",
+                            result.nodes
+                        );
+                        assert!(result.completed_depth <= depth);
+                        assert!(result.score > NEG_INF && result.score < POS_INF);
+                        assert!(
+                            result
+                                .action
+                                .is_some_and(|action| state.legal_actions().contains(&action)),
+                            "invalid fallback state={state_index} depth={depth} beam={beam_width} budget={max_nodes}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn analyze_actions_returns_a_sorted_unique_legal_prefix() {
+        for position_index in 0..12_usize {
+            let state = sampled_nonterminal_position(
+                4,
+                0xdead_beef_cafe_babe_u64.wrapping_add(position_index as u64 * 211),
+                [0_usize, 1, 3, 5, 7, 9][position_index % 6],
+            );
+            let config = SearchConfig {
+                depth: 3,
+                max_nodes: 2_000_000,
+                beam_width: 8,
+                weights: search_test_weights(position_index + 2),
+                ..SearchConfig::default()
+            };
+            let legal = state.legal_actions();
+            for requested in [0_usize, 1, 3, legal.len(), legal.len() + 5] {
+                let analyses = analyze_actions(state, config, requested);
+                assert_eq!(analyses.len(), requested.min(legal.len()));
+                assert!(analyses.iter().all(|item| legal.contains(&item.action)));
+                let unique = analyses
+                    .iter()
+                    .map(|item| item.action)
+                    .collect::<std::collections::HashSet<_>>();
+                assert_eq!(unique.len(), analyses.len());
+                assert!(analyses.windows(2).all(|pair| {
+                    pair[0].score > pair[1].score
+                        || (pair[0].score == pair[1].score
+                            && pair[0].action.order() < pair[1].action.order())
+                }));
+                assert!(analyses
+                    .iter()
+                    .all(|item| item.score > NEG_INF && item.score < POS_INF));
             }
         }
     }
