@@ -16,6 +16,7 @@ use pathagon_engine::search::{EvaluationWeights, SearchConfig};
 use pathagon_engine::selfplay::{play_game, Agent, GameRecord, MatchOptions};
 #[cfg(feature = "inference")]
 use pathagon_engine::selfplay::{GnnPlayConfig, QAdvPlayConfig};
+use pathagon_engine::transition_policy::TransitionPolicyModel;
 use pathagon_engine::Player;
 
 fn main() {
@@ -102,6 +103,13 @@ fn main() {
         .map(|path| LearnedBook::load(&path))
         .transpose()
         .unwrap_or_else(|error| fail(&format!("cannot load learned book: {error}")))
+        .map(Arc::new);
+    let transition_policy_model = args
+        .get("transition-policy")
+        .map(PathBuf::from)
+        .map(|path| TransitionPolicyModel::from_path(&path))
+        .transpose()
+        .unwrap_or_else(|error| fail(&format!("cannot load transition-policy model: {error}")))
         .map(Arc::new);
     let learned_minimum_visits = number(&args, "learned-min-visits", 2_u32);
     let book = corpus_directory
@@ -263,7 +271,14 @@ fn main() {
         .map(String::as_str)
         .unwrap_or(candidate_filter_id);
     #[cfg(feature = "inference")]
-    let champion = if let Some(model) = qadv_sorter_model.as_ref() {
+    let champion = if let Some(model) = transition_policy_model.as_ref() {
+        Agent::transition_policy_with_deadline(
+            candidate_id,
+            candidate_config,
+            Arc::clone(model),
+            candidate_deadline_ms.unwrap_or(2_800),
+        )
+    } else if let Some(model) = qadv_sorter_model.as_ref() {
         Agent::qadv_sorter_with_pool(
             "rust-pathfinder-onnx-qadv-sorter-v0.1.0",
             candidate_config,
@@ -397,7 +412,14 @@ fn main() {
         )
     };
     #[cfg(not(feature = "inference"))]
-    let champion = if root_probe_enabled {
+    let champion = if let Some(model) = transition_policy_model.as_ref() {
+        Agent::transition_policy_with_deadline(
+            candidate_id,
+            candidate_config,
+            Arc::clone(model),
+            candidate_deadline_ms.unwrap_or(2_800),
+        )
+    } else if root_probe_enabled {
         Agent::search_probe(
             "rust-pathfinder-v0.3.0-root-probe",
             candidate_config,
@@ -595,10 +617,10 @@ fn main() {
         )
     } else if opponent_name == "deep-search" || opponent_name == "pathfinder" {
         with_optional_book(Agent::search("rust-pathfinder-v0.3.0", config), &book)
-    } else if opponent_name == "search" {
+    } else if opponent_name == "surveyor" || opponent_name == "search" {
         with_optional_book(
             Agent::search(
-                "rust-surveyor-v0.1.0",
+                "surveyor-v0.2.0",
                 SearchConfig {
                     depth: 2,
                     max_nodes: 12_000,
@@ -626,7 +648,7 @@ fn main() {
     } else if opponent_name == "lunatic" {
         Agent::lunatic("lunatic-v0.1.0")
     } else {
-        Agent::random("coin-flip-seeded")
+        Agent::random("coin-flip-v0.0.1")
     };
 
     let started = Instant::now();
