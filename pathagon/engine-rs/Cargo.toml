@@ -50,6 +50,10 @@ name = "pathagon-endgame-expand"
 path = "src/bin/endgame_expand.rs"
 
 [[bin]]
+name = "pathagon-endgame-compact"
+path = "src/bin/endgame_compact.rs"
+
+[[bin]]
 name = "pathagon-lambda-worker"
 path = "src/lambda_worker.rs"
 required-features = ["lambda"]

@@ -16,8 +16,12 @@ use serde::{Deserialize, Serialize};
 
 const COMPACT_VALUE_MAGIC: &[u8; 8] = b"PGTBV01\0";
 const COMPACT_ACTION_MAGIC: &[u8; 8] = b"PGTBA01\0";
+const COMPACT_GRAPH_MAGIC: &[u8; 8] = b"PGGRF01\0";
 const COMPACT_HEADER_BYTES: usize = 20;
 const COMPACT_NONE_DISTANCE: u16 = u16::MAX;
+const COMPACT_NONE_OUTCOME: u8 = u8::MAX;
+const ACTION_ALPHABET: &[u8; 64] =
+    b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RetrogradeNode {
@@ -439,6 +443,9 @@ impl RetrogradeGraph {
         stats: RetrogradeStats,
         values: &BTreeMap<String, RetrogradeValue>,
     ) -> io::Result<()> {
+        let path = path.as_ref();
+        let values_path = path.with_extension("values.bin");
+        write_compact_values(&values_path, values, key_width(values)?)?;
         let checkpoint = FrontierCheckpoint {
             schema_version: 1,
             table_family: "pathagon-retrograde-frontier-v1".to_owned(),
@@ -449,9 +456,32 @@ impl RetrogradeGraph {
             draws: stats.draws,
             unknown: stats.unknown,
             complete_graph: self.nodes.values().all(|node| node.complete),
-            values: values.clone(),
+            values: BTreeMap::new(),
         };
-        atomic_json_write(path.as_ref(), &checkpoint)
+        let values_name = values_path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "checkpoint values path must have a UTF-8 file name",
+                )
+            })?;
+        let metadata = serde_json::json!({
+            "schema_version": checkpoint.schema_version,
+            "table_family": checkpoint.table_family,
+            "format": "compact-checkpoint-v1",
+            "input_nodes": checkpoint.input_nodes,
+            "input_edges": checkpoint.input_edges,
+            "rounds": checkpoint.rounds,
+            "solved": checkpoint.solved,
+            "draws": checkpoint.draws,
+            "unknown": checkpoint.unknown,
+            "complete_graph": checkpoint.complete_graph,
+            "values_path": values_name,
+            "values_format": "compact-value-v1",
+        });
+        atomic_json_write(path, &metadata)
     }
 
     pub fn write_values(
@@ -546,7 +576,10 @@ impl RetrogradeGraph {
                     ));
                 }
                 writer.write_all(&(actions.len() as u32).to_le_bytes())?;
-                for action in actions {
+                let mut actions = actions.clone();
+                actions
+                    .sort_by_key(|action| compact_action_code(&action.action).unwrap_or(u16::MAX));
+                for action in &actions {
                     let action_bytes = action.action.as_bytes();
                     if action_bytes.len() > usize::from(u16::MAX) {
                         return Err(io::Error::new(
@@ -559,6 +592,106 @@ impl RetrogradeGraph {
                     writer.write_all(&[outcome_byte(action.outcome)])?;
                     writer.write_all(&distance_bytes(action.distance)?)?;
                 }
+            }
+            Ok(())
+        })
+    }
+
+    /// Write the legal-edge graph without repeating JSON field names or
+    /// hexadecimal key text. Children are sorted once per node and actions
+    /// are encoded as two base64-alphabet bytes plus a local child index.
+    /// The result is deterministic and can be read back by `read_nodes`.
+    pub fn write_compact_graph(&self, path: impl AsRef<Path>) -> io::Result<()> {
+        let key_bytes = key_width_from_keys(self.nodes.keys())?;
+        if key_bytes > usize::from(u8::MAX) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "compact graph key width exceeds u8",
+            ));
+        }
+        atomic_binary_write(path.as_ref(), |writer| {
+            writer.write_all(COMPACT_GRAPH_MAGIC)?;
+            writer.write_all(&[key_bytes as u8, 0, 0, 0])?;
+            writer.write_all(&(self.nodes.len() as u64).to_le_bytes())?;
+            for (key, node) in &self.nodes {
+                writer.write_all(&decode_hex_key(key, key_bytes)?)?;
+                let terminal = node
+                    .terminal
+                    .as_deref()
+                    .map(|value| {
+                        parse_outcome(value).map(outcome_byte).ok_or_else(|| {
+                            io::Error::new(
+                                io::ErrorKind::InvalidInput,
+                                format!("retrograde node {key} has an invalid terminal outcome"),
+                            )
+                        })
+                    })
+                    .transpose()?
+                    .unwrap_or(COMPACT_NONE_OUTCOME);
+                let seed = node.seed.map(|value| outcome_byte(value.outcome));
+                let mut flags = u8::from(node.complete);
+                if node.terminal.is_some() {
+                    flags |= 1 << 1;
+                }
+                if node.seed.is_some() {
+                    flags |= 1 << 2;
+                }
+                writer.write_all(&[flags, terminal, seed.unwrap_or(COMPACT_NONE_OUTCOME)])?;
+                writer.write_all(&distance_bytes(node.seed.and_then(|value| value.distance))?)?;
+
+                let mut children = node.children.clone();
+                children.sort();
+                if children.len() > u32::MAX as usize {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "compact graph node contains too many children",
+                    ));
+                }
+                let child_indices = children
+                    .iter()
+                    .enumerate()
+                    .map(|(index, child)| (child.as_str(), index as u32))
+                    .collect::<BTreeMap<_, _>>();
+                let mut actions = node.actions.clone();
+                actions.sort_by_key(|edge| compact_action_code(&edge.action).unwrap_or(u16::MAX));
+                if actions.len() > u32::MAX as usize {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "compact graph node contains too many actions",
+                    ));
+                }
+                writer.write_all(&(children.len() as u32).to_le_bytes())?;
+                writer.write_all(&(actions.len() as u32).to_le_bytes())?;
+                for child in &children {
+                    writer.write_all(&decode_hex_key(child, key_bytes)?)?;
+                }
+                for edge in actions {
+                    let child_index = child_indices.get(edge.child.as_str()).ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            format!(
+                                "retrograde action {} points outside its child set",
+                                edge.action
+                            ),
+                        )
+                    })?;
+                    writer.write_all(&compact_action_code(&edge.action)?.to_le_bytes())?;
+                    writer.write_all(&child_index.to_le_bytes())?;
+                }
+            }
+            Ok(())
+        })
+    }
+
+    /// Write a deterministic, graph-only JSONL evidence export. This is the
+    /// reversible inspection path for PGGRF01; generator-specific fields that
+    /// were intentionally omitted from the compact graph are not recreated.
+    pub fn write_jsonl(&self, path: impl AsRef<Path>) -> io::Result<()> {
+        atomic_binary_write(path.as_ref(), |writer| {
+            for node in self.nodes.values() {
+                serde_json::to_writer(&mut *writer, node)
+                    .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+                writer.write_all(b"\n")?;
             }
             Ok(())
         })
@@ -783,6 +916,245 @@ fn distance_bytes(distance: Option<u16>) -> io::Result<[u8; 2]> {
         ));
     }
     Ok(distance.unwrap_or(COMPACT_NONE_DISTANCE).to_le_bytes())
+}
+
+fn compact_action_code(action: &str) -> io::Result<u16> {
+    let bytes = action.as_bytes();
+    if bytes.len() != 2 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("compact graph action {action:?} must be exactly two corpus characters"),
+        ));
+    }
+    let high = ACTION_ALPHABET
+        .iter()
+        .position(|candidate| *candidate == bytes[0])
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("compact graph action {action:?} contains an unsupported character"),
+            )
+        })?;
+    let low = ACTION_ALPHABET
+        .iter()
+        .position(|candidate| *candidate == bytes[1])
+        .expect("validated action alphabet");
+    Ok(((high as u16) << 6) | low as u16)
+}
+
+fn compact_action_from_code(code: u16) -> Option<String> {
+    if code >= 64 * 64 {
+        return None;
+    }
+    let high = ACTION_ALPHABET[(code >> 6) as usize] as char;
+    let low = ACTION_ALPHABET[(code & 0x3f) as usize] as char;
+    Some(format!("{high}{low}"))
+}
+
+fn compact_error(path: &Path, message: impl Into<String>) -> io::Error {
+    io::Error::new(
+        io::ErrorKind::InvalidData,
+        format!("{}: {}", path.display(), message.into()),
+    )
+}
+
+fn compact_take<'a>(
+    bytes: &'a [u8],
+    offset: &mut usize,
+    length: usize,
+    path: &Path,
+    field: &str,
+) -> io::Result<&'a [u8]> {
+    let end = offset
+        .checked_add(length)
+        .ok_or_else(|| compact_error(path, format!("compact graph {field} overflows")))?;
+    if end > bytes.len() {
+        return Err(compact_error(
+            path,
+            format!("compact graph is truncated in {field}"),
+        ));
+    }
+    let value = &bytes[*offset..end];
+    *offset = end;
+    Ok(value)
+}
+
+/// Read a PGGRF01 compact graph directly.
+pub fn read_compact_graph(path: impl AsRef<Path>) -> io::Result<RetrogradeGraph> {
+    let path = path.as_ref();
+    let bytes = fs::read(path)?;
+    read_compact_graph_bytes(path, &bytes)
+}
+
+fn read_compact_graph_bytes(path: &Path, bytes: &[u8]) -> io::Result<RetrogradeGraph> {
+    if bytes.len() < COMPACT_HEADER_BYTES || bytes[..8] != *COMPACT_GRAPH_MAGIC {
+        return Err(compact_error(path, "invalid compact graph header"));
+    }
+    let key_bytes = bytes[8] as usize;
+    if bytes[9..12] != [0, 0, 0] {
+        return Err(compact_error(path, "unsupported compact graph flags"));
+    }
+    let rows = usize::try_from(u64::from_le_bytes(
+        bytes[12..20]
+            .try_into()
+            .expect("eight-byte graph row count"),
+    ))
+    .map_err(|_| compact_error(path, "compact graph row count is too large"))?;
+    if rows > 0 && key_bytes == 0 {
+        return Err(compact_error(
+            path,
+            "non-empty compact graph has a zero-width key",
+        ));
+    }
+
+    let mut graph = RetrogradeGraph::default();
+    let mut offset = COMPACT_HEADER_BYTES;
+    let mut previous_key = None;
+    for row in 0..rows {
+        let key_bytes_value = compact_take(bytes, &mut offset, key_bytes, path, "node key")?;
+        if previous_key
+            .as_ref()
+            .is_some_and(|previous: &Vec<u8>| previous.as_slice() >= key_bytes_value)
+        {
+            return Err(compact_error(
+                path,
+                format!("compact graph node keys are not strictly sorted at row {row}"),
+            ));
+        }
+        let key = hex_key(key_bytes_value);
+        previous_key = Some(key_bytes_value.to_vec());
+
+        let flags = compact_take(bytes, &mut offset, 1, path, "node flags")?[0];
+        if flags & !0b111 != 0 {
+            return Err(compact_error(
+                path,
+                format!("compact graph row {row} has unsupported node flags"),
+            ));
+        }
+        let terminal_byte = compact_take(bytes, &mut offset, 1, path, "terminal outcome")?[0];
+        let seed_byte = compact_take(bytes, &mut offset, 1, path, "seed outcome")?[0];
+        let seed_distance = u16::from_le_bytes(
+            compact_take(bytes, &mut offset, 2, path, "seed distance")?
+                .try_into()
+                .expect("two-byte seed distance"),
+        );
+        let terminal = if flags & (1 << 1) != 0 {
+            Some(
+                outcome_from_byte(terminal_byte)
+                    .ok_or_else(|| compact_error(path, "invalid compact terminal outcome"))?,
+            )
+        } else {
+            if terminal_byte != COMPACT_NONE_OUTCOME {
+                return Err(compact_error(
+                    path,
+                    format!("compact graph row {row} has an unmarked terminal outcome"),
+                ));
+            }
+            None
+        };
+        let seed = if flags & (1 << 2) != 0 {
+            let outcome = outcome_from_byte(seed_byte)
+                .ok_or_else(|| compact_error(path, "invalid compact seed outcome"))?;
+            if !outcome.is_known() {
+                return Err(compact_error(
+                    path,
+                    format!("compact graph row {row} has an unknown seed outcome"),
+                ));
+            }
+            Some(RetrogradeValue {
+                outcome,
+                distance: (seed_distance != COMPACT_NONE_DISTANCE).then_some(seed_distance),
+            })
+        } else {
+            if seed_byte != COMPACT_NONE_OUTCOME || seed_distance != COMPACT_NONE_DISTANCE {
+                return Err(compact_error(
+                    path,
+                    format!("compact graph row {row} has unmarked seed metadata"),
+                ));
+            }
+            None
+        };
+
+        let child_count = u32::from_le_bytes(
+            compact_take(bytes, &mut offset, 4, path, "child count")?
+                .try_into()
+                .expect("four-byte child count"),
+        ) as usize;
+        let action_count = u32::from_le_bytes(
+            compact_take(bytes, &mut offset, 4, path, "action count")?
+                .try_into()
+                .expect("four-byte action count"),
+        ) as usize;
+        let mut children = Vec::with_capacity(child_count);
+        let mut previous_child = None;
+        for _ in 0..child_count {
+            let child_bytes = compact_take(bytes, &mut offset, key_bytes, path, "child key")?;
+            if previous_child
+                .as_ref()
+                .is_some_and(|previous: &Vec<u8>| previous.as_slice() >= child_bytes)
+            {
+                return Err(compact_error(
+                    path,
+                    format!("compact graph row {row} child keys are not strictly sorted"),
+                ));
+            }
+            children.push(hex_key(child_bytes));
+            previous_child = Some(child_bytes.to_vec());
+        }
+        let mut actions = Vec::with_capacity(action_count);
+        let mut previous_action = None;
+        for _ in 0..action_count {
+            let code = u16::from_le_bytes(
+                compact_take(bytes, &mut offset, 2, path, "action code")?
+                    .try_into()
+                    .expect("two-byte action code"),
+            );
+            if previous_action.is_some_and(|previous| code <= previous) {
+                return Err(compact_error(
+                    path,
+                    format!("compact graph row {row} action codes are not strictly sorted"),
+                ));
+            }
+            previous_action = Some(code);
+            let child_index = u32::from_le_bytes(
+                compact_take(bytes, &mut offset, 4, path, "action child index")?
+                    .try_into()
+                    .expect("four-byte action child index"),
+            ) as usize;
+            let child = children.get(child_index).ok_or_else(|| {
+                compact_error(
+                    path,
+                    format!("compact graph row {row} action points outside child list"),
+                )
+            })?;
+            let action = compact_action_from_code(code)
+                .ok_or_else(|| compact_error(path, "invalid compact action code"))?;
+            actions.push(RetrogradeEdge {
+                action,
+                child: child.clone(),
+            });
+        }
+
+        graph
+            .insert(RetrogradeNode {
+                key,
+                children,
+                complete: flags & 1 != 0,
+                terminal: terminal.map(|outcome| match outcome {
+                    GroundTruthOutcome::Loss => "loss".to_owned(),
+                    GroundTruthOutcome::Draw => "draw".to_owned(),
+                    GroundTruthOutcome::Win => "win".to_owned(),
+                    GroundTruthOutcome::Unknown => "unknown".to_owned(),
+                }),
+                seed,
+                actions,
+            })
+            .map_err(|error| compact_error(path, error))?;
+    }
+    if offset != bytes.len() {
+        return Err(compact_error(path, "compact graph contains trailing bytes"));
+    }
+    Ok(graph)
 }
 
 fn atomic_binary_write<F>(path: &Path, write: F) -> io::Result<()>
@@ -1032,17 +1404,60 @@ pub fn write_merged_values(
 }
 
 pub fn read_checkpoint(path: impl AsRef<Path>) -> io::Result<FrontierCheckpoint> {
-    let source = fs::read_to_string(path.as_ref())?;
-    serde_json::from_str(&source).map_err(|error| {
+    let path = path.as_ref();
+    let source = fs::read_to_string(path)?;
+    let manifest: serde_json::Value = serde_json::from_str(&source).map_err(|error| {
         io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("{}: {error}", path.as_ref().display()),
+            format!("{}: {error}", path.display()),
+        )
+    })?;
+    let compact_values_path = manifest
+        .get("values_path")
+        .or_else(|| manifest.get("valuesPath"))
+        .and_then(serde_json::Value::as_str);
+    if let Some(values_path) = compact_values_path {
+        let values_path = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new(""))
+            .join(values_path);
+        let values = read_compact_values(&values_path)?;
+        let mut checkpoint: FrontierCheckpoint =
+            serde_json::from_value(manifest).map_err(|error| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("{}: {error}", path.display()),
+                )
+            })?;
+        checkpoint.values = values;
+        return Ok(checkpoint);
+    }
+    serde_json::from_value(manifest).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("{}: {error}", path.display()),
         )
     })
 }
 
 pub fn read_nodes(path: impl AsRef<Path>) -> io::Result<RetrogradeGraph> {
-    let source = fs::read_to_string(path.as_ref())?;
+    let path = path.as_ref();
+    let bytes = fs::read(path)?;
+    if bytes.len() >= COMPACT_GRAPH_MAGIC.len()
+        && bytes[..COMPACT_GRAPH_MAGIC.len()] == *COMPACT_GRAPH_MAGIC
+    {
+        return read_compact_graph_bytes(path, &bytes);
+    }
+    let source = String::from_utf8(bytes).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "{}: graph is neither compact binary nor UTF-8 JSONL: {error}",
+                path.display()
+            ),
+        )
+    })?;
     let mut graph = RetrogradeGraph::default();
     for (line_number, line) in source.lines().enumerate() {
         if line.trim().is_empty() || line.starts_with('#') {
@@ -1051,13 +1466,13 @@ pub fn read_nodes(path: impl AsRef<Path>) -> io::Result<RetrogradeGraph> {
         let node: RetrogradeNode = serde_json::from_str(line).map_err(|error| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("{}:{}: {error}", path.as_ref().display(), line_number + 1),
+                format!("{}:{}: {error}", path.display(), line_number + 1),
             )
         })?;
         graph.insert(node).map_err(|error| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("{}:{}: {error}", path.as_ref().display(), line_number + 1),
+                format!("{}:{}: {error}", path.display(), line_number + 1),
             )
         })?;
     }
@@ -1209,6 +1624,67 @@ mod tests {
     }
 
     #[test]
+    fn checkpoint_uses_compact_values_and_round_trips() {
+        let mut graph = RetrogradeGraph::default();
+        graph.insert(node("0000", &[])).unwrap();
+        let (values, stats) = graph.solve();
+        let path = std::env::temp_dir().join(format!(
+            "pathagon-checkpoint-{}-{}.json",
+            std::process::id(),
+            stats.nodes
+        ));
+        graph
+            .write_checkpoint(&path, stats.rounds, stats, &values)
+            .unwrap();
+        let restored = read_checkpoint(&path).unwrap();
+        assert_eq!(restored.values, values);
+        let metadata: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(metadata["format"], "compact-checkpoint-v1");
+        assert_eq!(
+            metadata["values_path"],
+            path.with_extension("values.bin")
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+        );
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("values.bin"));
+    }
+
+    #[test]
+    fn legacy_inline_checkpoint_remains_readable() {
+        let mut values = BTreeMap::new();
+        values.insert(
+            "0000".to_owned(),
+            RetrogradeValue {
+                outcome: GroundTruthOutcome::Win,
+                distance: Some(2),
+            },
+        );
+        let checkpoint = FrontierCheckpoint {
+            schema_version: 1,
+            table_family: "pathagon-retrograde-frontier-v1".to_owned(),
+            input_nodes: 1,
+            input_edges: 0,
+            rounds: 2,
+            solved: 1,
+            draws: 0,
+            unknown: 0,
+            complete_graph: true,
+            values: values.clone(),
+        };
+        let path = std::env::temp_dir().join(format!(
+            "pathagon-legacy-checkpoint-{}.json",
+            std::process::id()
+        ));
+        std::fs::write(&path, serde_json::to_vec(&checkpoint).unwrap()).unwrap();
+        assert_eq!(read_checkpoint(&path).unwrap().values, values);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn contradictory_checkpoint_is_rejected() {
         let mut graph = RetrogradeGraph::default();
         graph
@@ -1340,5 +1816,51 @@ mod tests {
         let _ = std::fs::remove_file(value_path);
         let _ = std::fs::remove_file(action_path);
         let _ = std::fs::remove_file(json_path);
+    }
+
+    #[test]
+    fn compact_graph_round_trips_edges_and_solver_values() {
+        let mut graph = RetrogradeGraph::default();
+        graph
+            .insert(RetrogradeNode {
+                key: "0000".to_owned(),
+                children: vec!["1111".to_owned()],
+                complete: true,
+                terminal: None,
+                seed: None,
+                actions: vec![RetrogradeEdge {
+                    action: "00".to_owned(),
+                    child: "1111".to_owned(),
+                }],
+            })
+            .unwrap();
+        graph
+            .insert(RetrogradeNode {
+                key: "1111".to_owned(),
+                children: Vec::new(),
+                complete: true,
+                terminal: Some("loss".to_owned()),
+                seed: None,
+                actions: Vec::new(),
+            })
+            .unwrap();
+        let expected = graph.solve();
+        let path = std::env::temp_dir().join(format!(
+            "pathagon-graph-compact-{}-{}.bin",
+            std::process::id(),
+            expected.1.nodes
+        ));
+        graph.write_compact_graph(&path).unwrap();
+        let decoded = read_compact_graph(&path).unwrap();
+        assert_eq!(decoded.len(), graph.len());
+        assert_eq!(decoded.edge_count(), graph.edge_count());
+        assert_eq!(decoded.solve(), expected);
+        let autodetected = read_nodes(&path).unwrap();
+        assert_eq!(autodetected.solve(), expected);
+        let jsonl_path = path.with_extension("jsonl");
+        decoded.write_jsonl(&jsonl_path).unwrap();
+        assert_eq!(read_nodes(&jsonl_path).unwrap().solve(), expected);
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(jsonl_path);
     }
 }

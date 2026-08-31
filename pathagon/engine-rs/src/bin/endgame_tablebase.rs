@@ -1,8 +1,8 @@
 //! Solve a persisted, canonical-keyed endgame graph with exact/unknown rules.
 //!
-//! Input is JSONL `RetrogradeNode` records. The generator that creates the
-//! graph owns legal-state construction; this executable owns propagation,
-//! deterministic output, and checkpoint evidence.
+//! Input is JSONL `RetrogradeNode` records or a PGGRF01 compact graph. The
+//! generator that creates the graph owns legal-state construction; this
+//! executable owns propagation, deterministic output, and checkpoint evidence.
 
 use std::collections::HashMap;
 use std::env;

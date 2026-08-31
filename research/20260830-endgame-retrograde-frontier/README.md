@@ -69,6 +69,33 @@ available with `--format json`; compact runs write a small metadata JSON beside
 the value and action binaries. The full Ring-2 exact values are about 590 KB
 in compact form versus about 435 MB in the earlier nested JSON.
 
+The workspace density audit found three additional, low-risk wins:
+
+1. The 4,521,100-node legal-edge graph now has a Rust `PGGRF01` binary form.
+   The full graph measured 1.6 GB as JSONL and 202 MB as binary (about 87%
+   smaller); a 42,201-node smoke graph measured 18 MB and 1.9 MB. The
+   `pathagon-endgame-compact` converter creates the binary plus a small
+   metadata manifest, and `pathagon-endgame-tablebase` reads either format.
+   Passing `--format jsonl` to the same converter expands the binary into
+   deterministic graph-only JSONL evidence. Child keys are fixed-width bytes,
+   and two-character corpus actions are a packed code plus a local child index,
+   so no proof-bearing graph information is discarded.
+2. Checkpoints now use a small JSON manifest plus a compact value file instead
+   of duplicating every solved value in pretty JSON. `read_checkpoint` remains
+   compatible with the older inline-value checkpoint format, so restarts do
+   not require a migration step.
+3. Cold evidence compresses well: zstd level 1 reduced the full JSONL export
+   to 63 MB and the 202 MB compact graph to 48 MB in this workspace. Keep zstd
+   files for archival or transfer copies; the uncompressed binary graph remains
+   the hot solver artifact so the solver does not pay decompression and
+   reparsing costs.
+
+The workspace still contains intentionally duplicated historical passes and
+the original JSONL export. The safe management rule is to retain one
+canonical artifact per pass, a manifest with counts/hashes/command, and only
+failed or promotion-relevant evidence; do not delete existing exports
+automatically while the frontier protocol is still being validated.
+
 ## Project impact
 
 This path establishes the first replay-witnessed frontier layer for the golden
