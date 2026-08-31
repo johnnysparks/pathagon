@@ -81,7 +81,6 @@ function initialPathfinderMaxNodes(depth: number): number {
   }
 }
 
-
 export default function Home() {
   const [game, setGame] = useState<GameState>(() => createGame());
   const [selected, setSelected] = useState<number | null>(null);

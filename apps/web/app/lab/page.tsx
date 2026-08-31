@@ -88,7 +88,6 @@ type HistoryPage = {
   hasMore: boolean;
 };
 
-type StandingSort = "rank" | "elo-desc" | "games-desc" | "name-asc";
 type HeadToHeadSort = "games-desc" | "games-asc" | "win-rate-desc" | "loss-rate-asc" | "draw-rate-desc" | "score-rate-desc" | "pairing-asc";
 
 type HeadToHeadView = {
@@ -110,7 +109,7 @@ type HeadToHeadView = {
   scoreRate: number;
 };
 
-type GameSet = "ladder" | "pairwise";
+type GameSet = "all" | "pairwise";
 type MobileView = "sets" | "games" | "game";
 type PairSelection = {
   leftId: string;
@@ -124,7 +123,7 @@ export default function LearningLab() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [crossPlay, setCrossPlay] = useState<CrossPlayState | null>(null);
   const [crossPlayError, setCrossPlayError] = useState<string | null>(null);
-  const [activeSet, setActiveSet] = useState<GameSet>("ladder");
+  const [activeSet, setActiveSet] = useState<GameSet>("all");
   const [selectedPair, setSelectedPair] = useState<PairSelection | null>(null);
   const [mobileView, setMobileView] = useState<MobileView>("sets");
   const [historyGames, setHistoryGames] = useState<LiveGame[]>([]);
@@ -139,8 +138,6 @@ export default function LearningLab() {
   const [replayLoadingId, setReplayLoadingId] = useState<string | null>(null);
   const [replayError, setReplayError] = useState<string | null>(null);
   const [replayModalOpen, setReplayModalOpen] = useState(false);
-  const [standingSearch, setStandingSearch] = useState("");
-  const [standingSort, setStandingSort] = useState<StandingSort>("rank");
   const [headToHeadSearch, setHeadToHeadSearch] = useState("");
   const [headToHeadFocus, setHeadToHeadFocus] = useState("all");
   const [headToHeadSort, setHeadToHeadSort] = useState<HeadToHeadSort>("games-desc");
@@ -163,28 +160,14 @@ export default function LearningLab() {
     ),
     [crossPlay],
   );
-  const visibleModels = useMemo(() => {
-    const query = standingSearch.trim().toLowerCase();
-    const filtered = RANKED_LEAGUE_MODELS.filter((model) => {
-      const searchable = `${model.name} ${model.family} ${model.role} ${model.id}`.toLowerCase();
-      return !query || searchable.includes(query);
-    });
-
-    return [...filtered].sort((left, right) => {
-      const leftLive = liveStandingById.get(left.id);
-      const rightLive = liveStandingById.get(right.id);
-      if (standingSort === "elo-desc") return compareNullableNumbers(leftLive?.rating, rightLive?.rating, left, right);
-      if (standingSort === "games-desc") return compareNullableNumbers(leftLive?.games, rightLive?.games, left, right);
-      if (standingSort === "name-asc") return left.name.localeCompare(right.name) || RANKED_LEAGUE_MODELS.indexOf(left) - RANKED_LEAGUE_MODELS.indexOf(right);
-
-      const leftRank = liveRankById.get(left.id);
-      const rightRank = liveRankById.get(right.id);
-      if (leftRank && rightRank) return Number(leftRank) - Number(rightRank);
-      if (leftRank) return -1;
-      if (rightRank) return 1;
-      return RANKED_LEAGUE_MODELS.indexOf(left) - RANKED_LEAGUE_MODELS.indexOf(right);
-    });
-  }, [liveRankById, liveStandingById, standingSearch, standingSort]);
+  const profileModels = useMemo(() => [...RANKED_LEAGUE_MODELS].sort((left, right) => {
+    const leftRank = liveRankById.get(left.id);
+    const rightRank = liveRankById.get(right.id);
+    if (leftRank && rightRank) return Number(leftRank) - Number(rightRank);
+    if (leftRank) return -1;
+    if (rightRank) return 1;
+    return RANKED_LEAGUE_MODELS.indexOf(left) - RANKED_LEAGUE_MODELS.indexOf(right);
+  }), [liveRankById]);
 
   const scopedHeadToHead = useMemo(() => {
     if (!crossPlay) return [];
@@ -216,7 +199,6 @@ export default function LearningLab() {
   }, [headToHeadFocus, headToHeadSearch, headToHeadSort, scopedHeadToHead]);
 
   const strengthLeaderLive = crossPlay?.standings.find((standing) => (standing.rustEngine ?? RANKED_MODEL_IDS.has(standing.id)) && standing.games > 0);
-  const strengthLeader = MODELS.find((model) => model.id === strengthLeaderLive?.id) ?? MODELS[0];
   const ratedAgentCount = crossPlay?.standings.filter((standing) => (standing.rustEngine ?? RANKED_MODEL_IDS.has(standing.id)) && standing.games > 0).length ?? RANKED_LEAGUE_MODELS.length;
 
   useEffect(() => {
@@ -446,34 +428,35 @@ export default function LearningLab() {
 
       {crossPlayError ? <p className="live-run-error compact-error" role="status">{crossPlayError} · retrying automatically</p> : null}
 
+      <section className="player-profiles" aria-labelledby="player-profiles-title">
+        <div className="player-profiles-heading">
+          <div><span className="portal-kicker">The ranked roster</span><h2 id="player-profiles-title">Players in the league.</h2></div>
+          <p>{RANKED_LEAGUE_MODELS.length} Rust-engine opponents · live Elo updates as imported games land.</p>
+        </div>
+        <div className="player-profile-grid">
+          {profileModels.map((model) => <PlayerProfileCard key={model.id} model={model} live={liveStandingById.get(model.id)} liveRank={liveRankById.get(model.id)} snapshotLoaded={Boolean(crossPlay)} />)}
+        </div>
+      </section>
+
       <div className={`game-browser mobile-view-${mobileView}`}>
       <section className="leaderboard-panel game-sets-panel" aria-labelledby="game-sets-title">
         <div className="game-section-heading">
-          <div><span className="portal-kicker">Section one</span><h2 id="game-sets-title">Game sets</h2><p>Official ladder evidence, with research-only identities kept out of rank.</p></div>
+          <div><span className="portal-kicker">Section one</span><h2 id="game-sets-title">Game sets</h2><p>Choose a lens for the archive. Research-only identities stay out of rank.</p></div>
           <span className="leaderboard-status"><span /> {crossPlay ? `${ratedAgentCount} rated` : "Waiting for poll"}</span>
         </div>
         <div className="game-set-tabs" role="tablist" aria-label="Game sets">
-          <button className={`game-set-tab ${activeSet === "ladder" ? "active" : ""}`} type="button" role="tab" aria-selected={activeSet === "ladder"} onClick={() => { setActiveSet("ladder"); setSelectedPair(null); }}>
-            <strong>Elo ladder</strong><span>Default · {ratedAgentCount} agents</span>
+          <button className={`game-set-tab ${activeSet === "all" ? "active" : ""}`} type="button" role="tab" aria-selected={activeSet === "all"} onClick={() => { setActiveSet("all"); setSelectedPair(null); }}>
+            <strong>All games</strong><span>Archive · {crossPlay?.games ?? "—"} results</span>
           </button>
           <button className={`game-set-tab ${activeSet === "pairwise" ? "active" : ""}`} type="button" role="tab" aria-selected={activeSet === "pairwise"} onClick={() => setActiveSet("pairwise")}>
             <strong>Pairwise results</strong><span>{crossPlay ? `${crossPlay.headToHead.filter((pairing) => pairing.games > 0).length} active matchups` : "Compare matchups"}</span>
           </button>
         </div>
 
-        {activeSet === "ladder" ? <div className="game-set-content" role="tabpanel">
+        {activeSet === "all" ? <div className="game-set-content" role="tabpanel">
           <div className="game-set-summary">
-            <div><span className="game-set-label">Cumulative rating</span><strong>Supported league</strong><p>Rankable supported and baseline agents, ordered by live Elo.</p></div>
-            <div className="game-set-highlight"><span>Leader</span><strong>{strengthLeaderLive?.label ?? strengthLeader.name}</strong><small>{strengthLeaderLive ? `${strengthLeaderLive.rating.toLocaleString()} Elo · ${formatRecord(strengthLeaderLive)}` : "Waiting for live standings"}</small></div>
-          </div>
-          <div className="table-toolbar compact-table-toolbar" aria-label="Standings table controls">
-            <label className="table-control table-search" htmlFor="standings-search"><span>Search</span><input id="standings-search" type="search" value={standingSearch} onChange={(event) => setStandingSearch(event.target.value)} placeholder="Model name or ID" /></label>
-            <label className="table-control" htmlFor="standings-sort"><span>Rank by</span><select id="standings-sort" value={standingSort} onChange={(event) => setStandingSort(event.target.value as StandingSort)}><option value="rank">Leaderboard rank</option><option value="elo-desc">Elo · high to low</option><option value="games-desc">Games · high to low</option><option value="name-asc">Name · A to Z</option></select></label>
-            <span className="table-result-count" aria-live="polite">{visibleModels.length} models</span>
-          </div>
-          <div className="leaderboard-table game-set-standings" role="table" aria-label="Current model standings">
-            <div className="leaderboard-table-row leaderboard-table-header" role="row"><span>#</span><span>Agent</span><span>Elo</span><span>Record</span></div>
-            {visibleModels.length ? visibleModels.map((model) => <ModelStanding key={model.id} model={model} live={liveStandingById.get(model.id)} liveRank={liveRankById.get(model.id)} snapshotLoaded={Boolean(crossPlay)} />) : <div className="table-empty-state" role="row"><strong>No models match.</strong><span>Clear the search to see the ladder.</span></div>}
+            <div><span className="game-set-label">Archive browser</span><strong>Every imported game</strong><p>Newest results appear in Games. Open a replay to inspect the move-by-move evidence.</p></div>
+            <div className="game-set-highlight"><span>Ranked roster</span><strong>{RANKED_LEAGUE_MODELS.length} Rust profiles</strong><small>{strengthLeaderLive ? `${strengthLeaderLive.label} leads · ${strengthLeaderLive.rating.toLocaleString()} Elo` : "Waiting for live standings"}</small></div>
           </div>
           <button className="mobile-section-cta" type="button" onClick={() => setMobileView("games")}>View {crossPlay?.games ?? "all"} games <span>→</span></button>
         </div> : <div className="game-set-content" role="tabpanel">
@@ -600,20 +583,17 @@ function formatPercent(rate: number) {
   return `${(rate * 100).toFixed(1)}%`;
 }
 
-function compareNullableNumbers(left: number | undefined, right: number | undefined, leftModel: (typeof RANKED_LEAGUE_MODELS)[number], rightModel: (typeof RANKED_LEAGUE_MODELS)[number]) {
-  if (left === undefined && right === undefined) return RANKED_LEAGUE_MODELS.indexOf(leftModel) - RANKED_LEAGUE_MODELS.indexOf(rightModel);
-  if (left === undefined) return 1;
-  if (right === undefined) return -1;
-  return right - left || RANKED_LEAGUE_MODELS.indexOf(leftModel) - RANKED_LEAGUE_MODELS.indexOf(rightModel);
-}
-
-function ModelStanding({ model, live, liveRank, snapshotLoaded }: { model: (typeof MODELS)[number]; live?: LiveStanding; liveRank?: string; snapshotLoaded: boolean }) {
+function PlayerProfileCard({ model, live, liveRank, snapshotLoaded }: { model: (typeof RANKED_LEAGUE_MODELS)[number]; live?: LiveStanding; liveRank?: string; snapshotLoaded: boolean }) {
   const liveActive = Boolean(live?.games);
-  const rank = liveActive ? liveRank ?? "—" : "—";
-  const record = liveActive ? formatRecord(live!) : "—";
-  const signal = liveActive ? `${live!.games} games` : snapshotLoaded ? "no live games" : "waiting for poll";
-  const signalDetail = liveActive ? `${live!.points.toFixed(1)} points · cumulative` : model.role;
-  return <div className={`leaderboard-table-row model-standing ${rank === "01" ? "leader" : ""}`} role="row"><span className="model-rank">{rank}</span><div className="standing-model"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><strong>{model.name}</strong><span>{model.family}</span></div></div><div className="standing-role"><strong>{liveActive ? "Live ladder" : "Waiting"}</strong><span>{model.role}</span></div><span className="standing-elo">{liveActive ? live!.rating.toLocaleString() : "—"}</span><div className="standing-record"><strong>{record}</strong><span>{liveActive ? "cumulative" : "no games"}</span></div><div className="standing-signal"><strong>{signal}</strong><span>{signalDetail}</span></div></div>;
+  const rank = liveRank ?? "—";
+  const status = model.status === "default" ? "Current default" : model.status === "control" ? "Control" : "Baseline";
+  return <article className={`player-profile-card ${model.tone} ${rank === "01" ? "leader" : ""}`}>
+    <div className="player-profile-topline"><span>#{rank}</span><small>{status}</small></div>
+    <div className="player-profile-identity"><ModelGlyph tone={model.tone} glyph={model.glyph} /><div><h3>{model.nickname ?? model.name}</h3><span>{model.name}</span></div></div>
+    <div className="player-profile-rating"><strong>{liveActive ? live!.rating.toLocaleString() : "—"}</strong><span>Elo rating</span></div>
+    <p className="player-profile-detail">{model.mechanics ?? model.family}</p>
+    <div className="player-profile-footer"><span>{model.family}</span><strong>{liveActive ? `${formatRecord(live!)} record` : snapshotLoaded ? "Awaiting matches" : "Connecting"}</strong></div>
+  </article>;
 }
 
 function formatRecord(standing: Pick<LiveStanding, "wins" | "losses" | "draws">) {

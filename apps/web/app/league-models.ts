@@ -12,8 +12,10 @@ export type LeagueModelStatus = "default" | "control" | "baseline" | "research";
 export type LeagueModelDefinition = {
   id: string;
   name: string;
+  nickname?: string;
   family: string;
   role: string;
+  mechanics?: string;
   budget: string;
   tone: "green" | "violet" | "gold" | "muted";
   glyph: string;
@@ -26,8 +28,10 @@ export const LEAGUE_MODELS = [
   {
     id: TRANSITION_PATHFINDER_ID,
     name: "The Pathfinder · Transition v4",
+    nickname: "Transition v4",
     family: "4-ply iterative · action-transition policy",
     role: "user-facing default",
+    mechanics: "A learned transition scorer orders the tactical-safe root; bounded search remains the final authority.",
     budget: "",
     tone: "green",
     glyph: "V4",
@@ -38,8 +42,10 @@ export const LEAGUE_MODELS = [
   {
     id: TRAINED_PATHFINDER_ID,
     name: "The Pathfinder · Trained",
+    nickname: "Trained Pathfinder",
     family: "4-ply iterative · trained evaluator",
     role: "rollback control",
+    mechanics: "A trained evaluator reweights path, captures, threats, and structure inside tactical-safe search.",
     budget: "",
     tone: "green",
     glyph: "T",
@@ -50,8 +56,10 @@ export const LEAGUE_MODELS = [
   {
     id: PATHFINDER_TACTICAL_FILTER_ID,
     name: "The Pathfinder",
+    nickname: "Tactical Pathfinder",
     family: "4-ply iterative · tactical-safe",
     role: "historical control",
+    mechanics: "A hand-designed evaluator filters roots that hand the opponent an immediate winning reply.",
     budget: "",
     tone: "green",
     glyph: "P",
@@ -62,8 +70,10 @@ export const LEAGUE_MODELS = [
   {
     id: "surveyor-v0.2.0",
     name: "The Surveyor",
+    nickname: "Surveyor",
     family: "2-ply broad-beam search",
     role: "playable baseline",
+    mechanics: "A wide 2-ply beam compares more candidate moves, trading depth for broad positional coverage.",
     budget: "",
     tone: "violet",
     glyph: "S",
@@ -74,8 +84,10 @@ export const LEAGUE_MODELS = [
   {
     id: "lunatic-v0.1.0",
     name: "Lunatic",
+    nickname: "Lunatic",
     family: "1-ply pattern heuristic",
     role: "playable baseline",
+    mechanics: "A fast 1-ply pattern heuristic chases path progress, captures, and local structure.",
     budget: "",
     tone: "gold",
     glyph: "L",
@@ -86,8 +98,10 @@ export const LEAGUE_MODELS = [
   {
     id: "coin-flip-v0.0.1",
     name: "Coin Flip",
+    nickname: "Coin Flip",
     family: "Random legal action",
     role: "random baseline",
+    mechanics: "Chooses a legal move at random, giving the league a simple floor for strength comparisons.",
     budget: "",
     tone: "muted",
     glyph: "C",

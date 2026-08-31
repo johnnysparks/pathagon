@@ -1024,6 +1024,31 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
 .leaderboard-compact-meta strong { color: var(--portal-ink); font-family: Georgia, serif; font-size: 22px; font-weight: 500; }
 .leaderboard-compact-meta div span { color: var(--portal-muted); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .compact-error { margin: -8px 0 14px; }
+.player-profiles { margin: 13px 0 15px; }
+.player-profiles-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.player-profiles-heading h2 { margin: 5px 0 0; color: var(--portal-ink); font-family: Georgia, serif; font-size: 29px; font-weight: 500; letter-spacing: -.04em; }
+.player-profiles-heading p { max-width: 440px; margin: 0; color: var(--portal-muted); font-size: 11px; line-height: 1.45; text-align: right; }
+.player-profile-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-top: 13px; }
+.player-profile-card { display: flex; min-width: 0; min-height: 218px; flex-direction: column; padding: 14px; border: 1px solid var(--portal-line); border-top: 3px solid var(--portal-line); border-radius: 14px; background: var(--leaderboard-surface); box-shadow: 0 12px 30px rgba(63,79,65,.045); }
+.player-profile-card.green { border-top-color: var(--portal-green); }
+.player-profile-card.violet { border-top-color: var(--portal-violet); }
+.player-profile-card.gold { border-top-color: var(--portal-gold); }
+.player-profile-card.muted { border-top-color: var(--portal-muted); }
+.player-profile-card.leader { border-color: #a8cdb0; background: var(--portal-green-soft); }
+.player-profile-topline { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--portal-muted); font-size: 10px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.player-profile-topline small { overflow: hidden; color: var(--portal-green); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.player-profile-identity { display: flex; min-width: 0; align-items: center; gap: 9px; margin-top: 18px; }
+.player-profile-identity .model-glyph { width: 34px; height: 34px; flex: 0 0 auto; border-radius: 10px; font-size: 11px; }
+.player-profile-identity > div { min-width: 0; }
+.player-profile-identity h3 { overflow: hidden; margin: 0; color: var(--portal-ink); font-family: Georgia, serif; font-size: 17px; font-weight: 500; letter-spacing: -.025em; text-overflow: ellipsis; white-space: nowrap; }
+.player-profile-identity span { display: block; overflow: hidden; margin-top: 3px; color: var(--portal-muted); font-size: 8px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.player-profile-rating { display: flex; align-items: baseline; gap: 7px; margin-top: 16px; }
+.player-profile-rating strong { color: var(--portal-green); font-family: Georgia, serif; font-size: 30px; font-weight: 500; letter-spacing: -.045em; }
+.player-profile-rating span { color: var(--portal-muted); font-size: 9px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.player-profile-detail { min-height: 45px; margin: 10px 0 0; color: var(--portal-muted); font-size: 10px; line-height: 1.45; }
+.player-profile-footer { display: grid; gap: 4px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--portal-line); }
+.player-profile-footer span { overflow: hidden; color: var(--portal-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.player-profile-footer strong { color: var(--portal-ink); font-size: 10px; font-weight: 850; }
 .game-browser { display: grid; grid-template-columns: minmax(290px, .42fr) minmax(0, 1fr); gap: 12px; align-items: start; }
 .game-browser .leaderboard-panel { min-width: 0; margin-top: 0; padding: 18px; }
 .game-sets-panel { position: sticky; top: 16px; align-self: start; }
@@ -1152,7 +1177,13 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
 .leaderboard-app.dark .research-feature-card { border-color: #3f7650; background: linear-gradient(135deg, rgba(32,59,43,.94), rgba(40,67,50,.46)); }
 .leaderboard-app.dark .research-metric-grid > div { border-color: #3f7650; }
 .leaderboard-app.dark .research-audit-note { border-color: #355240; }
+.leaderboard-app.dark .player-profile-card { border-color: #355240; background: rgba(40,67,50,.58); box-shadow: 0 14px 36px rgba(0,0,0,.16); }
+.leaderboard-app.dark .player-profile-card.leader { border-color: #3f7650; background: #203b2b; }
+.leaderboard-app.dark .player-profile-footer { border-color: #355240; }
 
+@media (max-width: 1180px) {
+  .player-profile-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 @media (max-width: 960px) {
   .game-browser { display: block; }
   .game-sets-panel, .game-list-panel { position: static; }
@@ -1164,6 +1195,9 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
 @media (max-width: 720px) {
   .leaderboard-compact-header { align-items: flex-start; flex-direction: column; gap: 17px; margin-top: 22px; padding: 21px 0 19px; }
   .leaderboard-compact-meta { width: 100%; justify-content: space-between; gap: 12px; }
+  .player-profiles-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .player-profiles-heading p { max-width: none; text-align: left; }
+  .player-profile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .game-card-grid { grid-template-columns: 1fr; }
   .research-panel-heading { flex-direction: column; gap: 11px; }
   .research-evidence-layout { grid-template-columns: 1fr; }
@@ -1172,6 +1206,8 @@ body:has(.leaderboard-app.dark) { background: #121a15; }
   .leaderboard-compact-copy h1 { font-size: 44px; }
   .leaderboard-compact-copy p { font-size: 12px; }
   .leaderboard-compact-meta strong { font-size: 19px; }
+  .player-profile-grid { grid-template-columns: 1fr; }
+  .player-profile-card { min-height: 195px; }
   .game-browser .leaderboard-panel { padding: 15px; }
   .game-section-heading { gap: 9px; }
   .game-section-heading h2 { font-size: 25px; }
