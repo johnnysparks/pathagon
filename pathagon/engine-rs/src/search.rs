@@ -79,8 +79,8 @@ impl Default for SearchConfig {
     fn default() -> Self {
         Self {
             depth: 4,
-            max_nodes: 2_000,
-            beam_width: 8,
+            max_nodes: 32_000,
+            beam_width: 256,
             weights: EvaluationWeights::default(),
             tactical_proof_horizon: None,
         }
@@ -259,6 +259,26 @@ struct TableEntry {
 
 pub fn search_best_action(state: GameState, config: SearchConfig) -> SearchResult {
     search_best_action_with_root_order(state, config, &[])
+}
+
+/// Run the ordinary Pathfinder search with both a node ceiling and a
+/// wall-clock deadline. Iterative deepening returns the last fully completed
+/// depth when either limit is reached; the returned action remains legal.
+pub fn search_best_action_with_deadline(
+    state: GameState,
+    config: SearchConfig,
+    deadline_ms: u32,
+) -> SearchResult {
+    search_best_action_with_root_order_and_root_limit_internal_deadline(
+        state,
+        config,
+        &[],
+        false,
+        None,
+        true,
+        Some(deadline_after_ms(deadline_ms.max(1))),
+        None,
+    )
 }
 
 /// Consult promoted exact endgame data before spending the ordinary search
@@ -1745,6 +1765,44 @@ mod tests {
             ply: 40,
         };
         let result = search_best_action_with_tactical_filter_deadline(
+            state,
+            SearchConfig {
+                depth: 8,
+                max_nodes: 1_500_000,
+                beam_width: 48,
+                ..SearchConfig::default()
+            },
+            1,
+        );
+        assert!(result.exhausted);
+        assert!(result
+            .action
+            .is_some_and(|action| state.legal_actions().contains(&action)));
+        assert!(result.completed_depth <= 8);
+        assert!(result.nodes <= 1_500_000);
+    }
+
+    #[test]
+    fn ordinary_deadline_returns_a_legal_last_completed_move() {
+        let bits = |squares: &[u8]| {
+            squares
+                .iter()
+                .fold(0_u64, |mask, square| mask | (1_u64 << square))
+        };
+        let state = GameState {
+            config: crate::BoardConfig::DEFAULT,
+            light: bits(&[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26]),
+            dark: bits(&[28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 29, 31, 33]),
+            reserve: [0, 0],
+            turn: Player::Light,
+            forbidden: 0,
+            last_relocated_to: [None, None],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: 40,
+        };
+        let result = search_best_action_with_deadline(
             state,
             SearchConfig {
                 depth: 8,

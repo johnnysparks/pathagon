@@ -261,6 +261,10 @@ fn main() {
         .get("candidate-deadline-ms")
         .and_then(|value| value.parse::<u32>().ok())
         .filter(|deadline_ms| *deadline_ms > 0);
+    let opponent_deadline_ms = args
+        .get("opponent-deadline-ms")
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|deadline_ms| *deadline_ms > 0);
     let candidate_filter_id = if candidate_weights == weights {
         "pathfinder-v0.4.0-tactical-filter"
     } else {
@@ -400,7 +404,15 @@ fn main() {
         )
     } else {
         learned_book.as_ref().map_or_else(
-            || with_optional_book(Agent::search("rust-pathfinder-v0.1.0", config), &book),
+            || {
+                let agent = candidate_deadline_ms.map_or_else(
+                    || Agent::search(candidate_id, candidate_config),
+                    |deadline_ms| {
+                        Agent::search_with_deadline(candidate_id, candidate_config, deadline_ms)
+                    },
+                );
+                with_optional_book(agent, &book)
+            },
             |book| {
                 Agent::learned(
                     "rust-learned-tabular-v0.1.0",
@@ -448,10 +460,13 @@ fn main() {
     } else {
         learned_book.as_ref().map_or_else(
             || {
-                with_optional_book(
-                    Agent::search("rust-pathfinder-v0.1.0", candidate_config),
-                    &book,
-                )
+                let agent = candidate_deadline_ms.map_or_else(
+                    || Agent::search(candidate_id, candidate_config),
+                    |deadline_ms| {
+                        Agent::search_with_deadline(candidate_id, candidate_config, deadline_ms)
+                    },
+                );
+                with_optional_book(agent, &book)
             },
             |book| {
                 Agent::learned(
@@ -616,7 +631,15 @@ fn main() {
             &book,
         )
     } else if opponent_name == "deep-search" || opponent_name == "pathfinder" {
-        with_optional_book(Agent::search("rust-pathfinder-v0.3.0", config), &book)
+        with_optional_book(
+            opponent_deadline_ms.map_or_else(
+                || Agent::search("rust-pathfinder-v0.3.0", config),
+                |deadline_ms| {
+                    Agent::search_with_deadline("rust-pathfinder-v0.3.0", config, deadline_ms)
+                },
+            ),
+            &book,
+        )
     } else if opponent_name == "surveyor" || opponent_name == "search" {
         with_optional_book(
             Agent::search(

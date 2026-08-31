@@ -15,10 +15,10 @@ use crate::puct::{
     PuctConfig,
 };
 use crate::search::{
-    lunatic_action, search_best_action, search_best_action_with_root_probe,
-    search_best_action_with_tactical_filter, search_best_action_with_tactical_filter_deadline,
-    search_best_action_with_tactical_guard, search_best_action_with_tactical_proof,
-    search_best_action_with_tt_order, SearchConfig,
+    lunatic_action, search_best_action, search_best_action_with_deadline,
+    search_best_action_with_root_probe, search_best_action_with_tactical_filter,
+    search_best_action_with_tactical_filter_deadline, search_best_action_with_tactical_guard,
+    search_best_action_with_tactical_proof, search_best_action_with_tt_order, SearchConfig,
 };
 #[cfg(feature = "inference")]
 use crate::search::{
@@ -54,6 +54,7 @@ pub enum Agent {
         id: String,
         config: SearchConfig,
         book: Option<Arc<StrategyBook>>,
+        deadline_ms: Option<u32>,
     },
     /// Pathfinder with a bounded exact root scout used only for experiments.
     SearchProbe {
@@ -249,6 +250,24 @@ impl Agent {
             id: id.into(),
             config,
             book: None,
+            deadline_ms: None,
+        }
+    }
+
+    pub fn search_with_deadline(
+        id: impl Into<String>,
+        config: SearchConfig,
+        deadline_ms: u32,
+    ) -> Self {
+        assert!(
+            deadline_ms > 0,
+            "Pathfinder search deadline must be positive"
+        );
+        Self::Search {
+            id: id.into(),
+            config,
+            book: None,
+            deadline_ms: Some(deadline_ms),
         }
     }
 
@@ -400,10 +419,16 @@ impl Agent {
 
     pub fn with_book(self, book: Arc<StrategyBook>) -> Self {
         match self {
-            Self::Search { id, config, .. } => Self::Search {
+            Self::Search {
+                id,
+                config,
+                deadline_ms,
+                ..
+            } => Self::Search {
                 id,
                 config,
                 book: Some(book),
+                deadline_ms,
             },
             random => random,
         }
@@ -776,7 +801,12 @@ impl Agent {
                     root_q: None,
                 }
             }
-            Self::Search { id, config, book } => {
+            Self::Search {
+                id,
+                config,
+                book,
+                deadline_ms,
+            } => {
                 if let Some(choice) = book
                     .as_ref()
                     .and_then(|book| book.choose(id, state, config.depth))
@@ -791,7 +821,10 @@ impl Agent {
                         root_q: None,
                     };
                 }
-                let result = search_best_action(state, *config);
+                let result = deadline_ms.map_or_else(
+                    || search_best_action(state, *config),
+                    |deadline_ms| search_best_action_with_deadline(state, *config, deadline_ms),
+                );
                 Decision {
                     action: result.action,
                     score: result.score,
@@ -1244,6 +1277,13 @@ fn agent_spec_json(agent: &Agent) -> String {
         },
     });
     let mut parameters = serde_json::Map::new();
+    if let Agent::Search {
+        deadline_ms: Some(deadline_ms),
+        ..
+    } = agent
+    {
+        parameters.insert("deadlineMs".to_owned(), serde_json::json!(deadline_ms));
+    }
     #[cfg(feature = "inference")]
     if let Agent::GnnQAdv { config, .. } = agent {
         parameters.insert(

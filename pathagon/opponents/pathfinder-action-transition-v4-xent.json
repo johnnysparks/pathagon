@@ -10,8 +10,8 @@
   "reservePerPlayer": 14,
   "search": {
     "depth": 4,
-    "nodeBudget": 2000,
-    "beam": 8,
+    "nodeBudget": 32000,
+    "beam": 256,
     "tacticalRootFilter": true,
     "deadlineMs": 2800,
     "transitionPolicyRootOrdering": "tactical-safe-full-root"

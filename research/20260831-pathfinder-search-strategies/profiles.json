@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "controlProfileId": "pf-d4-b8-n2k-control",
+  "profiles": [
+    {
+      "id": "pf-d4-b8-n2k-control",
+      "label": "control: depth 4 / beam 8 / 2k nodes",
+      "group": "control",
+      "depth": 4,
+      "beam": 8,
+      "nodes": 2000
+    },
+    {
+      "id": "pf-d2-b8-n2k",
+      "label": "depth 2 / beam 8 / 2k nodes",
+      "group": "depth",
+      "depth": 2,
+      "beam": 8,
+      "nodes": 2000
+    },
+    {
+      "id": "pf-d3-b8-n2k",
+      "label": "depth 3 / beam 8 / 2k nodes",
+      "group": "depth",
+      "depth": 3,
+      "beam": 8,
+      "nodes": 2000
+    },
+    {
+      "id": "pf-d5-b8-n2k",
+      "label": "depth 5 / beam 8 / 2k nodes",
+      "group": "depth",
+      "depth": 5,
+      "beam": 8,
+      "nodes": 2000
+    },
+    {
+      "id": "pf-d6-b8-n2k",
+      "label": "depth 6 / beam 8 / 2k nodes",
+      "group": "depth",
+      "depth": 6,
+      "beam": 8,
+      "nodes": 2000
+    },
+    {
+      "id": "pf-d4-b2-n2k",
+      "label": "depth 4 / beam 2 / 2k nodes",
+      "group": "beam",
+      "depth": 4,
+      "beam": 2,
+      "nodes": 2000
+    },
+    {
+      "id": "pf-d4-b4-n2k",
+      "label": "depth 4 / beam 4 / 2k nodes",
+      "group": "beam",
+      "depth": 4,
+      "beam": 4,
+      "nodes": 2000
+    },
+    {
+      "id": "pf-d4-b16-n2k",
+      "label": "depth 4 / beam 16 / 2k nodes",
+      "group": "beam",
+      "depth": 4,
+      "beam": 16,
+      "nodes": 2000
+    },
+    {
+      "id": "pf-d4-b32-n2k",
+      "label": "depth 4 / beam 32 / 2k nodes",
+      "group": "beam",
+      "depth": 4,
+      "beam": 32,
+      "nodes": 2000
+    },
+    {
+      "id": "pf-d4-b8-n500",
+      "label": "depth 4 / beam 8 / 500 nodes",
+      "group": "nodes",
+      "depth": 4,
+      "beam": 8,
+      "nodes": 500
+    },
+    {
+      "id": "pf-d4-b8-n8k",
+      "label": "depth 4 / beam 8 / 8k nodes",
+      "group": "nodes",
+      "depth": 4,
+      "beam": 8,
+      "nodes": 8000
+    },
+    {
+      "id": "pf-d4-b8-n32k",
+      "label": "depth 4 / beam 8 / 32k nodes",
+      "group": "nodes",
+      "depth": 4,
+      "beam": 8,
+      "nodes": 32000
+    },
+    {
+      "id": "pf-d3-b150-n32k",
+      "label": "wide shallow: depth 3 / beam 150 / 32k nodes",
+      "group": "wide-beam",
+      "depth": 3,
+      "beam": 150,
+      "nodes": 32000
+    },
+    {
+      "id": "pf-d4-b150-n32k",
+      "label": "wide: depth 4 / beam 150 / 32k nodes",
+      "group": "wide-beam",
+      "depth": 4,
+      "beam": 150,
+      "nodes": 32000
+    },
+    {
+      "id": "pf-d3-b150-n200k",
+      "label": "wide shallow: depth 3 / beam 150 / 200k nodes",
+      "group": "wide-beam",
+      "depth": 3,
+      "beam": 150,
+      "nodes": 200000
+    },
+    {
+      "id": "pf-d3-b150-n500k-t1s",
+      "label": "timed wide shallow: depth 3 / beam 150 / 500k / 1s",
+      "group": "time",
+      "depth": 3,
+      "beam": 150,
+      "nodes": 500000,
+      "deadlineMs": 1000
+    },
+    {
+      "id": "pf-d4-b64-n500k-t2s",
+      "label": "timed wide: depth 4 / beam 64 / 500k / 2s",
+      "group": "time",
+      "depth": 4,
+      "beam": 64,
+      "nodes": 500000,
+      "deadlineMs": 2000
+    },
+    {
+      "id": "pf-full-power-d4-b256-n1m-t5s",
+      "label": "Full Power: depth 4 / beam 256 / 1M / 5s",
+      "group": "full-power",
+      "depth": 4,
+      "beam": 256,
+      "nodes": 1000000,
+      "deadlineMs": 5000
+    },
+    {
+      "id": "pf-d4-b150-n64k",
+      "label": "wide: depth 4 / beam 150 / 64k nodes",
+      "group": "wide-beam",
+      "depth": 4,
+      "beam": 150,
+      "nodes": 64000
+    },
+    {
+      "id": "pf-d4-b256-n64k",
+      "label": "wide: depth 4 / beam 256 / 64k nodes",
+      "group": "wide-beam",
+      "depth": 4,
+      "beam": 256,
+      "nodes": 64000
+    },
+    {
+      "id": "pf-d4-b32-n32k",
+      "label": "wide: depth 4 / beam 32 / 32k nodes",
+      "group": "wide-beam",
+      "depth": 4,
+      "beam": 32,
+      "nodes": 32000
+    },
+    {
+      "id": "pf-d4-b64-n32k",
+      "label": "wide: depth 4 / beam 64 / 32k nodes",
+      "group": "wide-beam",
+      "depth": 4,
+      "beam": 64,
+      "nodes": 32000
+    },
+    {
+      "id": "pf-d4-b256-n32k",
+      "label": "wide: depth 4 / beam 256 / 32k nodes",
+      "group": "wide-beam",
+      "depth": 4,
+      "beam": 256,
+      "nodes": 32000
+    },
+    {
+      "id": "pf-d5-b150-n256k",
+      "label": "wide deep: depth 5 / beam 150 / 256k nodes",
+      "group": "wide-beam",
+      "depth": 5,
+      "beam": 150,
+      "nodes": 256000
+    },
+    {
+      "id": "pf-d5-b256-n256k",
+      "label": "wide deeper: depth 5 / beam 256 / 256k nodes",
+      "group": "wide-beam",
+      "depth": 5,
+      "beam": 256,
+      "nodes": 256000
+    }
+  ]
+}

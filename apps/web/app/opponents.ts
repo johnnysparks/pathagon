@@ -34,11 +34,12 @@ export type PathfinderDepth = typeof PATHFINDER_DEPTH_OPTIONS[number];
 
 /** Maximum browser search budget. The Rust runtime enforces this again. */
 export const PATHFINDER_MAX_NODES_HARD_CAP = 10_000_000;
-export const PATHFINDER_MAX_NODES_DEFAULT = 1_000_000;
-export const PATHFINDER_MAX_NODES_OPTIONS = [250_000, 500_000, 1_000_000, 2_000_000, 5_000_000, PATHFINDER_MAX_NODES_HARD_CAP] as const;
+export const PATHFINDER_MAX_NODES_DEFAULT = PATHFINDER_SEARCH.maxNodes;
+export const PATHFINDER_MAX_NODES_OPTIONS = [32_000, 64_000, 250_000, 500_000, 1_000_000, 2_000_000, 5_000_000, PATHFINDER_MAX_NODES_HARD_CAP] as const;
 
 /** Default control value for the long-horizon browser experiments. */
 export function pathfinderMaxNodesForDepth(depth: number) {
+  if (depth <= 4) return PATHFINDER_SEARCH.maxNodes;
   if (depth >= 100) return PATHFINDER_MAX_NODES_HARD_CAP;
   if (depth >= 50) return 5_000_000;
   return PATHFINDER_MAX_NODES_DEFAULT;

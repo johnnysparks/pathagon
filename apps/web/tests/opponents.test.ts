@@ -81,6 +81,9 @@ test("Pathfinder look-ahead stays within the browser-safe experiment envelope", 
   assert.ok(quick.maxNodes < balanced.maxNodes);
   assert.ok(balanced.maxNodes < deep.maxNodes);
   assert.ok(quick.beamWidth > deep.beamWidth);
+  assert.equal(balanced.maxNodes, 32_000);
+  assert.equal(balanced.beamWidth, 256);
+  assert.equal(pathfinderMaxNodesForDepth(4), 32_000);
   assert.equal(pathfinderSearchAtDepth(99).depth, 99);
   assert.equal(pathfinderSearchAtDepth(-10).depth, 2);
   assert.equal(pathfinderSearchAtDepth(23, 50_000_000).maxNodes, PATHFINDER_MAX_NODES_HARD_CAP);
@@ -95,8 +98,8 @@ test("trained Pathfinder keeps its promoted search envelope and evaluator weight
   assert.equal(TRAINED_PATHFINDER_OPPONENT.id, TRAINED_PATHFINDER_ID);
   assert.deepEqual(config.weights, TRAINED_PATHFINDER_WEIGHTS);
   assert.equal(config.depth, 4);
-  assert.equal(config.maxNodes, 2_000);
-  assert.equal(config.beamWidth, 8);
+  assert.equal(config.maxNodes, 32_000);
+  assert.equal(config.beamWidth, 256);
 });
 
 test("transition-policy v4 is the strongest user-facing Pathfinder identity", () => {
