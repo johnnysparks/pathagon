@@ -10,7 +10,8 @@ use wasm_bindgen::prelude::*;
 use crate::runtime::{
     analyze_action_json, analyze_actions_json, apply_action_json, apply_action_transition_json,
     legal_actions_json, lunatic_action_json, position_json, rank_transition_policy_json,
-    search_best_action_json, search_best_action_with_tactical_filter_deadline_json,
+    search_best_action_json, search_best_action_with_golden_bytes_json,
+    search_best_action_with_tactical_filter_deadline_json,
     search_best_action_with_tactical_filter_deadline_progress_json,
     search_best_action_with_tactical_filter_json, search_transition_policy_json,
     search_transition_policy_with_progress_json,
@@ -76,6 +77,17 @@ pub fn pathagon_apply_action_transition(position: &str, action: &str) -> Result<
 #[wasm_bindgen]
 pub fn pathagon_search_best_action(position: &str, config: &str) -> Result<String, JsValue> {
     search_best_action_json(position, config).map_err(js_error)
+}
+
+#[wasm_bindgen]
+pub fn pathagon_search_best_action_with_golden(
+    position: &str,
+    config: &str,
+    table_bytes: &[u8],
+    sidecar_bytes: &[u8],
+) -> Result<String, JsValue> {
+    search_best_action_with_golden_bytes_json(position, config, table_bytes, Some(sidecar_bytes))
+        .map_err(js_error)
 }
 
 #[wasm_bindgen]

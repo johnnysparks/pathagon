@@ -14,7 +14,8 @@ use crate::contract::{
 };
 use crate::search::{
     analyze_action, analyze_actions, lunatic_action, search_best_action,
-    search_best_action_with_tactical_filter, search_best_action_with_tactical_filter_deadline,
+    search_best_action_with_golden_bytes, search_best_action_with_tactical_filter,
+    search_best_action_with_tactical_filter_deadline,
     search_best_action_with_tactical_filter_deadline_progress, MoveEvaluation, SearchConfig,
     SearchProgressCallback, SearchResult,
 };
@@ -337,6 +338,35 @@ pub fn search_best_action_json(state_json: &str, config_json: &str) -> Result<St
         serde_json::from_str(config_json).map_err(|error| error.to_string())?;
     let result = search_best_action(state, config.into());
     let response = RuntimeSearchResult::from(result);
+    serde_json::to_string(&response).map_err(|error| error.to_string())
+}
+
+/// Browser-facing gold-aware search. Immutable table and action-book bytes
+/// are supplied by the caller; an exact action short-circuits search, while
+/// an absent or value-only row remains available as explicit metadata and the
+/// unknown branches use ordinary search.
+pub fn search_best_action_with_golden_bytes_json(
+    state_json: &str,
+    config_json: &str,
+    table_bytes: &[u8],
+    sidecar_bytes: Option<&[u8]>,
+) -> Result<String, String> {
+    let state = parse_position(state_json)?;
+    let config: RuntimeSearchConfig =
+        serde_json::from_str(config_json).map_err(|error| error.to_string())?;
+    let (result, outcome, exact_action) =
+        search_best_action_with_golden_bytes(state, config.into(), table_bytes, sidecar_bytes)?;
+    let mut response = serde_json::to_value(RuntimeSearchResult::from(result))
+        .map_err(|error| error.to_string())?;
+    if let serde_json::Value::Object(object) = &mut response {
+        object.insert(
+            "goldenOutcome".to_owned(),
+            outcome
+                .map(|value| serde_json::json!(value.as_str()))
+                .unwrap_or(serde_json::Value::Null),
+        );
+        object.insert("goldenAction".to_owned(), serde_json::json!(exact_action));
+    }
     serde_json::to_string(&response).map_err(|error| error.to_string())
 }
 
@@ -685,6 +715,39 @@ mod tests {
         )
         .expect("decode long-horizon search config");
         assert_eq!(SearchConfig::from(config).max_nodes, MAX_RUNTIME_SEARCH_NODES);
+    }
+
+    #[test]
+    fn runtime_gold_bytes_expose_exact_value_without_fabricating_an_action() {
+        let mut state = GameState::new();
+        state.light = (1_u64 << 7)
+            | (1_u64 << 14)
+            | (1_u64 << 21)
+            | (1_u64 << 28)
+            | (1_u64 << 35)
+            | (1_u64 << 42);
+        state.dark = 1_u64 << 1;
+        state.reserve = [8, 13];
+        state.turn = Player::Light;
+        let mut table = crate::golden::canonical_position_key(state);
+        table.push(crate::golden::WIN);
+        let position = position_json(state).expect("serialize gold lookup position");
+        let config = serde_json::to_string(&RuntimeSearchConfig {
+            depth: 1,
+            max_nodes: 100,
+            beam_width: 16,
+            weights: crate::search::EvaluationWeights::default(),
+            tactical_proof_horizon: None,
+        })
+        .expect("encode gold lookup config");
+        let response: serde_json::Value = serde_json::from_str(
+            &search_best_action_with_golden_bytes_json(&position, &config, &table, None)
+                .expect("run gold-aware runtime search"),
+        )
+        .expect("decode gold-aware runtime response");
+        assert_eq!(response["goldenOutcome"], "win");
+        assert_eq!(response["goldenAction"], false);
+        assert!(response["action"].is_object());
     }
 
     #[test]

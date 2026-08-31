@@ -1,6 +1,6 @@
 # 20260830 Endgame retrograde frontier
 
-Status: Ring-1 pilot complete; Ring-2 generation and restartable propagation validated
+Status: Ring-1 pilot complete; Ring-2 generation, compact persistence, and restartable propagation validated
 
 ## Idea
 
@@ -44,11 +44,27 @@ The promoted rows had zero overlaps with contradictory or pre-existing gold;
 the independent verifier passed sorted-key, header, action-bound, size, hash,
 and count checks.
 
+The full Ring-2 export scanned the same 38,547 games and emitted 35,562
+replay-witnessed parent records with 4,485,656 complete forward edges and
+4,521,100 graph records including explicit unknown child stubs. Joining the
+promoted Ring-1 table as exact seeds solved 35,561 inner rows, but no Ring-2
+parent was closed: every parent still had at least one child outside the exact
+seed set. The promotion audit therefore retained all Ring-2 parents as
+unknown and promoted zero rows. This is an expected proof boundary, not a
+training failure.
+
 ## Data and artifacts
 
-Disposable extractor output, the verbose 15.8 MB provenance sidecar, and
-summaries belong in this path's ignored `workspace/`. The promoted
+Disposable extractor output, checkpoints, and summaries belong in this path's
+ignored `workspace/`. The promoted
 `fresh-frontier-wdl-v1` artifacts are [the 533,415-byte WDL shard](../../data/golden/tables/fresh-frontier-wdl-v1/7x7-r14/shard-00.bin), [the 640,116-byte action sidecar](../../data/golden/sidecars/fresh-frontier-wdl-v1/7x7-r14/ring-01.bin), and [their manifest](../../data/golden/fresh-frontier-wdl-v1-manifest.json). The compact sidecar is a sorted binary key-to-proven-actions index so durable data stays below the repository's 5 MiB file limit. Do not place solver traces, queues, or implementation-shaped tensors in durable data.
+
+The tablebase executable uses compact binary values and action labels for
+large research outputs: a fixed-width key plus one outcome byte and one `u16`
+distance, with absent keys representing unknown. Human-readable JSON remains
+available with `--format json`; compact runs write a small metadata JSON beside
+the value and action binaries. The full Ring-2 exact values are about 590 KB
+in compact form versus about 435 MB in the earlier nested JSON.
 
 ## Project impact
 
@@ -67,7 +83,9 @@ regions unknown, and writes a deterministic value file plus a restartable
 checkpoint. It also emits stable value shards and a merge tool that rejects
 misplaced or contradictory rows. Nodes may carry an exact seed from an inner
 ring, and labeled edges produce per-action W/D/L/Unknown results in the
-solver output.
+solver output. Its replay-ring extractor accepts Ring 2 and any later ring
+number, verifies the entire replay suffix, and only admits constructive
+candidates as proposal-only records.
 
 Ring 2 is now a separate Rust export mode. `--ring 2` replays the source game
 and verifies the final two-edge suffix, then enumerates every legal action from
@@ -82,6 +100,12 @@ The independent Rust/Python oracle check covers one 3x3 and three 4x4 roots,
 including root and every action label at horizon three. All four fixtures
 agree; the report is retained in `workspace/small-agreement-report.json`.
 
+The full compact Ring-2 run was re-solved with eight workers, merged from 32
+deterministic shards byte-for-byte, and checked with one deterministic sample
+from every non-empty shard. The compact output carries solver version, rules
+version, proof lineage, exact/unknown statistics, per-action values, and an
+explicit complete-optimal-action-set map.
+
 The first training gate is intentionally not a promotion: a linear
 gold-aware policy/value/urgency adapter trained on 1,815 Ring-1 rows reached
 72.97% witnessed-action accuracy on 185 held-out rows, equal to the frozen v4
@@ -91,8 +115,9 @@ stronger model.
 
 ## Next decision
 
-Run the full Ring-2 corpus export, join its complete edge graph with the
-promoted Ring-1 WDL shard as exact seeds, and apply replay, inventory,
-symmetry, independent-language, deterministic-resolve, and held-out gates
-before promoting any Ring-2 values. Keep this Ring-1 artifact as the
+Close the Ring-2 frontier by supplying verified records for its missing child
+states (or by adding independently replay-witnessed constructive admissions),
+then rerun the exact minimax and promotion gates. After a non-empty Ring-2
+promotion, train and evaluate against the permanent held-out split and user
+games before promoting a stronger model. Keep this Ring-1 artifact as the
 rollback/control layer until that later ring is independently validated.

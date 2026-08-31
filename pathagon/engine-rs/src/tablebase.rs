@@ -14,6 +14,11 @@ use std::path::Path;
 use crate::ground_truth::{GroundTruthOutcome, GroundTruthValue};
 use serde::{Deserialize, Serialize};
 
+const COMPACT_VALUE_MAGIC: &[u8; 8] = b"PGTBV01\0";
+const COMPACT_ACTION_MAGIC: &[u8; 8] = b"PGTBA01\0";
+const COMPACT_HEADER_BYTES: usize = 20;
+const COMPACT_NONE_DISTANCE: u16 = u16::MAX;
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RetrogradeNode {
     pub key: String,
@@ -71,6 +76,20 @@ pub struct RetrogradeOutput {
     pub stats: RetrogradeStats,
     #[serde(default)]
     pub action_values: BTreeMap<String, Vec<RetrogradeActionValue>>,
+    #[serde(default)]
+    pub optimal_actions_complete: BTreeMap<String, bool>,
+    #[serde(default)]
+    pub optimal_actions: BTreeMap<String, Vec<String>>,
+    pub provenance: RetrogradeProvenance,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct RetrogradeProvenance {
+    pub solver_version: String,
+    pub rules_version: String,
+    pub proof_lineage: String,
+    pub node_count: usize,
+    pub edge_count: usize,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -106,6 +125,11 @@ impl RetrogradeGraph {
                 node.key
             ));
         }
+        let action_children = node
+            .actions
+            .iter()
+            .map(|edge| edge.child.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
         if let Some(terminal) = node.terminal.as_deref() {
             if parse_outcome(terminal).is_none() {
                 return Err(format!(
@@ -130,16 +154,28 @@ impl RetrogradeGraph {
                 node.key
             ));
         }
-        let action_children = node
+        let action_labels = node
             .actions
             .iter()
-            .map(|edge| edge.child.as_str())
+            .map(|edge| edge.action.as_str())
             .collect::<std::collections::BTreeSet<_>>();
+        if action_labels.len() != node.actions.len() {
+            return Err(format!(
+                "retrograde node {} has duplicate action edges",
+                node.key
+            ));
+        }
         let children = node
             .children
             .iter()
             .map(String::as_str)
             .collect::<std::collections::BTreeSet<_>>();
+        if children.len() != node.children.len() {
+            return Err(format!(
+                "retrograde node {} has duplicate child edges",
+                node.key
+            ));
+        }
         if !node.actions.is_empty() && action_children != children {
             return Err(format!(
                 "retrograde node {} action edges must align with children",
@@ -167,7 +203,7 @@ impl RetrogradeGraph {
     }
 
     pub fn solve(&self) -> (BTreeMap<String, RetrogradeValue>, RetrogradeStats) {
-        self.solve_from_seed(&BTreeMap::new())
+        self.solve_parallel_from_seed(&BTreeMap::new(), 1)
             .expect("empty retrograde seed is valid")
     }
 
@@ -178,6 +214,19 @@ impl RetrogradeGraph {
         &self,
         seed: &BTreeMap<String, RetrogradeValue>,
     ) -> Result<(BTreeMap<String, RetrogradeValue>, RetrogradeStats), String> {
+        self.solve_parallel_from_seed(seed, 1)
+    }
+
+    /// Solve with independent workers over deterministic key ranges. Every
+    /// worker reads the same immutable previous-round snapshot; updates are
+    /// sorted and merged by the coordinator, so parallelism cannot change
+    /// the result or hide a contradiction.
+    pub fn solve_parallel_from_seed(
+        &self,
+        seed: &BTreeMap<String, RetrogradeValue>,
+        workers: usize,
+    ) -> Result<(BTreeMap<String, RetrogradeValue>, RetrogradeStats), String> {
+        let workers = workers.max(1).min(self.nodes.len().max(1));
         let mut values = BTreeMap::new();
         for (key, value) in seed {
             if !self.nodes.contains_key(key) {
@@ -223,16 +272,31 @@ impl RetrogradeGraph {
         let mut rounds = 0;
         loop {
             rounds += 1;
-            let mut updates = Vec::new();
-            for (key, node) in &self.nodes {
-                if values.contains_key(key) {
-                    continue;
+            let node_keys = self.nodes.keys().map(String::as_str).collect::<Vec<_>>();
+            let snapshot = &values;
+            let mut updates = std::thread::scope(|scope| {
+                let mut handles = Vec::with_capacity(workers);
+                for range in node_keys.chunks(node_keys.len().div_ceil(workers).max(1)) {
+                    handles.push(scope.spawn(move || {
+                        range
+                            .iter()
+                            .filter_map(|key| {
+                                if snapshot.contains_key(*key) {
+                                    return None;
+                                }
+                                let node = self.nodes.get(*key)?;
+                                self.resolve_node(node, snapshot)
+                                    .map(|value| ((*key).to_owned(), value))
+                            })
+                            .collect::<Vec<_>>()
+                    }));
                 }
-                let Some(value) = self.resolve_node(node, &values) else {
-                    continue;
-                };
-                updates.push((key.clone(), value));
-            }
+                handles
+                    .into_iter()
+                    .flat_map(|handle| handle.join().expect("retrograde worker panicked"))
+                    .collect::<Vec<_>>()
+            });
+            updates.sort_by(|left, right| left.0.cmp(&right.0));
             if updates.is_empty() {
                 break;
             }
@@ -308,7 +372,7 @@ impl RetrogradeGraph {
         node: &RetrogradeNode,
         values: &BTreeMap<String, RetrogradeValue>,
     ) -> Option<RetrogradeValue> {
-        if !node.complete || node.children.is_empty() && !node.complete {
+        if !node.complete {
             return None;
         }
         if node.children.is_empty() {
@@ -389,14 +453,135 @@ impl RetrogradeGraph {
         values: &BTreeMap<String, RetrogradeValue>,
         stats: RetrogradeStats,
     ) -> io::Result<()> {
+        let action_values = self.action_values(values);
+        let mut optimal_actions_complete = BTreeMap::new();
+        let mut optimal_actions = BTreeMap::new();
+        for (key, node) in &self.nodes {
+            let root_value = values.get(key).copied();
+            let actions_complete = node.actions.iter().all(|edge| {
+                values
+                    .get(&edge.child)
+                    .is_some_and(|value| value.outcome.is_known())
+            });
+            let complete = node.complete
+                && root_value.is_some_and(|value| value.outcome.is_known())
+                && actions_complete;
+            optimal_actions_complete.insert(key.clone(), complete);
+            if complete {
+                let root_outcome = root_value.expect("complete root has a value").outcome;
+                optimal_actions.insert(
+                    key.clone(),
+                    action_values
+                        .get(key)
+                        .into_iter()
+                        .flatten()
+                        .filter(|action| action.outcome == root_outcome)
+                        .map(|action| action.action.clone())
+                        .collect(),
+                );
+            }
+        }
         let output = RetrogradeOutput {
             schema_version: 1,
             table_family: "pathagon-retrograde-wdl-v1".to_owned(),
             values: values.clone(),
             stats,
-            action_values: self.action_values(values),
+            action_values,
+            optimal_actions_complete,
+            optimal_actions,
+            provenance: self.provenance(stats),
         };
         atomic_json_write(path.as_ref(), &output)
+    }
+
+    /// Write exact W/D/L values as fixed-width binary records. Unknown nodes
+    /// are omitted, so absence of a key remains the compact unknown value.
+    /// Records are sorted by canonical key for binary search.
+    pub fn write_compact_values(
+        &self,
+        path: impl AsRef<Path>,
+        values: &BTreeMap<String, RetrogradeValue>,
+    ) -> io::Result<()> {
+        write_compact_values(path.as_ref(), values, key_width(values)?)
+    }
+
+    /// Write per-action W/D/L/Unknown labels and the complete-optimal-set bit
+    /// in a compact sidecar. Action strings are length-prefixed so this also
+    /// supports non-board-specific research labels.
+    pub fn write_compact_actions(
+        &self,
+        path: impl AsRef<Path>,
+        values: &BTreeMap<String, RetrogradeValue>,
+    ) -> io::Result<()> {
+        let action_values = self.action_values(values);
+        let key_bytes = if action_values.is_empty() {
+            key_width(values)?
+        } else {
+            key_width_from_keys(action_values.keys())?
+        };
+        let rows = action_values.len();
+        atomic_binary_write(path.as_ref(), |writer| {
+            writer.write_all(COMPACT_ACTION_MAGIC)?;
+            writer.write_all(&[key_bytes as u8, 0, 0, 0])?;
+            writer.write_all(&(rows as u64).to_le_bytes())?;
+            for (key, actions) in &action_values {
+                let key_bytes = decode_hex_key(key, key_bytes)?;
+                writer.write_all(&key_bytes)?;
+                let complete = self
+                    .nodes
+                    .get(key)
+                    .is_some_and(|node| self.action_set_complete(key, node, values));
+                writer.write_all(&[u8::from(complete)])?;
+                if actions.len() > u32::MAX as usize {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "compact action row contains too many actions",
+                    ));
+                }
+                writer.write_all(&(actions.len() as u32).to_le_bytes())?;
+                for action in actions {
+                    let action_bytes = action.action.as_bytes();
+                    if action_bytes.len() > usize::from(u16::MAX) {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "compact action label is too long",
+                        ));
+                    }
+                    writer.write_all(&(action_bytes.len() as u16).to_le_bytes())?;
+                    writer.write_all(action_bytes)?;
+                    writer.write_all(&[outcome_byte(action.outcome)])?;
+                    writer.write_all(&distance_bytes(action.distance)?)?;
+                }
+            }
+            Ok(())
+        })
+    }
+
+    pub fn provenance(&self, stats: RetrogradeStats) -> RetrogradeProvenance {
+        RetrogradeProvenance {
+            solver_version: "pathagon-retrograde-v1".to_owned(),
+            rules_version: "pathagon-rules-v1".to_owned(),
+            proof_lineage: "complete-forward-legal-edges-plus-exact-inner-seeds".to_owned(),
+            node_count: stats.nodes,
+            edge_count: stats.edges,
+        }
+    }
+
+    fn action_set_complete(
+        &self,
+        key: &str,
+        node: &RetrogradeNode,
+        values: &BTreeMap<String, RetrogradeValue>,
+    ) -> bool {
+        node.complete
+            && values
+                .get(key)
+                .is_some_and(|value| value.outcome.is_known())
+            && node.actions.iter().all(|edge| {
+                values
+                    .get(&edge.child)
+                    .is_some_and(|value| value.outcome.is_known())
+            })
     }
 
     fn action_values(
@@ -455,13 +640,23 @@ impl RetrogradeGraph {
             let index = stable_shard(key.as_bytes(), shard_count);
             shards[index].insert(key.clone(), *value);
         }
+        let key_bytes = key_width(values)?;
         for (index, shard) in shards.iter().enumerate() {
-            let path = directory.join(format!("shard-{index:05}.json"));
-            atomic_json_write(&path, shard)?;
+            let path = directory.join(format!("shard-{index:05}.bin"));
+            write_compact_values(&path, shard, key_bytes)?;
         }
         let manifest = serde_json::json!({
             "schemaVersion": 1,
             "tableFamily": "pathagon-retrograde-wdl-v1",
+            "format": "compact-value-v1",
+            "record": {
+                "keyBytes": key_bytes,
+                "valueBytes": 3,
+                "distanceSentinel": u16::MAX,
+            },
+            "solverVersion": "pathagon-retrograde-v1",
+            "rulesVersion": "pathagon-rules-v1",
+            "proofLineage": "complete-forward-legal-edges-plus-exact-inner-seeds",
             "shardCount": shard_count,
             "nodes": stats.nodes,
             "edges": stats.edges,
@@ -469,11 +664,261 @@ impl RetrogradeGraph {
             "draws": stats.draws,
             "unknown": stats.unknown,
             "shards": (0..shard_count)
-                .map(|index| format!("shard-{index:05}.json"))
+                .map(|index| format!("shard-{index:05}.bin"))
                 .collect::<Vec<_>>(),
         });
         atomic_json_write(&directory.join("manifest.json"), &manifest)
     }
+}
+
+fn key_width(values: &BTreeMap<String, RetrogradeValue>) -> io::Result<usize> {
+    key_width_from_keys(values.keys())
+}
+
+fn key_width_from_keys<'a, I>(keys: I) -> io::Result<usize>
+where
+    I: IntoIterator<Item = &'a String>,
+{
+    let keys = keys.into_iter().collect::<Vec<_>>();
+    let Some(first) = keys.first() else {
+        return Ok(0);
+    };
+    let first_len = first.len();
+    if first_len % 2 != 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "retrograde key must contain an even number of hex digits",
+        ));
+    }
+    let width = first_len / 2;
+    if width > usize::from(u8::MAX) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "retrograde key is too wide for compact format",
+        ));
+    }
+    for key in keys {
+        if key.len() != first_len {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "retrograde keys have inconsistent widths",
+            ));
+        }
+    }
+    Ok(width)
+}
+
+fn decode_hex_key(key: &str, width: usize) -> io::Result<Vec<u8>> {
+    if key.len() != width * 2 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("retrograde key {key} has the wrong width"),
+        ));
+    }
+    let bytes = key.as_bytes();
+    let mut output = Vec::with_capacity(width);
+    for index in (0..bytes.len()).step_by(2) {
+        let high = hex_value(bytes[index]).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("retrograde key {key} contains non-hex digits"),
+            )
+        })?;
+        let low = hex_value(bytes[index + 1]).expect("validated key pair");
+        output.push((high << 4) | low);
+    }
+    Ok(output)
+}
+
+fn hex_value(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
+fn hex_key(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        output.push(HEX[(byte >> 4) as usize] as char);
+        output.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    output
+}
+
+fn outcome_byte(outcome: GroundTruthOutcome) -> u8 {
+    match outcome {
+        GroundTruthOutcome::Loss => 0,
+        GroundTruthOutcome::Draw => 1,
+        GroundTruthOutcome::Win => 2,
+        GroundTruthOutcome::Unknown => 3,
+    }
+}
+
+fn outcome_from_byte(byte: u8) -> Option<GroundTruthOutcome> {
+    match byte {
+        0 => Some(GroundTruthOutcome::Loss),
+        1 => Some(GroundTruthOutcome::Draw),
+        2 => Some(GroundTruthOutcome::Win),
+        3 => Some(GroundTruthOutcome::Unknown),
+        _ => None,
+    }
+}
+
+fn distance_bytes(distance: Option<u16>) -> io::Result<[u8; 2]> {
+    if distance == Some(COMPACT_NONE_DISTANCE) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "compact distance cannot equal the missing-distance sentinel",
+        ));
+    }
+    Ok(distance.unwrap_or(COMPACT_NONE_DISTANCE).to_le_bytes())
+}
+
+fn atomic_binary_write<F>(path: &Path, write: F) -> io::Result<()>
+where
+    F: FnOnce(&mut BufWriter<File>) -> io::Result<()>,
+{
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        fs::create_dir_all(parent)?;
+    }
+    let temporary = path.with_extension("tmp");
+    let file = File::create(&temporary)?;
+    let mut writer = BufWriter::new(file);
+    write(&mut writer)?;
+    writer.flush()?;
+    writer.get_ref().sync_all()?;
+    drop(writer);
+    fs::rename(temporary, path)
+}
+
+fn write_compact_values(
+    path: &Path,
+    values: &BTreeMap<String, RetrogradeValue>,
+    key_bytes: usize,
+) -> io::Result<()> {
+    if key_bytes > usize::from(u8::MAX) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "compact key width exceeds u8",
+        ));
+    }
+    atomic_binary_write(path, |writer| {
+        writer.write_all(COMPACT_VALUE_MAGIC)?;
+        writer.write_all(&[key_bytes as u8, 0, 0, 0])?;
+        writer.write_all(&(values.len() as u64).to_le_bytes())?;
+        let mut previous = None;
+        for (key, value) in values {
+            let key_bytes = decode_hex_key(key, key_bytes)?;
+            if previous
+                .as_ref()
+                .is_some_and(|old: &Vec<u8>| *old >= key_bytes)
+            {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "compact value keys must be strictly sorted",
+                ));
+            }
+            if !value.outcome.is_known() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "compact value files cannot store unknown rows",
+                ));
+            }
+            writer.write_all(&key_bytes)?;
+            writer.write_all(&[outcome_byte(value.outcome)])?;
+            writer.write_all(&distance_bytes(value.distance)?)?;
+            previous = Some(key_bytes);
+        }
+        Ok(())
+    })
+}
+
+/// Read a compact exact-value file, accepting only sorted W/D/L rows.
+pub fn read_compact_values(
+    path: impl AsRef<Path>,
+) -> io::Result<BTreeMap<String, RetrogradeValue>> {
+    let path = path.as_ref();
+    let bytes = fs::read(path)?;
+    if bytes.len() < COMPACT_HEADER_BYTES || bytes[..8] != *COMPACT_VALUE_MAGIC {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("{}: invalid compact value header", path.display()),
+        ));
+    }
+    let key_bytes = bytes[8] as usize;
+    if bytes[9..12] != [0, 0, 0] {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("{}: unsupported compact value flags", path.display()),
+        ));
+    }
+    let rows = u64::from_le_bytes(bytes[12..20].try_into().expect("eight bytes")) as usize;
+    let row_bytes = key_bytes.checked_add(3).ok_or_else(|| {
+        io::Error::new(io::ErrorKind::InvalidData, "compact value row is too wide")
+    })?;
+    let expected = COMPACT_HEADER_BYTES
+        .checked_add(rows.checked_mul(row_bytes).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "compact value file is too large",
+            )
+        })?)
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "compact value file is too large",
+            )
+        })?;
+    if bytes.len() != expected {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("{}: compact value file has the wrong size", path.display()),
+        ));
+    }
+    let mut values = BTreeMap::new();
+    let mut offset = COMPACT_HEADER_BYTES;
+    let mut previous = None;
+    for _ in 0..rows {
+        let key = bytes[offset..offset + key_bytes].to_vec();
+        offset += key_bytes;
+        if previous.as_ref().is_some_and(|old: &Vec<u8>| *old >= key) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("{}: compact value keys are not sorted", path.display()),
+            ));
+        }
+        let outcome = outcome_from_byte(bytes[offset]).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("{}: compact value has an invalid outcome", path.display()),
+            )
+        })?;
+        offset += 1;
+        if !outcome.is_known() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("{}: compact value contains unknown row", path.display()),
+            ));
+        }
+        let distance = u16::from_le_bytes(bytes[offset..offset + 2].try_into().expect("two bytes"));
+        offset += 2;
+        values.insert(
+            hex_key(&key),
+            RetrogradeValue {
+                outcome,
+                distance: (distance != COMPACT_NONE_DISTANCE).then_some(distance),
+            },
+        );
+        previous = Some(key);
+    }
+    Ok(values)
 }
 
 fn stable_shard(key: &[u8], shard_count: usize) -> usize {
@@ -506,12 +951,43 @@ pub fn read_value_shards(
             "shard manifest has an invalid shardCount",
         ));
     }
+    let shard_paths = manifest
+        .get("shards")
+        .and_then(serde_json::Value::as_array)
+        .map(|paths| {
+            paths
+                .iter()
+                .map(|path| {
+                    path.as_str().map(ToOwned::to_owned).ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "shard manifest contains a non-string path",
+                        )
+                    })
+                })
+                .collect::<io::Result<Vec<_>>>()
+        })
+        .transpose()?
+        .unwrap_or_else(|| {
+            (0..shard_count)
+                .map(|index| format!("shard-{index:05}.json"))
+                .collect()
+        });
+    if shard_paths.len() != shard_count {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "shard manifest path count does not match shardCount",
+        ));
+    }
     let mut merged = BTreeMap::new();
-    for index in 0..shard_count {
-        let path = directory.join(format!("shard-{index:05}.json"));
-        let shard: BTreeMap<String, RetrogradeValue> =
+    for (index, relative_path) in shard_paths.iter().enumerate() {
+        let path = directory.join(relative_path);
+        let shard = if path.extension().and_then(|extension| extension.to_str()) == Some("bin") {
+            read_compact_values(&path)?
+        } else {
             serde_json::from_str(&fs::read_to_string(&path)?)
-                .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+                .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?
+        };
         for (key, value) in shard {
             if stable_shard(key.as_bytes(), shard_count) != index {
                 return Err(io::Error::new(
@@ -536,7 +1012,16 @@ pub fn write_merged_values(
     path: impl AsRef<Path>,
     values: &BTreeMap<String, RetrogradeValue>,
 ) -> io::Result<()> {
-    atomic_json_write(path.as_ref(), values)
+    if path
+        .as_ref()
+        .extension()
+        .and_then(|extension| extension.to_str())
+        == Some("bin")
+    {
+        write_compact_values(path.as_ref(), values, key_width(values)?)
+    } else {
+        atomic_json_write(path.as_ref(), values)
+    }
 }
 
 pub fn read_checkpoint(path: impl AsRef<Path>) -> io::Result<FrontierCheckpoint> {
@@ -663,10 +1148,10 @@ mod tests {
     #[test]
     fn checkpoint_values_resume_and_shard_deterministically() {
         let mut graph = RetrogradeGraph::default();
-        graph.insert(node("root", &["terminal"])).unwrap();
+        graph.insert(node("0000", &["1111"])).unwrap();
         graph
             .insert(RetrogradeNode {
-                key: "terminal".to_owned(),
+                key: "1111".to_owned(),
                 children: Vec::new(),
                 complete: true,
                 terminal: Some("loss".to_owned()),
@@ -675,6 +1160,9 @@ mod tests {
             })
             .unwrap();
         let (values, stats) = graph.solve();
+        let parallel = graph.solve_parallel_from_seed(&BTreeMap::new(), 2).unwrap();
+        assert_eq!(parallel.0, values);
+        assert_eq!(parallel.1, stats);
         let resumed = graph.solve_from_seed(&values).unwrap();
         assert_eq!(resumed.0, values);
         assert_eq!(resumed.1.solved, stats.solved);
@@ -684,13 +1172,15 @@ mod tests {
         graph
             .write_value_shards(&directory, &values, stats, 2)
             .unwrap();
+        assert_eq!(read_value_shards(&directory).unwrap(), values);
         let manifest: serde_json::Value = serde_json::from_str(
             &std::fs::read_to_string(directory.join("manifest.json")).unwrap(),
         )
         .unwrap();
         assert_eq!(manifest["shardCount"], 2);
-        assert!(directory.join("shard-00000.json").exists());
-        assert!(directory.join("shard-00001.json").exists());
+        assert_eq!(manifest["format"], "compact-value-v1");
+        assert!(directory.join("shard-00000.bin").exists());
+        assert!(directory.join("shard-00001.bin").exists());
         let _ = std::fs::remove_dir_all(directory);
     }
 
@@ -750,5 +1240,81 @@ mod tests {
         let (values, _) = graph.solve();
         assert_eq!(values["parent"].outcome, GroundTruthOutcome::Win);
         assert_eq!(values["parent"].distance, Some(2));
+    }
+
+    #[test]
+    fn distinct_actions_may_share_a_canonical_child() {
+        let mut graph = RetrogradeGraph::default();
+        graph
+            .insert(RetrogradeNode {
+                key: "0000".to_owned(),
+                children: vec!["1111".to_owned()],
+                complete: true,
+                terminal: None,
+                seed: None,
+                actions: vec![
+                    RetrogradeEdge {
+                        action: "a".to_owned(),
+                        child: "1111".to_owned(),
+                    },
+                    RetrogradeEdge {
+                        action: "b".to_owned(),
+                        child: "1111".to_owned(),
+                    },
+                ],
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn compact_output_round_trips_exact_values_and_complete_actions() {
+        let mut graph = RetrogradeGraph::default();
+        graph
+            .insert(RetrogradeNode {
+                key: "0000".to_owned(),
+                children: vec!["1111".to_owned()],
+                complete: true,
+                terminal: None,
+                seed: None,
+                actions: vec![RetrogradeEdge {
+                    action: "move".to_owned(),
+                    child: "1111".to_owned(),
+                }],
+            })
+            .unwrap();
+        graph
+            .insert(RetrogradeNode {
+                key: "1111".to_owned(),
+                children: Vec::new(),
+                complete: true,
+                terminal: Some("loss".to_owned()),
+                seed: None,
+                actions: Vec::new(),
+            })
+            .unwrap();
+        let (values, stats) = graph.solve();
+        let root = std::env::temp_dir().join(format!(
+            "pathagon-tablebase-compact-{}-{}",
+            std::process::id(),
+            stats.nodes
+        ));
+        let value_path = root.with_extension("bin");
+        let action_path = root.with_extension("actions.bin");
+        let json_path = root.with_extension("json");
+        graph.write_compact_values(&value_path, &values).unwrap();
+        graph.write_compact_actions(&action_path, &values).unwrap();
+        graph.write_values(&json_path, &values, stats).unwrap();
+        assert_eq!(read_compact_values(&value_path).unwrap(), values);
+        let output: RetrogradeOutput =
+            serde_json::from_str(&std::fs::read_to_string(&json_path).unwrap()).unwrap();
+        assert_eq!(output.optimal_actions_complete["0000"], true);
+        assert_eq!(output.optimal_actions["0000"], vec!["move"]);
+        assert_eq!(
+            output.action_values["0000"][0].outcome,
+            GroundTruthOutcome::Win
+        );
+        let _ = std::fs::remove_file(value_path);
+        let _ = std::fs::remove_file(action_path);
+        let _ = std::fs::remove_file(json_path);
     }
 }

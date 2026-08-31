@@ -150,6 +150,10 @@ def main() -> None:
                 record = json.loads(line)
                 if record.get("schemaVersion") != 1 or record.get("ring") != 1:
                     raise ValueError(f"{args.input}:{line_number}: unsupported frontier record")
+                if record.get("admission", "replay-witnessed") != "replay-witnessed":
+                    raise ValueError(
+                        f"{args.input}:{line_number}: constructive proposal cannot enter golden data without replay admission"
+                    )
                 state = state_from_json(record["position"])
                 if state.config.size != BOARD_SIZE or state.config.reserve_per_player != RESERVE:
                     raise ValueError(f"{args.input}:{line_number}: Ring 1 promotion requires 7x7/14")

@@ -12,7 +12,7 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use pathagon_engine::corpus::{encode_action, parse_unified_game};
-use pathagon_engine::golden::canonical_position_key;
+use pathagon_engine::golden::{canonical_position_key, FlatGoldenTable, GoldenOutcome};
 use pathagon_engine::{has_winning_path, Action, BoardConfig, GameState, Player};
 use serde_json::{json, Value};
 
@@ -81,6 +81,7 @@ struct Candidate {
     state: Option<GameState>,
     witnesses: BTreeMap<ActionKey, BTreeSet<String>>,
     proof_kind: String,
+    replay_admitted: bool,
 }
 
 #[derive(Default)]
@@ -98,21 +99,32 @@ fn main() {
     let output = required_path(&args, "out");
     let max_games = number(&args, "max-games");
     let max_candidates = number(&args, "max-candidates");
+    let inner_table = args.get("inner-table").map(|path| {
+        FlatGoldenTable::open(path, 7, 14)
+            .unwrap_or_else(|error| fail(&format!("cannot open inner golden table: {error}")))
+    });
     let mode = args.get("mode").map(String::as_str).unwrap_or("both");
     let ring = args
         .get("ring")
         .map(|value| {
             value
                 .parse::<u8>()
-                .unwrap_or_else(|_| fail("--ring must be 1 or 2"))
+                .unwrap_or_else(|_| fail("--ring must be 1 or >= 2"))
         })
         .unwrap_or(1);
-    if ring == 2 {
-        extract_ring2(&corpus, &output, max_games, max_candidates);
+    if ring >= 2 {
+        extract_replay_ring(
+            &corpus,
+            &output,
+            max_games,
+            max_candidates,
+            ring,
+            inner_table.as_ref(),
+        );
         return;
     }
     if ring != 1 {
-        fail("--ring must be 1 or 2");
+        fail("--ring must be 1 or >= 2");
     }
     if !matches!(mode, "replay" | "constructive" | "both") {
         fail("--mode must be replay, constructive, or both");
@@ -131,6 +143,11 @@ fn main() {
     let mut replay_relocation_witnesses = 0_usize;
     let mut replay_capture_witnesses = 0_usize;
     let mut piece_density = BTreeMap::<u8, usize>::new();
+    let mut winner_distribution = BTreeMap::<String, usize>::new();
+    let mut turn_distribution = BTreeMap::<String, usize>::new();
+    let mut phase_distribution = BTreeMap::<String, usize>::new();
+    let mut capture_distribution = BTreeMap::<String, usize>::new();
+    let mut ply_distribution = BTreeMap::<String, usize>::new();
 
     'files: for path in files {
         let source = fs::read_to_string(&path)
@@ -181,6 +198,7 @@ fn main() {
                     action,
                     game.key.clone(),
                     "forward-replayed-terminal",
+                    true,
                     &mut duplicate_witnesses,
                 ) {
                     break 'files;
@@ -196,6 +214,50 @@ fn main() {
                 *piece_density
                     .entry((parent.light | parent.dark).count_ones() as u8)
                     .or_default() += 1;
+                *winner_distribution
+                    .entry(
+                        terminal
+                            .winner
+                            .expect("terminal winner")
+                            .as_str()
+                            .to_owned(),
+                    )
+                    .or_default() += 1;
+                *turn_distribution
+                    .entry(parent.turn.as_str().to_owned())
+                    .or_default() += 1;
+                *phase_distribution
+                    .entry(
+                        if parent.reserve[parent.turn.index()] > 0 {
+                            "placement"
+                        } else {
+                            "relocation"
+                        }
+                        .to_owned(),
+                    )
+                    .or_default() += 1;
+                *capture_distribution
+                    .entry(
+                        if parent.forbidden != 0 || terminal.forbidden != 0 {
+                            "capture-or-forbidden"
+                        } else {
+                            "quiet"
+                        }
+                        .to_owned(),
+                    )
+                    .or_default() += 1;
+                *ply_distribution
+                    .entry(
+                        if parent.ply < 40 {
+                            "short"
+                        } else if parent.ply < 100 {
+                            "medium"
+                        } else {
+                            "long"
+                        }
+                        .to_owned(),
+                    )
+                    .or_default() += 1;
             }
             if mode == "constructive" || mode == "both" {
                 for (parent, action) in constructive_predecessors(terminal) {
@@ -206,6 +268,7 @@ fn main() {
                         action,
                         format!("constructive:{}", game.key),
                         "constructive-verified-transition",
+                        false,
                         &mut duplicate_witnesses,
                     ) {
                         constructive_transitions += 1;
@@ -259,6 +322,11 @@ fn main() {
             "outcome": "win",
             "distance": 1,
             "optimalActionsKnown": false,
+            "admission": if candidate.replay_admitted {
+                "replay-witnessed"
+            } else {
+                "proposal-only"
+            },
             "legalActionCount": state.legal_action_count(),
             "actions": actions,
             "witnesses": witnesses,
@@ -303,6 +371,11 @@ fn main() {
             "replayRelocationWitnesses": replay_relocation_witnesses,
             "replayCaptureWitnesses": replay_capture_witnesses,
             "replayPieceDensity": piece_density,
+            "replayWinner": winner_distribution,
+            "replayTurn": turn_distribution,
+            "replayPhase": phase_distribution,
+            "replayCaptureState": capture_distribution,
+            "replayPlyBucket": ply_distribution,
             "mode": mode,
         })
     );
@@ -313,9 +386,17 @@ fn main() {
 /// generated from the Rust legal-action boundary.  Children not present in
 /// this export deliberately remain unknown to the retrograde solver until a
 /// later shard supplies them.
-fn extract_ring2(corpus: &Path, output: &Path, max_games: usize, max_candidates: usize) {
+fn extract_replay_ring(
+    corpus: &Path,
+    output: &Path,
+    max_games: usize,
+    max_candidates: usize,
+    ring: u8,
+    inner_table: Option<&FlatGoldenTable>,
+) {
     let mut candidates = BTreeMap::<String, Ring2Candidate>::new();
     let mut seed_keys = BTreeSet::new();
+    let mut seed_values = BTreeMap::<String, pathagon_engine::tablebase::RetrogradeValue>::new();
     let mut games_seen = 0_usize;
     let mut terminal_games = 0_usize;
     let mut skipped = 0_usize;
@@ -334,7 +415,8 @@ fn extract_ring2(corpus: &Path, output: &Path, max_games: usize, max_candidates:
                 fail(&format!("{}:{}: {error}", path.display(), line_number + 1))
             });
             games_seen += 1;
-            if game.config != BoardConfig::DEFAULT || game.actions.len() < 2 {
+            let ring_depth = usize::from(ring);
+            if game.config != BoardConfig::DEFAULT || game.actions.len() < ring_depth {
                 skipped += 1;
                 continue;
             }
@@ -346,22 +428,24 @@ fn extract_ring2(corpus: &Path, output: &Path, max_games: usize, max_candidates:
                 continue;
             }
             terminal_games += 1;
-            let parent = states[states.len() - 3];
-            let child = states[states.len() - 2];
-            let ring1_action = game.actions[game.actions.len() - 1];
-            let ring2_action = game.actions[game.actions.len() - 2];
-            if child.winner.is_some()
-                || parent.winner.is_some()
-                || !child.legal_actions().contains(&ring1_action)
-                || child.apply_legal(ring1_action).state != states[states.len() - 1]
-                || !parent.legal_actions().contains(&ring2_action)
-                || parent.apply_legal(ring2_action).state != child
-            {
-                fail(&format!(
-                    "{}:{}: Ring 2 replay lineage is not a verified two-edge suffix",
-                    path.display(),
-                    line_number + 1
-                ));
+            let parent_index = states.len() - ring_depth - 1;
+            let parent = states[parent_index];
+            let child = states[parent_index + 1];
+            let ring_action = game.actions[parent_index];
+            for suffix_index in parent_index..game.actions.len() {
+                let suffix_state = states[suffix_index];
+                let suffix_action = game.actions[suffix_index];
+                let expected_child = states[suffix_index + 1];
+                if suffix_state.winner.is_some()
+                    || !suffix_state.legal_actions().contains(&suffix_action)
+                    || suffix_state.apply_legal(suffix_action).state != expected_child
+                {
+                    fail(&format!(
+                        "{}:{}: Ring {ring} replay lineage is not a verified suffix",
+                        path.display(),
+                        line_number + 1
+                    ));
+                }
             }
             let key = canonical_position_key(parent)
                 .into_iter()
@@ -377,7 +461,9 @@ fn extract_ring2(corpus: &Path, output: &Path, max_games: usize, max_candidates:
                 .into_iter()
                 .map(|byte| format!("{byte:02x}"))
                 .collect::<String>();
-            seed_keys.insert(child_key);
+            if ring == 2 {
+                seed_keys.insert(child_key);
+            }
             let candidate = candidates.entry(key).or_default();
             candidate.state = Some(parent);
             for legal_action in parent.legal_actions() {
@@ -390,10 +476,43 @@ fn extract_ring2(corpus: &Path, output: &Path, max_games: usize, max_candidates:
                 candidate
                     .actions
                     .insert(encode_action(legal_action), legal_child_key);
+                if let Some(inner_table) = inner_table {
+                    let key_bytes = canonical_position_key(legal_child);
+                    if let Some(outcome) = inner_table.lookup_key(&key_bytes) {
+                        let outcome = match outcome {
+                            GoldenOutcome::Loss => {
+                                pathagon_engine::ground_truth::GroundTruthOutcome::Loss
+                            }
+                            GoldenOutcome::Draw => {
+                                pathagon_engine::ground_truth::GroundTruthOutcome::Draw
+                            }
+                            GoldenOutcome::Win => {
+                                pathagon_engine::ground_truth::GroundTruthOutcome::Win
+                            }
+                        };
+                        seed_values.insert(
+                            candidate
+                                .actions
+                                .get(&encode_action(legal_action))
+                                .expect("inserted labeled child")
+                                .clone(),
+                            pathagon_engine::tablebase::RetrogradeValue {
+                                outcome,
+                                distance: if outcome
+                                    == pathagon_engine::ground_truth::GroundTruthOutcome::Draw
+                                {
+                                    None
+                                } else {
+                                    Some(1)
+                                },
+                            },
+                        );
+                    }
+                }
             }
             candidate
                 .witnesses
-                .insert((game.key.clone(), encode_action(ring2_action)));
+                .insert((game.key.clone(), encode_action(ring_action)));
             witnesses += 1;
         }
     }
@@ -410,7 +529,9 @@ fn extract_ring2(corpus: &Path, output: &Path, max_games: usize, max_candidates:
         .collect::<BTreeSet<_>>();
     for child_key in &child_keys {
         if let Some(candidate) = candidates.get_mut(child_key) {
-            if seed_keys.contains(child_key) {
+            if let Some(value) = seed_values.get(child_key).copied() {
+                candidate.seed = Some(value);
+            } else if seed_keys.contains(child_key) {
                 candidate.seed = Some(pathagon_engine::tablebase::RetrogradeValue {
                     outcome: pathagon_engine::ground_truth::GroundTruthOutcome::Win,
                     distance: Some(1),
@@ -421,12 +542,16 @@ fn extract_ring2(corpus: &Path, output: &Path, max_games: usize, max_candidates:
     for (key, candidate) in &candidates {
         let state = candidate
             .state
-            .expect("Ring 2 candidate state is populated");
-        let witness = candidate.witnesses.iter().next().expect("Ring 2 witness");
+            .expect("replay-ring candidate state is populated");
+        let witness = candidate
+            .witnesses
+            .iter()
+            .next()
+            .expect("replay-ring witness");
         let record = json!({
             "schemaVersion": 2,
             "tableFamily": "pathagon-retrograde-wdl-v1",
-            "ring": 2,
+            "ring": ring,
             "key": key,
             "position": position_json(state),
             "children": candidate.children,
@@ -441,9 +566,9 @@ fn extract_ring2(corpus: &Path, output: &Path, max_games: usize, max_candidates:
             "witness": {"gameKey": witness.0, "action": witness.1},
             "witnessCount": candidate.witnesses.len(),
             "proof": {
-                "kind": "two-edge-forward-replayed-terminal",
+                "kind": format!("ring-{ring}-forward-replayed-terminal"),
                 "rulesVersion": "pathagon-rules-v1",
-                "solverVersion": "pathagon-endgame-frontier-v2",
+                "solverVersion": "pathagon-endgame-frontier-v3",
                 "lineage": "full-corpus-replay-plus-verified-terminal-suffix",
             },
         });
@@ -457,14 +582,20 @@ fn extract_ring2(corpus: &Path, output: &Path, max_games: usize, max_candidates:
         if candidates.contains_key(child_key) {
             continue;
         }
-        let seed = seed_keys.contains(child_key).then_some(json!({
-            "outcome": "win",
-            "distance": 1,
-        }));
+        let seed = seed_values
+            .get(child_key)
+            .copied()
+            .map(|value| json!({"outcome": value.outcome, "distance": value.distance}))
+            .or_else(|| {
+                seed_keys.contains(child_key).then_some(json!({
+                    "outcome": "win",
+                    "distance": 1,
+                }))
+            });
         let record = json!({
             "schemaVersion": 2,
             "tableFamily": "pathagon-retrograde-wdl-v1",
-            "ring": 1,
+            "ring": ring.saturating_sub(1),
             "key": child_key,
             "children": [],
             "complete": false,
@@ -474,7 +605,7 @@ fn extract_ring2(corpus: &Path, output: &Path, max_games: usize, max_candidates:
             "proof": {
                 "kind": if seed.is_some() { "ring-1-seed-stub" } else { "unknown-child-stub" },
                 "rulesVersion": "pathagon-rules-v1",
-                "solverVersion": "pathagon-endgame-frontier-v2",
+                "solverVersion": "pathagon-endgame-frontier-v3",
             },
         });
         serde_json::to_writer(&mut writer, &record)
@@ -491,7 +622,7 @@ fn extract_ring2(corpus: &Path, output: &Path, max_games: usize, max_candidates:
         json!({
             "schemaVersion": 2,
             "tableFamily": "pathagon-retrograde-wdl-v1",
-            "ring": 2,
+            "ring": ring,
             "corpus": corpus,
             "out": output,
             "gamesSeen": games_seen,
@@ -502,6 +633,7 @@ fn extract_ring2(corpus: &Path, output: &Path, max_games: usize, max_candidates:
             "completeForwardEdges": candidates.values().map(|candidate| candidate.children.len()).sum::<usize>(),
             "graphNodesWithExplicitUnknowns": candidates.len() + child_keys.len(),
             "seededRing1Children": seed_keys.len(),
+            "innerTableSeeds": seed_values.len(),
         })
     );
 }
@@ -513,6 +645,7 @@ fn insert_candidate(
     action: Action,
     witness: String,
     proof_kind: &str,
+    replay_admitted: bool,
     duplicate_witnesses: &mut usize,
 ) -> bool {
     let key = PositionKey::from(state);
@@ -521,6 +654,7 @@ fn insert_candidate(
     }
     let candidate = candidates.entry(key).or_default();
     candidate.state = Some(state);
+    candidate.replay_admitted |= replay_admitted;
     if candidate.proof_kind.is_empty() || proof_kind == "forward-replayed-terminal" {
         candidate.proof_kind = proof_kind.to_owned();
     }

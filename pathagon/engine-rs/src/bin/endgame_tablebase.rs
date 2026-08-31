@@ -6,6 +6,7 @@
 
 use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::path::PathBuf;
 
 use pathagon_engine::tablebase::{read_checkpoint, read_nodes};
@@ -14,6 +15,10 @@ fn main() {
     let args = parse_args();
     let input = required(&args, "input");
     let output = required(&args, "out");
+    let format = args.get("format").map(String::as_str).unwrap_or("compact");
+    if !matches!(format, "compact" | "json") {
+        fail("--format must be compact or json");
+    }
     let checkpoint = args.get("checkpoint").map(PathBuf::from);
     let resume = args.get("resume").map(PathBuf::from);
     let shard_directory = args.get("shards").map(PathBuf::from);
@@ -25,8 +30,19 @@ fn main() {
                 .unwrap_or_else(|_| fail("--shard-count must be a positive integer"))
         })
         .unwrap_or(1);
+    let workers = args
+        .get("workers")
+        .map(|value| {
+            value
+                .parse::<usize>()
+                .unwrap_or_else(|_| fail("--workers must be a positive integer"))
+        })
+        .unwrap_or(1);
     if shard_count == 0 {
         fail("--shard-count must be a positive integer");
+    }
+    if workers == 0 {
+        fail("--workers must be a positive integer");
     }
     let graph =
         read_nodes(&input).unwrap_or_else(|error| fail(&format!("cannot read graph: {error}")));
@@ -39,12 +55,67 @@ fn main() {
         })
         .unwrap_or_default();
     let (values, stats) = graph
-        .solve_from_seed(&seed)
+        .solve_parallel_from_seed(&seed, workers)
         .unwrap_or_else(|error| fail(&format!("cannot resume tablebase: {error}")));
     let wrote_shards = shard_directory.is_some();
-    graph
-        .write_values(&output, &values, stats)
-        .unwrap_or_else(|error| fail(&format!("cannot write tablebase: {error}")));
+    let action_output = if format == "compact" {
+        Some(
+            args.get("actions")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| output.with_extension("actions.bin")),
+        )
+    } else {
+        None
+    };
+    let metadata_output = if format == "compact" {
+        Some(
+            args.get("metadata")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| output.with_extension("meta.json")),
+        )
+    } else {
+        None
+    };
+    if format == "compact" {
+        graph
+            .write_compact_values(&output, &values)
+            .unwrap_or_else(|error| fail(&format!("cannot write compact tablebase: {error}")));
+        graph
+            .write_compact_actions(
+                action_output.as_ref().expect("compact action path"),
+                &values,
+            )
+            .unwrap_or_else(|error| fail(&format!("cannot write compact action sidecar: {error}")));
+        let metadata = serde_json::json!({
+            "schemaVersion": 1,
+            "tableFamily": "pathagon-retrograde-wdl-v1",
+            "format": "compact-value-v1",
+            "valuePath": output,
+            "actionPath": action_output,
+            "stats": stats,
+            "provenance": graph.provenance(stats),
+            "unknownEncoding": "absent-value-key",
+            "distanceEncoding": "u16-little-endian; 65535 means none",
+        });
+        let metadata_path = metadata_output.as_ref().expect("compact metadata path");
+        if let Some(parent) = metadata_path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
+            fs::create_dir_all(parent).unwrap_or_else(|error| {
+                fail(&format!("cannot create metadata directory: {error}"))
+            });
+        }
+        fs::write(
+            metadata_path,
+            serde_json::to_vec_pretty(&metadata).expect("serialize compact metadata"),
+        )
+        .unwrap_or_else(|error| fail(&format!("cannot write compact metadata: {error}")));
+    } else {
+        graph
+            .write_values(&output, &values, stats)
+            .unwrap_or_else(|error| fail(&format!("cannot write tablebase: {error}")));
+    }
     if let Some(directory) = shard_directory.as_ref() {
         graph
             .write_value_shards(directory, &values, stats, shard_count)
@@ -62,6 +133,9 @@ fn main() {
             "tableFamily": "pathagon-retrograde-wdl-v1",
             "input": input,
             "out": output,
+            "format": format,
+            "actions": action_output,
+            "metadata": metadata_output,
             "nodes": stats.nodes,
             "edges": stats.edges,
             "rounds": stats.rounds,
@@ -70,6 +144,7 @@ fn main() {
             "unknown": stats.unknown,
             "resumed": !seed.is_empty(),
             "shardCount": wrote_shards.then_some(shard_count),
+            "workers": workers,
         })
     );
 }

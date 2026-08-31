@@ -73,6 +73,18 @@ pub struct FlatGoldenTable {
     file: Mutex<File>,
 }
 
+/// In-memory variant used by the WASM/browser boundary. The on-disk table is
+/// still the durable source, while callers can fetch its immutable bytes and
+/// let the same binary-search and canonical-key logic run without a filesystem.
+#[derive(Clone, Debug)]
+pub struct MemoryGoldenTable {
+    bytes: Vec<u8>,
+    board_size: u8,
+    reserve_per_player: u8,
+    key_bytes: usize,
+    row_bytes: usize,
+}
+
 impl FlatGoldenTable {
     pub fn open(
         path: impl AsRef<Path>,
@@ -139,6 +151,55 @@ impl FlatGoldenTable {
     }
 }
 
+impl MemoryGoldenTable {
+    pub fn from_bytes(bytes: &[u8], board_size: u8, reserve_per_player: u8) -> io::Result<Self> {
+        let key_bytes = key_bytes_for_board_size(board_size).map_err(invalid_data)?;
+        let row_bytes = key_bytes + 1;
+        if bytes.len() % row_bytes != 0 {
+            return Err(invalid_data(format!(
+                "memory golden shard is not a multiple of {row_bytes} bytes"
+            )));
+        }
+        Ok(Self {
+            bytes: bytes.to_vec(),
+            board_size,
+            reserve_per_player,
+            key_bytes,
+            row_bytes,
+        })
+    }
+
+    pub fn rows(&self) -> u64 {
+        (self.bytes.len() / self.row_bytes) as u64
+    }
+
+    pub fn lookup(&self, state: GameState) -> Option<GoldenOutcome> {
+        if !state_matches_namespace(state, self.board_size, self.reserve_per_player) {
+            return None;
+        }
+        self.lookup_key(&canonical_key(state).0)
+    }
+
+    pub fn lookup_key(&self, key: &[u8]) -> Option<GoldenOutcome> {
+        if key.len() != self.key_bytes {
+            return None;
+        }
+        let mut low = 0_usize;
+        let mut high = self.bytes.len() / self.row_bytes;
+        while low < high {
+            let middle = low + (high - low) / 2;
+            let start = middle * self.row_bytes;
+            let row = &self.bytes[start..start + self.row_bytes];
+            match row[..self.key_bytes].cmp(key) {
+                std::cmp::Ordering::Less => low = middle + 1,
+                std::cmp::Ordering::Greater => high = middle,
+                std::cmp::Ordering::Equal => return GoldenOutcome::from_byte(row[self.key_bytes]),
+            }
+        }
+        None
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct GoldenActionBook {
     board_size: u8,
@@ -146,6 +207,10 @@ pub struct GoldenActionBook {
 }
 
 impl GoldenActionBook {
+    pub fn from_bytes(source: &[u8], board_size: u8) -> io::Result<Self> {
+        Self::load_binary(source, Path::new("<memory>"), board_size)
+    }
+
     pub fn load(path: impl AsRef<Path>, board_size: u8) -> io::Result<Self> {
         let path = path.as_ref();
         let mut source = Vec::new();
@@ -349,6 +414,12 @@ pub struct GoldenLookup {
     pub actions: Option<GoldenActionBook>,
 }
 
+#[derive(Clone, Debug)]
+pub struct MemoryGoldenLookup {
+    pub table: MemoryGoldenTable,
+    pub actions: Option<GoldenActionBook>,
+}
+
 impl GoldenLookup {
     pub fn open(
         table_path: impl AsRef<Path>,
@@ -359,6 +430,33 @@ impl GoldenLookup {
         let table = FlatGoldenTable::open(table_path, board_size, reserve_per_player)?;
         let actions = sidecar_path
             .map(|path| GoldenActionBook::load(path, board_size))
+            .transpose()?;
+        Ok(Self { table, actions })
+    }
+
+    pub fn lookup(&self, state: GameState) -> Option<GoldenOutcome> {
+        self.table.lookup(state)
+    }
+
+    pub fn proven_action(&self, state: GameState) -> Option<Action> {
+        if self.lookup(state) != Some(GoldenOutcome::Win) {
+            return None;
+        }
+        self.actions.as_ref()?.proven_action(state)
+    }
+}
+
+impl MemoryGoldenLookup {
+    pub fn open_bytes(
+        table_bytes: &[u8],
+        sidecar_bytes: Option<&[u8]>,
+        board_size: u8,
+        reserve_per_player: u8,
+    ) -> io::Result<Self> {
+        let table = MemoryGoldenTable::from_bytes(table_bytes, board_size, reserve_per_player)?;
+        let actions = sidecar_bytes
+            .filter(|bytes| !bytes.is_empty())
+            .map(|bytes| GoldenActionBook::from_bytes(bytes, board_size))
             .transpose()?;
         Ok(Self { table, actions })
     }
@@ -708,5 +806,26 @@ mod tests {
         assert_eq!(result.action, Some(action));
         assert_eq!(result.nodes, 0);
         assert_eq!(result.table_hits, 1);
+
+        let memory_lookup = MemoryGoldenLookup::open_bytes(
+            &std::fs::read(&table_path).expect("read Ring-1 table"),
+            Some(&std::fs::read(&sidecar_path).expect("read Ring-1 sidecar")),
+            7,
+            14,
+        )
+        .expect("open in-memory Ring-1 lookup");
+        assert_eq!(memory_lookup.lookup(state), Some(GoldenOutcome::Win));
+        assert_eq!(memory_lookup.proven_action(state), Some(action));
+        let (memory_result, memory_outcome, exact_action) =
+            crate::search::search_best_action_with_golden_bytes(
+                state,
+                crate::search::SearchConfig::default(),
+                &std::fs::read(&table_path).expect("read Ring-1 table bytes"),
+                Some(&std::fs::read(&sidecar_path).expect("read Ring-1 sidecar bytes")),
+            )
+            .expect("search with in-memory Ring-1 lookup");
+        assert_eq!(memory_outcome, Some(GoldenOutcome::Win));
+        assert!(exact_action);
+        assert_eq!(memory_result.action, Some(action));
     }
 }
