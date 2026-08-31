@@ -193,6 +193,13 @@ Python rules package. Additional solved shard directories can be supplied with
 `--extra-shards`, keeping each independently solved slice separately
 auditable.
 
+The Rust target writer now accepts the ordered `--golden-layers` form. It
+preserves exact W/D/L outcome, terminal distance, action-set completeness,
+proven winning actions, and urgency actions (fastest proven wins or longest
+delayed losses) in target metadata. Partial action labels remain explicitly
+partial; they are emitted as a set rather than being silently converted into a
+unique optimum.
+
 ```bash
 pathagon/engine-rs/target/debug/pathagon-endgame-promote \
   --graph research/20260830-endgame-retrograde-frontier/workspace/ring-02-full.jsonl \

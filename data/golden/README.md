@@ -113,8 +113,18 @@ The current expanded control is `fresh-frontier-wdl-v4/7x7-r14`: three
 independently solved Ring-2 roots, stored as a 45-byte WDL shard and a
 391-byte `PGACT02` sidecar. It passed the same Rust gates with 24 symmetry
 checks and zero contradictions. This is still a standalone Ring-2 experiment;
-the Ring-1 table remains the rollback/control artifact until layered loading
-is wired into the browser bundle.
+the Ring-1 table remains the rollback/control artifact. Native Rust target
+generation can now overlay ordered layers without rewriting either artifact:
+
+```bash
+cargo run --release --manifest-path pathagon/engine-rs/Cargo.toml \
+  --bin pathfinder_targets -- \
+  --golden-layers "data/golden/tables/fresh-frontier-wdl-v1/7x7-r14/shard-00.bin,data/golden/sidecars/fresh-frontier-wdl-v1/7x7-r14/ring-01.bin;data/golden/tables/fresh-frontier-wdl-v4/7x7-r14/shard-00.bin,data/golden/sidecars/fresh-frontier-wdl-v4/7x7-r14/ring-02.bin"
+```
+
+Layers are listed from highest to lowest priority; an absent key falls through
+to the next layer. The browser WASM boundary still needs a bundle-fetch
+adapter before this native layering is used in the live UI.
 
 To rebuild that seed table:
 

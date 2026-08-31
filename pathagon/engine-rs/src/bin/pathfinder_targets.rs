@@ -16,10 +16,13 @@ use std::path::PathBuf;
 use pathagon_engine::contract::Position;
 use pathagon_engine::search::{
     analyze_action, analyze_actions, ordered_root_actions, search_best_action,
-    search_best_action_with_golden, search_best_action_with_tactical_filter,
+    search_best_action_with_golden_layers, search_best_action_with_tactical_filter,
     tactical_root_safe_actions, MoveEvaluation, SearchConfig, SearchResult,
 };
-use pathagon_engine::{golden::GoldenLookup, Action, BoardConfig, GameState, Player};
+use pathagon_engine::{
+    golden::{GoldenActionValue, GoldenLookup, GoldenLookupLayers, GoldenOutcome},
+    Action, BoardConfig, GameState, Player,
+};
 use serde_json::{json, Value};
 
 fn main() {
@@ -41,13 +44,25 @@ fn main() {
     let rank_actions = number(&args, "rank-actions", 0_usize);
     let rank_nodes = number(&args, "rank-nodes", max_nodes);
     let tactical_filter = args.contains_key("tactical-filter");
-    let golden = match (args.get("golden-table"), args.get("golden-sidecar")) {
-        (Some(table), sidecar) => Some(
-            GoldenLookup::open(PathBuf::from(table), sidecar.map(PathBuf::from), 7, 14)
-                .unwrap_or_else(|error| fail(&format!("cannot load golden data: {error}"))),
-        ),
-        (None, Some(_)) => fail("--golden-sidecar requires --golden-table"),
-        (None, None) => None,
+    let golden = match args.get("golden-layers") {
+        Some(spec) => {
+            if args.contains_key("golden-table") || args.contains_key("golden-sidecar") {
+                fail("--golden-layers cannot be combined with --golden-table or --golden-sidecar");
+            }
+            let paths = parse_golden_layers(spec);
+            Some(
+                GoldenLookupLayers::open(&paths, 7, 14)
+                    .unwrap_or_else(|error| fail(&format!("cannot load golden layers: {error}"))),
+            )
+        }
+        None => match (args.get("golden-table"), args.get("golden-sidecar")) {
+            (Some(table), sidecar) => Some(GoldenLookupLayers::from_lookup(
+                GoldenLookup::open(PathBuf::from(table), sidecar.map(PathBuf::from), 7, 14)
+                    .unwrap_or_else(|error| fail(&format!("cannot load golden data: {error}"))),
+            )),
+            (None, Some(_)) => fail("--golden-sidecar requires --golden-table"),
+            (None, None) => None,
+        },
     };
     if depth == 0
         || max_nodes == 0
@@ -153,9 +168,8 @@ fn main() {
             "tacticalFilter": tactical_filter,
             },
             "golden": golden.as_ref().map(|lookup| json!({
-                "table": lookup.table.path(),
-                "rows": lookup.table.rows(),
-                "actionRows": lookup.actions.as_ref().map(|book| book.rows()),
+                "layers": lookup.layer_count(),
+                "rows": lookup.rows(),
             })),
         })
     );
@@ -171,7 +185,7 @@ fn emit_record(
     rank_actions: usize,
     rank_nodes: u64,
     tactical_filter: bool,
-    golden: Option<&GoldenLookup>,
+    golden: Option<&GoldenLookupLayers>,
 ) {
     let moves = record
         .get("moves")
@@ -232,16 +246,40 @@ fn emit_record(
             )
         };
         let golden_outcome = golden.and_then(|lookup| lookup.lookup(state));
-        let golden_action = golden.and_then(|lookup| lookup.proven_action(state));
+        let golden_row = golden.and_then(|lookup| lookup.row_value(state));
+        let golden_values = golden.and_then(|lookup| lookup.action_values(state));
+        let mut golden_proven_actions = golden_values
+            .as_ref()
+            .map(|values| {
+                values
+                    .iter()
+                    .filter(|value| value.outcome == Some(GoldenOutcome::Win))
+                    .map(|value| value.action)
+                    .filter(|action| legal.contains(action))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        golden_proven_actions.sort_by_key(|action| action.order());
+        golden_proven_actions.dedup();
+        let golden_action = golden_proven_actions.first().copied();
         let (target, policy, target_score, target_nodes, target_depth) =
-            if let Some(target) = golden_action {
-                let target_index = legal.iter().position(|candidate| *candidate == target);
-                let Some(target_index) = target_index else {
-                    fail("golden action is not legal in the replayed state");
-                };
+            if golden_outcome == Some(GoldenOutcome::Win) && !golden_proven_actions.is_empty() {
                 let mut policy = vec![0.0_f32; legal.len()];
-                policy[target_index] = 1.0;
-                (target, policy, 1_000_000_000, 0, 0)
+                let probability = 1.0 / golden_proven_actions.len() as f32;
+                for target in &golden_proven_actions {
+                    let target_index = legal.iter().position(|candidate| candidate == target);
+                    let Some(target_index) = target_index else {
+                        fail("golden action is not legal in the replayed state");
+                    };
+                    policy[target_index] = probability;
+                }
+                (
+                    golden_action.expect("proven action set is non-empty"),
+                    policy,
+                    1_000_000_000,
+                    0,
+                    0,
+                )
             } else if target_temperature > 0.0 {
                 let analyses = if rankings.is_empty() {
                     if tactical_filter {
@@ -286,7 +324,7 @@ fn emit_record(
                         if tactical_filter {
                             search_best_action_with_tactical_filter(state, config)
                         } else if let Some(golden) = golden {
-                            search_best_action_with_golden(state, config, golden)
+                            search_best_action_with_golden_layers(state, config, golden)
                         } else {
                             search_best_action(state, config)
                         }
@@ -325,11 +363,54 @@ fn emit_record(
             if let Some(outcome) = golden_outcome {
                 object.insert("goldenOutcome".to_owned(), json!(outcome.as_str()));
             }
-            if let Some(golden_action) = golden_action {
-                object.insert("goldenAction".to_owned(), action_value_json(golden_action));
-                object.insert("goldenDistance".to_owned(), json!(1));
-                object.insert("goldenPolicyComplete".to_owned(), json!(false));
-                object.insert("targetSource".to_owned(), json!("golden-ring-1"));
+            if let Some(row) = golden_row {
+                object.insert("goldenDistance".to_owned(), json!(row.distance));
+                object.insert(
+                    "goldenPolicyComplete".to_owned(),
+                    json!(row.optimal_actions_complete),
+                );
+            }
+            if !golden_proven_actions.is_empty() {
+                object.insert(
+                    "goldenAction".to_owned(),
+                    action_value_json(golden_action.expect("proven action set is non-empty")),
+                );
+                object.insert(
+                    "goldenProvenActions".to_owned(),
+                    json!(golden_proven_actions
+                        .iter()
+                        .copied()
+                        .map(action_value_json)
+                        .collect::<Vec<_>>()),
+                );
+            }
+            if let Some(values) = golden_values.as_deref() {
+                object.insert("goldenKnownActionCount".to_owned(), json!(values.len()));
+                if let Some((actions, distance)) = urgency_targets(golden_outcome, values) {
+                    object.insert(
+                        "goldenUrgencyActions".to_owned(),
+                        json!(actions
+                            .iter()
+                            .copied()
+                            .map(action_value_json)
+                            .collect::<Vec<_>>()),
+                    );
+                    object.insert("goldenUrgencyDistance".to_owned(), json!(distance));
+                }
+            }
+            if golden_action.is_some() {
+                object.insert(
+                    "targetSource".to_owned(),
+                    json!(
+                        if golden_row.is_some_and(|row| row.optimal_actions_complete) {
+                            "golden-complete-actions"
+                        } else {
+                            "golden-proven-actions"
+                        }
+                    ),
+                );
+            } else if golden_outcome.is_some() {
+                object.insert("targetSource".to_owned(), json!("golden-value-plus-search"));
             } else {
                 object.insert("targetSource".to_owned(), json!("pathfinder-search"));
             }
@@ -461,6 +542,65 @@ fn action_value_json(action: Action) -> Value {
     }
 }
 
+fn urgency_targets(
+    outcome: Option<GoldenOutcome>,
+    values: &[GoldenActionValue],
+) -> Option<(Vec<Action>, u16)> {
+    let desired = match outcome? {
+        GoldenOutcome::Win => GoldenOutcome::Win,
+        GoldenOutcome::Loss => GoldenOutcome::Loss,
+        GoldenOutcome::Draw => return None,
+    };
+    let mut candidates = values
+        .iter()
+        .filter_map(|value| {
+            if value.outcome == Some(desired) {
+                value.distance.map(|distance| (value.action, distance))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    if candidates.is_empty() {
+        return None;
+    }
+    let distance = if desired == GoldenOutcome::Win {
+        candidates.iter().map(|(_, distance)| *distance).min()?
+    } else {
+        candidates.iter().map(|(_, distance)| *distance).max()?
+    };
+    let mut actions = candidates
+        .drain(..)
+        .filter(|(_, candidate_distance)| *candidate_distance == distance)
+        .map(|(action, _)| action)
+        .collect::<Vec<_>>();
+    actions.sort_by_key(|action| action.order());
+    actions.dedup();
+    Some((actions, distance))
+}
+
+fn parse_golden_layers(spec: &str) -> Vec<(PathBuf, Option<PathBuf>)> {
+    let paths = spec
+        .split(';')
+        .filter(|layer| !layer.trim().is_empty())
+        .map(|layer| {
+            let (table, sidecar) = layer.split_once(',').unwrap_or((layer, ""));
+            let table = table.trim();
+            if table.is_empty() {
+                fail("--golden-layers contains an empty table path");
+            }
+            (
+                PathBuf::from(table),
+                (!sidecar.trim().is_empty()).then(|| PathBuf::from(sidecar.trim())),
+            )
+        })
+        .collect::<Vec<_>>();
+    if paths.is_empty() {
+        fail("--golden-layers requires at least one table path");
+    }
+    paths
+}
+
 fn parse_args() -> HashMap<String, String> {
     let values: Vec<String> = env::args().skip(1).collect();
     let mut parsed = HashMap::new();
@@ -493,4 +633,39 @@ fn number<T: std::str::FromStr>(args: &HashMap<String, String>, key: &str, fallb
 fn fail(message: &str) -> ! {
     eprintln!("pathfinder-targets: {message}");
     std::process::exit(2)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn urgency_prefers_fast_wins_and_delayed_losses() {
+        let values = [
+            GoldenActionValue {
+                action: Action::Place { to: 0 },
+                outcome: Some(GoldenOutcome::Win),
+                distance: Some(3),
+            },
+            GoldenActionValue {
+                action: Action::Place { to: 1 },
+                outcome: Some(GoldenOutcome::Win),
+                distance: Some(2),
+            },
+            GoldenActionValue {
+                action: Action::Place { to: 2 },
+                outcome: Some(GoldenOutcome::Loss),
+                distance: Some(5),
+            },
+        ];
+        assert_eq!(
+            urgency_targets(Some(GoldenOutcome::Win), &values),
+            Some((vec![Action::Place { to: 1 }], 2))
+        );
+        assert_eq!(
+            urgency_targets(Some(GoldenOutcome::Loss), &values),
+            Some((vec![Action::Place { to: 2 }], 5))
+        );
+        assert_eq!(urgency_targets(Some(GoldenOutcome::Draw), &values), None);
+    }
 }

@@ -284,6 +284,28 @@ pub fn search_best_action_with_golden(
     search_best_action(state, config)
 }
 
+/// Consult ordered promoted gold layers before ordinary search. This is the
+/// multi-ring form of [`search_best_action_with_golden`]: Ring-1 can remain a
+/// rollback/control layer while newer exact frontier rings are overlaid
+/// without merging or rewriting their immutable files.
+pub fn search_best_action_with_golden_layers(
+    state: GameState,
+    config: SearchConfig,
+    golden: &crate::golden::GoldenLookupLayers,
+) -> SearchResult {
+    if let Some(action) = golden.proven_action(state) {
+        return SearchResult {
+            action: Some(action),
+            score: WIN_SCORE,
+            nodes: 0,
+            exhausted: false,
+            completed_depth: 0,
+            table_hits: 1,
+        };
+    }
+    search_best_action(state, config)
+}
+
 /// WASM-safe equivalent of [`search_best_action_with_golden`]. The browser
 /// supplies immutable bytes fetched from the versioned golden artifacts; the
 /// action is returned directly when the WDL row and sidecar agree.
@@ -296,6 +318,38 @@ pub fn search_best_action_with_golden_bytes(
     let golden = crate::golden::MemoryGoldenLookup::open_bytes(
         table_bytes,
         sidecar_bytes,
+        state.config.board_size,
+        state.config.reserve_per_player,
+    )
+    .map_err(|error| error.to_string())?;
+    let outcome = golden.lookup(state);
+    let action = (outcome == Some(crate::golden::GoldenOutcome::Win))
+        .then(|| golden.proven_action(state))
+        .flatten();
+    let result = if let Some(action) = action {
+        SearchResult {
+            action: Some(action),
+            score: WIN_SCORE,
+            nodes: 0,
+            exhausted: false,
+            completed_depth: 0,
+            table_hits: 1,
+        }
+    } else {
+        search_best_action(state, config)
+    };
+    Ok((result, outcome, action.is_some()))
+}
+
+/// WASM-safe multi-layer equivalent. The slices are ordered by lookup
+/// priority and copied into an in-memory layered lookup before searching.
+pub fn search_best_action_with_golden_layers_bytes(
+    state: GameState,
+    config: SearchConfig,
+    layers: &[(&[u8], Option<&[u8]>)],
+) -> Result<(SearchResult, Option<crate::golden::GoldenOutcome>, bool), String> {
+    let golden = crate::golden::MemoryGoldenLookupLayers::open_bytes(
+        layers,
         state.config.board_size,
         state.config.reserve_per_player,
     )

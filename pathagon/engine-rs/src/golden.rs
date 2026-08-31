@@ -716,6 +716,24 @@ pub struct MemoryGoldenLookup {
     pub actions: Option<GoldenActionBook>,
 }
 
+/// Ordered collection of immutable on-disk golden layers. The first layer
+/// containing a position owns that position; later layers are consulted only
+/// when the position is absent. This lets a newer frontier ring overlay an
+/// older control table without copying either artifact or weakening the
+/// rollback boundary.
+#[derive(Debug)]
+pub struct GoldenLookupLayers {
+    layers: Vec<GoldenLookup>,
+}
+
+/// In-memory equivalent of [`GoldenLookupLayers`] for WASM callers that have
+/// fetched multiple versioned shards. Bytes are copied when opened, so the
+/// caller may reuse its fetch buffers after construction.
+#[derive(Clone, Debug)]
+pub struct MemoryGoldenLookupLayers {
+    layers: Vec<MemoryGoldenLookup>,
+}
+
 impl GoldenLookup {
     pub fn open(
         table_path: impl AsRef<Path>,
@@ -739,6 +757,88 @@ impl GoldenLookup {
             return None;
         }
         self.actions.as_ref()?.proven_action(state)
+    }
+
+    pub fn row_value(&self, state: GameState) -> Option<GoldenRowValue> {
+        self.lookup(state).and_then(|_| {
+            self.actions
+                .as_ref()
+                .and_then(|actions| actions.row_value(state))
+        })
+    }
+
+    pub fn action_values(&self, state: GameState) -> Option<Vec<GoldenActionValue>> {
+        self.lookup(state).and_then(|_| {
+            self.actions
+                .as_ref()
+                .and_then(|actions| actions.action_values(state))
+        })
+    }
+}
+
+impl GoldenLookupLayers {
+    pub fn from_lookup(lookup: GoldenLookup) -> Self {
+        Self {
+            layers: vec![lookup],
+        }
+    }
+
+    /// Open layers in lookup priority order. A position found in an earlier
+    /// layer is never replaced by a later layer.
+    pub fn open(
+        paths: &[(PathBuf, Option<PathBuf>)],
+        board_size: u8,
+        reserve_per_player: u8,
+    ) -> io::Result<Self> {
+        if paths.is_empty() {
+            return Err(invalid_data("golden lookup requires at least one layer"));
+        }
+        let layers = paths
+            .iter()
+            .map(|(table, sidecar)| {
+                GoldenLookup::open(table, sidecar.as_deref(), board_size, reserve_per_player)
+            })
+            .collect::<io::Result<Vec<_>>>()?;
+        Ok(Self { layers })
+    }
+
+    pub fn layer_count(&self) -> usize {
+        self.layers.len()
+    }
+
+    pub fn rows(&self) -> u64 {
+        self.layers.iter().map(|layer| layer.table.rows()).sum()
+    }
+
+    pub fn lookup(&self, state: GameState) -> Option<GoldenOutcome> {
+        self.layers.iter().find_map(|layer| layer.lookup(state))
+    }
+
+    pub fn proven_action(&self, state: GameState) -> Option<Action> {
+        for layer in &self.layers {
+            if layer.lookup(state).is_some() {
+                return layer.proven_action(state);
+            }
+        }
+        None
+    }
+
+    pub fn row_value(&self, state: GameState) -> Option<GoldenRowValue> {
+        for layer in &self.layers {
+            if layer.lookup(state).is_some() {
+                return layer.row_value(state);
+            }
+        }
+        None
+    }
+
+    pub fn action_values(&self, state: GameState) -> Option<Vec<GoldenActionValue>> {
+        for layer in &self.layers {
+            if layer.lookup(state).is_some() {
+                return layer.action_values(state);
+            }
+        }
+        None
     }
 }
 
@@ -766,6 +866,80 @@ impl MemoryGoldenLookup {
             return None;
         }
         self.actions.as_ref()?.proven_action(state)
+    }
+
+    pub fn row_value(&self, state: GameState) -> Option<GoldenRowValue> {
+        self.lookup(state).and_then(|_| {
+            self.actions
+                .as_ref()
+                .and_then(|actions| actions.row_value(state))
+        })
+    }
+
+    pub fn action_values(&self, state: GameState) -> Option<Vec<GoldenActionValue>> {
+        self.lookup(state).and_then(|_| {
+            self.actions
+                .as_ref()
+                .and_then(|actions| actions.action_values(state))
+        })
+    }
+}
+
+impl MemoryGoldenLookupLayers {
+    pub fn open_bytes(
+        layers: &[(&[u8], Option<&[u8]>)],
+        board_size: u8,
+        reserve_per_player: u8,
+    ) -> io::Result<Self> {
+        if layers.is_empty() {
+            return Err(invalid_data("golden lookup requires at least one layer"));
+        }
+        let layers = layers
+            .iter()
+            .map(|(table, sidecar)| {
+                MemoryGoldenLookup::open_bytes(table, *sidecar, board_size, reserve_per_player)
+            })
+            .collect::<io::Result<Vec<_>>>()?;
+        Ok(Self { layers })
+    }
+
+    pub fn layer_count(&self) -> usize {
+        self.layers.len()
+    }
+
+    pub fn rows(&self) -> u64 {
+        self.layers.iter().map(|layer| layer.table.rows()).sum()
+    }
+
+    pub fn lookup(&self, state: GameState) -> Option<GoldenOutcome> {
+        self.layers.iter().find_map(|layer| layer.lookup(state))
+    }
+
+    pub fn proven_action(&self, state: GameState) -> Option<Action> {
+        for layer in &self.layers {
+            if layer.lookup(state).is_some() {
+                return layer.proven_action(state);
+            }
+        }
+        None
+    }
+
+    pub fn row_value(&self, state: GameState) -> Option<GoldenRowValue> {
+        for layer in &self.layers {
+            if layer.lookup(state).is_some() {
+                return layer.row_value(state);
+            }
+        }
+        None
+    }
+
+    pub fn action_values(&self, state: GameState) -> Option<Vec<GoldenActionValue>> {
+        for layer in &self.layers {
+            if layer.lookup(state).is_some() {
+                return layer.action_values(state);
+            }
+        }
+        None
     }
 }
 
@@ -1425,5 +1599,105 @@ mod tests {
                 state.legal_actions().len()
             );
         }
+    }
+
+    #[test]
+    fn layered_lookup_keeps_ring1_priority_and_falls_through_to_ring2() {
+        let ring1_table = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/golden/tables/fresh-frontier-wdl-v1/7x7-r14/shard-00.bin");
+        let ring1_sidecar = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/golden/sidecars/fresh-frontier-wdl-v1/7x7-r14/ring-01.bin");
+        let ring2_table = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/golden/tables/fresh-frontier-wdl-v4/7x7-r14/shard-00.bin");
+        let ring2_sidecar = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/golden/sidecars/fresh-frontier-wdl-v4/7x7-r14/ring-02.bin");
+        if !(ring1_table.exists()
+            && ring1_sidecar.exists()
+            && ring2_table.exists()
+            && ring2_sidecar.exists())
+        {
+            return;
+        }
+        let paths = vec![
+            (ring1_table.clone(), Some(ring1_sidecar.clone())),
+            (ring2_table.clone(), Some(ring2_sidecar.clone())),
+        ];
+        let layered = GoldenLookupLayers::open(&paths, 7, 14).expect("open layered lookup");
+        assert_eq!(layered.layer_count(), 2);
+        assert_eq!(layered.rows(), 35_564);
+
+        let ring2_key = decode_hex("0000000000545a556a95aaabda62").expect("Ring-2 key");
+        let ring2_state =
+            decode_canonical_position_key(&ring2_key, 7, 14).expect("decode Ring-2 key");
+        assert_eq!(layered.lookup(ring2_state), Some(GoldenOutcome::Loss));
+
+        let raw: Value = serde_json::from_str(
+            &std::fs::read_to_string(
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../research/20260830-endgame-retrograde-frontier/workspace/ring-01-candidates.jsonl"),
+            )
+            .expect("read Ring-1 candidates")
+            .lines()
+            .next()
+            .expect("Ring-1 candidate exists"),
+        )
+        .expect("Ring-1 candidate is JSON");
+        let position = raw.get("position").expect("Ring-1 candidate position");
+        let ring1_state = GameState {
+            config: BoardConfig::DEFAULT,
+            light: position["light"].as_u64().expect("light mask"),
+            dark: position["dark"].as_u64().expect("dark mask"),
+            reserve: [
+                position["reserve"][0].as_u64().expect("light reserve") as u8,
+                position["reserve"][1].as_u64().expect("dark reserve") as u8,
+            ],
+            turn: if position["turn"] == "light" {
+                Player::Light
+            } else {
+                Player::Dark
+            },
+            forbidden: position["forbidden"].as_u64().expect("forbidden mask"),
+            last_relocated_to: [
+                position["lastRelocatedTo"][0]
+                    .as_u64()
+                    .map(|value| value as u8),
+                position["lastRelocatedTo"][1]
+                    .as_u64()
+                    .map(|value| value as u8),
+            ],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: position["ply"].as_u64().expect("ply") as u16,
+        };
+        assert_eq!(layered.lookup(ring1_state), Some(GoldenOutcome::Win));
+        let exact_action = layered
+            .proven_action(ring1_state)
+            .expect("Ring-1 exact action");
+        let result = crate::search::search_best_action_with_golden_layers(
+            ring1_state,
+            crate::search::SearchConfig::default(),
+            &layered,
+        );
+        assert_eq!(result.action, Some(exact_action));
+        assert_eq!(result.nodes, 0);
+
+        let ring1_table_bytes = std::fs::read(&ring1_table).expect("read Ring-1 table");
+        let ring1_sidecar_bytes = std::fs::read(&ring1_sidecar).expect("read Ring-1 sidecar");
+        let ring2_table_bytes = std::fs::read(&ring2_table).expect("read Ring-2 table");
+        let ring2_sidecar_bytes = std::fs::read(&ring2_sidecar).expect("read Ring-2 sidecar");
+        let memory = MemoryGoldenLookupLayers::open_bytes(
+            &[
+                (&ring1_table_bytes, Some(ring1_sidecar_bytes.as_slice())),
+                (&ring2_table_bytes, Some(ring2_sidecar_bytes.as_slice())),
+            ],
+            7,
+            14,
+        )
+        .expect("open memory layered lookup");
+        assert_eq!(memory.layer_count(), 2);
+        assert_eq!(memory.lookup(ring1_state), Some(GoldenOutcome::Win));
+        assert_eq!(memory.lookup(ring2_state), Some(GoldenOutcome::Loss));
+        assert_eq!(memory.proven_action(ring1_state), Some(exact_action));
     }
 }

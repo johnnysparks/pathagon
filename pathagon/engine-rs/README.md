@@ -26,6 +26,12 @@ player, action, captured squares, and the complete post-move position. Run
 `npm run build:engine` to regenerate the checked-in browser bundle after
 consumers adopt that endpoint.
 
+Promoted exact tables are available through `GoldenLookup`; multi-ring native
+consumers should use `GoldenLookupLayers` so versioned control and frontier
+shards remain separate, ordered, and independently replaceable. The target
+generator accepts `--golden-layers` with semicolon-separated
+`table,sidecar` pairs.
+
 The browser adapter also exposes a deadline-bounded tactical search export.
 It checks the browser clock during iterative deepening and returns the last
 fully completed iteration, preserving a legal fallback move when the deadline
