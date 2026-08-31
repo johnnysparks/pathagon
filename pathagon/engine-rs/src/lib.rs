@@ -9,6 +9,8 @@ use std::collections::VecDeque;
 pub mod contract;
 pub mod corpus;
 pub mod endgame;
+pub mod golden;
+pub mod ground_truth;
 #[cfg(feature = "inference")]
 pub mod inference;
 pub mod learned;
@@ -20,6 +22,7 @@ pub mod qadv;
 pub mod runtime;
 pub mod search;
 pub mod selfplay;
+pub mod tablebase;
 pub mod training;
 pub mod transition_policy;
 #[cfg(feature = "wasm")]

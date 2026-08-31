@@ -46,6 +46,13 @@ performs an O(log n) lookup directly against a shard without loading the table
 into memory. New exact observations must be monotonic: a duplicate value is
 idempotent, while a contradictory value is an error.
 
+Ring frontiers may also carry a compact action sidecar. The promoted
+`fresh-frontier-wdl-v1` Ring-1 sidecar uses the `PGACT01` format: a 16-byte
+header followed by sorted `[canonical key: 14 bytes][action count: u16][action
+code: u16]*` rows. Action codes use the corpus base-64 action numbering. The
+sidecar is partial by design; it records verified winning actions, not a claim
+that all other legal actions lose.
+
 The codec is size-aware for the historical 5×5 curriculum boards as well. A
 5×5 key is 8 bytes (the relocation markers need 5 bits), and each board-size /
 reserve pair has its own shard namespace. Reserve is intentionally not packed
@@ -64,6 +71,18 @@ unconditionally exact terminal truths. Repetition/max-ply draws are retained
 in the source inventory but intentionally excluded because this table ignores
 play history; solving non-terminal parents requires legal transitions and
 minimax/backward propagation.
+
+Native target generation can consult a promoted action book with:
+
+```bash
+cargo run --release --manifest-path pathagon/engine-rs/Cargo.toml \
+  --bin pathfinder_targets -- \
+  --golden-table data/golden/tables/fresh-frontier-wdl-v1/7x7-r14/shard-00.bin \
+  --golden-sidecar data/golden/sidecars/fresh-frontier-wdl-v1/7x7-r14/ring-01.bin
+```
+
+Known Ring-1 actions become explicit policy/value/distance metadata; positions
+without a proven action continue through ordinary search.
 
 To rebuild that seed table:
 

@@ -16,10 +16,10 @@ use std::path::PathBuf;
 use pathagon_engine::contract::Position;
 use pathagon_engine::search::{
     analyze_action, analyze_actions, ordered_root_actions, search_best_action,
-    search_best_action_with_tactical_filter, tactical_root_safe_actions, MoveEvaluation,
-    SearchConfig, SearchResult,
+    search_best_action_with_golden, search_best_action_with_tactical_filter,
+    tactical_root_safe_actions, MoveEvaluation, SearchConfig, SearchResult,
 };
-use pathagon_engine::{Action, BoardConfig, GameState, Player};
+use pathagon_engine::{golden::GoldenLookup, Action, BoardConfig, GameState, Player};
 use serde_json::{json, Value};
 
 fn main() {
@@ -41,6 +41,14 @@ fn main() {
     let rank_actions = number(&args, "rank-actions", 0_usize);
     let rank_nodes = number(&args, "rank-nodes", max_nodes);
     let tactical_filter = args.contains_key("tactical-filter");
+    let golden = match (args.get("golden-table"), args.get("golden-sidecar")) {
+        (Some(table), sidecar) => Some(
+            GoldenLookup::open(PathBuf::from(table), sidecar.map(PathBuf::from), 7, 14)
+                .unwrap_or_else(|error| fail(&format!("cannot load golden data: {error}"))),
+        ),
+        (None, Some(_)) => fail("--golden-sidecar requires --golden-table"),
+        (None, None) => None,
+    };
     if depth == 0
         || max_nodes == 0
         || beam_width == 0
@@ -106,6 +114,7 @@ fn main() {
                 rank_actions,
                 rank_nodes,
                 tactical_filter,
+                golden.as_ref(),
             );
         } else {
             emit_record(
@@ -118,6 +127,7 @@ fn main() {
                 rank_actions,
                 rank_nodes,
                 tactical_filter,
+                golden.as_ref(),
             );
         }
         games += 1;
@@ -142,6 +152,11 @@ fn main() {
             "rankNodes": rank_nodes,
             "tacticalFilter": tactical_filter,
             },
+            "golden": golden.as_ref().map(|lookup| json!({
+                "table": lookup.table.path(),
+                "rows": lookup.table.rows(),
+                "actionRows": lookup.actions.as_ref().map(|book| book.rows()),
+            })),
         })
     );
 }
@@ -156,6 +171,7 @@ fn emit_record(
     rank_actions: usize,
     rank_nodes: u64,
     tactical_filter: bool,
+    golden: Option<&GoldenLookup>,
 ) {
     let moves = record
         .get("moves")
@@ -215,78 +231,90 @@ fn emit_record(
                 tactical_filter,
             )
         };
-        let (target, policy, target_score, target_nodes, target_depth) = if target_temperature > 0.0
-        {
-            let analyses = if rankings.is_empty() {
-                if tactical_filter {
-                    independent_rankings(state, config, legal.len(), true)
-                } else {
-                    analyze_actions(state, config, legal.len())
-                }
-            } else {
-                rankings.clone()
-            };
-            let best = analyses.first().copied();
-            let target = best.map(|result| result.action).unwrap_or(action);
-            let maximum = analyses
-                .iter()
-                .map(|result| result.score)
-                .max()
-                .unwrap_or(0) as f32;
-            let mut policy = vec![0.0_f32; legal.len()];
-            let mut total = 0.0_f32;
-            for result in analyses {
-                let weight = ((result.score as f32 - maximum) / target_temperature).exp();
-                if let Some(index) = legal
-                    .iter()
-                    .position(|candidate| *candidate == result.action)
-                {
-                    policy[index] = weight;
-                    total += weight;
-                }
-            }
-            if total > 0.0 {
-                for value in &mut policy {
-                    *value /= total;
-                }
-            }
-            let Some(best) = best else {
-                fail("Pathfinder did not score a legal target action");
-            };
-            (target, policy, best.score, best.nodes, best.completed_depth)
-        } else {
-            let result = rankings.first().copied().map_or_else(
-                || {
+        let golden_outcome = golden.and_then(|lookup| lookup.lookup(state));
+        let golden_action = golden.and_then(|lookup| lookup.proven_action(state));
+        let (target, policy, target_score, target_nodes, target_depth) =
+            if let Some(target) = golden_action {
+                let target_index = legal.iter().position(|candidate| *candidate == target);
+                let Some(target_index) = target_index else {
+                    fail("golden action is not legal in the replayed state");
+                };
+                let mut policy = vec![0.0_f32; legal.len()];
+                policy[target_index] = 1.0;
+                (target, policy, 1_000_000_000, 0, 0)
+            } else if target_temperature > 0.0 {
+                let analyses = if rankings.is_empty() {
                     if tactical_filter {
-                        search_best_action_with_tactical_filter(state, config)
+                        independent_rankings(state, config, legal.len(), true)
                     } else {
-                        search_best_action(state, config)
+                        analyze_actions(state, config, legal.len())
                     }
-                },
-                |ranking| SearchResult {
-                    action: Some(ranking.action),
-                    score: ranking.score,
-                    nodes: ranking.nodes,
-                    exhausted: ranking.exhausted,
-                    completed_depth: ranking.completed_depth,
-                    table_hits: ranking.table_hits,
-                },
-            );
-            let target = result.action.unwrap_or(action);
-            let target_index = legal.iter().position(|candidate| *candidate == target);
-            let Some(target_index) = target_index else {
-                fail("Pathfinder target is not legal in the replayed state");
+                } else {
+                    rankings.clone()
+                };
+                let best = analyses.first().copied();
+                let target = best.map(|result| result.action).unwrap_or(action);
+                let maximum = analyses
+                    .iter()
+                    .map(|result| result.score)
+                    .max()
+                    .unwrap_or(0) as f32;
+                let mut policy = vec![0.0_f32; legal.len()];
+                let mut total = 0.0_f32;
+                for result in analyses {
+                    let weight = ((result.score as f32 - maximum) / target_temperature).exp();
+                    if let Some(index) = legal
+                        .iter()
+                        .position(|candidate| *candidate == result.action)
+                    {
+                        policy[index] = weight;
+                        total += weight;
+                    }
+                }
+                if total > 0.0 {
+                    for value in &mut policy {
+                        *value /= total;
+                    }
+                }
+                let Some(best) = best else {
+                    fail("Pathfinder did not score a legal target action");
+                };
+                (target, policy, best.score, best.nodes, best.completed_depth)
+            } else {
+                let result = rankings.first().copied().map_or_else(
+                    || {
+                        if tactical_filter {
+                            search_best_action_with_tactical_filter(state, config)
+                        } else if let Some(golden) = golden {
+                            search_best_action_with_golden(state, config, golden)
+                        } else {
+                            search_best_action(state, config)
+                        }
+                    },
+                    |ranking| SearchResult {
+                        action: Some(ranking.action),
+                        score: ranking.score,
+                        nodes: ranking.nodes,
+                        exhausted: ranking.exhausted,
+                        completed_depth: ranking.completed_depth,
+                        table_hits: ranking.table_hits,
+                    },
+                );
+                let target = result.action.unwrap_or(action);
+                let target_index = legal.iter().position(|candidate| *candidate == target);
+                let Some(target_index) = target_index else {
+                    fail("Pathfinder target is not legal in the replayed state");
+                };
+                let mut policy = vec![0.0_f32; legal.len()];
+                policy[target_index] = 1.0;
+                (
+                    target,
+                    policy,
+                    result.score,
+                    result.nodes,
+                    result.completed_depth,
+                )
             };
-            let mut policy = vec![0.0_f32; legal.len()];
-            policy[target_index] = 1.0;
-            (
-                target,
-                policy,
-                result.score,
-                result.nodes,
-                result.completed_depth,
-            )
-        };
         let mut output_move = movement.clone();
         if let Some(object) = output_move.as_object_mut() {
             object.insert("policy".to_owned(), json!(policy));
@@ -294,6 +322,17 @@ fn emit_record(
             object.insert("targetScore".to_owned(), json!(target_score));
             object.insert("targetNodes".to_owned(), json!(target_nodes));
             object.insert("targetDepth".to_owned(), json!(target_depth));
+            if let Some(outcome) = golden_outcome {
+                object.insert("goldenOutcome".to_owned(), json!(outcome.as_str()));
+            }
+            if let Some(golden_action) = golden_action {
+                object.insert("goldenAction".to_owned(), action_value_json(golden_action));
+                object.insert("goldenDistance".to_owned(), json!(1));
+                object.insert("goldenPolicyComplete".to_owned(), json!(false));
+                object.insert("targetSource".to_owned(), json!("golden-ring-1"));
+            } else {
+                object.insert("targetSource".to_owned(), json!("pathfinder-search"));
+            }
             if !rankings.is_empty() {
                 object.insert(
                     "rankActions".to_owned(),

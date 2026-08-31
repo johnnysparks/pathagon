@@ -2,6 +2,14 @@
 
 help_level: HIGH
 
+## Gameplay implementation language
+
+- Whenever practical, implement gameplay rules, search, solvers, tablebases,
+  evaluation, and other runtime gameplay behavior in Rust. Keep TypeScript and
+  Python focused on UI/adapters, orchestration, data preparation, and analysis
+  unless a Rust implementation is impractical or would duplicate a required
+  ecosystem integration.
+
 This user has signed up for the new AWS experience. This experience lets you sign into AWS using a social provider and requires the following additional context.
 
 ## Context

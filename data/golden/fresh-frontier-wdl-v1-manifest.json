@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "tableFamily": "fresh-frontier-wdl-v1",
+  "rulesVersion": "pathagon-rules-v1",
+  "semantics": {
+    "outcomes": {
+      "loss": 0,
+      "draw": 1,
+      "win": 2,
+      "unknown": "absent"
+    },
+    "history": "fresh-root-with-repetition-aware-proof",
+    "horizon": "ring-1-terminal-witness",
+    "optimalActions": "partial-proven-actions-until-complete"
+  },
+  "key": {
+    "encoding": "packed-2bit-cells-turn-relocation-v1",
+    "canonicalization": "d4-eight-rules-preserving-symmetries",
+    "bytes": 14
+  },
+  "shards": [
+    {
+      "path": "data/golden/tables/fresh-frontier-wdl-v1/7x7-r14/shard-00.bin",
+      "boardSize": 7,
+      "reservePerPlayer": 14,
+      "rows": 35561,
+      "bytes": 533415,
+      "sha256": "08cf7799cc160b2b125e9c23ec62e19c177ae836e8b052c7ff8bee7bdf2d04c7"
+    }
+  ],
+  "sidecars": [
+    {
+      "path": "data/golden/sidecars/fresh-frontier-wdl-v1/7x7-r14/ring-01.bin",
+      "bytes": 640116,
+      "sha256": "2d41ae1fe3167b678a02adb1391f520e6362842b37627252f32bd1fbd1c4385e"
+    }
+  ],
+  "counts": {
+    "inputRecords": 35595,
+    "rawPositions": 35595,
+    "canonicalRows": 35561,
+    "provenActions": 35595,
+    "completeOptimalActionSets": 0,
+    "existingGoldenOverlaps": 0
+  },
+  "source": {
+    "kind": "replayed-corpus-penultimate-positions",
+    "input": "research/20260830-endgame-retrograde-frontier/workspace/ring-01-candidates.jsonl",
+    "existingTable": "data/golden/tables/historyless-wdl-v1/7x7-r14/shard-00.bin",
+    "proof": "each action was re-applied and had to produce the parent player's path terminal"
+  }
+}

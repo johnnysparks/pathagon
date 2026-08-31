@@ -30,6 +30,14 @@ name = "pathagon-learn"
 path = "src/learn_main.rs"
 
 [[bin]]
+name = "pathagon-endgame-frontier"
+path = "src/bin/endgame_frontier.rs"
+
+[[bin]]
+name = "pathagon-endgame-tablebase"
+path = "src/bin/endgame_tablebase.rs"
+
+[[bin]]
 name = "pathagon-lambda-worker"
 path = "src/lambda_worker.rs"
 required-features = ["lambda"]

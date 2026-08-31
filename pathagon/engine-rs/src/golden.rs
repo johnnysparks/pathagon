@@ -1,0 +1,706 @@
+//! Runtime access to promoted, exact endgame data.
+//!
+//! The durable shard contains only exact side-to-move W/D/L values.  The
+//! optional JSONL sidecar contains partial, proof-backed action labels.  This
+//! module intentionally keeps both pieces read-only: a search may consult a
+//! promoted result, but approximate search output can never mutate the gold.
+
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::{self, BufRead, BufReader, Cursor, Read, Seek, SeekFrom};
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+
+use crate::{Action, GameState, Player};
+use serde_json::Value;
+
+pub const LOSS: u8 = 0;
+pub const DRAW: u8 = 1;
+pub const WIN: u8 = 2;
+
+const ACTION_ALPHABET: &[u8; 64] =
+    b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
+const ACTION_BOOK_MAGIC: &[u8; 8] = b"PGACT01\0";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GoldenOutcome {
+    Loss,
+    Draw,
+    Win,
+}
+
+impl GoldenOutcome {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Loss => "loss",
+            Self::Draw => "draw",
+            Self::Win => "win",
+        }
+    }
+
+    pub const fn as_byte(self) -> u8 {
+        match self {
+            Self::Loss => LOSS,
+            Self::Draw => DRAW,
+            Self::Win => WIN,
+        }
+    }
+
+    pub const fn from_byte(value: u8) -> Option<Self> {
+        match value {
+            LOSS => Some(Self::Loss),
+            DRAW => Some(Self::Draw),
+            WIN => Some(Self::Win),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GoldenLookupStats {
+    pub table_hits: u64,
+    pub action_hits: u64,
+}
+
+#[derive(Debug)]
+pub struct FlatGoldenTable {
+    path: PathBuf,
+    board_size: u8,
+    reserve_per_player: u8,
+    key_bytes: usize,
+    row_bytes: u64,
+    rows: u64,
+    file: Mutex<File>,
+}
+
+impl FlatGoldenTable {
+    pub fn open(
+        path: impl AsRef<Path>,
+        board_size: u8,
+        reserve_per_player: u8,
+    ) -> io::Result<Self> {
+        let path = path.as_ref().to_path_buf();
+        let file = File::open(&path)?;
+        let metadata = file.metadata()?;
+        let key_bytes = key_bytes_for_board_size(board_size).map_err(invalid_data)?;
+        let row_bytes = (key_bytes + 1) as u64;
+        if metadata.len() % row_bytes != 0 {
+            return Err(invalid_data(format!(
+                "golden shard {} is not a multiple of {row_bytes} bytes",
+                path.display()
+            )));
+        }
+        Ok(Self {
+            path,
+            board_size,
+            reserve_per_player,
+            key_bytes,
+            row_bytes,
+            rows: metadata.len() / row_bytes,
+            file: Mutex::new(file),
+        })
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn rows(&self) -> u64 {
+        self.rows
+    }
+
+    pub fn lookup(&self, state: GameState) -> Option<GoldenOutcome> {
+        if !state_matches_namespace(state, self.board_size, self.reserve_per_player) {
+            return None;
+        }
+        let key = canonical_key(state).0;
+        self.lookup_key(&key)
+    }
+
+    pub fn lookup_key(&self, key: &[u8]) -> Option<GoldenOutcome> {
+        if key.len() != self.key_bytes {
+            return None;
+        }
+        let mut file = self.file.lock().ok()?;
+        let mut low = 0_u64;
+        let mut high = self.rows;
+        let mut row = vec![0_u8; self.row_bytes as usize];
+        while low < high {
+            let middle = low + (high - low) / 2;
+            file.seek(SeekFrom::Start(middle * self.row_bytes)).ok()?;
+            file.read_exact(&mut row).ok()?;
+            match row[..self.key_bytes].cmp(key) {
+                std::cmp::Ordering::Less => low = middle + 1,
+                std::cmp::Ordering::Greater => high = middle,
+                std::cmp::Ordering::Equal => return GoldenOutcome::from_byte(row[self.key_bytes]),
+            }
+        }
+        None
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct GoldenActionBook {
+    board_size: u8,
+    actions: HashMap<Vec<u8>, Vec<Action>>,
+}
+
+impl GoldenActionBook {
+    pub fn load(path: impl AsRef<Path>, board_size: u8) -> io::Result<Self> {
+        let path = path.as_ref();
+        let mut source = Vec::new();
+        File::open(path)?.read_to_end(&mut source)?;
+        if source.starts_with(ACTION_BOOK_MAGIC) {
+            return Self::load_binary(&source, path, board_size);
+        }
+        let reader = BufReader::new(Cursor::new(source));
+        let key_bytes = key_bytes_for_board_size(board_size).map_err(invalid_data)?;
+        let mut book = Self {
+            board_size,
+            actions: HashMap::new(),
+        };
+        for (line_number, line) in reader.lines().enumerate() {
+            let line = line?;
+            if line.trim().is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let row: Value = serde_json::from_str(&line).map_err(|error| {
+                invalid_data(format!(
+                    "{}:{}: invalid JSON: {error}",
+                    path.display(),
+                    line_number + 1
+                ))
+            })?;
+            if row.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+                || row.get("tableFamily").and_then(Value::as_str) != Some("fresh-frontier-wdl-v1")
+            {
+                return Err(invalid_data(format!(
+                    "{}:{}: unsupported golden action row",
+                    path.display(),
+                    line_number + 1
+                )));
+            }
+            let key_hex = row.get("key").and_then(Value::as_str).ok_or_else(|| {
+                invalid_data(format!(
+                    "{}:{}: missing key",
+                    path.display(),
+                    line_number + 1
+                ))
+            })?;
+            let key = decode_hex(key_hex).map_err(|error| {
+                invalid_data(format!("{}:{}: {error}", path.display(), line_number + 1))
+            })?;
+            if key.len() != key_bytes {
+                return Err(invalid_data(format!(
+                    "{}:{}: key has {} bytes, expected {key_bytes}",
+                    path.display(),
+                    line_number + 1,
+                    key.len()
+                )));
+            }
+            let actions = row
+                .get("provenActions")
+                .and_then(Value::as_array)
+                .ok_or_else(|| {
+                    invalid_data(format!(
+                        "{}:{}: missing provenActions",
+                        path.display(),
+                        line_number + 1
+                    ))
+                })?;
+            let mut decoded = Vec::with_capacity(actions.len());
+            for action in actions {
+                let token = action
+                    .get("token")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| invalid_data("golden action is missing token".to_owned()))?;
+                decoded.push(decode_action(token, board_size).map_err(|error| {
+                    invalid_data(format!("{}:{}: {error}", path.display(), line_number + 1))
+                })?);
+            }
+            decoded.sort_by_key(|action| action.order());
+            decoded.dedup();
+            let existing = book.actions.entry(key).or_default();
+            existing.extend(decoded);
+            existing.sort_by_key(|action| action.order());
+            existing.dedup();
+        }
+        Ok(book)
+    }
+
+    fn load_binary(source: &[u8], path: &Path, board_size: u8) -> io::Result<Self> {
+        const HEADER_BYTES: usize = 16;
+        if source.len() < HEADER_BYTES {
+            return Err(invalid_data(format!(
+                "{}: truncated golden action-book header",
+                path.display()
+            )));
+        }
+        if source[8] != board_size || source[9] != 14 {
+            return Err(invalid_data(format!(
+                "{}: action-book namespace does not match {}x{}/14",
+                path.display(),
+                board_size,
+                board_size
+            )));
+        }
+        let key_bytes = key_bytes_for_board_size(board_size).map_err(invalid_data)?;
+        if usize::from(source[10]) != key_bytes || source[11] != 0 {
+            return Err(invalid_data(format!(
+                "{}: unsupported action-book key width",
+                path.display()
+            )));
+        }
+        let rows = u32::from_le_bytes(source[12..16].try_into().expect("four bytes")) as usize;
+        let mut offset = HEADER_BYTES;
+        let mut book = Self {
+            board_size,
+            actions: HashMap::with_capacity(rows),
+        };
+        let mut previous_key = None;
+        for row_index in 0..rows {
+            if offset + key_bytes + 2 > source.len() {
+                return Err(invalid_data(format!(
+                    "{}: truncated action-book row {row_index}",
+                    path.display()
+                )));
+            }
+            let key = source[offset..offset + key_bytes].to_vec();
+            offset += key_bytes;
+            if previous_key
+                .as_ref()
+                .is_some_and(|previous: &Vec<u8>| *previous >= key)
+            {
+                return Err(invalid_data(format!(
+                    "{}: action-book keys are not strictly sorted at row {row_index}",
+                    path.display()
+                )));
+            }
+            let count =
+                u16::from_le_bytes(source[offset..offset + 2].try_into().expect("two bytes"))
+                    as usize;
+            offset += 2;
+            if offset + count * 2 > source.len() {
+                return Err(invalid_data(format!(
+                    "{}: truncated actions at row {row_index}",
+                    path.display()
+                )));
+            }
+            let mut actions = Vec::with_capacity(count);
+            for _ in 0..count {
+                let code =
+                    u16::from_le_bytes(source[offset..offset + 2].try_into().expect("two bytes"));
+                offset += 2;
+                actions.push(
+                    action_from_code(code, board_size)
+                        .map_err(|error| invalid_data(format!("{}: {error}", path.display())))?,
+                );
+            }
+            actions.sort_by_key(|action| action.order());
+            actions.dedup();
+            previous_key = Some(key.clone());
+            book.actions.insert(key, actions);
+        }
+        if offset != source.len() {
+            return Err(invalid_data(format!(
+                "{}: trailing bytes after action-book rows",
+                path.display()
+            )));
+        }
+        Ok(book)
+    }
+
+    pub fn rows(&self) -> usize {
+        self.actions.len()
+    }
+
+    pub fn proven_action(&self, state: GameState) -> Option<Action> {
+        if state.config.board_size != self.board_size {
+            return None;
+        }
+        let legal = state.legal_actions();
+        if legal.is_empty() {
+            return None;
+        }
+        let (key, _) = canonical_key(state);
+        let candidates = self.actions.get(&key)?;
+        let mut best = None;
+        for symmetry in 0..8 {
+            if pack_transformed(state, symmetry) != key {
+                continue;
+            }
+            let inverse = inverse_symmetry(symmetry);
+            for canonical_action in candidates {
+                let action = transform_action(*canonical_action, state.config.board_size, inverse);
+                if legal.contains(&action)
+                    && best.is_none_or(|current: Action| action.order() < current.order())
+                {
+                    best = Some(action);
+                }
+            }
+        }
+        best
+    }
+}
+
+#[derive(Debug)]
+pub struct GoldenLookup {
+    pub table: FlatGoldenTable,
+    pub actions: Option<GoldenActionBook>,
+}
+
+impl GoldenLookup {
+    pub fn open(
+        table_path: impl AsRef<Path>,
+        sidecar_path: Option<impl AsRef<Path>>,
+        board_size: u8,
+        reserve_per_player: u8,
+    ) -> io::Result<Self> {
+        let table = FlatGoldenTable::open(table_path, board_size, reserve_per_player)?;
+        let actions = sidecar_path
+            .map(|path| GoldenActionBook::load(path, board_size))
+            .transpose()?;
+        Ok(Self { table, actions })
+    }
+
+    pub fn lookup(&self, state: GameState) -> Option<GoldenOutcome> {
+        self.table.lookup(state)
+    }
+
+    pub fn proven_action(&self, state: GameState) -> Option<Action> {
+        if self.lookup(state) != Some(GoldenOutcome::Win) {
+            return None;
+        }
+        self.actions.as_ref()?.proven_action(state)
+    }
+}
+
+fn invalid_data(message: impl Into<String>) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, message.into())
+}
+
+fn state_matches_namespace(state: GameState, board_size: u8, reserve_per_player: u8) -> bool {
+    state.config.board_size == board_size
+        && state.config.reserve_per_player == reserve_per_player
+        && board_size <= 7
+}
+
+fn key_bytes_for_board_size(board_size: u8) -> Result<usize, String> {
+    if !(3..=7).contains(&board_size) {
+        return Err("golden key codec supports board sizes 3 through 7".to_owned());
+    }
+    let cells = usize::from(board_size) * usize::from(board_size);
+    let marker_bits = (usize::BITS - cells.leading_zeros()) as usize;
+    Ok((2 * cells + 1 + 2 * marker_bits).div_ceil(8))
+}
+
+fn canonical_key(state: GameState) -> (Vec<u8>, u8) {
+    let mut best = pack_transformed(state, 0);
+    let mut best_symmetry = 0;
+    for symmetry in 1..8 {
+        let candidate = pack_transformed(state, symmetry);
+        if candidate < best {
+            best = candidate;
+            best_symmetry = symmetry;
+        }
+    }
+    (best, best_symmetry)
+}
+
+fn pack_transformed(state: GameState, symmetry: u8) -> Vec<u8> {
+    let transformed = transform_state(state, symmetry);
+    let cells = usize::from(transformed.config.cells());
+    let marker_bits = (usize::BITS - cells.leading_zeros()) as usize;
+    let key_bytes =
+        key_bytes_for_board_size(transformed.config.board_size).expect("validated board size");
+    let mut packed = 0_u128;
+    for square in 0..cells {
+        let mask = 1_u64 << square;
+        let code = if transformed.light & mask != 0 {
+            1_u128
+        } else if transformed.dark & mask != 0 {
+            2_u128
+        } else if transformed.forbidden & mask != 0 {
+            3_u128
+        } else {
+            0
+        };
+        packed |= code << (2 * square);
+    }
+    packed |= (transformed.turn.index() as u128) << (2 * cells);
+    packed |=
+        marker_code(transformed.last_relocated_to[Player::Light.index()], cells) << (2 * cells + 1);
+    packed |= marker_code(transformed.last_relocated_to[Player::Dark.index()], cells)
+        << (2 * cells + 1 + marker_bits);
+    packed.to_le_bytes()[..key_bytes].to_vec()
+}
+
+fn marker_code(marker: Option<u8>, cells: usize) -> u128 {
+    u128::from(marker.map_or(cells as u8, |value| value))
+}
+
+fn transform_state(state: GameState, symmetry: u8) -> GameState {
+    let swaps_players = matches!(symmetry, 1 | 3 | 6 | 7);
+    let light = transform_mask(state.light, state.config.board_size, symmetry);
+    let dark = transform_mask(state.dark, state.config.board_size, symmetry);
+    let forbidden = transform_mask(state.forbidden, state.config.board_size, symmetry);
+    let mut markers = [
+        state.last_relocated_to[0]
+            .map(|square| transform_square(state.config.board_size, square, symmetry)),
+        state.last_relocated_to[1]
+            .map(|square| transform_square(state.config.board_size, square, symmetry)),
+    ];
+    let (light, dark, reserve, turn, markers) = if swaps_players {
+        markers.swap(0, 1);
+        (
+            dark,
+            light,
+            [state.reserve[1], state.reserve[0]],
+            state.turn.other(),
+            markers,
+        )
+    } else {
+        (light, dark, state.reserve, state.turn, markers)
+    };
+    GameState {
+        config: state.config,
+        light,
+        dark,
+        reserve,
+        turn,
+        forbidden,
+        last_relocated_to: markers,
+        last_capture: state.last_capture,
+        last_player: state.last_player.map(|player| {
+            if swaps_players {
+                player.other()
+            } else {
+                player
+            }
+        }),
+        winner: state.winner.map(|player| {
+            if swaps_players {
+                player.other()
+            } else {
+                player
+            }
+        }),
+        ply: state.ply,
+    }
+}
+
+fn transform_mask(mask: u64, size: u8, symmetry: u8) -> u64 {
+    let mut transformed = 0_u64;
+    for square in 0..(size * size) {
+        if mask & (1_u64 << square) != 0 {
+            transformed |= 1_u64 << transform_square(size, square, symmetry);
+        }
+    }
+    transformed
+}
+
+fn transform_square(size: u8, square: u8, symmetry: u8) -> u8 {
+    let (row, column) = (square / size, square % size);
+    let last = size - 1;
+    let (new_row, new_column) = match symmetry {
+        0 => (row, column),
+        1 => (column, last - row),
+        2 => (last - row, last - column),
+        3 => (last - column, row),
+        4 => (last - row, column),
+        5 => (row, last - column),
+        6 => (column, row),
+        7 => (last - column, last - row),
+        _ => unreachable!("D4 symmetry is 0..8"),
+    };
+    new_row * size + new_column
+}
+
+fn inverse_symmetry(symmetry: u8) -> u8 {
+    match symmetry {
+        0 | 2 | 4 | 5 | 6 | 7 => symmetry,
+        1 => 3,
+        3 => 1,
+        _ => unreachable!("D4 symmetry is 0..8"),
+    }
+}
+
+fn transform_action(action: Action, size: u8, symmetry: u8) -> Action {
+    match action {
+        Action::Place { to } => Action::Place {
+            to: transform_square(size, to, symmetry),
+        },
+        Action::Relocate { from, to } => Action::Relocate {
+            from: transform_square(size, from, symmetry),
+            to: transform_square(size, to, symmetry),
+        },
+    }
+}
+
+fn decode_action(token: &str, board_size: u8) -> Result<Action, String> {
+    let bytes = token.as_bytes();
+    if bytes.len() != 2 {
+        return Err("golden action token must contain exactly two characters".to_owned());
+    }
+    let first = ACTION_ALPHABET
+        .iter()
+        .position(|value| *value == bytes[0])
+        .ok_or_else(|| format!("invalid golden action token {token:?}"))?;
+    let second = ACTION_ALPHABET
+        .iter()
+        .position(|value| *value == bytes[1])
+        .ok_or_else(|| format!("invalid golden action token {token:?}"))?;
+    let code = (first << 6) | second;
+    action_from_code(code as u16, board_size)
+}
+
+fn action_from_code(code: u16, board_size: u8) -> Result<Action, String> {
+    let cells = usize::from(board_size) * usize::from(board_size);
+    let code = usize::from(code);
+    if code < cells {
+        Ok(Action::Place { to: code as u8 })
+    } else {
+        let relocation = code - cells;
+        let from = relocation / cells;
+        let to = relocation % cells;
+        if from >= cells || to >= cells {
+            return Err(format!("golden action code {code} is outside the board"));
+        }
+        Ok(Action::Relocate {
+            from: from as u8,
+            to: to as u8,
+        })
+    }
+}
+
+fn decode_hex(value: &str) -> Result<Vec<u8>, String> {
+    if value.len() % 2 != 0 {
+        return Err("golden key hex must have an even length".to_owned());
+    }
+    let mut bytes = Vec::with_capacity(value.len() / 2);
+    let chars = value.as_bytes();
+    for chunk in chars.chunks_exact(2) {
+        let high = hex_digit(chunk[0])?;
+        let low = hex_digit(chunk[1])?;
+        bytes.push((high << 4) | low);
+    }
+    Ok(bytes)
+}
+
+fn hex_digit(value: u8) -> Result<u8, String> {
+    match value {
+        b'0'..=b'9' => Ok(value - b'0'),
+        b'a'..=b'f' => Ok(value - b'a' + 10),
+        b'A'..=b'F' => Ok(value - b'A' + 10),
+        _ => Err("golden key contains a non-hex digit".to_owned()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::BoardConfig;
+
+    #[test]
+    fn canonical_key_matches_python_codec_for_simple_position() {
+        let state = GameState::with_config(BoardConfig::DEFAULT);
+        let (key, symmetry) = canonical_key(state);
+        assert_eq!(symmetry, 0);
+        assert_eq!(key.len(), 14);
+        assert_eq!(
+            key,
+            decode_hex("0000000000000000000000008863").expect("expected key is hex")
+        );
+    }
+
+    #[test]
+    fn d4_round_trip_preserves_action() {
+        let config = BoardConfig::DEFAULT;
+        let action = Action::Relocate { from: 2, to: 35 };
+        for symmetry in 0..8 {
+            let transformed = transform_action(action, config.board_size, symmetry);
+            let round_trip =
+                transform_action(transformed, config.board_size, inverse_symmetry(symmetry));
+            assert_eq!(round_trip, action, "symmetry {symmetry}");
+        }
+    }
+
+    #[test]
+    fn marker_bits_and_key_size_match_persisted_formats() {
+        assert_eq!(key_bytes_for_board_size(5), Ok(8));
+        assert_eq!(key_bytes_for_board_size(7), Ok(14));
+    }
+
+    #[test]
+    fn promoted_ring1_action_is_legal_after_symmetry_inversion() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../research/20260830-endgame-retrograde-frontier/workspace/ring-01-candidates.jsonl");
+        let table_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/golden/tables/fresh-frontier-wdl-v1/7x7-r14/shard-00.bin");
+        let sidecar_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/golden/sidecars/fresh-frontier-wdl-v1/7x7-r14/ring-01.bin");
+        if !(root.exists() && table_path.exists() && sidecar_path.exists()) {
+            return;
+        }
+        let raw: Value = serde_json::from_str(
+            &std::fs::read_to_string(root)
+                .expect("read Ring-1 candidate pilot")
+                .lines()
+                .next()
+                .expect("candidate pilot has one row"),
+        )
+        .expect("candidate pilot row is JSON");
+        let position = raw.get("position").expect("candidate has position");
+        let config = crate::BoardConfig::DEFAULT;
+        let state = GameState {
+            config,
+            light: position["light"].as_u64().expect("light mask"),
+            dark: position["dark"].as_u64().expect("dark mask"),
+            reserve: [
+                position["reserve"][0].as_u64().expect("light reserve") as u8,
+                position["reserve"][1].as_u64().expect("dark reserve") as u8,
+            ],
+            turn: if position["turn"] == "light" {
+                Player::Light
+            } else {
+                Player::Dark
+            },
+            forbidden: position["forbidden"].as_u64().expect("forbidden mask"),
+            last_relocated_to: [
+                position["lastRelocatedTo"][0]
+                    .as_u64()
+                    .map(|value| value as u8),
+                position["lastRelocatedTo"][1]
+                    .as_u64()
+                    .map(|value| value as u8),
+            ],
+            last_capture: 0,
+            last_player: None,
+            winner: None,
+            ply: position["ply"].as_u64().expect("ply") as u16,
+        };
+        let table = FlatGoldenTable::open(&table_path, 7, 14).expect("open Ring-1 table");
+        let actions = GoldenActionBook::load(&sidecar_path, 7).expect("open Ring-1 sidecar");
+        assert_eq!(table.lookup(state), Some(GoldenOutcome::Win));
+        let action = actions.proven_action(state).expect("recover Ring-1 action");
+        assert!(
+            state.legal_actions().contains(&action),
+            "returned {action:?}"
+        );
+        assert_eq!(
+            state.apply_legal(action).state.winner,
+            Some(state.turn),
+            "returned {action:?}"
+        );
+        let lookup = GoldenLookup::open(&table_path, Some(&sidecar_path), 7, 14)
+            .expect("open combined Ring-1 lookup");
+        let result = crate::search::search_best_action_with_golden(
+            state,
+            crate::search::SearchConfig::default(),
+            &lookup,
+        );
+        assert_eq!(result.action, Some(action));
+        assert_eq!(result.nodes, 0);
+        assert_eq!(result.table_hits, 1);
+    }
+}

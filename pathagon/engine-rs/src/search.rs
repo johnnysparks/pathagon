@@ -261,6 +261,29 @@ pub fn search_best_action(state: GameState, config: SearchConfig) -> SearchResul
     search_best_action_with_root_order(state, config, &[])
 }
 
+/// Consult promoted exact endgame data before spending the ordinary search
+/// budget.  A sidecar action is usable only when the immutable WDL shard also
+/// proves the position is a win and the action is legal after symmetry
+/// inversion.  Positions with only a value, or positions absent from gold,
+/// continue through the normal Pathfinder search.
+pub fn search_best_action_with_golden(
+    state: GameState,
+    config: SearchConfig,
+    golden: &crate::golden::GoldenLookup,
+) -> SearchResult {
+    if let Some(action) = golden.proven_action(state) {
+        return SearchResult {
+            action: Some(action),
+            score: WIN_SCORE,
+            nodes: 0,
+            exhausted: false,
+            completed_depth: 0,
+            table_hits: 1,
+        };
+    }
+    search_best_action(state, config)
+}
+
 /// Run the ordinary Pathfinder search while enabling the transposition-table
 /// best-move and killer-move ordering hints. The legal root set and evaluator
 /// are unchanged; this is a search-only ablation for measuring whether the
