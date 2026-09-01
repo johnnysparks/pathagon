@@ -1,0 +1,9 @@
+[package]
+name = "optimized-sort-selection"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+pathagon-engine = { path = "../../pathagon/engine-rs" }
+serde_json = "1"

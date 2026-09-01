@@ -103,6 +103,18 @@ pub enum Agent {
         model: Arc<TransitionPolicyModel>,
         deadline_ms: Option<u32>,
     },
+    /// Pathfinder with a compact action-transition policy that selects a
+    /// bounded root candidate set before the native search. This is a
+    /// research variant: the selected actions are legal and tactical-safe,
+    /// while alpha-beta remains authoritative within that root set.
+    TransitionPolicySorter {
+        id: String,
+        config: SearchConfig,
+        top_k: usize,
+        root_limit: usize,
+        model: Arc<TransitionPolicyModel>,
+        deadline_ms: Option<u32>,
+    },
     /// Pathfinder with a selective, bounded rule-grounded tactical proof.
     SearchTacticalProof {
         id: String,
@@ -394,6 +406,33 @@ impl Agent {
         }
     }
 
+    pub fn transition_policy_sorter_with_deadline(
+        id: impl Into<String>,
+        config: SearchConfig,
+        top_k: usize,
+        root_limit: usize,
+        model: Arc<TransitionPolicyModel>,
+        deadline_ms: u32,
+    ) -> Self {
+        assert!(top_k > 0, "transition policy sorter top-k must be positive");
+        assert!(
+            root_limit > 0,
+            "transition policy sorter root limit must be positive"
+        );
+        assert!(
+            deadline_ms > 0,
+            "transition policy sorter deadline must be positive"
+        );
+        Self::TransitionPolicySorter {
+            id: id.into(),
+            config,
+            top_k,
+            root_limit,
+            model,
+            deadline_ms: Some(deadline_ms),
+        }
+    }
+
     pub fn search_tactical_proof(
         id: impl Into<String>,
         config: SearchConfig,
@@ -579,6 +618,7 @@ impl Agent {
             | Self::Contextual { id, .. }
             | Self::ContextualByPlayer { id, .. }
             | Self::TransitionPolicy { id, .. }
+            | Self::TransitionPolicySorter { id, .. }
             | Self::SearchTacticalProof { id, .. }
             | Self::Learned { id, .. } => id,
             #[cfg(feature = "inference")]
@@ -765,6 +805,21 @@ impl Agent {
                 deadline_ms,
                 ..
             } => choose_transition_policy(state, *config, model.as_ref(), *deadline_ms),
+            Self::TransitionPolicySorter {
+                config,
+                top_k,
+                root_limit,
+                model,
+                deadline_ms,
+                ..
+            } => choose_transition_policy_sorter(
+                state,
+                *config,
+                *top_k,
+                *root_limit,
+                model.as_ref(),
+                *deadline_ms,
+            ),
             Self::SearchTacticalProof {
                 config,
                 proof_horizon,
@@ -1163,6 +1218,15 @@ fn agent_spec_json(agent: &Agent) -> String {
             config.weights,
             config.tactical_proof_horizon,
         ),
+        Agent::TransitionPolicySorter { config, .. } => (
+            "search",
+            "Pathfinder · action-transition root sorter",
+            u32::from(config.depth),
+            config.max_nodes,
+            config.beam_width as u32,
+            config.weights,
+            config.tactical_proof_horizon,
+        ),
         Agent::SearchTacticalProof { config, .. } => (
             "search",
             "Rust Pathfinder · proof-guided tactical search",
@@ -1423,6 +1487,32 @@ fn agent_spec_json(agent: &Agent) -> String {
             "transitionPolicyRootOrdering".to_owned(),
             serde_json::json!("tactical-safe-full-root"),
         );
+        if let Some(deadline_ms) = deadline_ms {
+            parameters.insert("deadlineMs".to_owned(), serde_json::json!(deadline_ms));
+        }
+    }
+    if let Agent::TransitionPolicySorter {
+        top_k,
+        root_limit,
+        model,
+        deadline_ms,
+        ..
+    } = agent
+    {
+        parameters.insert(
+            "transitionPolicyModel".to_owned(),
+            serde_json::json!({
+                "schemaVersion": model.schema_version,
+                "model": model.model.as_str(),
+                "featureOrder": &model.feature_order,
+            }),
+        );
+        parameters.insert(
+            "transitionPolicyRootOrdering".to_owned(),
+            serde_json::json!("tactical-safe-learned-top-k"),
+        );
+        parameters.insert("sorterTopK".to_owned(), serde_json::json!(top_k));
+        parameters.insert("sorterRootLimit".to_owned(), serde_json::json!(root_limit));
         if let Some(deadline_ms) = deadline_ms {
             parameters.insert("deadlineMs".to_owned(), serde_json::json!(deadline_ms));
         }
@@ -1755,6 +1845,79 @@ fn choose_transition_policy(
     deadline_ms: Option<u32>,
 ) -> Decision {
     let result = model.search(state, config, deadline_ms);
+    Decision {
+        action: result.action,
+        score: result.score,
+        nodes: result.nodes,
+        completed_depth: result.completed_depth,
+        table_hits: result.table_hits,
+        book_hit: false,
+        root_q: None,
+    }
+}
+
+fn choose_transition_policy_sorter(
+    state: GameState,
+    config: SearchConfig,
+    top_k: usize,
+    root_limit: usize,
+    model: &TransitionPolicyModel,
+    deadline_ms: Option<u32>,
+) -> Decision {
+    if state.config.board_size != 7 {
+        let result = deadline_ms.map_or_else(
+            || search_best_action_with_tactical_filter(state, config),
+            |deadline| search_best_action_with_tactical_filter_deadline(state, config, deadline),
+        );
+        return Decision {
+            action: result.action,
+            score: result.score,
+            nodes: result.nodes,
+            completed_depth: result.completed_depth,
+            table_hits: result.table_hits,
+            book_hit: false,
+            root_q: None,
+        };
+    }
+    let ranked = model.ranked_actions(state, config.weights);
+    if ranked.is_empty() {
+        return Decision {
+            action: None,
+            score: 0,
+            nodes: 0,
+            completed_depth: 0,
+            table_hits: 0,
+            book_hit: false,
+            root_q: None,
+        };
+    }
+    let root_order = ranked
+        .iter()
+        .take(top_k.min(ranked.len()))
+        .map(|item| item.action)
+        .collect::<Vec<_>>();
+    let root_limit = root_limit.min(root_order.len()).max(1);
+    let result = deadline_ms.map_or_else(
+        || {
+            crate::search::search_best_action_with_root_order_and_root_limit(
+                state,
+                config,
+                &root_order,
+                false,
+                Some(root_limit),
+            )
+        },
+        |deadline| {
+            crate::search::search_best_action_with_root_order_and_root_limit_deadline(
+                state,
+                config,
+                &root_order,
+                false,
+                Some(root_limit),
+                deadline,
+            )
+        },
+    );
     Decision {
         action: result.action,
         score: result.score,
@@ -2888,6 +3051,14 @@ mod tests {
                 "transition-policy",
                 config,
                 Arc::new(model.clone()),
+                1,
+            ),
+            Agent::transition_policy_sorter_with_deadline(
+                "transition-policy-sorter",
+                config,
+                4,
+                4,
+                Arc::new(model),
                 1,
             ),
             Agent::search_tactical_proof("proof", config, 1, 32),
