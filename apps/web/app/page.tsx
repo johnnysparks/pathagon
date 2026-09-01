@@ -19,6 +19,7 @@ import {
   OPPONENTS,
   PATHFINDER_DEADLINE_MS,
   PATHFINDER_DEADLINE_OPTIONS,
+  PATHFINDER_BEAM_OPTIONS,
   PATHFINDER_DEPTH_OPTIONS,
   PATHFINDER_MAX_NODES_DEFAULT,
   PATHFINDER_MAX_NODES_HARD_CAP,
@@ -81,6 +82,18 @@ function initialPathfinderMaxNodes(depth: number): number {
   }
 }
 
+function initialPathfinderBeamWidth(depth: number): number {
+  if (typeof window === "undefined") return PATHFINDER_SEARCH.beamWidth;
+  try {
+    const stored = Number(window.localStorage.getItem("pathagon:pathfinder-beam-width"));
+    return PATHFINDER_BEAM_OPTIONS.includes(stored as (typeof PATHFINDER_BEAM_OPTIONS)[number])
+      ? stored
+      : pathfinderSearchAtDepth(depth).beamWidth;
+  } catch {
+    return pathfinderSearchAtDepth(depth).beamWidth;
+  }
+}
+
 export default function Home() {
   const [game, setGame] = useState<GameState>(() => createGame());
   const [selected, setSelected] = useState<number | null>(null);
@@ -102,6 +115,7 @@ export default function Home() {
   const [pathfinderDepth, setPathfinderDepth] = useState<number>(PATHFINDER_SEARCH.depth);
   const [pathfinderDeadlineMs, setPathfinderDeadlineMs] = useState<number>(PATHFINDER_DEADLINE_MS);
   const [pathfinderMaxNodes, setPathfinderMaxNodes] = useState<number>(PATHFINDER_MAX_NODES_DEFAULT);
+  const [pathfinderBeamWidth, setPathfinderBeamWidth] = useState<number>(PATHFINDER_SEARCH.beamWidth);
   const [pathfinderDepthReady, setPathfinderDepthReady] = useState(false);
   const [pendingOpponentId, setPendingOpponentId] = useState<string | null>(null);
   const [rustEngine, setRustEngine] = useState<RustEngine | null>(null);
@@ -145,11 +159,11 @@ export default function Home() {
   const pathfinderConfig = useMemo(
     () => ({
       ...(opponent.id === TRAINED_PATHFINDER_OPPONENT.id || opponent.id === TRANSITION_PATHFINDER_OPPONENT.id
-        ? trainedPathfinderSearchAtDepth(pathfinderDepth, pathfinderMaxNodes)
-        : pathfinderSearchAtDepth(pathfinderDepth, pathfinderMaxNodes)),
+        ? trainedPathfinderSearchAtDepth(pathfinderDepth, pathfinderMaxNodes, pathfinderBeamWidth)
+        : pathfinderSearchAtDepth(pathfinderDepth, pathfinderMaxNodes, pathfinderBeamWidth)),
       deadlineMs: pathfinderDeadlineMs,
     }),
-    [opponent.id, pathfinderDeadlineMs, pathfinderDepth, pathfinderMaxNodes],
+    [opponent.id, pathfinderBeamWidth, pathfinderDeadlineMs, pathfinderDepth, pathfinderMaxNodes],
   );
 
   useEffect(() => {
@@ -202,7 +216,7 @@ export default function Home() {
     const commitDecision = (decision: Action | null, search?: SearchProgress, checkpoints: SearchCheckpoint[] = []) => {
       if (!decision || cancelled) return;
       const telemetry = search && isPathfinder
-        ? createPathfinderMoveTelemetry(current.ply + 1, decision, search, checkpoints, opponent, pathfinderDepth, pathfinderMaxNodes, pathfinderDeadlineMs)
+        ? createPathfinderMoveTelemetry(current.ply + 1, decision, search, checkpoints, opponent, pathfinderDepth, pathfinderMaxNodes, pathfinderBeamWidth, pathfinderDeadlineMs)
         : null;
       setHistory((items) => [...items, current]);
       setMoveHistory((items) => [...items, decision]);
@@ -218,7 +232,7 @@ export default function Home() {
       if (isPathfinder && searchClient) {
         const checkpoints: SearchCheckpoint[] = [];
         let requestId = 0;
-        const request = searchClient.search(current, opponent.id, pathfinderDepth, pathfinderDeadlineMs, pathfinderMaxNodes, (progress) => {
+        const request = searchClient.search(current, opponent.id, pathfinderDepth, pathfinderDeadlineMs, pathfinderMaxNodes, pathfinderBeamWidth, (progress) => {
           if (cancelled || aiRequest.current !== requestId) return;
           checkpoints.push({
             action: progress.action,
@@ -242,7 +256,7 @@ export default function Home() {
           if (cancelled || aiRequest.current !== request.requestId) return;
           aiRequest.current = null;
           console.error("Rust search worker failed; using the local fallback:", error);
-          const fallback = chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined, pathfinderDepth, pathfinderDeadlineMs, undefined, pathfinderMaxNodes);
+          const fallback = chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined, pathfinderDepth, pathfinderDeadlineMs, undefined, pathfinderMaxNodes, pathfinderBeamWidth);
           commitDecision(
             fallback,
             isPathfinder && fallback
@@ -263,7 +277,7 @@ export default function Home() {
         });
         return;
       }
-      commitDecision(chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined, pathfinderDepth));
+      commitDecision(chooseOpponentAction(rustEngine, opponent, current, cnnEngine ?? undefined, pathfinderDepth, pathfinderDeadlineMs, undefined, pathfinderMaxNodes, pathfinderBeamWidth));
     }, 420);
     return () => {
       cancelled = true;
@@ -275,7 +289,7 @@ export default function Home() {
       activePathfinderSearch.current = null;
       setPathfinderProgress(null);
     };
-  }, [cnnEngine, cnnReady, game, opponent, pathfinderDeadlineMs, pathfinderDepth, pathfinderMaxNodes, rustEngine, searchClient]);
+  }, [cnnEngine, cnnReady, game, opponent, pathfinderBeamWidth, pathfinderDeadlineMs, pathfinderDepth, pathfinderMaxNodes, rustEngine, searchClient]);
 
   useEffect(() => {
     const hydrationTimer = window.setTimeout(() => {
@@ -283,6 +297,7 @@ export default function Home() {
       setPathfinderDepth(hydratedDepth);
       setPathfinderDeadlineMs(initialPathfinderDeadline());
       setPathfinderMaxNodes(initialPathfinderMaxNodes(hydratedDepth));
+      setPathfinderBeamWidth(initialPathfinderBeamWidth(hydratedDepth));
       setPathfinderDepthReady(true);
     }, 0);
     return () => window.clearTimeout(hydrationTimer);
@@ -294,10 +309,11 @@ export default function Home() {
       window.localStorage.setItem("pathagon:pathfinder-depth", String(pathfinderDepth));
       window.localStorage.setItem("pathagon:pathfinder-deadline-ms", String(pathfinderDeadlineMs));
       window.localStorage.setItem("pathagon:pathfinder-max-nodes", String(pathfinderMaxNodes));
+      window.localStorage.setItem("pathagon:pathfinder-beam-width", String(pathfinderBeamWidth));
     } catch {
       // Device storage can be disabled; the in-memory control still works.
     }
-  }, [pathfinderDeadlineMs, pathfinderDepth, pathfinderMaxNodes, pathfinderDepthReady]);
+  }, [pathfinderBeamWidth, pathfinderDeadlineMs, pathfinderDepth, pathfinderMaxNodes, pathfinderDepthReady]);
 
   useEffect(() => {
     coachingRequest.current += 1;
@@ -355,7 +371,7 @@ export default function Home() {
             opponentId: opponent.id,
             winner: game.winner,
             actions: moveHistory,
-            metadata: buildPathfinderGameMetadata(opponent, pathfinderDepth, pathfinderMaxNodes, pathfinderDeadlineMs, pathfinderSearches),
+            metadata: buildPathfinderGameMetadata(opponent, pathfinderDepth, pathfinderMaxNodes, pathfinderBeamWidth, pathfinderDeadlineMs, pathfinderSearches),
           }),
         });
         const payload = await response.json().catch(() => null) as { error?: unknown } | null;
@@ -373,7 +389,7 @@ export default function Home() {
         setArchiveStatus("error");
       }
     })();
-  }, [game.winner, game.ply, moveHistory, opponent, pathfinderDeadlineMs, pathfinderDepth, pathfinderMaxNodes, pathfinderSearches, gameId]);
+  }, [game.winner, game.ply, moveHistory, opponent, pathfinderBeamWidth, pathfinderDeadlineMs, pathfinderDepth, pathfinderMaxNodes, pathfinderSearches, gameId]);
 
   useEffect(() => {
     if (!captureCount) return;
@@ -570,6 +586,12 @@ export default function Home() {
     setPathfinderProgress(null);
   }
 
+  function changePathfinderBeamWidth(beamWidth: number) {
+    if (!PATHFINDER_BEAM_OPTIONS.includes(beamWidth as (typeof PATHFINDER_BEAM_OPTIONS)[number])) return;
+    setPathfinderBeamWidth(beamWidth);
+    setPathfinderProgress(null);
+  }
+
   function cancelActivePathfinderSearch() {
     if (aiRequest.current !== null && searchClient) {
       searchClient.cancel(aiRequest.current);
@@ -595,6 +617,7 @@ export default function Home() {
       opponent,
       pathfinderDepth,
       pathfinderMaxNodes,
+      pathfinderBeamWidth,
       pathfinderDeadlineMs,
       true,
     );
@@ -632,6 +655,7 @@ export default function Home() {
       opponent,
       depth: pathfinderDepth,
       maxNodes: pathfinderMaxNodes,
+      beamWidth: pathfinderBeamWidth,
       deadlineMs: pathfinderDeadlineMs,
       actions: moveHistory,
       pathfinderSearches,
@@ -663,6 +687,7 @@ export default function Home() {
         depth: pathfinderDepth,
         deadlineMs: pathfinderDeadlineMs,
         maxNodes: pathfinderMaxNodes,
+        beamWidth: pathfinderBeamWidth,
       },
       search: pathfinderConfig,
     };
@@ -683,6 +708,7 @@ export default function Home() {
         : "Place a light piece"
       : thinking ? `${opponent.name} is choosing…` : `${opponent.name}'s turn`;
   const pathfinderDepthIndex = Math.max(0, PATHFINDER_DEPTH_OPTIONS.indexOf(pathfinderDepth as (typeof PATHFINDER_DEPTH_OPTIONS)[number]));
+  const pathfinderBeamIndex = Math.max(0, PATHFINDER_BEAM_OPTIONS.indexOf(pathfinderBeamWidth as (typeof PATHFINDER_BEAM_OPTIONS)[number]));
 
   return (
     <main className="app-shell">
@@ -815,7 +841,7 @@ export default function Home() {
           </div>
           <div className="rating-card">
             <div><span className="stat-label">Estimated Elo</span><strong>{opponent.elo}</strong></div>
-            <span className="engine-pill">{isPathfinderOpponent(opponent.id) ? `${pathfinderDepth}-ply · tactical-safe` : opponent.engine}</span>
+            <span className="engine-pill">{isPathfinderOpponent(opponent.id) ? `${pathfinderDepth}-ply · ${pathfinderBeamWidth}-beam · tactical-safe` : opponent.engine}</span>
           </div>
           {isPathfinderOpponent(opponent.id) && (
             <section className="lookahead-control" aria-labelledby="pathfinder-lookahead-title">
@@ -840,6 +866,29 @@ export default function Home() {
               />
               <div id="pathfinder-lookahead-scale" className="lookahead-scale"><span>2 · Quick</span><span>4 · Balanced</span><span>20 · Long</span><span>100 · Horizon</span></div>
               <p id="pathfinder-lookahead-help">More ply lets the Pathfinder answer farther ahead. 20–100 ply are horizon targets; time and position caps may stop earlier.</p>
+              <div className="beam-control">
+                <div className="lookahead-heading">
+                  <div>
+                    <span className="stat-label">Search coverage</span>
+                    <strong id="pathfinder-beam-title">{pathfinderBeamWidth.toLocaleString()}-wide beam</strong>
+                  </div>
+                  <span className="lookahead-speed">{pathfinderBeamTier(pathfinderBeamWidth)}</span>
+                </div>
+                <input
+                  aria-label="Pathfinder beam width"
+                  aria-describedby="pathfinder-beam-scale pathfinder-beam-help"
+                  aria-valuetext={`${pathfinderBeamWidth.toLocaleString()}-wide ${pathfinderBeamTier(pathfinderBeamWidth)} beam`}
+                  className="lookahead-slider"
+                  type="range"
+                  min={0}
+                  max={PATHFINDER_BEAM_OPTIONS.length - 1}
+                  step="1"
+                  value={pathfinderBeamIndex}
+                  onChange={(event) => changePathfinderBeamWidth(PATHFINDER_BEAM_OPTIONS[Number(event.target.value)] ?? pathfinderBeamWidth)}
+                />
+                <div id="pathfinder-beam-scale" className="lookahead-scale"><span>2 · Narrow</span><span>16 · Focused</span><span>256 · Balanced</span><span>4,096 · Full</span></div>
+                <p id="pathfinder-beam-help">Wider beams keep more candidate moves at each recursive step. They cover more choices but spend more positions and time.</p>
+              </div>
               <div className="search-dial-row">
                 <label className="search-time-picker">
                   <span>Max positions</span>
@@ -865,7 +914,7 @@ export default function Home() {
                   {configCopyStatus === "copied" ? "Config copied" : configCopyStatus === "error" ? "Copy unavailable" : "Copy config"}
                 </button>
               </div>
-              <span className="search-cap-note">Checkpoints: ~10,000 positions or 500ms · max: {pathfinderConfig.maxNodes.toLocaleString()} · hard cap: {PATHFINDER_MAX_NODES_HARD_CAP.toLocaleString()}</span>
+              <span className="search-cap-note">Beam: {pathfinderConfig.beamWidth.toLocaleString()} · checkpoints: ~10,000 positions or 500ms · max: {pathfinderConfig.maxNodes.toLocaleString()} · hard cap: {PATHFINDER_MAX_NODES_HARD_CAP.toLocaleString()}</span>
               {pathfinderProgress && (
                 <div className="search-progress" role="status" aria-live="polite">
                   <div className="search-progress-heading">
@@ -1021,6 +1070,14 @@ function pathfinderDepthTier(depth: number) {
   return "Horizon";
 }
 
+function pathfinderBeamTier(beamWidth: number) {
+  if (beamWidth <= 8) return "Narrow";
+  if (beamWidth <= 64) return "Focused";
+  if (beamWidth <= 256) return "Balanced";
+  if (beamWidth <= 1_024) return "Wide";
+  return "Full";
+}
+
 function formatSearchTime(milliseconds: number) {
   if (milliseconds < 1_000) return `${Math.max(0, Math.round(milliseconds))}ms`;
   const seconds = milliseconds / 1_000;
@@ -1049,12 +1106,13 @@ function createPathfinderMoveTelemetry(
   opponent: ReturnType<typeof getOpponent>,
   depth: number,
   maxNodes: number,
+  beamWidth: number,
   deadlineMs: number,
   interrupted = false,
 ): PathfinderMoveTelemetry {
   const searchConfig = opponent.id === TRAINED_PATHFINDER_OPPONENT.id || opponent.id === TRANSITION_PATHFINDER_OPPONENT.id
-    ? trainedPathfinderSearchAtDepth(depth, maxNodes)
-    : pathfinderSearchAtDepth(depth, maxNodes);
+    ? trainedPathfinderSearchAtDepth(depth, maxNodes, beamWidth)
+    : pathfinderSearchAtDepth(depth, maxNodes, beamWidth);
   return {
     ply,
     action,
@@ -1082,11 +1140,12 @@ function buildPathfinderGameMetadata(
   opponent: ReturnType<typeof getOpponent>,
   depth: number,
   maxNodes: number,
+  beamWidth: number,
   deadlineMs: number,
   searches: PathfinderMoveTelemetry[],
 ) {
   if (!isPathfinderOpponent(opponent.id)) return {};
-  return compactPathfinderGameMetadata(pathfinderModelCard(opponent), depth, maxNodes, deadlineMs, searches);
+  return compactPathfinderGameMetadata(pathfinderModelCard(opponent), depth, maxNodes, beamWidth, deadlineMs, searches);
 }
 
 function PieceTray({ label, player, count, active }: { label: string; player: Player; count: number; active: boolean }) {

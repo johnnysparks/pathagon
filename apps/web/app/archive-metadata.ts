@@ -45,6 +45,7 @@ export function compactPathfinderGameMetadata(
   opponent: PathfinderModelCard,
   depth: number,
   maxNodes: number,
+  beamWidth: number,
   deadlineMs: number,
   searches: PathfinderMoveTelemetry[],
 ) {
@@ -52,7 +53,7 @@ export function compactPathfinderGameMetadata(
   return {
     searchExperiment: "pathfinder-browser-v1",
     modelCard: { ...opponent },
-    dials: { depth, maxNodes, deadlineMs },
+    dials: { depth, maxNodes, beamWidth, deadlineMs },
     ...(firstConfig ? { evaluatorWeights: { ...firstConfig.weights } } : {}),
     moves: searches.map(compactPathfinderMoveTelemetry),
   };

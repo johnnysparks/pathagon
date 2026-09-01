@@ -3,6 +3,7 @@ import test from "node:test";
 import { COACHING_SEARCH, DEFAULT_WEIGHTS, analyzeAction, analyzeActions, searchBestAction } from "../app/ai.ts";
 import {
   LUNATIC_OPPONENT,
+  PATHFINDER_BEAM_OPTIONS,
   PATHFINDER_DEPTH_OPTIONS,
   PATHFINDER_MAX_NODES_HARD_CAP,
   PATHFINDER_OPPONENT,
@@ -105,6 +106,13 @@ test("trained Pathfinder keeps its promoted search envelope and evaluator weight
   assert.equal(config.depth, 5);
   assert.equal(config.maxNodes, 256_000);
   assert.equal(config.beamWidth, 256);
+});
+
+test("Pathfinder exposes a bounded beam-width override for user play", () => {
+  assert.equal(pathfinderSearchAtDepth(5, 256_000, PATHFINDER_BEAM_OPTIONS[0]).beamWidth, 2);
+  assert.equal(pathfinderSearchAtDepth(5, 256_000, 512).beamWidth, 512);
+  assert.equal(trainedPathfinderSearchAtDepth(5, 256_000, PATHFINDER_BEAM_OPTIONS.at(-1)).beamWidth, 4_096);
+  assert.equal(pathfinderSearchAtDepth(5, 256_000, 50_000).beamWidth, 4_096);
 });
 
 test("transition-policy v4 is the strongest user-facing Pathfinder identity", () => {

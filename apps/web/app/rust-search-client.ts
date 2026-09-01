@@ -69,6 +69,7 @@ export class RustSearchClient {
     pathfinderDepth: number,
     deadlineMs: number,
     maxNodes: number,
+    beamWidth: number,
     onProgress?: (progress: SearchProgress) => void,
   ): SearchRequestHandle {
     const requestId = this.nextRequestId;
@@ -83,6 +84,7 @@ export class RustSearchClient {
         pathfinderDepth,
         deadlineMs,
         maxNodes,
+        beamWidth,
       });
     });
     return { requestId, promise };

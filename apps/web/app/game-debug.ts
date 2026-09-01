@@ -15,6 +15,7 @@ export type GameDebugPayload = {
   settings: {
     depth: number;
     maxNodes: number;
+    beamWidth: number;
     deadlineMs: number;
   };
   result: {
@@ -55,6 +56,7 @@ type BuildGameDebugPayloadInput = {
   opponent: Pick<Opponent, "id" | "name" | "version" | "engine">;
   depth: number;
   maxNodes: number;
+  beamWidth: number;
   deadlineMs: number;
   actions: Action[];
   pathfinderSearches: PathfinderMoveTelemetry[];
@@ -91,6 +93,7 @@ export function buildGameDebugPayload(input: BuildGameDebugPayloadInput): GameDe
     settings: {
       depth: input.depth,
       maxNodes: input.maxNodes,
+      beamWidth: input.beamWidth,
       deadlineMs: input.deadlineMs,
     },
     result: {

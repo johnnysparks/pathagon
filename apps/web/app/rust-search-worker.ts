@@ -12,6 +12,7 @@ type SearchRequest = {
   pathfinderDepth: number;
   deadlineMs: number;
   maxNodes: number;
+  beamWidth: number;
 };
 
 type CancelRequest = { type: "cancel"; requestId: number };
@@ -40,8 +41,8 @@ async function runPathfinderSearch(request: SearchRequest) {
   if (cancelled.delete(request.requestId)) return;
 
   const requestedConfig = request.opponentId === TRAINED_PATHFINDER_ID || transitionPolicy
-    ? trainedPathfinderSearchAtDepth(request.pathfinderDepth, request.maxNodes)
-    : pathfinderSearchAtDepth(request.pathfinderDepth, request.maxNodes);
+    ? trainedPathfinderSearchAtDepth(request.pathfinderDepth, request.maxNodes, request.beamWidth)
+    : pathfinderSearchAtDepth(request.pathfinderDepth, request.maxNodes, request.beamWidth);
   const targetDepth = requestedConfig.depth;
   const startedAt = performance.now();
   const deadlineAt = startedAt + Math.max(1, request.deadlineMs);

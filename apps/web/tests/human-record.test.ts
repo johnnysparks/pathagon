@@ -61,6 +61,7 @@ test("pathfinder archive metadata samples checkpoints instead of persisting the 
     baseSearch.modelCard,
     100,
     10_000_000,
+    256,
     30_000,
     Array.from({ length: 120 }, (_, index) => ({ ...baseSearch, ply: index * 2 + 1 })),
   );
@@ -69,6 +70,7 @@ test("pathfinder archive metadata samples checkpoints instead of persisting the 
   assert.equal(metadata.moves.length, 120);
   assert.equal(metadata.moves[0].checkpointCount, 10_000);
   assert.equal(metadata.moves[0].checkpoints.length, 3);
+  assert.equal(metadata.dials.beamWidth, 256);
   assert.equal("modelCard" in metadata.moves[0], false);
   assert.equal("weights" in metadata.moves[0].search, false);
 });
