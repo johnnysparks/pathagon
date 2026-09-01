@@ -869,7 +869,7 @@ export default function Home() {
               <div className="beam-control">
                 <div className="lookahead-heading">
                   <div>
-                    <span className="stat-label">Search coverage</span>
+                    <span className="stat-label">Beam width</span>
                     <strong id="pathfinder-beam-title">{pathfinderBeamWidth.toLocaleString()}-wide beam</strong>
                   </div>
                   <span className="lookahead-speed">{pathfinderBeamTier(pathfinderBeamWidth)}</span>
