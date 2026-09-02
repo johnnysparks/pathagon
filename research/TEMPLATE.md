@@ -20,13 +20,19 @@ the evidence that drove the decision.
 ## Data and artifacts
 
 Explain what was generated, what remains in Git, what is ignored in
-`workspace/`, and what was discarded. Link promoted data under `data/` instead
-of copying it here.
+`workspace/`, and what was discarded. Reference promoted data under `data/`.
 
 ## Project impact
 
 List what was promoted into `pathagon/`, `apps/`, or `data/`, what it attempted
 to move forward, where it succeeded or failed, and what was left behind.
+
+## *Hiccups* - Most important section for dead-end research
+
+What are some potential issues, things we overlooked, bugs or curiosities. What
+prevented from this run going perfectly? 
+
+*WHY* did the hypothesis fail, and what did we learn from the failure?
 
 ## Next decision
 
