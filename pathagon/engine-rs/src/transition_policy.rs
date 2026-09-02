@@ -15,8 +15,10 @@ use crate::search::{
     search_best_action_with_root_order_and_root_limit_deadline,
     search_best_action_with_root_order_and_root_limit_deadline_progress,
     search_best_action_with_tactical_filter, search_best_action_with_tactical_filter_deadline,
-    search_best_action_with_tactical_filter_deadline_progress, tactical_root_safe_actions,
-    EvaluationWeights, SearchProgressCallback, SearchResult,
+    search_best_action_with_tactical_filter_deadline_progress,
+    search_best_action_with_tactical_filter_deadline_trace,
+    search_best_action_with_root_order_and_root_limit_deadline_trace, tactical_root_safe_actions,
+    EvaluationWeights, SearchProgressCallback, SearchResult, SearchTraceCallback,
 };
 use crate::{Action, GameState, Player};
 
@@ -294,6 +296,49 @@ impl TransitionPolicyModel {
             Some(root_order.len()),
             deadline_ms,
             progress,
+        )
+    }
+
+    /// Deadline-aware transition-policy search with root traces for the
+    /// browser decision theater.
+    pub fn search_with_trace(
+        &self,
+        state: GameState,
+        config: crate::search::SearchConfig,
+        deadline_ms: u32,
+        progress: SearchProgressCallback,
+        trace: SearchTraceCallback,
+    ) -> SearchResult {
+        if state.config.board_size != 7 {
+            return search_best_action_with_tactical_filter_deadline_trace(
+                state,
+                config,
+                deadline_ms,
+                progress,
+                trace,
+            );
+        }
+        let ranked = self.ranked_actions(state, config.weights);
+        if ranked.is_empty() {
+            return SearchResult {
+                action: None,
+                score: 0,
+                nodes: 0,
+                exhausted: false,
+                completed_depth: 0,
+                table_hits: 0,
+            };
+        }
+        let root_order = ranked.iter().map(|item| item.action).collect::<Vec<_>>();
+        search_best_action_with_root_order_and_root_limit_deadline_trace(
+            state,
+            config,
+            &root_order,
+            false,
+            Some(root_order.len()),
+            deadline_ms,
+            progress,
+            trace,
         )
     }
 }

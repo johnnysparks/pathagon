@@ -1,0 +1,15 @@
+{
+  "actionEncoding": "base64url-12bit-fixed-49-stride",
+  "duplicateRecords": 0,
+  "errors": 0,
+  "gameKey": "sha256-base64url(rules,size,reserve,repetition,actions)",
+  "games": 10000,
+  "gamesByBoardSize": {
+    "7": 10000
+  },
+  "observations": 10000,
+  "recordsFound": 10000,
+  "schemaVersion": 1,
+  "shards": 64,
+  "sourceFilesWithGames": 1
+}

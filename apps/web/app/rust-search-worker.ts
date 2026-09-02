@@ -3,6 +3,7 @@ import { pathfinderSearchAtDepth, trainedPathfinderSearchAtDepth } from "./oppon
 import { loadRustEngine, loadTransitionPolicyEngine } from "./rust-engine";
 import type { GameState } from "./pathagon";
 import type { SearchProgress } from "./rust-search-client";
+import type { SearchTrace } from "./rust-engine";
 
 type SearchRequest = {
   type: "search";
@@ -82,9 +83,21 @@ async function runPathfinderSearch(request: SearchRequest) {
       };
       self.postMessage({ type: "progress", requestId: request.requestId, progress });
     };
+    const reportTrace = (trace: SearchTrace) => {
+      if (cancelled.has(request.requestId)) return;
+      self.postMessage({
+        type: "trace",
+        requestId: request.requestId,
+        trace: {
+          ...trace,
+          nodes: passPositions + trace.nodes,
+          tableHits: passTableHits + trace.tableHits,
+        },
+      });
+    };
     const result = transitionPolicy
-      ? transitionPolicy.searchBestActionWithProgress(request.state, config, Math.max(1, remainingMs), reportPassProgress)
-      : engine.searchBestTacticalActionWithDeadlineProgress(request.state, config, Math.max(1, remainingMs), reportPassProgress);
+      ? transitionPolicy.searchBestActionWithTrace(request.state, config, Math.max(1, remainingMs), reportPassProgress, reportTrace)
+      : engine.searchBestTacticalActionWithDeadlineTrace(request.state, config, Math.max(1, remainingMs), reportPassProgress, reportTrace);
     positions += result.nodes;
     tableHits += result.tableHits;
 

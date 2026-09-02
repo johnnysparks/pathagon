@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "corpusId": "teacher-d5-b256-500k-v1",
+  "games": 10000,
+  "uniqueFullGames": 10000,
+  "duplicateFullGames": 0,
+  "sourceCounts": {
+    "strongOpponent": 8000,
+    "weakOpponent": 2000
+  },
+  "teacher": {
+    "id": "rust-pathfinder-teacher-d5-b256-500k-v1",
+    "engine": "rust-bitboard",
+    "depth": 5,
+    "beam": 256,
+    "nodeBudget": 500000,
+    "tacticalRootFilter": false
+  },
+  "opponents": {
+    "strong": {
+      "id": "rust-pathfinder-v0.3.0",
+      "depth": 5,
+      "beam": 256,
+      "nodeBudget": 500000
+    },
+    "weak": {
+      "id": "rust-pathfinder-v0.3.0",
+      "depth": 3,
+      "beam": 64,
+      "nodeBudget": 12000
+    }
+  },
+  "gameProtocol": {
+    "boardSize": 7,
+    "reservePerPlayer": 14,
+    "maxPlies": 20,
+    "openingRandomPlies": 4
+  },
+  "archive": {
+    "path": "research/20260901-strong-teacher-10k-games/workspace/mixed-10k/teacher-games-mixed-10000.jsonl",
+    "sha256": "92b912e0922ef561837a073e0f855e611e11334b4e2c01890e3980ed31383b60"
+  },
+  "audit": {
+    "path": "research/20260901-strong-teacher-10k-games/workspace/mixed-10k/audit.json",
+    "sha256": "fefc7ba510d4a40ae3fa3b71dba5f2abff13ff366f0dfb46990c7cc2f996713d"
+  },
+  "duplicatePolicy": "global action-sequence uniqueness across all source pools"
+}

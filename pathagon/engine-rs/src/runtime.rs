@@ -16,8 +16,9 @@ use crate::search::{
     analyze_action, analyze_actions, lunatic_action, search_best_action,
     search_best_action_with_golden_bytes, search_best_action_with_tactical_filter,
     search_best_action_with_tactical_filter_deadline,
-    search_best_action_with_tactical_filter_deadline_progress, MoveEvaluation, SearchConfig,
-    SearchProgressCallback, SearchResult,
+    search_best_action_with_tactical_filter_deadline_progress,
+    search_best_action_with_tactical_filter_deadline_trace, MoveEvaluation, SearchConfig,
+    SearchProgressCallback, SearchResult, SearchTraceCallback,
 };
 use crate::transition_policy::{RankedTransitionAction, TransitionPolicyModel};
 use crate::{bit_squares, Action, BoardConfig, GameState, Player};
@@ -419,6 +420,26 @@ pub fn search_best_action_with_tactical_filter_deadline_progress_json(
     serde_json::to_string(&response).map_err(|error| error.to_string())
 }
 
+pub fn search_best_action_with_tactical_filter_deadline_trace_json(
+    state_json: &str,
+    config_json: &str,
+    deadline_ms: u32,
+    progress: SearchProgressCallback,
+    trace: SearchTraceCallback,
+) -> Result<String, String> {
+    let state = parse_position(state_json)?;
+    let config: RuntimeSearchConfig =
+        serde_json::from_str(config_json).map_err(|error| error.to_string())?;
+    let result = search_best_action_with_tactical_filter_deadline_trace(
+        state,
+        config.into(),
+        deadline_ms,
+        progress,
+        trace,
+    );
+    serde_json::to_string(&RuntimeSearchResult::from(result)).map_err(|error| error.to_string())
+}
+
 pub fn lunatic_action_json(state_json: &str) -> Result<String, String> {
     let state = parse_position(state_json)?;
     serde_json::to_string(&RuntimeSearchResult::from(lunatic_action(state)))
@@ -503,6 +524,21 @@ pub fn search_transition_policy_with_progress_json(
     let config: RuntimeSearchConfig =
         serde_json::from_str(config_json).map_err(|error| error.to_string())?;
     let result = model.search_with_progress(state, config.into(), deadline_ms, progress);
+    serde_json::to_string(&RuntimeSearchResult::from(result)).map_err(|error| error.to_string())
+}
+
+pub fn search_transition_policy_with_trace_json(
+    state_json: &str,
+    config_json: &str,
+    model: &TransitionPolicyModel,
+    deadline_ms: u32,
+    progress: SearchProgressCallback,
+    trace: SearchTraceCallback,
+) -> Result<String, String> {
+    let state = parse_position(state_json)?;
+    let config: RuntimeSearchConfig =
+        serde_json::from_str(config_json).map_err(|error| error.to_string())?;
+    let result = model.search_with_trace(state, config.into(), deadline_ms, progress, trace);
     serde_json::to_string(&RuntimeSearchResult::from(result)).map_err(|error| error.to_string())
 }
 
@@ -843,6 +879,29 @@ mod tests {
             )
             .is_ok()
         );
+        let trace_depths = std::rc::Rc::new(std::cell::RefCell::new(Vec::<u8>::new()));
+        let trace_depths_for_callback = std::rc::Rc::clone(&trace_depths);
+        let trace_config = serde_json::json!({
+            "depth": 1,
+            "maxNodes": 5_000,
+            "beamWidth": 16,
+            "weights": {"path": 240, "material": 110, "capture": 700, "structure": 55, "threat": 130, "edge": 80}
+        })
+        .to_string();
+        assert!(
+            search_best_action_with_tactical_filter_deadline_trace_json(
+                &position,
+                &trace_config,
+                500,
+                Box::new(|_, _| {}),
+                Box::new(move |depth, _, _, candidates| {
+                    assert!(!candidates.is_empty());
+                    trace_depths_for_callback.borrow_mut().push(depth);
+                }),
+            )
+            .is_ok()
+        );
+        assert_eq!(&*trace_depths.borrow(), &[1]);
         assert!(lunatic_action_json(&position).is_ok());
         assert!(analyze_action_json(&position, "not json", &config).is_err());
         assert!(analyze_actions_json(&position, &config, 0).is_ok());

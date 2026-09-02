@@ -24,6 +24,7 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for a new path. The current direction is in
 
 ## Archive
 
+- [`20260901-strong-teacher-10k-games/`](20260901-strong-teacher-10k-games/)
 - [`20260824-4x4-endgame-tactics/`](20260824-4x4-endgame-tactics/)
 - [`20260824-gnn-cnn-lab/`](20260824-gnn-cnn-lab/)
 - [`20260824-separated-value-action-policy/`](20260824-separated-value-action-policy/)

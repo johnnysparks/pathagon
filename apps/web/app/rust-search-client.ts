@@ -1,4 +1,5 @@
 import type { Action, GameState } from "./pathagon";
+import type { SearchTrace } from "./rust-engine";
 
 export type SearchProgress = {
   action: Action | null;
@@ -14,14 +15,16 @@ export type SearchProgress = {
 };
 
 type WorkerProgress = { type: "progress"; requestId: number; progress: SearchProgress };
+type WorkerTrace = { type: "trace"; requestId: number; trace: SearchTrace };
 type WorkerResult = { type: "result"; requestId: number; progress: SearchProgress };
 type WorkerError = { type: "error"; requestId: number; message: string };
-type WorkerResponse = WorkerProgress | WorkerResult | WorkerError;
+type WorkerResponse = WorkerProgress | WorkerTrace | WorkerResult | WorkerError;
 
 type Pending = {
   resolve: (progress: SearchProgress | null) => void;
   reject: (error: Error) => void;
   onProgress?: (progress: SearchProgress) => void;
+  onTrace?: (trace: SearchTrace) => void;
 };
 
 export type SearchRequestHandle = {
@@ -48,6 +51,10 @@ export class RustSearchClient {
         pending.onProgress?.(response.progress);
         return;
       }
+      if (response.type === "trace") {
+        pending.onTrace?.(response.trace);
+        return;
+      }
       this.pending.delete(response.requestId);
       if (response.type === "error") {
         pending.reject(new Error(response.message));
@@ -71,11 +78,12 @@ export class RustSearchClient {
     maxNodes: number,
     beamWidth: number,
     onProgress?: (progress: SearchProgress) => void,
+    onTrace?: (trace: SearchTrace) => void,
   ): SearchRequestHandle {
     const requestId = this.nextRequestId;
     this.nextRequestId += 1;
     const promise = new Promise<SearchProgress | null>((resolve, reject) => {
-      this.pending.set(requestId, { resolve, reject, onProgress });
+      this.pending.set(requestId, { resolve, reject, onProgress, onTrace });
       this.worker.postMessage({
         type: "search",
         requestId,

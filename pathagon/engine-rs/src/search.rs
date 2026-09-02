@@ -109,11 +109,24 @@ pub struct MoveEvaluation {
     pub table_hits: u64,
 }
 
+/// A root action and the score found for it at one completed iterative-search
+/// pass. Scores for alternatives can be alpha-beta bounds, so consumers should
+/// present them as search preferences rather than calibrated win probabilities.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RootSearchCandidate {
+    pub action: Action,
+    pub score: i32,
+}
+
 /// A deliberately coarse callback for browser-facing search telemetry. The
 /// callback receives cumulative node and transposition-table-hit counts. It is
 /// invoked from the WASM search budget, not from every node, so callers can
 /// surface long searches without putting a message boundary in the hot loop.
 pub type SearchProgressCallback = Box<dyn FnMut(u64, u64)>;
+
+/// Browser-facing root trace callback. It fires once per completed root
+/// iteration and carries only the legal root actions searched in that pass.
+pub type SearchTraceCallback = Box<dyn FnMut(u8, u64, u64, Vec<RootSearchCandidate>)>;
 
 #[cfg(target_arch = "wasm32")]
 const PROGRESS_NODE_INTERVAL: u64 = 10_000;
@@ -278,6 +291,7 @@ pub fn search_best_action_with_deadline(
         true,
         Some(deadline_after_ms(deadline_ms.max(1))),
         None,
+        None,
     )
 }
 
@@ -433,7 +447,7 @@ pub fn search_best_action_with_tactical_filter(
     state: GameState,
     config: SearchConfig,
 ) -> SearchResult {
-    search_best_action_with_tactical_filter_until(state, config, None, None)
+    search_best_action_with_tactical_filter_until(state, config, None, None, None)
 }
 
 /// Search through the tactical-safe Pathfinder root with a wall-clock
@@ -451,6 +465,7 @@ pub fn search_best_action_with_tactical_filter_deadline(
         config,
         Some(deadline_after_ms(deadline_ms.max(1))),
         None,
+        None,
     )
 }
 
@@ -467,6 +482,26 @@ pub fn search_best_action_with_tactical_filter_deadline_progress(
         config,
         Some(deadline_after_ms(deadline_ms.max(1))),
         Some(progress),
+        None,
+    )
+}
+
+/// Deadline-aware tactical-safe search with root traces for the browser
+/// decision theater. Progress remains coarse; root candidates arrive only at
+/// completed iterative-search depths.
+pub fn search_best_action_with_tactical_filter_deadline_trace(
+    state: GameState,
+    config: SearchConfig,
+    deadline_ms: u32,
+    progress: SearchProgressCallback,
+    trace: SearchTraceCallback,
+) -> SearchResult {
+    search_best_action_with_tactical_filter_until(
+        state,
+        config,
+        Some(deadline_after_ms(deadline_ms.max(1))),
+        Some(progress),
+        Some(trace),
     )
 }
 
@@ -475,6 +510,7 @@ fn search_best_action_with_tactical_filter_until(
     config: SearchConfig,
     deadline: Option<Deadline>,
     progress: Option<SearchProgressCallback>,
+    trace: Option<SearchTraceCallback>,
 ) -> SearchResult {
     let fallback = ordered_root_actions(state, state.turn, config.weights);
     if fallback.is_empty() {
@@ -483,7 +519,7 @@ fn search_best_action_with_tactical_filter_until(
     let safe = tactical_root_safe_actions(state, state.turn, config.weights);
     let root_limit = (safe.len() < fallback.len()).then_some(safe.len());
     search_best_action_with_root_order_and_root_limit_internal_deadline(
-        state, config, &safe, false, root_limit, true, deadline, progress,
+        state, config, &safe, false, root_limit, true, deadline, progress, trace,
     )
 }
 
@@ -630,6 +666,7 @@ pub fn search_best_action_with_root_order_and_root_limit_deadline(
         true,
         Some(deadline_after_ms(deadline_ms.max(1))),
         None,
+        None,
     )
 }
 
@@ -653,6 +690,32 @@ pub fn search_best_action_with_root_order_and_root_limit_deadline_progress(
         true,
         Some(deadline_after_ms(deadline_ms.max(1))),
         Some(progress),
+        None,
+    )
+}
+
+/// Deadline-aware root-ordered search with root traces. This is the generic
+/// hook used by hybrid agents whose policy supplies the root ordering.
+pub fn search_best_action_with_root_order_and_root_limit_deadline_trace(
+    state: GameState,
+    config: SearchConfig,
+    root_order: &[Action],
+    tactical_extension: bool,
+    root_limit: Option<usize>,
+    deadline_ms: u32,
+    progress: SearchProgressCallback,
+    trace: SearchTraceCallback,
+) -> SearchResult {
+    search_best_action_with_root_order_and_root_limit_internal_deadline(
+        state,
+        config,
+        root_order,
+        tactical_extension,
+        root_limit,
+        true,
+        Some(deadline_after_ms(deadline_ms.max(1))),
+        Some(progress),
+        Some(trace),
     )
 }
 
@@ -757,6 +820,7 @@ fn search_best_action_with_root_order_and_root_limit_internal(
         tt_move_order,
         None,
         None,
+        None,
     )
 }
 
@@ -769,6 +833,7 @@ fn search_best_action_with_root_order_and_root_limit_internal_deadline(
     tt_move_order: bool,
     deadline: Option<Deadline>,
     progress: Option<SearchProgressCallback>,
+    mut trace: Option<SearchTraceCallback>,
 ) -> SearchResult {
     if state.config.board_size <= 4 {
         if let Some(horizon) = config.tactical_proof_horizon {
@@ -823,6 +888,7 @@ fn search_best_action_with_root_order_and_root_limit_internal_deadline(
         let mut iteration_score = NEG_INF;
         let mut alpha = NEG_INF;
         let mut complete = true;
+        let mut iteration_candidates = Vec::with_capacity(actions.len());
 
         for action in actions {
             if budget.reached(config.max_nodes) {
@@ -873,6 +939,7 @@ fn search_best_action_with_root_order_and_root_limit_internal_deadline(
                 iteration_action = action;
                 iteration_score = score;
             }
+            iteration_candidates.push(RootSearchCandidate { action, score });
             alpha = alpha.max(iteration_score);
             if budget.exhausted {
                 complete = false;
@@ -881,6 +948,11 @@ fn search_best_action_with_root_order_and_root_limit_internal_deadline(
         }
         if !complete {
             break;
+        }
+        let mut candidates = iteration_candidates;
+        candidates.sort_by_key(|candidate| (-candidate.score, candidate.action.order()));
+        if let Some(callback) = trace.as_mut() {
+            callback(depth, budget.nodes, budget.table_hits, candidates);
         }
         best_action = iteration_action;
         best_score = iteration_score;

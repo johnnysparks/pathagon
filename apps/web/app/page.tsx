@@ -39,7 +39,7 @@ import {
   type SearchCheckpoint,
 } from "./archive-metadata";
 import { buildGameDebugPayload, formatGameDebugPayload } from "./game-debug";
-import { loadRustEngine, type RustEngine } from "./rust-engine";
+import { loadRustEngine, type RustEngine, type SearchTrace } from "./rust-engine";
 import { createRustSearchClient, type RustSearchClient, type SearchProgress } from "./rust-search-client";
 import { loadCnnEngine, type CnnEngine } from "./cnn-engine";
 
@@ -126,6 +126,9 @@ export default function Home() {
   const [cnnEngine, setCnnEngine] = useState<CnnEngine | null>(null);
   const [cnnError, setCnnError] = useState<string | null>(null);
   const [pathfinderProgress, setPathfinderProgress] = useState<SearchProgress | null>(null);
+  const [decisionTraces, setDecisionTraces] = useState<SearchTrace[]>([]);
+  const [decisionDepth, setDecisionDepth] = useState<number | null>(null);
+  const [decisionFocusAction, setDecisionFocusAction] = useState<Action | null>(null);
   const [lastPathfinderSearch, setLastPathfinderSearch] = useState<PathfinderMoveTelemetry | null>(null);
   const [pathfinderSearches, setPathfinderSearches] = useState<PathfinderMoveTelemetry[]>([]);
   const [configCopyStatus, setConfigCopyStatus] = useState<"idle" | "copied" | "error">("idle");
@@ -225,6 +228,9 @@ export default function Home() {
         setPathfinderSearches((items) => [...items, telemetry]);
       }
       setPathfinderProgress(null);
+      setDecisionTraces([]);
+      setDecisionDepth(null);
+      setDecisionFocusAction(null);
       activePathfinderSearch.current = null;
       setGame((latest) => latest === current ? rustEngine.applyAction(current, decision) : latest);
     };
@@ -243,6 +249,14 @@ export default function Home() {
             nodeCapReached: progress.nodeCapReached,
           });
           setPathfinderProgress(progress);
+        }, (trace) => {
+          if (cancelled || aiRequest.current !== requestId) return;
+          setDecisionTraces((items) => {
+            const next = items.filter((item) => item.depth !== trace.depth);
+            next.push(trace);
+            return next.sort((left, right) => left.depth - right.depth);
+          });
+          setDecisionDepth(null);
         });
         requestId = request.requestId;
         aiRequest.current = request.requestId;
@@ -288,6 +302,9 @@ export default function Home() {
       }
       activePathfinderSearch.current = null;
       setPathfinderProgress(null);
+      setDecisionTraces([]);
+      setDecisionDepth(null);
+      setDecisionFocusAction(null);
     };
   }, [cnnEngine, cnnReady, game, opponent, pathfinderBeamWidth, pathfinderDeadlineMs, pathfinderDepth, pathfinderMaxNodes, rustEngine, searchClient]);
 
@@ -504,6 +521,9 @@ export default function Home() {
     setArchiveError(null);
     setLastPathfinderSearch(null);
     setPathfinderSearches([]);
+    setDecisionTraces([]);
+    setDecisionDepth(null);
+    setDecisionFocusAction(null);
     setConfigCopyStatus("idle");
     recordedGame.current = null;
     recordable.current = true;
@@ -522,6 +542,9 @@ export default function Home() {
     setCaptureNoticeDismissedPly(null);
     clearCoaching();
     setPathfinderProgress(null);
+    setDecisionTraces([]);
+    setDecisionDepth(null);
+    setDecisionFocusAction(null);
     setPathfinderSearches((items) => items.filter((item) => item.ply <= targetPly));
     setLastPathfinderSearch(null);
     setArchiveStatus("idle");
@@ -546,6 +569,9 @@ export default function Home() {
     setArchiveStatus("idle");
     setLastPathfinderSearch(null);
     setPathfinderSearches([]);
+    setDecisionTraces([]);
+    setDecisionDepth(null);
+    setDecisionFocusAction(null);
     setConfigCopyStatus("idle");
     recordedGame.current = null;
     recordable.current = true;
@@ -599,6 +625,9 @@ export default function Home() {
     }
     activePathfinderSearch.current = null;
     setPathfinderProgress(null);
+    setDecisionTraces([]);
+    setDecisionDepth(null);
+    setDecisionFocusAction(null);
   }
 
   function playCurrentBestMove() {
@@ -709,6 +738,10 @@ export default function Home() {
       : thinking ? `${opponent.name} is choosing…` : `${opponent.name}'s turn`;
   const pathfinderDepthIndex = Math.max(0, PATHFINDER_DEPTH_OPTIONS.indexOf(pathfinderDepth as (typeof PATHFINDER_DEPTH_OPTIONS)[number]));
   const pathfinderBeamIndex = Math.max(0, PATHFINDER_BEAM_OPTIONS.indexOf(pathfinderBeamWidth as (typeof PATHFINDER_BEAM_OPTIONS)[number]));
+  const latestDecisionTrace = decisionTraces[decisionTraces.length - 1] ?? null;
+  const displayedDecisionTrace = decisionDepth === null
+    ? latestDecisionTrace
+    : decisionTraces.find((trace) => trace.depth === decisionDepth) ?? latestDecisionTrace;
 
   return (
     <main className="app-shell">
@@ -780,10 +813,16 @@ export default function Home() {
                 const movable = humanMovementTurn && piece === HUMAN && game.lastRelocatedTo[HUMAN] !== index;
                 const heat = heatForCell(index);
                 const heatClassName = heat ? heatClass(heat.delta) : "";
+                const decisionHeat = game.turn === AI && isPathfinderOpponent(opponent.id)
+                  ? decisionCellInfo(index, displayedDecisionTrace, decisionFocusAction)
+                  : null;
+                const decisionHeatClassName = decisionHeat
+                  ? decisionHeatClass(decisionHeat.delta, decisionHeat.rank)
+                  : "";
                 return (
                   <button
                     key={index}
-                    className={`cell ${piece ? "occupied" : ""} ${isSelected ? "selected" : ""} ${isLastMove ? "last-move" : ""} ${isWinningPath ? "winning" : ""} ${legalDestination || legalPlacement ? "legal" : ""} ${heatClassName}`}
+                    className={`cell ${piece ? "occupied" : ""} ${isSelected ? "selected" : ""} ${isLastMove ? "last-move" : ""} ${isWinningPath ? "winning" : ""} ${legalDestination || legalPlacement ? "legal" : ""} ${heatClassName} ${decisionHeatClassName}`}
                     onClick={() => handleCell(index)}
                     onMouseEnter={() => previewCell(index)}
                     onMouseLeave={clearCoachingPreview}
@@ -793,11 +832,12 @@ export default function Home() {
                     onTouchEnd={clearLongPress}
                     onTouchCancel={clearLongPress}
                     role="gridcell"
-                    aria-label={cellLabel(index, piece, forbidden, movable)}
+                    aria-label={`${cellLabel(index, piece, forbidden, movable)}${decisionHeat ? `, AI candidate ${decisionHeat.rank + 1}` : ""}`}
                     disabled={!rustEngine || game.turn !== HUMAN || thinking || Boolean(game.winner) || forbidden}
                   >
                     <span className="socket" />
                     {piece && <span className={`piece ${piece}`} />}
+                    {decisionHeat && <span className="decision-rank" aria-hidden="true">{decisionHeat.rank + 1}</span>}
                     {forbidden && <span className="forbidden-mark">×</span>}
                   </button>
                 );
@@ -843,6 +883,20 @@ export default function Home() {
             <div><span className="stat-label">Estimated Elo</span><strong>{opponent.elo}</strong></div>
             <span className="engine-pill">{isPathfinderOpponent(opponent.id) ? `${pathfinderDepth}-ply · ${pathfinderBeamWidth}-beam · tactical-safe` : opponent.engine}</span>
           </div>
+          {isPathfinderOpponent(opponent.id) && (
+            <DecisionTheater
+              opponentName={opponent.name}
+              trace={displayedDecisionTrace}
+              timeline={decisionTraces}
+              selectedDepth={decisionDepth}
+              focusedAction={decisionFocusAction}
+              searching={Boolean(pathfinderProgress)}
+              onSelectDepth={setDecisionDepth}
+              onFocusAction={setDecisionFocusAction}
+              onPlayBestMove={playCurrentBestMove}
+              canPlayBest={Boolean(pathfinderProgress?.action && activePathfinderSearch.current)}
+            />
+          )}
           {isPathfinderOpponent(opponent.id) && (
             <section className="lookahead-control" aria-labelledby="pathfinder-lookahead-title">
               <div className="lookahead-heading">
@@ -1152,6 +1206,99 @@ function PieceTray({ label, player, count, active }: { label: string; player: Pl
   return <div className={`piece-tray ${active ? "active" : ""}`}><span className={`mini-piece ${player}`} /><div><strong>{label}</strong><span>{count} in hand</span></div></div>;
 }
 
+type DecisionTheaterProps = {
+  opponentName: string;
+  trace: SearchTrace | null;
+  timeline: SearchTrace[];
+  selectedDepth: number | null;
+  focusedAction: Action | null;
+  searching: boolean;
+  onSelectDepth: (depth: number | null) => void;
+  onFocusAction: (action: Action | null) => void;
+  onPlayBestMove: () => void;
+  canPlayBest: boolean;
+};
+
+function DecisionTheater({
+  opponentName,
+  trace,
+  timeline,
+  selectedDepth,
+  focusedAction,
+  searching,
+  onSelectDepth,
+  onFocusAction,
+  onPlayBestMove,
+  canPlayBest,
+}: DecisionTheaterProps) {
+  const candidates = trace?.candidates.slice(0, 8) ?? [];
+  const bestScore = candidates[0]?.score ?? 0;
+  const worstScore = candidates[candidates.length - 1]?.score ?? bestScore;
+  const focusedKey = focusedAction ? actionKey(focusedAction) : null;
+
+  return (
+    <section className="decision-theater" aria-labelledby="decision-theater-title">
+      <div className="decision-theater-heading">
+        <div>
+          <span className="stat-label">Decision theater</span>
+          <h3 id="decision-theater-title">What {opponentName} sees</h3>
+        </div>
+        <span className={`decision-live ${searching ? "active" : ""}`}><span />{searching ? "Live" : "Standby"}</span>
+      </div>
+      <p className="decision-theater-intro">The board glow shows root moves found by the Rust search. Scores are relative preferences, not win probabilities.</p>
+      {trace ? (
+        <>
+          <div className="decision-candidate-list" aria-label={`Top moves at search depth ${trace.depth}`}>
+            {candidates.map((candidate, index) => {
+              const delta = candidate.score - bestScore;
+              const focused = focusedKey === actionKey(candidate.action);
+              return (
+                <button
+                  key={actionKey(candidate.action)}
+                  className={`decision-candidate ${index === 0 ? "best" : ""} ${focused ? "focused" : ""}`}
+                  type="button"
+                  aria-pressed={focused}
+                  onClick={() => onFocusAction(focused ? null : candidate.action)}
+                >
+                  <span className="decision-candidate-rank">{index + 1}</span>
+                  <span className="decision-candidate-main">
+                    <span className="decision-candidate-move">{formatAction(candidate.action)}</span>
+                    <span className="decision-candidate-bar" aria-hidden="true"><span style={{ width: `${decisionBarWidth(candidate.score, bestScore, worstScore)}%` }} /></span>
+                  </span>
+                  <span className="decision-candidate-score">{index === 0 ? "best" : formatDecisionDelta(delta)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="decision-depths">
+            <div className="decision-depth-heading"><span>Completed passes</span><span>{selectedDepth === null ? `Following ${trace.depth}-ply` : `Viewing ${selectedDepth}-ply`}</span></div>
+            <div className="decision-depth-list" role="list" aria-label="Completed search depths">
+              {timeline.map((item) => (
+                <button
+                  key={item.depth}
+                  className={`decision-depth ${selectedDepth === item.depth || (selectedDepth === null && item.depth === trace.depth) ? "active" : ""}`}
+                  type="button"
+                  aria-label={`View search depth ${item.depth}`}
+                  aria-pressed={selectedDepth === item.depth}
+                  onClick={() => onSelectDepth(selectedDepth === item.depth ? null : item.depth)}
+                >
+                  {item.depth}
+                </button>
+              ))}
+            </div>
+          </div>
+          {canPlayBest && <button className="play-best-button" type="button" onClick={onPlayBestMove}>Play current best</button>}
+        </>
+      ) : (
+        <div className="decision-empty" aria-live="polite">
+          <span className="decision-empty-pulse" />
+          <span>{searching ? "Waiting for the first completed search pass…" : "The next Pathfinder turn will populate the theater."}</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function CoachingPanel({ evaluation, status, bestMove, hasHeatmap }: { evaluation: MoveEvaluation | null; status: "idle" | "searching" | "ready"; bestMove: MoveEvaluation | null; hasHeatmap: boolean }) {
   const beforeSignal = evaluation ? normalizeScore(evaluation.beforeScore) : 0;
   const afterSignal = evaluation ? normalizeScore(evaluation.score) : 0;
@@ -1224,6 +1371,47 @@ function heatClass(delta: number) {
   if (signal < -0.52) return "coach-heat coach-heat-strong-bad";
   if (signal < -0.12) return "coach-heat coach-heat-bad";
   return "coach-heat coach-heat-even";
+}
+
+type DecisionCellInfo = {
+  rank: number;
+  delta: number;
+  role: "source" | "target";
+};
+
+function decisionCellInfo(index: number, trace: SearchTrace | null, focusedAction: Action | null): DecisionCellInfo | null {
+  if (!trace?.candidates.length) return null;
+  const bestScore = trace.candidates[0].score;
+  const focusedKey = focusedAction ? actionKey(focusedAction) : null;
+  const match = focusedKey
+    ? trace.candidates.find((candidate) => actionKey(candidate.action) === focusedKey)
+    : trace.candidates.find((candidate) => candidate.action.to === index);
+  if (!match) return null;
+  const role = match.action.kind === "relocate" && match.action.from === index
+    ? "source"
+    : match.action.to === index ? "target" : null;
+  if (!role) return null;
+  return {
+    rank: trace.candidates.indexOf(match),
+    delta: match.score - bestScore,
+    role,
+  };
+}
+
+function decisionHeatClass(delta: number, rank: number, role: DecisionCellInfo["role"]) {
+  const signal = Math.max(-1, Math.min(1, delta / 420));
+  const strength = rank === 0 ? "decision-heat-best" : signal > -0.12 ? "decision-heat-close" : signal > -0.52 ? "decision-heat-mid" : "decision-heat-far";
+  return `decision-heat ${strength} decision-${role}`;
+}
+
+function decisionBarWidth(score: number, bestScore: number, worstScore: number) {
+  const range = Math.max(1, bestScore - worstScore);
+  return Math.round(Math.max(12, Math.min(100, 100 - ((bestScore - score) / range) * 88)));
+}
+
+function formatDecisionDelta(delta: number) {
+  if (Math.abs(delta) < 1) return "near tie";
+  return `Δ ${delta > 0 ? "+" : ""}${Math.round(delta)}`;
 }
 
 function normalizeScore(score: number) {

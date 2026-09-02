@@ -70,6 +70,10 @@ name = "pathagon-endgame-match"
 path = "src/bin/endgame_match.rs"
 
 [[bin]]
+name = "pathagon-jepa-export"
+path = "src/bin/jepa_export.rs"
+
+[[bin]]
 name = "pathagon-lambda-worker"
 path = "src/lambda_worker.rs"
 required-features = ["lambda"]

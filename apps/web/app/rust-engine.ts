@@ -20,6 +20,20 @@ type RuntimeSearchResult = Omit<SearchResult, "action"> & { action: Action | nul
 
 export type SearchProgressCallback = (nodes: number, tableHits: number) => void;
 
+export type SearchTraceCandidate = {
+  action: Action;
+  score: number;
+};
+
+export type SearchTrace = {
+  depth: number;
+  nodes: number;
+  tableHits: number;
+  candidates: SearchTraceCandidate[];
+};
+
+export type SearchTraceCallback = (trace: SearchTrace) => void;
+
 type RuntimeMoveEvaluation = Omit<MoveEvaluation, "beforeScore" | "completedDepth" | "tableHits"> & {
   beforeScore: number;
   completedDepth: number;
@@ -42,6 +56,7 @@ type TransitionPolicyModelHandle = {
   rankActions(position: string, maxActions: number): string;
   searchBestAction(position: string, config: string, deadlineMs: number): string;
   searchBestActionWithProgress(position: string, config: string, deadlineMs: number, callback: SearchProgressCallback): string;
+  searchBestActionWithTrace(position: string, config: string, deadlineMs: number, progressCallback: SearchProgressCallback, traceCallback: (trace: string) => void): string;
 };
 
 type RustWasmModule = {
@@ -52,6 +67,7 @@ type RustWasmModule = {
   pathagon_search_best_action_with_tactical_filter(position: string, config: string): string;
   pathagon_search_best_action_with_tactical_filter_deadline(position: string, config: string, deadlineMs: number): string;
   pathagon_search_best_action_with_tactical_filter_deadline_progress(position: string, config: string, deadlineMs: number, callback: SearchProgressCallback): string;
+  pathagon_search_best_action_with_tactical_filter_deadline_trace(position: string, config: string, deadlineMs: number, progressCallback: SearchProgressCallback, traceCallback: (trace: string) => void): string;
   pathagon_lunatic_action(position: string): string;
   pathagon_analyze_action(position: string, action: string, config: string): string;
   pathagon_analyze_actions(position: string, config: string, maxActions: number): string;
@@ -64,7 +80,7 @@ function loadRustWasmModule(): Promise<RustWasmModule> {
   // Keep the JS and WASM URLs together when the generated ABI changes. This
   // prevents a long-lived browser tab or edge cache from pairing the new
   // progress wrapper with an older binary that lacks its export.
-  const engineCacheKey = "search-progress-v1";
+  const engineCacheKey = "decision-theater-v1";
   const moduleUrl = `/engine/pathagon_engine.js?v=${engineCacheKey}`;
   const wasmUrl = `/engine/pathagon_engine_bg.wasm?v=${engineCacheKey}`;
   modulePromise ??= import(/* @vite-ignore */ moduleUrl).then(async (module) => {
@@ -82,6 +98,7 @@ export type RustEngine = {
   searchBestTacticalAction(state: GameState, config: SearchConfig): RuntimeSearchResult;
   searchBestTacticalActionWithDeadline(state: GameState, config: SearchConfig, deadlineMs: number): RuntimeSearchResult;
   searchBestTacticalActionWithDeadlineProgress(state: GameState, config: SearchConfig, deadlineMs: number, onProgress: SearchProgressCallback): RuntimeSearchResult;
+  searchBestTacticalActionWithDeadlineTrace(state: GameState, config: SearchConfig, deadlineMs: number, onProgress: SearchProgressCallback, onTrace: SearchTraceCallback): RuntimeSearchResult;
   lunaticAction(state: GameState): RuntimeSearchResult;
   analyzeAction(state: GameState, action: Action, config: SearchConfig): MoveEvaluation;
   analyzeActions(state: GameState, config: SearchConfig, maxActions: number): MoveEvaluation[];
@@ -94,6 +111,7 @@ export type TransitionPolicyEngine = {
   rankActions(state: GameState, maxActions?: number): TransitionPolicyRankedAction[];
   searchBestAction(state: GameState, config: SearchConfig, deadlineMs?: number): TransitionPolicySearchResult;
   searchBestActionWithProgress(state: GameState, config: SearchConfig, deadlineMs: number, onProgress: SearchProgressCallback): TransitionPolicySearchResult;
+  searchBestActionWithTrace(state: GameState, config: SearchConfig, deadlineMs: number, onProgress: SearchProgressCallback, onTrace: SearchTraceCallback): TransitionPolicySearchResult;
 };
 
 export function loadRustEngine(): Promise<RustEngine> {
@@ -124,6 +142,15 @@ export function loadRustEngine(): Promise<RustEngine> {
         JSON.stringify(config),
         deadlineMs,
         onProgress,
+      )) as RuntimeSearchResult;
+    },
+    searchBestTacticalActionWithDeadlineTrace(state, config, deadlineMs, onProgress, onTrace) {
+      return JSON.parse(wasm.pathagon_search_best_action_with_tactical_filter_deadline_trace(
+        JSON.stringify(toRuntimePosition(state)),
+        JSON.stringify(config),
+        deadlineMs,
+        onProgress,
+        (trace) => onTrace(JSON.parse(trace) as SearchTrace),
       )) as RuntimeSearchResult;
     },
     lunaticAction(state) {
@@ -177,6 +204,15 @@ export function loadTransitionPolicyEngine(
           JSON.stringify(config),
           deadlineMs,
           onProgress,
+        )) as TransitionPolicySearchResult;
+      },
+      searchBestActionWithTrace(state: GameState, config: SearchConfig, deadlineMs: number, onProgress: SearchProgressCallback, onTrace: SearchTraceCallback) {
+        return JSON.parse(model.searchBestActionWithTrace(
+          JSON.stringify(toRuntimePosition(state)),
+          JSON.stringify(config),
+          deadlineMs,
+          onProgress,
+          (trace) => onTrace(JSON.parse(trace) as SearchTrace),
         )) as TransitionPolicySearchResult;
       },
     };

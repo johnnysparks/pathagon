@@ -13,13 +13,13 @@ use crate::runtime::{
     search_best_action_json, search_best_action_with_golden_bytes_json,
     search_best_action_with_tactical_filter_deadline_json,
     search_best_action_with_tactical_filter_deadline_progress_json,
+    search_best_action_with_tactical_filter_deadline_trace_json,
     search_best_action_with_tactical_filter_json, search_transition_policy_json,
-    search_transition_policy_with_progress_json,
+    search_transition_policy_with_progress_json, search_transition_policy_with_trace_json,
 };
 use crate::transition_policy::TransitionPolicyModel;
 use crate::{BoardConfig, GameState};
 
-#[cfg(feature = "inference")]
 use crate::contract::ContractAction;
 #[cfg(feature = "inference")]
 use crate::inference::{OnnxPolicyValueModel, PolicyValueModel};
@@ -42,6 +42,27 @@ fn search_progress_callback(callback: &js_sys::Function) -> crate::search::Searc
             &JsValue::from_f64(nodes as f64),
             &JsValue::from_f64(table_hits as f64),
         );
+    })
+}
+
+fn search_trace_callback(callback: &js_sys::Function) -> crate::search::SearchTraceCallback {
+    let callback = callback.clone();
+    Box::new(move |depth, nodes, table_hits, candidates| {
+        let payload = serde_json::json!({
+            "depth": depth,
+            "nodes": nodes,
+            "tableHits": table_hits,
+            "candidates": candidates
+                .into_iter()
+                .map(|candidate| serde_json::json!({
+                    "action": ContractAction::from(candidate.action),
+                    "score": candidate.score,
+                }))
+                .collect::<Vec<_>>(),
+        });
+        if let Ok(encoded) = serde_json::to_string(&payload) {
+            let _ = callback.call1(&JsValue::NULL, &JsValue::from_str(&encoded));
+        }
     })
 }
 
@@ -120,6 +141,24 @@ pub fn pathagon_search_best_action_with_tactical_filter_deadline_progress(
         config,
         deadline_ms,
         search_progress_callback(callback),
+    )
+    .map_err(js_error)
+}
+
+#[wasm_bindgen]
+pub fn pathagon_search_best_action_with_tactical_filter_deadline_trace(
+    position: &str,
+    config: &str,
+    deadline_ms: u32,
+    progress_callback: &js_sys::Function,
+    trace_callback: &js_sys::Function,
+) -> Result<String, JsValue> {
+    search_best_action_with_tactical_filter_deadline_trace_json(
+        position,
+        config,
+        deadline_ms,
+        search_progress_callback(progress_callback),
+        search_trace_callback(trace_callback),
     )
     .map_err(js_error)
 }
@@ -216,6 +255,26 @@ impl PathagonTransitionPolicyModel {
             &self.model,
             deadline_ms,
             search_progress_callback(callback),
+        )
+        .map_err(js_error)
+    }
+
+    #[wasm_bindgen(js_name = searchBestActionWithTrace)]
+    pub fn search_best_action_with_trace(
+        &self,
+        position: &str,
+        config: &str,
+        deadline_ms: u32,
+        progress_callback: &js_sys::Function,
+        trace_callback: &js_sys::Function,
+    ) -> Result<String, JsValue> {
+        search_transition_policy_with_trace_json(
+            position,
+            config,
+            &self.model,
+            deadline_ms,
+            search_progress_callback(progress_callback),
+            search_trace_callback(trace_callback),
         )
         .map_err(js_error)
     }
