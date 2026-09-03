@@ -1,5 +1,5 @@
-import type { MoveEvaluation } from "./ai";
 import type { Opponent } from "./opponents";
+import type { RankedAction, SearchTelemetry } from "./opponent-runtime";
 import type { Action, GameState } from "./pathagon";
 import type { SearchProgress } from "./rust-search-client";
 import type { PathfinderMoveTelemetry } from "./archive-metadata";
@@ -35,10 +35,14 @@ export type GameDebugPayload = {
     lastSearch: PathfinderMoveTelemetry | null;
     progress: SearchProgress | null;
   };
-  coach: {
-    status: "idle" | "searching" | "ready";
-    action: Action | null;
-    evaluation: MoveEvaluation | null;
+  analyst: {
+    id: string;
+    name: string;
+    status: "idle" | "searching" | "ready" | "unavailable";
+    interpretation: "relative preference" | "random priority/order";
+    ranked: RankedAction[];
+    telemetry: SearchTelemetry | null;
+    error: string | null;
   };
   runtime: {
     rustEngineReady: boolean;
@@ -62,9 +66,13 @@ type BuildGameDebugPayloadInput = {
   pathfinderSearches: PathfinderMoveTelemetry[];
   lastPathfinderSearch: PathfinderMoveTelemetry | null;
   pathfinderProgress: SearchProgress | null;
-  coachingStatus: "idle" | "searching" | "ready";
-  coachingAction: Action | null;
-  coachingEvaluation: MoveEvaluation | null;
+  analystId: string;
+  analystName: string;
+  analystStatus: "idle" | "searching" | "ready" | "unavailable";
+  analystInterpretation: "relative preference" | "random priority/order";
+  analystRanked: RankedAction[];
+  analystTelemetry: SearchTelemetry | null;
+  analystError: string | null;
   rustEngineReady: boolean;
   cnnEngineReady: boolean;
   engineError: string | null;
@@ -115,10 +123,14 @@ export function buildGameDebugPayload(input: BuildGameDebugPayloadInput): GameDe
       lastSearch: input.lastPathfinderSearch,
       progress: input.pathfinderProgress,
     },
-    coach: {
-      status: input.coachingStatus,
-      action: input.coachingAction,
-      evaluation: input.coachingEvaluation,
+    analyst: {
+      id: input.analystId,
+      name: input.analystName,
+      status: input.analystStatus,
+      interpretation: input.analystInterpretation,
+      ranked: input.analystRanked,
+      telemetry: input.analystTelemetry,
+      error: input.analystError,
     },
     runtime: {
       rustEngineReady: input.rustEngineReady,

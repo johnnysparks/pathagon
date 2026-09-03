@@ -14,10 +14,14 @@ import {
   pathfinderSearchAtDepth,
   trainedPathfinderSearchAtDepth,
   SURVEYOR_OPPONENT,
+  OPPONENTS,
+  DEFAULT_OPPONENT_ID,
+  getOpponent,
 } from "../app/opponents.ts";
 import { applyAction, createGame, legalActions } from "../app/pathagon.ts";
 import type { GameState, Player } from "../app/pathagon.ts";
-import { PATHFINDER_TACTICAL_FILTER_ID, TRANSITION_PATHFINDER_ID, TRAINED_PATHFINDER_ID } from "../app/agent-ids.ts";
+import { DOUBLE_DRAGON_ID, PATHFINDER_TACTICAL_FILTER_ID, PATHMAN_ID, RANDO_RACCON_ID, SEER_ID, TILE_DRIVER_ID, TRANSITION_PATHFINDER_ID, TRAINED_PATHFINDER_ID, YANN_TILESON_ID } from "../app/agent-ids.ts";
+import type { OpponentRuntimeContext } from "../app/opponent-runtime.ts";
 
 function position(pieces: Partial<Record<number, Player>>, options: Partial<GameState> = {}) {
   const state = createGame();
@@ -175,4 +179,79 @@ test("iterative search returns the last completed depth inside its node budget",
   assert.ok(result.nodes <= 120);
   assert.equal(result.exhausted, true);
   assert.ok(result.completedDepth >= 1 && result.completedDepth < 5);
+});
+
+test("player-facing roster has six cute names and Pathman is the default", () => {
+  assert.deepEqual(OPPONENTS.map((opponent) => opponent.name), ["Pathman", "Tile Driver", "Seer", "Double Dragon", "Yann Tileson", "Rando Raccon"]);
+  assert.equal(DEFAULT_OPPONENT_ID, PATHMAN_ID);
+  assert.equal(getOpponent("pathfinder-action-transition-v4-xent").id, PATHMAN_ID);
+  assert.equal(getOpponent("coin-flip-v0.0.1").id, RANDO_RACCON_ID);
+  assert.ok(OPPONENTS.every((opponent) => opponent.capabilities.length === 3));
+  assert.ok(OPPONENTS.every((opponent) => opponent.controls.every((control) => control.values.length === 5)));
+  assert.deepEqual(OPPONENTS.map((opponent) => opponent.id), [PATHMAN_ID, TILE_DRIVER_ID, SEER_ID, DOUBLE_DRAGON_ID, YANN_TILESON_ID, RANDO_RACCON_ID]);
+});
+
+test("ready opponent runtimes rank legal actions and return a legal action", () => {
+  const state = createGame();
+  const actions = legalActions(state);
+  const fakeRust = {
+    legalActions: (current: GameState) => legalActions(current),
+    applyAction: (current: GameState, action: import("../app/pathagon.ts").Action) => applyAction(current, action),
+    analyzeActions: () => actions.map((action, index) => ({ action, beforeScore: 0, score: actions.length - index, delta: 0, nodes: 1, exhausted: false, completedDepth: 1, tableHits: 0 })),
+    searchBestTacticalActionWithDeadlineTrace: () => ({ action: actions[0] ?? null, score: 1, nodes: 3, exhausted: false, completedDepth: 1, tableHits: 0 }),
+  } as unknown as OpponentRuntimeContext["rustEngine"];
+  const fakeCnn = {
+    evaluate: () => ({ actions, policyLogits: actions.map((_, index) => actions.length - index), value: 0.25 }),
+    selectAction: () => ({ action: actions[0] ?? null, value: 0.25, simulations: 64, evaluations: actions.map((action, index) => ({ action, prior: 1 / actions.length, visits: actions.length - index, value: 0.25 })) }),
+  } as unknown as NonNullable<OpponentRuntimeContext["cnnEngine"]>;
+  const fakeGnn = {
+    evaluate: () => ({ actions, policyLogits: actions.map((_, index) => actions.length - index), value: 0.2 }),
+    selectAction: () => ({ action: actions[0] ?? null, value: 0.2, simulations: 32, evaluations: actions.map((action, index) => ({ action, prior: 1 / actions.length, visits: actions.length - index, value: 0.2 })) }),
+  } as unknown as NonNullable<OpponentRuntimeContext["gnnEngine"]>;
+  const fakeQadv = {
+    evaluate: () => ({ actions, policyLogits: actions.map((_, index) => actions.length - index), qValues: actions.map((_, index) => (actions.length - index) / actions.length), value: 0.15 }),
+    selectAction: () => ({ action: actions[0] ?? null, value: 0.15, simulations: 32, evaluations: actions.map((action, index) => ({ action, prior: 1 / actions.length, visits: actions.length - index, value: (actions.length - index) / actions.length })) }),
+  } as unknown as NonNullable<OpponentRuntimeContext["qadvEngine"]>;
+  const fakeJepa = {
+    evaluate: () => ({ actions, rankLogits: actions.map((_, index) => actions.length - index), actionValues: actions.map((_, index) => (actions.length - index) / actions.length) }),
+  } as unknown as NonNullable<OpponentRuntimeContext["jepaEngine"]>;
+  const context = { rustEngine: fakeRust, cnnEngine: fakeCnn, gnnEngine: fakeGnn, qadvEngine: fakeQadv, jepaEngine: fakeJepa };
+  for (const opponent of OPPONENTS) {
+    const config = { controls: Object.fromEntries(opponent.controls.map((control) => [control.id, control.values[control.defaultIndex]])), seed: 17 };
+    const runtimeContext = context as OpponentRuntimeContext;
+    const ranked = opponent.runtime.rankMoves(state, runtimeContext, config);
+    assert.ok(ranked.every((candidate) => actions.some((action) => JSON.stringify(action) === JSON.stringify(candidate.action))), opponent.name);
+    const result = opponent.runtime.search(state, runtimeContext, config);
+    assert.ok(result.action && actions.some((action) => JSON.stringify(action) === JSON.stringify(result.action)), opponent.name);
+  }
+});
+
+test("Rando Raccon is seeded, bounded, and honestly labeled", () => {
+  const state = createGame();
+  const opponent = getOpponent(RANDO_RACCON_ID);
+  const config = { controls: Object.fromEntries(opponent.controls.map((control) => [control.id, control.values[control.defaultIndex]])), seed: 91 };
+  const context = {
+    rustEngine: {
+      legalActions: (current: GameState) => legalActions(current),
+      applyAction: (current: GameState, action: import("../app/pathagon.ts").Action) => applyAction(current, action),
+    },
+  } as unknown as OpponentRuntimeContext;
+  const first = opponent.runtime.search(state, context, config);
+  const second = opponent.runtime.search(state, context, config);
+  const different = opponent.runtime.search(state, context, { ...config, seed: 92 });
+  assert.deepEqual(first.ranked, second.ranked);
+  assert.notDeepEqual(first.ranked, different.ranked);
+  assert.equal(first.interpretation, "random priority/order");
+  assert.ok(first.ranked.every((candidate) => candidate.randomPriority !== undefined));
+  assert.ok(first.ranked.length <= config.controls.samples);
+});
+
+test("learned cards are real playable runtimes after artifact promotion", () => {
+  for (const id of [TILE_DRIVER_ID, DOUBLE_DRAGON_ID, YANN_TILESON_ID]) {
+    const opponent = getOpponent(id);
+    assert.equal(opponent.playable, true);
+    assert.equal(opponent.status, "ready");
+    assert.equal(opponent.artifact?.startsWith("/models/"), true);
+  }
+  assert.equal(getOpponent(SEER_ID).playable, true);
 });

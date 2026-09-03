@@ -4,6 +4,8 @@ import { toRuntimePosition } from "./rust-engine.ts";
 export type CnnSearchConfig = {
   simulations: number;
   cpuct: number;
+  maxNodes?: number;
+  maxTimeMs?: number;
 };
 
 export type CnnPolicyEvaluation = {
@@ -23,12 +25,13 @@ export type CnnSearchResult = {
   action: Action | null;
   value: number;
   simulations: number;
+  nodes: number;
   evaluations: CnnActionEvaluation[];
 };
 
 type CnnModelHandle = {
   evaluate(position: string): string;
-  selectAction(position: string, simulations: number, cpuct: number): string;
+  selectAction(position: string, simulations: number, cpuct: number, maxNodes: number, maxTimeMs: number): string;
 };
 
 type CnnWasmModule = {
@@ -45,9 +48,9 @@ let cnnEnginePromise: Promise<CnnEngine> | null = null;
 
 export function loadCnnEngine(): Promise<CnnEngine> {
   cnnEnginePromise ??= (async () => {
-    const moduleUrl = ["/engine-inference/pathagon_engine", ".js"].join("");
+    const moduleUrl = ["/engine-inference/pathagon_engine", ".js?v=decision-theater-v3"].join("");
     const wasmModule = await import(/* @vite-ignore */ moduleUrl) as unknown as CnnWasmModule;
-    await wasmModule.default();
+    await wasmModule.default("/engine-inference/pathagon_engine_bg.wasm?v=decision-theater-v3");
     const response = await fetch("/models/pathagon-cnn.onnx");
     if (!response.ok) throw new Error(`CNN model request failed (${response.status})`);
     const bytes = new Uint8Array(await response.arrayBuffer());
@@ -61,6 +64,8 @@ export function loadCnnEngine(): Promise<CnnEngine> {
           JSON.stringify(toRuntimePosition(state)),
           config.simulations,
           config.cpuct,
+          config.maxNodes ?? Number.MAX_SAFE_INTEGER,
+          config.maxTimeMs ?? 0,
         )) as CnnSearchResult;
       },
     };

@@ -1,4 +1,14 @@
-import { PATHFINDER_TACTICAL_FILTER_ID, TRAINED_PATHFINDER_ID, TRANSITION_PATHFINDER_ID } from "./agent-ids.ts";
+import {
+  DOUBLE_DRAGON_ID,
+  PATHFINDER_TACTICAL_FILTER_ID,
+  PATHMAN_ID,
+  RANDO_RACCON_ID,
+  SEER_ID,
+  TILE_DRIVER_ID,
+  TRAINED_PATHFINDER_ID,
+  TRANSITION_PATHFINDER_ID,
+  YANN_TILESON_ID,
+} from "./agent-ids.ts";
 
 /**
  * Shared model metadata for the leaderboard API and the browser lab.
@@ -7,7 +17,7 @@ import { PATHFINDER_TACTICAL_FILTER_ID, TRAINED_PATHFINDER_ID, TRANSITION_PATHFI
  * research-only agents remain valid archive identities for replay/history, but
  * they do not receive a live Elo rank until they clear the promotion boundary.
  */
-export type LeagueModelStatus = "default" | "control" | "baseline" | "research";
+export type LeagueModelStatus = "default" | "control" | "baseline" | "research" | "artifact-pending";
 
 export type LeagueModelDefinition = {
   id: string;
@@ -21,10 +31,12 @@ export type LeagueModelDefinition = {
   glyph: string;
   status: LeagueModelStatus;
   rustEngine: boolean;
+  playable?: boolean;
   initialRating: number;
 };
 
-export const LEAGUE_MODELS = [
+/** Historical identities stay queryable for archived games and rollback. */
+export const LEGACY_LEAGUE_MODELS = [
   {
     id: TRANSITION_PATHFINDER_ID,
     name: "The Pathfinder · Transition v4",
@@ -255,7 +267,105 @@ export const LEAGUE_MODELS = [
   },
 ] as const satisfies readonly LeagueModelDefinition[];
 
-export const RANKED_LEAGUE_MODELS = LEAGUE_MODELS.filter((model) => model.rustEngine);
+/** Six canonical cards shown to players. Keep this list in lockstep with
+ * `apps/web/app/opponents.ts`; legacy and research identities are never mixed
+ * into the player-facing roster. */
+export const LEAGUE_MODELS = [
+  {
+    id: PATHMAN_ID,
+    name: "Pathman",
+    nickname: "Pathman",
+    family: "Deep search · heuristic weighted positions",
+    role: "player-facing default",
+    mechanics: "Ranks legal moves with weighted positions, then searches the consequences under a bounded Rust budget.",
+    budget: "Model-owned depth, beam, node, and time controls",
+    tone: "green",
+    glyph: "PM",
+    status: "default",
+    rustEngine: true,
+    playable: true,
+    initialRating: 1_160,
+  },
+  {
+    id: TILE_DRIVER_ID,
+    name: "Tile Driver",
+    nickname: "Tile Driver",
+    family: "GNN policy/value · budgeted PUCT",
+    role: "player-facing learned opponent",
+    mechanics: "The promoted GNN policy/value artifact ranks legal graph actions and guides bounded PUCT.",
+    budget: "Model-owned simulations, exploration, node, and time controls",
+    tone: "violet",
+    glyph: "TD",
+    status: "research",
+    rustEngine: true,
+    playable: true,
+    initialRating: 1_000,
+  },
+  {
+    id: SEER_ID,
+    name: "Seer",
+    nickname: "Seer",
+    family: "CNN policy/value · 64 PUCT",
+    role: "player-facing learned opponent",
+    mechanics: "The promoted CNN artifact evaluates the board and seeds a fixed 64-simulation PUCT.",
+    budget: "Model-owned simulations, exploration, node, and time controls",
+    tone: "gold",
+    glyph: "SE",
+    status: "baseline",
+    rustEngine: true,
+    playable: true,
+    initialRating: 1_085,
+  },
+  {
+    id: DOUBLE_DRAGON_ID,
+    name: "Double Dragon",
+    nickname: "Double Dragon",
+    family: "GNN Q/Advantage · bounded tree search",
+    role: "player-facing learned opponent",
+    mechanics: "The promoted GNN Q/Advantage artifact supplies action values to bounded Q-seeded PUCT.",
+    budget: "Model-owned Q/Advantage mix, simulations, node, and time controls",
+    tone: "green",
+    glyph: "DD",
+    status: "research",
+    rustEngine: true,
+    playable: true,
+    initialRating: 1_000,
+  },
+  {
+    id: YANN_TILESON_ID,
+    name: "Yann Tileson",
+    nickname: "Yann Tileson",
+    family: "JEPA afterstate rank/value · bounded search",
+    role: "player-facing learned opponent",
+    mechanics: "A real JEPA action-ranking/value artifact scores afterstates before bounded beam search.",
+    budget: "Model-owned afterstate depth, beam, node, and time controls",
+    tone: "violet",
+    glyph: "YT",
+    status: "research",
+    rustEngine: true,
+    playable: true,
+    initialRating: 1_000,
+  },
+  {
+    id: RANDO_RACCON_ID,
+    name: "Rando Raccon",
+    nickname: "Rando Raccon",
+    family: "Seeded random ranking · bounded sampling",
+    role: "player-facing random control",
+    mechanics: "Produces reproducible random priority/order and bounded random samples, never strategic goodness or win probability.",
+    budget: "Model-owned samples, horizon, node, and time controls",
+    tone: "muted",
+    glyph: "RR",
+    status: "control",
+    rustEngine: true,
+    playable: true,
+    initialRating: 935,
+  },
+] as const satisfies readonly LeagueModelDefinition[];
+
+/** All six promoted artifacts can execute; strength labels remain provisional where noted. */
+export const RANKED_LEAGUE_MODELS = LEAGUE_MODELS.filter((model) => model.rustEngine && model.playable);
+export const ARCHIVE_LEAGUE_MODELS = [...LEAGUE_MODELS, ...LEGACY_LEAGUE_MODELS];
 
 export const LATEST_RESEARCH = {
   title: "Transition v4",
@@ -303,9 +413,9 @@ export const RESEARCH_LANES = [
 ] as const;
 
 export function isRankedLeagueModel(id: string) {
-  return LEAGUE_MODELS.some((model) => model.id === id && model.rustEngine);
+  return RANKED_LEAGUE_MODELS.some((model) => model.id === id && model.rustEngine);
 }
 
 export function leagueModel(id: string) {
-  return LEAGUE_MODELS.find((model) => model.id === id);
+  return ARCHIVE_LEAGUE_MODELS.find((model) => model.id === id);
 }

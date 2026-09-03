@@ -25,6 +25,7 @@ LEGACY_ROOT = REPO_ROOT / "research/20260824-gnn-cnn-lab"
 if str(LEGACY_ROOT) not in sys.path:
     sys.path.insert(0, str(LEGACY_ROOT))
 
+from python.evaluation import evaluate_position, normalize_heuristic  # noqa: E402
 from python.game import Action, BoardConfig, GameState, Player  # noqa: E402
 from python.model import PathagonGNN  # noqa: E402
 
@@ -146,6 +147,23 @@ class ActionConditionedJEPA(nn.Module):
             nn.LayerNorm(hidden_size),
             nn.Linear(hidden_size, self.embedding_size),
         )
+        # These heads are the deployable JEPA opponent surface. The original
+        # smoke checkpoint only learned an embedding prediction objective; it
+        # deliberately cannot be used as an opponent until these action-aware
+        # outputs are trained and exported.
+        action_input_size = self.embedding_size + hidden_size * 2 + 4
+        self.action_rank_head = nn.Sequential(
+            nn.Linear(action_input_size, hidden_size),
+            nn.GELU(),
+            nn.LayerNorm(hidden_size),
+            nn.Linear(hidden_size, 1),
+        )
+        self.action_value_head = nn.Sequential(
+            nn.Linear(action_input_size, hidden_size),
+            nn.GELU(),
+            nn.LayerNorm(hidden_size),
+            nn.Linear(hidden_size, 1),
+        )
         self._freeze_target()
 
     def _freeze_target(self) -> None:
@@ -212,6 +230,25 @@ class ActionConditionedJEPA(nn.Module):
                 _, target_context = self.target.encode(row.next_state)
                 targets.append(self.target_projection(target_context))
         return torch.stack(predictions), torch.stack(targets), torch.stack(online_embeddings)
+
+    def action_rank_value(self, state: GameState, actions: Sequence[Action] | None = None):
+        """Score legal actions with the trained JEPA afterstate heads.
+
+        The Rust exporter supplies the afterstate training rows and the Rust
+        inference ABI later supplies the same state/action tensors. This
+        method is intentionally separate from ``policy_value`` so an
+        embedding-only checkpoint cannot accidentally masquerade as a player.
+        """
+
+        legal = list(actions) if actions is not None else list(state.legal_actions())
+        board_nodes, context = self.online.encode(state)
+        online_z = self.online_projection(context)
+        action_inputs = torch.stack(
+            [torch.cat((online_z, self._action_features(state, action, board_nodes)), dim=0) for action in legal]
+        ) if legal else torch.empty((0, online_z.shape[-1] + board_nodes.shape[-1] * 2 + 4), device=online_z.device)
+        rank_logits = self.action_rank_head(action_inputs).squeeze(-1)
+        values = torch.tanh(self.action_value_head(action_inputs).squeeze(-1))
+        return rank_logits, values
 
     def policy_value(self, state: GameState, actions: Sequence[Action] | None = None):
         """Delegate the deployable policy/value interface to the online trunk."""
@@ -289,6 +326,67 @@ def train_jepa(
         for key in totals:
             totals[key] += float(losses[key].detach().cpu())
     return {key: value / steps for key, value in totals.items()}
+
+
+def _afterstate_target(row: RustTransition) -> torch.Tensor:
+    """Build a bounded preference/value label from a Rust-validated row."""
+
+    return torch.tensor(
+        normalize_heuristic(evaluate_position(row.next_state, row.state.turn)),
+        dtype=torch.float32,
+    )
+
+
+def train_action_head(
+    model: ActionConditionedJEPA,
+    rows: Sequence[RustTransition],
+    steps: int,
+    batch_size: int,
+    learning_rate: float,
+    seed: int,
+) -> dict[str, float]:
+    """Train the real JEPA action-ranking/value path on validated afterstates."""
+
+    if not rows:
+        raise ValueError("cannot train action heads on an empty transition corpus")
+    if steps < 1 or batch_size < 1 or learning_rate <= 0.0:
+        raise ValueError("action-head steps, batch size, and learning rate are invalid")
+    generator = torch.Generator(device="cpu").manual_seed(seed)
+    trainable = list(model.online.parameters()) + list(model.online_projection.parameters())
+    trainable += list(model.action_rank_head.parameters()) + list(model.action_value_head.parameters())
+    optimizer = torch.optim.AdamW(trainable, lr=learning_rate, weight_decay=1.0e-4)
+    rank_total = 0.0
+    value_total = 0.0
+    model.train()
+    for _ in range(steps):
+        indices = torch.randint(len(rows), (batch_size,), generator=generator).tolist()
+        batch = [rows[index] for index in indices]
+        predictions = []
+        values = []
+        targets = []
+        for row in batch:
+            rank, value = model.action_rank_value(row.state, [row.action])
+            predictions.append(rank.squeeze(0))
+            values.append(value.squeeze(0))
+            targets.append(_afterstate_target(row).to(value.device))
+        predicted_rank = torch.stack(predictions)
+        predicted_value = torch.stack(values)
+        target = torch.stack(targets)
+        # The ranking head receives the same monotonic teacher signal as the
+        # value head, but remains an independent learned output for the UI.
+        rank_loss = F.smooth_l1_loss(predicted_rank, target)
+        value_loss = F.smooth_l1_loss(predicted_value, target)
+        loss = rank_loss + value_loss
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(trainable, 1.0)
+        optimizer.step()
+        rank_total += float(rank_loss.detach().cpu())
+        value_total += float(value_loss.detach().cpu())
+    return {
+        "rankLoss": rank_total / steps,
+        "valueLoss": value_total / steps,
+    }
 
 
 def evaluate_jepa(

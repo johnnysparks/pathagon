@@ -51,15 +51,17 @@ export class PathagonCnnModel {
      * @param {string} position
      * @param {number} simulations
      * @param {number} cpuct
+     * @param {number} max_nodes
+     * @param {number} max_time_ms
      * @returns {string}
      */
-    selectAction(position, simulations, cpuct) {
+    selectAction(position, simulations, cpuct, max_nodes, max_time_ms) {
         let deferred3_0;
         let deferred3_1;
         try {
             const ptr0 = passStringToWasm0(position, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
             const len0 = WASM_VECTOR_LEN;
-            const ret = wasm.pathagoncnnmodel_selectAction(this.__wbg_ptr, ptr0, len0, simulations, cpuct);
+            const ret = wasm.pathagoncnnmodel_selectAction(this.__wbg_ptr, ptr0, len0, simulations, cpuct, max_nodes, max_time_ms);
             var ptr2 = ret[0];
             var len2 = ret[1];
             if (ret[3]) {
@@ -75,6 +77,232 @@ export class PathagonCnnModel {
     }
 }
 if (Symbol.dispose) PathagonCnnModel.prototype[Symbol.dispose] = PathagonCnnModel.prototype.free;
+
+/**
+ * Browser binding for the promoted graph policy/value artifact. The model
+ * receives graph node features while the surrounding rules and PUCT search
+ * remain the same Rust implementation used by native evaluation.
+ */
+export class PathagonGnnModel {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        PathagonGnnModelFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_pathagongnnmodel_free(ptr, 0);
+    }
+    /**
+     * @param {string} position
+     * @returns {string}
+     */
+    evaluate(position) {
+        let deferred3_0;
+        let deferred3_1;
+        try {
+            const ptr0 = passStringToWasm0(position, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.pathagongnnmodel_evaluate(this.__wbg_ptr, ptr0, len0);
+            var ptr2 = ret[0];
+            var len2 = ret[1];
+            if (ret[3]) {
+                ptr2 = 0; len2 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred3_0 = ptr2;
+            deferred3_1 = len2;
+            return getStringFromWasm0(ptr2, len2);
+        } finally {
+            wasm.__wbindgen_free_command_export(deferred3_0, deferred3_1, 1);
+        }
+    }
+    /**
+     * @param {Uint8Array} bytes
+     */
+    constructor(bytes) {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc_command_export);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.pathagongnnmodel_new(ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0];
+        PathagonGnnModelFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * @param {string} position
+     * @param {number} simulations
+     * @param {number} cpuct
+     * @param {number} max_nodes
+     * @param {number} max_time_ms
+     * @returns {string}
+     */
+    selectAction(position, simulations, cpuct, max_nodes, max_time_ms) {
+        let deferred3_0;
+        let deferred3_1;
+        try {
+            const ptr0 = passStringToWasm0(position, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.pathagongnnmodel_selectAction(this.__wbg_ptr, ptr0, len0, simulations, cpuct, max_nodes, max_time_ms);
+            var ptr2 = ret[0];
+            var len2 = ret[1];
+            if (ret[3]) {
+                ptr2 = 0; len2 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred3_0 = ptr2;
+            deferred3_1 = len2;
+            return getStringFromWasm0(ptr2, len2);
+        } finally {
+            wasm.__wbindgen_free_command_export(deferred3_0, deferred3_1, 1);
+        }
+    }
+}
+if (Symbol.dispose) PathagonGnnModel.prototype[Symbol.dispose] = PathagonGnnModel.prototype.free;
+
+/**
+ * Browser binding for the real JEPA afterstate action-ranking/value model.
+ */
+export class PathagonJepaModel {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        PathagonJepaModelFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_pathagonjepamodel_free(ptr, 0);
+    }
+    /**
+     * @param {string} position
+     * @returns {string}
+     */
+    evaluate(position) {
+        let deferred3_0;
+        let deferred3_1;
+        try {
+            const ptr0 = passStringToWasm0(position, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.pathagonjepamodel_evaluate(this.__wbg_ptr, ptr0, len0);
+            var ptr2 = ret[0];
+            var len2 = ret[1];
+            if (ret[3]) {
+                ptr2 = 0; len2 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred3_0 = ptr2;
+            deferred3_1 = len2;
+            return getStringFromWasm0(ptr2, len2);
+        } finally {
+            wasm.__wbindgen_free_command_export(deferred3_0, deferred3_1, 1);
+        }
+    }
+    /**
+     * @param {Uint8Array} bytes
+     */
+    constructor(bytes) {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc_command_export);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.pathagonjepamodel_new(ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0];
+        PathagonJepaModelFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+}
+if (Symbol.dispose) PathagonJepaModel.prototype[Symbol.dispose] = PathagonJepaModel.prototype.free;
+
+/**
+ * Browser binding for the GNN Q/Advantage artifact. Its root output exposes
+ * action-aligned Q values for the decision theater, and PUCT seeds unvisited
+ * children with those values when searching.
+ */
+export class PathagonQAdvModel {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        PathagonQAdvModelFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_pathagonqadvmodel_free(ptr, 0);
+    }
+    /**
+     * @param {string} position
+     * @returns {string}
+     */
+    evaluate(position) {
+        let deferred3_0;
+        let deferred3_1;
+        try {
+            const ptr0 = passStringToWasm0(position, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.pathagonqadvmodel_evaluate(this.__wbg_ptr, ptr0, len0);
+            var ptr2 = ret[0];
+            var len2 = ret[1];
+            if (ret[3]) {
+                ptr2 = 0; len2 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred3_0 = ptr2;
+            deferred3_1 = len2;
+            return getStringFromWasm0(ptr2, len2);
+        } finally {
+            wasm.__wbindgen_free_command_export(deferred3_0, deferred3_1, 1);
+        }
+    }
+    /**
+     * @param {Uint8Array} bytes
+     */
+    constructor(bytes) {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc_command_export);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.pathagonqadvmodel_new(ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0];
+        PathagonQAdvModelFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * @param {string} position
+     * @param {number} simulations
+     * @param {number} cpuct
+     * @param {number} qadv_weight
+     * @param {number} max_nodes
+     * @param {number} max_time_ms
+     * @returns {string}
+     */
+    selectAction(position, simulations, cpuct, qadv_weight, max_nodes, max_time_ms) {
+        let deferred3_0;
+        let deferred3_1;
+        try {
+            const ptr0 = passStringToWasm0(position, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.pathagonqadvmodel_selectAction(this.__wbg_ptr, ptr0, len0, simulations, cpuct, qadv_weight, max_nodes, max_time_ms);
+            var ptr2 = ret[0];
+            var len2 = ret[1];
+            if (ret[3]) {
+                ptr2 = 0; len2 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred3_0 = ptr2;
+            deferred3_1 = len2;
+            return getStringFromWasm0(ptr2, len2);
+        } finally {
+            wasm.__wbindgen_free_command_export(deferred3_0, deferred3_1, 1);
+        }
+    }
+}
+if (Symbol.dispose) PathagonQAdvModel.prototype[Symbol.dispose] = PathagonQAdvModel.prototype.free;
 
 /**
  * Packaged explicit action-transition policy. The model is loaded from the
@@ -703,6 +931,15 @@ function __wbg_get_imports() {
 const PathagonCnnModelFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_pathagoncnnmodel_free(ptr, 1));
+const PathagonGnnModelFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_pathagongnnmodel_free(ptr, 1));
+const PathagonJepaModelFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_pathagonjepamodel_free(ptr, 1));
+const PathagonQAdvModelFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_pathagonqadvmodel_free(ptr, 1));
 const PathagonTransitionPolicyModelFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_pathagontransitionpolicymodel_free(ptr, 1));

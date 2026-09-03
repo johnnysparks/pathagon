@@ -1,0 +1,18 @@
+{
+  "artifactId": "tile-driver-gnn-policy-value-v1",
+  "artifactPath": "pathagon-gnn-policy-value.onnx",
+  "artifactSha256": "sha256:b4f8ac08d6efa78821faf07a8d3aea1701cb8f27e98399342dfe52adf6e11e41",
+  "boardSize": 7,
+  "format": "onnx",
+  "modelFamily": "GNN policy/value",
+  "promotionStatus": "browser-playable-provisional",
+  "sourceCheckpoint": "research/20260901-strong-teacher-10k-games/workspace/retraining-mixed-final/gnn-policy-value.pt",
+  "sourceModelHash": "sha256:a0b2d5c0f89cef898490fc313f40179ebd72124b032b11292af4dee44ca0604d",
+  "validation": {
+    "rustLoader": "passed",
+    "wasmBinding": "passed",
+    "legalActionAlignment": "passed",
+    "strengthGate": "not-run"
+  },
+  "version": "1.0.0"
+}

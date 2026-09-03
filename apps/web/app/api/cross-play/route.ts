@@ -2,7 +2,7 @@ import { countSelfPlayGames, querySelfPlayGames, querySelfPlayResults } from "..
 import type { SelfPlayGameRecord } from "../../selfplay-record";
 import type { SelfPlayResult } from "../../../db/selfplay-games";
 import { applyAction, createGame } from "../../pathagon";
-import { LEAGUE_MODELS, RANKED_LEAGUE_MODELS, isRankedLeagueModel, leagueModel } from "../../league-models";
+import { ARCHIVE_LEAGUE_MODELS, RANKED_LEAGUE_MODELS, isRankedLeagueModel, leagueModel } from "../../league-models";
 
 const MAX_QUERY_GAMES = 500;
 const DEFAULT_HISTORY_LIMIT = 24;
@@ -10,7 +10,7 @@ const MAX_HISTORY_LIMIT = 50;
 const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
 const RUN_ID_PATTERN = /^[a-zA-Z0-9._:-]{1,120}$/;
 const WEB_GENERATED_ENGINE = "typescript-live-cross-play";
-const ARCHIVE_AGENTS = LEAGUE_MODELS;
+const ARCHIVE_AGENTS = ARCHIVE_LEAGUE_MODELS;
 const BASELINE_RATINGS = Object.fromEntries(RANKED_LEAGUE_MODELS.map((agent) => [agent.id, agent.initialRating]));
 
 export async function GET(request: Request) {

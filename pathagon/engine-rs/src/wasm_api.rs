@@ -22,7 +22,9 @@ use crate::{BoardConfig, GameState};
 
 use crate::contract::ContractAction;
 #[cfg(feature = "inference")]
-use crate::inference::{OnnxPolicyValueModel, PolicyValueModel};
+use crate::inference::{
+    OnnxGnnPolicyValueModel, OnnxJepaModel, OnnxPolicyValueModel, OnnxQAdvModel, PolicyValueModel,
+};
 #[cfg(feature = "inference")]
 use crate::puct::{search as puct_search, PuctConfig};
 #[cfg(feature = "inference")]
@@ -297,6 +299,27 @@ struct RuntimePolicyValue {
 
 #[cfg(feature = "inference")]
 #[derive(Serialize)]
+struct RuntimeQAdvPolicyValue {
+    actions: Vec<ContractAction>,
+    #[serde(rename = "policyLogits")]
+    policy_logits: Vec<f32>,
+    value: f32,
+    #[serde(rename = "qValues")]
+    q_values: Vec<f32>,
+}
+
+#[cfg(feature = "inference")]
+#[derive(Serialize)]
+struct RuntimeJepaActionValue {
+    actions: Vec<ContractAction>,
+    #[serde(rename = "rankLogits")]
+    rank_logits: Vec<f32>,
+    #[serde(rename = "actionValues")]
+    action_values: Vec<f32>,
+}
+
+#[cfg(feature = "inference")]
+#[derive(Serialize)]
 struct RuntimePuctActionEvaluation {
     action: ContractAction,
     prior: f32,
@@ -310,6 +333,7 @@ struct RuntimePuctResult {
     action: Option<ContractAction>,
     value: f32,
     simulations: u32,
+    nodes: u64,
     evaluations: Vec<RuntimePuctActionEvaluation>,
 }
 
@@ -346,6 +370,8 @@ impl PathagonCnnModel {
         position: &str,
         simulations: u32,
         cpuct: f32,
+        max_nodes: u32,
+        max_time_ms: u32,
     ) -> Result<String, JsValue> {
         let state = parse_position(position).map_err(js_error)?;
         let result = puct_search(
@@ -355,6 +381,9 @@ impl PathagonCnnModel {
                 simulations,
                 cpuct,
                 use_action_value_seeds: false,
+                qadv_weight: 1.0,
+                max_nodes: u64::from(max_nodes),
+                max_time_ms,
             },
         )
         .map_err(js_error)?;
@@ -362,6 +391,202 @@ impl PathagonCnnModel {
             action: result.action.map(Into::into),
             value: result.value,
             simulations: result.simulations,
+            nodes: result.nodes,
+            evaluations: result
+                .evaluations
+                .into_iter()
+                .map(|evaluation| RuntimePuctActionEvaluation {
+                    action: evaluation.action.into(),
+                    prior: evaluation.prior,
+                    visits: evaluation.visits,
+                    value: evaluation.value,
+                })
+                .collect(),
+        };
+        serde_json::to_string(&response).map_err(|error| js_error(error.to_string()))
+    }
+}
+
+/// Browser binding for the promoted graph policy/value artifact. The model
+/// receives graph node features while the surrounding rules and PUCT search
+/// remain the same Rust implementation used by native evaluation.
+#[cfg(feature = "inference")]
+#[wasm_bindgen]
+pub struct PathagonGnnModel {
+    model: OnnxGnnPolicyValueModel,
+}
+
+#[cfg(feature = "inference")]
+#[wasm_bindgen]
+impl PathagonGnnModel {
+    #[wasm_bindgen(constructor)]
+    pub fn new(bytes: &[u8]) -> Result<PathagonGnnModel, JsValue> {
+        let model = OnnxGnnPolicyValueModel::from_bytes(bytes).map_err(js_error)?;
+        Ok(Self { model })
+    }
+
+    #[wasm_bindgen(js_name = evaluate)]
+    pub fn evaluate_position(&self, position: &str) -> Result<String, JsValue> {
+        let state = parse_position(position).map_err(js_error)?;
+        let actions = state.legal_actions();
+        let action_count = actions.len();
+        let output = self
+            .model
+            .evaluate_with_actions(state, &actions)
+            .map_err(js_error)?;
+        let response = RuntimePolicyValue {
+            actions: actions.into_iter().map(Into::into).collect(),
+            policy_logits: output
+                .policy_logits
+                .into_iter()
+                .take(action_count)
+                .collect(),
+            value: output.value,
+        };
+        serde_json::to_string(&response).map_err(|error| js_error(error.to_string()))
+    }
+
+    #[wasm_bindgen(js_name = selectAction)]
+    pub fn select_action(
+        &self,
+        position: &str,
+        simulations: u32,
+        cpuct: f32,
+        max_nodes: u32,
+        max_time_ms: u32,
+    ) -> Result<String, JsValue> {
+        let state = parse_position(position).map_err(js_error)?;
+        let result = puct_search(
+            &self.model,
+            state,
+            PuctConfig {
+                simulations,
+                cpuct,
+                use_action_value_seeds: false,
+                qadv_weight: 1.0,
+                max_nodes: u64::from(max_nodes),
+                max_time_ms,
+            },
+        )
+        .map_err(js_error)?;
+        let response = RuntimePuctResult {
+            action: result.action.map(Into::into),
+            value: result.value,
+            simulations: result.simulations,
+            nodes: result.nodes,
+            evaluations: result
+                .evaluations
+                .into_iter()
+                .map(|evaluation| RuntimePuctActionEvaluation {
+                    action: evaluation.action.into(),
+                    prior: evaluation.prior,
+                    visits: evaluation.visits,
+                    value: evaluation.value,
+                })
+                .collect(),
+        };
+        serde_json::to_string(&response).map_err(|error| js_error(error.to_string()))
+    }
+}
+
+/// Browser binding for the real JEPA afterstate action-ranking/value model.
+#[cfg(feature = "inference")]
+#[wasm_bindgen]
+pub struct PathagonJepaModel {
+    model: OnnxJepaModel,
+}
+
+#[cfg(feature = "inference")]
+#[wasm_bindgen]
+impl PathagonJepaModel {
+    #[wasm_bindgen(constructor)]
+    pub fn new(bytes: &[u8]) -> Result<PathagonJepaModel, JsValue> {
+        let model = OnnxJepaModel::from_bytes(bytes).map_err(js_error)?;
+        Ok(Self { model })
+    }
+
+    #[wasm_bindgen(js_name = evaluate)]
+    pub fn evaluate_position(&self, position: &str) -> Result<String, JsValue> {
+        let state = parse_position(position).map_err(js_error)?;
+        let actions = state.legal_actions();
+        let output = self
+            .model
+            .evaluate_jepa_with_actions(state, &actions)
+            .map_err(js_error)?;
+        let action_count = actions.len();
+        let response = RuntimeJepaActionValue {
+            actions: actions.into_iter().map(Into::into).collect(),
+            rank_logits: output.rank_logits.into_iter().take(action_count).collect(),
+            action_values: output.action_values.into_iter().take(action_count).collect(),
+        };
+        serde_json::to_string(&response).map_err(|error| js_error(error.to_string()))
+    }
+}
+
+/// Browser binding for the GNN Q/Advantage artifact. Its root output exposes
+/// action-aligned Q values for the decision theater, and PUCT seeds unvisited
+/// children with those values when searching.
+#[cfg(feature = "inference")]
+#[wasm_bindgen]
+pub struct PathagonQAdvModel {
+    model: OnnxQAdvModel,
+}
+
+#[cfg(feature = "inference")]
+#[wasm_bindgen]
+impl PathagonQAdvModel {
+    #[wasm_bindgen(constructor)]
+    pub fn new(bytes: &[u8]) -> Result<PathagonQAdvModel, JsValue> {
+        let model = OnnxQAdvModel::from_bytes(bytes).map_err(js_error)?;
+        Ok(Self { model })
+    }
+
+    #[wasm_bindgen(js_name = evaluate)]
+    pub fn evaluate_position(&self, position: &str) -> Result<String, JsValue> {
+        let state = parse_position(position).map_err(js_error)?;
+        let actions = state.legal_actions();
+        let output = self
+            .model
+            .evaluate_qadv_with_actions(state, &actions)
+            .map_err(js_error)?;
+        let response = RuntimeQAdvPolicyValue {
+            actions: actions.into_iter().map(Into::into).collect(),
+            policy_logits: output.policy_logits,
+            value: output.value,
+            q_values: output.q_values,
+        };
+        serde_json::to_string(&response).map_err(|error| js_error(error.to_string()))
+    }
+
+    #[wasm_bindgen(js_name = selectAction)]
+    pub fn select_action(
+        &self,
+        position: &str,
+        simulations: u32,
+        cpuct: f32,
+        qadv_weight: f32,
+        max_nodes: u32,
+        max_time_ms: u32,
+    ) -> Result<String, JsValue> {
+        let state = parse_position(position).map_err(js_error)?;
+        let result = puct_search(
+            &self.model,
+            state,
+            PuctConfig {
+                simulations,
+                cpuct,
+                use_action_value_seeds: true,
+                qadv_weight,
+                max_nodes: u64::from(max_nodes),
+                max_time_ms,
+            },
+        )
+        .map_err(js_error)?;
+        let response = RuntimePuctResult {
+            action: result.action.map(Into::into),
+            value: result.value,
+            simulations: result.simulations,
+            nodes: result.nodes,
             evaluations: result
                 .evaluations
                 .into_iter()

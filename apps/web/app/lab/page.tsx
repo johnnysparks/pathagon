@@ -5,8 +5,8 @@ import Link from "next/link";
 import { applyAction, createGame, type GameState } from "../pathagon";
 import type { ContractMove, ContractReplayRecord } from "../contract";
 import {
+  ARCHIVE_LEAGUE_MODELS,
   LATEST_RESEARCH,
-  LEAGUE_MODELS,
   RANKED_LEAGUE_MODELS,
   RESEARCH_LANES,
 } from "../league-models";
@@ -15,7 +15,7 @@ const ALL_CROSS_PLAY_RUN_ID = "all-cross-play";
 const GAME_THUMBNAIL_RESOLUTION = 256;
 const CROSS_PLAY_POLL_MS = 15_000;
 
-const MODELS = LEAGUE_MODELS;
+const MODELS = ARCHIVE_LEAGUE_MODELS;
 const RANKED_MODEL_IDS = new Set(RANKED_LEAGUE_MODELS.map((model) => model.id));
 
 type LiveStanding = {
@@ -416,7 +416,7 @@ export default function LearningLab() {
         <div className="leaderboard-compact-copy">
           <span className="portal-kicker">7×7 model league</span>
           <h1>Model league.</h1>
-          <p>Browse the supported ladder, compare pairings, replay archived games, and see why Transition v4 is the current default.</p>
+          <p>Browse the six opponent cards, compare pairings, replay archived games, and see how promoted artifacts become playable.</p>
         </div>
         <div className="leaderboard-compact-meta" aria-label="Archive summary">
           <span className="leaderboard-status polling-status"><span /> {crossPlay ? "Polling" : "Connecting"}</span>
@@ -431,7 +431,7 @@ export default function LearningLab() {
       <section className="player-profiles" aria-labelledby="player-profiles-title">
         <div className="player-profiles-heading">
           <div><span className="portal-kicker">The ranked roster</span><h2 id="player-profiles-title">Players in the league.</h2></div>
-          <p>{RANKED_LEAGUE_MODELS.length} Rust-engine opponents · live Elo updates as imported games land.</p>
+          <p>{RANKED_LEAGUE_MODELS.length} canonical opponents · live Elo updates as imported games land.</p>
         </div>
         <div className="player-profile-grid">
           {profileModels.map((model) => <PlayerProfileCard key={model.id} model={model} live={liveStandingById.get(model.id)} liveRank={liveRankById.get(model.id)} snapshotLoaded={Boolean(crossPlay)} />)}
@@ -501,13 +501,13 @@ export default function LearningLab() {
           <div>
             <span className="portal-kicker">Research ledger · {LATEST_RESEARCH.researchPath}</span>
             <h2 id="research-title">The latest signal is shipped.</h2>
-            <p>Transition v4 is the promoted Pathfinder default. The ladder stays limited to rankable identities; historical candidates and controls remain documented here without being presented as supported strength.</p>
+            <p>Pathman is the player-facing default. Transition v4 remains a retained rollback identity; artifact-pending cards stay visible without being presented as supported strength.</p>
           </div>
           <span className="research-promotion-badge"><span /> {LATEST_RESEARCH.status}</span>
         </div>
         <div className="research-evidence-layout">
           <article className="research-feature-card">
-            <div className="research-feature-topline"><span>Current default</span><strong>{LATEST_RESEARCH.title}</strong></div>
+            <div className="research-feature-topline"><span>Retained rollback</span><strong>{LATEST_RESEARCH.title}</strong></div>
             <p>Explicit placement/relocation transition scoring with tactical-safe root ordering, trained from a {LATEST_RESEARCH.trainingViewRoots.toLocaleString()}-root corpus ({LATEST_RESEARCH.trainingRoots.toLocaleString()} train · {LATEST_RESEARCH.heldoutRoots.toLocaleString()} held out), and evaluated with the same bounded search envelope as the incumbent.</p>
             <dl className="research-metric-grid">
               <div><dt>Arena</dt><dd>{LATEST_RESEARCH.arenaWins}–{LATEST_RESEARCH.arenaLosses}–{LATEST_RESEARCH.arenaDraws}</dd><small>{LATEST_RESEARCH.arenaGames} paired games</small></div>

@@ -1,0 +1,19 @@
+{
+  "artifactId": "yann-tileson-jepa-afterstate-v1",
+  "artifactPath": "pathagon-jepa-afterstate.onnx",
+  "artifactSha256": "sha256:c2a39c494b2dfc5adcaefd0195d6f0ee735a310c98a5b22a7eb7e5a0f664db1f",
+  "boardSize": 7,
+  "format": "onnx",
+  "modelFamily": "JEPA afterstate rank/value",
+  "promotionStatus": "browser-playable-provisional",
+  "sourceCheckpoint": "research/20260902-unified-opponent-artifacts/workspace/yann-tileson.pt",
+  "validation": {
+    "rustLoader": "passed",
+    "wasmBinding": "passed",
+    "legalActionAlignment": "passed",
+    "actionRankingHead": "passed",
+    "afterstateValueHead": "passed",
+    "strengthGate": "not-run"
+  },
+  "version": "1.0.0"
+}

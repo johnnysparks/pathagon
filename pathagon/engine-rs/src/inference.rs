@@ -21,6 +21,11 @@ pub struct QAdvPolicyValue {
     pub q_values: Vec<f32>,
 }
 
+pub struct JepaActionValue {
+    pub rank_logits: Vec<f32>,
+    pub action_values: Vec<f32>,
+}
+
 static ZERO_QADV_TRANSITION_FEATURES: [f32; MAX_ACTIONS * QADV_TRANSITION_FEATURE_COUNT] =
     [0.0; MAX_ACTIONS * QADV_TRANSITION_FEATURE_COUNT];
 
@@ -195,6 +200,71 @@ impl PolicyValueModel for OnnxGnnPolicyValueModel {
         Ok(PolicyValue {
             policy_logits,
             value,
+        })
+    }
+}
+
+/// ONNX runner for the action-conditioned JEPA afterstate heads. The model
+/// shares the fixed graph/action ABI with the GNN policy path, but its outputs
+/// are explicitly action-ranking logits and bounded afterstate values.
+pub struct OnnxJepaModel {
+    model: Arc<tract::tract_core::model::typed::TypedRunnableModel>,
+}
+
+impl OnnxJepaModel {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
+        Ok(Self {
+            model: load_model(bytes)?,
+        })
+    }
+
+    pub fn evaluate_jepa(&self, state: GameState) -> Result<JepaActionValue, String> {
+        let actions = state.legal_actions();
+        self.evaluate_jepa_with_actions(state, &actions)
+    }
+
+    pub fn evaluate_jepa_with_actions(
+        &self,
+        state: GameState,
+        actions: &[crate::Action],
+    ) -> Result<JepaActionValue, String> {
+        let inputs = GnnPolicyValueInputs::from_state_with_actions(state, actions)?;
+        let node_features = tensor(
+            &[1, GNN_GRAPH_NODE_COUNT, GNN_NODE_FEATURE_COUNT],
+            &inputs.node_features,
+        )?;
+        let global = tensor(&[1, GLOBAL_FEATURE_COUNT], &inputs.global_features)?;
+        let action_specs = inputs
+            .action_specs
+            .iter()
+            .flat_map(|action| {
+                [
+                    f32::from(action.kind),
+                    f32::from(action.from),
+                    f32::from(action.to),
+                ]
+            })
+            .collect::<Vec<_>>();
+        let action_specs = tensor(&[1, MAX_ACTIONS, ACTION_FEATURE_COUNT], &action_specs)?;
+        let action_mask = tensor(&[1, MAX_ACTIONS], &inputs.action_mask)?;
+        let outputs = self
+            .model
+            .run(tvec![
+                node_features.into_tvalue(),
+                global.into_tvalue(),
+                action_specs.into_tvalue(),
+                action_mask.into_tvalue(),
+            ])
+            .map_err(|error| error.to_string())?;
+        if outputs.len() != 2 {
+            return Err(format!(
+                "JEPA action model returned {} outputs, expected 2",
+                outputs.len()
+            ));
+        }
+        Ok(JepaActionValue {
+            rank_logits: f32_values(&outputs[0])?,
+            action_values: f32_values(&outputs[1])?,
         })
     }
 }

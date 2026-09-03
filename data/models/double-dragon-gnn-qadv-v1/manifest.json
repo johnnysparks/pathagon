@@ -1,0 +1,20 @@
+{
+  "artifactId": "double-dragon-gnn-qadv-v1",
+  "artifactPath": "pathagon-gnn-qadv.onnx",
+  "artifactSha256": "sha256:b32fbfbabc1cc4888a2f63c2a0fe9368557beca2791bc98555f760a34b186fe7",
+  "boardSize": 7,
+  "format": "onnx",
+  "modelFamily": "GNN Q/Advantage",
+  "promotionStatus": "browser-playable-provisional",
+  "qTargetSource": "mcts-root-q-v1",
+  "sourceCheckpoint": "research/20260828-seeded-position-curriculum/workspace/seeded-position-20260828-v2/condition-25pct/qadv.pt",
+  "sourceModelHash": "sha256:dbe60b6a050463c787b12dbe740809ae522f913195bdc56dbfb4a4747a898b20",
+  "validation": {
+    "rustLoader": "passed",
+    "wasmBinding": "passed",
+    "legalActionAlignment": "passed",
+    "strengthGate": "not-passed; retained as a provisional control",
+    "rootQTargets": "complete in source training lane"
+  },
+  "version": "1.0.0"
+}

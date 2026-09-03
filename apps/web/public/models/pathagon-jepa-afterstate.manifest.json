@@ -1,0 +1,19 @@
+{
+  "actionFeatures": 3,
+  "artifactHash": "sha256:c2a39c494b2dfc5adcaefd0195d6f0ee735a310c98a5b22a7eb7e5a0f664db1f",
+  "boardSize": 7,
+  "checkpointHash": "sha256:26064174aadca672fc4ec96e3e227660e5da05a66b1df3c87b151fd6c9d41fcb",
+  "format": "onnx",
+  "globalFeatures": 8,
+  "graphNodes": 53,
+  "maxActions": 2401,
+  "nodeFeatures": 21,
+  "outputs": {
+    "actionValues": "bounded afterstate values in [-1,1] in legal-action order",
+    "rankLogits": "action-ranking logits in legal-action order"
+  },
+  "reservePerPlayer": 14,
+  "schema": "pathagon-jepa-afterstate-v1",
+  "schemaVersion": 1,
+  "sourceModelHash": "sha256:e48294d12f2114f95aded37295a8f031bdbf34e02efbce0a3e2e5fdc264a8317"
+}

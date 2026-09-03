@@ -7,7 +7,7 @@ use std::time::Instant;
 
 use pathagon_engine::corpus::{write_corpus, StrategyBook};
 #[cfg(feature = "inference")]
-use pathagon_engine::inference::{OnnxGnnPolicyValueModel, OnnxQAdvModel};
+use pathagon_engine::inference::{OnnxGnnPolicyValueModel, OnnxJepaModel, OnnxQAdvModel};
 use pathagon_engine::learned::LearnedBook;
 use pathagon_engine::pathfinder::{PathfinderConfig, PathfinderGuide};
 #[cfg(feature = "inference")]
@@ -138,6 +138,15 @@ fn main() {
         )
     });
     #[cfg(feature = "inference")]
+    let jepa_model = args.get("jepa-onnx").map(|path| {
+        let bytes = fs::read(path)
+            .unwrap_or_else(|error| fail(&format!("cannot read JEPA ONNX model: {error}")));
+        Arc::new(
+            OnnxJepaModel::from_bytes(&bytes)
+                .unwrap_or_else(|error| fail(&format!("cannot load JEPA ONNX model: {error}"))),
+        )
+    });
+    #[cfg(feature = "inference")]
     let sorter_model = args.get("sorter-onnx").map(|path| {
         let bytes = fs::read(path)
             .unwrap_or_else(|error| fail(&format!("cannot read sorter ONNX model: {error}")));
@@ -165,6 +174,10 @@ fn main() {
         fail("--qadv-onnx requires the inference feature; rebuild with --features inference");
     }
     #[cfg(not(feature = "inference"))]
+    if args.contains_key("jepa-onnx") {
+        fail("--jepa-onnx requires the inference feature; rebuild with --features inference");
+    }
+    #[cfg(not(feature = "inference"))]
     if args.contains_key("sorter-onnx") {
         fail("--sorter-onnx requires the inference feature; rebuild with --features inference");
     }
@@ -179,7 +192,17 @@ fn main() {
     if args.contains_key("eval-only") {
         let state = evaluation_state(&args);
         let count = number(&args, "eval-count", 8_usize);
-        if let Some(model) = qadv_model.as_ref() {
+        if let Some(model) = jepa_model.as_ref() {
+            let output = model
+                .evaluate_jepa(state)
+                .unwrap_or_else(|error| fail(&format!("JEPA evaluation failed: {error}")));
+            println!(
+                "{{\"legalActions\":{},\"rankFirst\":{},\"valueFirst\":{}}}",
+                state.legal_actions().len(),
+                json_f32_prefix(&output.rank_logits, count),
+                json_f32_prefix(&output.action_values, count),
+            );
+        } else if let Some(model) = qadv_model.as_ref() {
             let output = model
                 .evaluate_qadv(state)
                 .unwrap_or_else(|error| fail(&format!("QAdv evaluation failed: {error}")));
@@ -201,7 +224,7 @@ fn main() {
                 output.value,
             );
         } else {
-            fail("--eval-only requires --onnx or --qadv-onnx");
+            fail("--eval-only requires --onnx, --qadv-onnx, or --jepa-onnx");
         }
         return;
     }
@@ -313,6 +336,9 @@ fn main() {
                         simulations,
                         cpuct,
                         use_action_value_seeds: qadv_tree_seeds,
+                        qadv_weight: 1.0,
+                        max_nodes: u64::MAX,
+                        max_time_ms: 0,
                     },
                     temperature_moves,
                     policy_temperature,
@@ -343,6 +369,9 @@ fn main() {
                         simulations,
                         cpuct,
                         use_action_value_seeds: false,
+                        qadv_weight: 1.0,
+                        max_nodes: u64::MAX,
+                        max_time_ms: 0,
                     },
                     temperature_moves,
                     policy_temperature,
@@ -365,6 +394,9 @@ fn main() {
                     simulations,
                     cpuct,
                     use_action_value_seeds: false,
+                    qadv_weight: 1.0,
+                    max_nodes: u64::MAX,
+                    max_time_ms: 0,
                 },
                 Arc::clone(model),
             )
@@ -490,6 +522,9 @@ fn main() {
                                 simulations,
                                 cpuct,
                                 use_action_value_seeds: qadv_tree_seeds,
+                                qadv_weight: 1.0,
+                                max_nodes: u64::MAX,
+                                max_time_ms: 0,
                             },
                             temperature_moves,
                             policy_temperature,
@@ -523,6 +558,9 @@ fn main() {
                                 simulations,
                                 cpuct,
                                 use_action_value_seeds: false,
+                                qadv_weight: 1.0,
+                                max_nodes: u64::MAX,
+                                max_time_ms: 0,
                             },
                             temperature_moves,
                             policy_temperature,
@@ -545,6 +583,9 @@ fn main() {
                             simulations,
                             cpuct,
                             use_action_value_seeds: false,
+                            qadv_weight: 1.0,
+                            max_nodes: u64::MAX,
+                            max_time_ms: 0,
                         },
                         Arc::clone(model),
                     )

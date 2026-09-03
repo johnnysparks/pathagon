@@ -1,0 +1,29 @@
+{
+  "actionFeatures": 3,
+  "architecture": {
+    "action_head": "dynamic-place-and-relocate-pair",
+    "action_value_head": null,
+    "architecture": "residual-mean-message-passing",
+    "global_features": 8,
+    "hidden_size": 64,
+    "message_layers": 8,
+    "node_features": 21,
+    "qadv": false,
+    "transition_features": null
+  },
+  "artifactHash": "sha256:b4f8ac08d6efa78821faf07a8d3aea1701cb8f27e98399342dfe52adf6e11e41",
+  "boardSize": 7,
+  "format": "onnx",
+  "globalFeatures": 8,
+  "graphNodes": 53,
+  "maxActions": 2401,
+  "nodeFeatures": 21,
+  "outputs": {
+    "policy": "masked logits in legal-action order",
+    "value": "side-to-move scalar in [-1,1]"
+  },
+  "reservePerPlayer": 14,
+  "schema": "pathagon-gnn-policy-value-v1",
+  "schemaVersion": 1,
+  "sourceModelHash": "sha256:a0b2d5c0f89cef898490fc313f40179ebd72124b032b11292af4dee44ca0604d"
+}

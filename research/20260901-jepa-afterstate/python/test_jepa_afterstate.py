@@ -79,6 +79,9 @@ class JepaAfterstateTests(unittest.TestCase):
         self.assertEqual(tuple(predictions.shape), (2, 8))
         self.assertEqual(tuple(targets.shape), (2, 8))
         self.assertEqual(tuple(online.shape), (2, 8))
+        rank, value = model.action_rank_value(rows[0].state, [rows[0].action])
+        self.assertEqual(tuple(rank.shape), (1,))
+        self.assertEqual(tuple(value.shape), (1,))
         metrics = evaluate_jepa(model, rows, batch_size=2)
         self.assertTrue(all(torch.isfinite(torch.tensor(value)) for value in metrics.values()))
 

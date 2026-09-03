@@ -139,6 +139,8 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .legend-swatch.bad { background: #b76850; }
 .lab-panel { padding: 20px; }
 .panel-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.panel-subtitle { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.35; }
+.analyst-follow-status { flex: 0 0 auto; color: #6c7e70; font-size: 10px; font-weight: 850; text-align: right; }
 .opponent-picker { display: flex; align-items: center; gap: 7px; }
 .opponent-picker > span { color: var(--muted); font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; }
 .opponent-picker select { min-height: 34px; max-width: 150px; border: 1px solid var(--line); border-radius: 9px; padding: 0 28px 0 9px; color: var(--ink); background: #fbf8f1; cursor: pointer; font-size: 12px; font-weight: 750; }
@@ -216,6 +218,70 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .decision-rank { position: absolute; top: 5%; right: 5%; z-index: 4; display: grid; place-items: center; width: 20%; min-width: 15px; aspect-ratio: 1; border-radius: 50%; color: #fff8eb; background: rgba(41,74,59,.86); font-size: clamp(9px, 1.8vw, 12px); font-weight: 850; line-height: 1; pointer-events: none; }
 @keyframes decision-pulse { 0%, 100% { opacity: .64; transform: scale(.86); } 50% { opacity: 1; transform: scale(1); } }
 @keyframes decision-glow { 0%, 100% { opacity: .64; } 50% { opacity: .92; } }
+.opponent-roster { display: grid; gap: 8px; margin-top: 15px; }
+.opponent-card { overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: rgba(251,248,241,.88); box-shadow: inset 0 1px 0 rgba(255,255,255,.62); }
+.opponent-card.play-active { border-color: #8eb59a; box-shadow: inset 3px 0 0 var(--green), inset 0 1px 0 rgba(255,255,255,.62); }
+.opponent-card.analyze-active { border-color: #b9cba7; }
+.opponent-card.play-active.analyze-active { border-color: #7ca68a; }
+.opponent-card.artifact-pending { background: rgba(247,243,235,.78); }
+.opponent-card-header { display: grid; grid-template-columns: 32px minmax(0, 1fr) 20px; gap: 9px; align-items: center; width: 100%; border: 0; padding: 11px 12px 8px; color: var(--ink); background: transparent; cursor: pointer; text-align: left; }
+.opponent-card-header:focus-visible, .role-toggle:focus-visible, .info-button:focus-visible, .model-control input:focus-visible { outline: 3px solid rgba(56,95,76,.28); outline-offset: 2px; }
+.opponent-glyph { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: #f6ead5; background: var(--dark-piece); font-family: Georgia, serif; font-size: 10px; font-weight: 700; }
+.opponent-card-identity { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.opponent-card-identity strong { overflow: hidden; font-family: Georgia, serif; font-size: 16px; font-weight: 500; letter-spacing: -.015em; text-overflow: ellipsis; white-space: nowrap; }
+.opponent-card-identity small { overflow: hidden; color: var(--muted); font-size: 10px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.opponent-card-chevron { color: var(--muted); font-size: 20px; font-weight: 400; line-height: 1; text-align: center; }
+.opponent-card-badges { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 12px 9px 53px; }
+.opponent-card-badges span { border: 1px solid #d6cdbc; border-radius: 999px; padding: 3px 6px; color: #6c665c; background: rgba(255,255,255,.48); font-size: 9px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+.opponent-card.play-active .opponent-card-badges span:first-child, .opponent-card.analyze-active .opponent-card-badges span:first-child { border-color: #b6cbb9; color: #35614a; background: #edf4ed; }
+.opponent-card.artifact-pending .opponent-card-badges span:first-child { border-color: #d6cdbc; color: #887b68; background: #f1ece2; }
+.opponent-role-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 12px 11px; }
+.role-toggle { display: flex; align-items: center; justify-content: space-between; min-height: 30px; border: 1px solid #d6cdbc; border-radius: 8px; padding: 0 8px; color: #756d62; background: rgba(255,255,255,.42); cursor: pointer; font-size: 10px; font-weight: 850; }
+.role-toggle span { color: var(--ink); font-size: 11px; }
+.role-toggle.selected { border-color: #35614a; color: #fff; background: #35614a; }
+.role-toggle.selected span { color: #fff; }
+.role-toggle.selected.analyst { border-color: #6c8461; background: #6c8461; }
+.role-toggle:disabled { cursor: not-allowed; opacity: .45; }
+.opponent-card-details { border-top: 1px solid #e3dccf; padding: 12px; background: rgba(237,246,237,.38); }
+.opponent-card-description { display: flex; align-items: flex-start; gap: 8px; color: #5e7162; font-size: 11px; line-height: 1.4; }
+.opponent-card-description > span { flex: 1 1 auto; }
+.info-button { flex: 0 0 auto; width: 20px; height: 20px; border: 1px solid #b6cbb9; border-radius: 50%; padding: 0; color: #35614a; background: rgba(255,255,255,.62); cursor: pointer; font-size: 10px; font-weight: 850; line-height: 18px; }
+.opponent-info { margin: 8px 0 0; padding: 8px 9px; border-left: 2px solid #8eb59a; color: #5e7162; background: rgba(255,255,255,.48); font-size: 10px; line-height: 1.45; }
+.artifact-note { margin: 10px 0 0; padding: 8px 9px; border: 1px solid #dfd1b8; border-radius: 8px; color: #766b5c; background: #f5eee2; font-size: 10px; line-height: 1.45; }
+.artifact-note code { overflow-wrap: anywhere; font-size: 9px; }
+.opponent-controls { margin-top: 12px; padding-top: 11px; border-top: 1px solid rgba(182,203,185,.72); }
+.control-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: #35614a; }
+.control-heading span { font-size: 10px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.control-heading small { color: #6c7e70; font-size: 9px; font-weight: 750; }
+.model-control { display: block; margin-top: 12px; }
+.model-control-label { display: flex; align-items: center; gap: 5px; color: #294a3b; }
+.model-control-label strong { font-size: 11px; }
+.model-control-label em { margin-left: auto; color: #35614a; font-size: 10px; font-style: normal; font-weight: 850; }
+.model-control input { display: block; width: 100%; margin: 7px 0 4px; accent-color: var(--green); cursor: pointer; }
+.model-control-scale { display: flex; justify-content: space-between; gap: 7px; color: #79907c; font-size: 9px; font-weight: 750; }
+.model-control-scale small:nth-child(2) { color: #35614a; }
+.opponent-card-details > .decision-theater { margin-top: 12px; }
+.cell.opponent-heat::before { content: ""; position: absolute; inset: 0; z-index: 0; opacity: .78; transition: opacity 120ms ease, background 180ms ease; }
+.cell.opponent-heat:hover::before, .cell.opponent-heat:focus-visible::before { opacity: 1; }
+.cell.opponent-heat-strong-good::before { background: rgba(54,125,82,.76); }
+.cell.opponent-heat-good::before { background: rgba(81,146,104,.56); }
+.cell.opponent-heat-even::before { background: rgba(215,185,112,.42); }
+.cell.opponent-heat-bad::before { background: rgba(183,100,75,.48); }
+.cell.opponent-heat-strong-bad::before { background: rgba(168,72,55,.72); }
+.cell.opponent-heat-random::before { background: rgba(131,126,116,.42); }
+.cell.opponent-heat .socket { opacity: .4; }
+.analyst-summary { margin: 0 0 16px; padding: 14px 16px; border: 1px solid #b6cbb9; border-radius: 14px; color: #294a3b; background: linear-gradient(145deg, rgba(237,246,237,.96), rgba(247,243,235,.72)); }
+.analyst-summary-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.analyst-summary-heading h2 { margin: 4px 0 0; color: #294a3b; font-size: 18px; letter-spacing: -.02em; }
+.analyst-status { display: inline-flex; align-items: center; gap: 6px; color: #6c7e70; font-size: 10px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.analyst-status > span { width: 7px; height: 7px; border-radius: 50%; background: #9fb3a2; }
+.analyst-status.searching > span, .analyst-status.ready > span { background: #6eaa7b; box-shadow: 0 0 0 4px rgba(110,170,123,.14); }
+.analyst-status.unavailable > span { background: #b25c46; box-shadow: 0 0 0 4px rgba(178,92,70,.14); }
+.analyst-result { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px 9px; margin-top: 10px; }
+.analyst-result strong { font-family: Georgia, serif; font-size: 24px; font-weight: 500; }
+.analyst-result span { color: #5e7162; font-size: 10px; font-weight: 800; }
+.analyst-result small { width: 100%; color: #6c7e70; font-size: 10px; }
+.analyst-empty { margin: 9px 0 0; color: #5e7162; font-size: 11px; line-height: 1.4; }
 .telemetry { margin: 18px 0; }
 .telemetry div { display: flex; justify-content: space-between; padding: 10px 2px; border-bottom: 1px solid var(--line); }
 .telemetry dt { color: var(--muted); font-size: 13px; }
@@ -256,6 +322,10 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
   .lab-panel { padding: 16px; }
   .search-dial-row { align-items: stretch; flex-direction: column; }
   .opponent-picker > span { display: none; }
+  .opponent-card-header { padding-inline: 10px; }
+  .opponent-card-badges { padding-left: 51px; }
+  .opponent-role-row { padding-inline: 10px; }
+  .opponent-card-details { padding: 11px 10px; }
   .result-scrim { align-items: end; padding: 0; }
   .result-card { width: 100%; border-radius: 22px 22px 0 0; padding: 24px 20px max(24px, env(safe-area-inset-bottom)); }
 }
@@ -275,6 +345,8 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
   .piece-trays { gap: 6px; }
   .piece-tray { padding-inline: 8px; }
   .coaching-panel { padding-inline: 12px; }
+  .analyst-summary { padding-inline: 12px; }
+  .analyst-summary-heading { align-items: flex-start; flex-direction: column; gap: 5px; }
   .board-orientation { align-items: flex-start; gap: 5px 10px; margin-inline: 3px; }
   .orientation-example { width: 100%; margin-left: 0; }
   .coaching-body { grid-template-columns: 1fr; gap: 0; }

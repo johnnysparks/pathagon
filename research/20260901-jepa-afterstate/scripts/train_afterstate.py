@@ -21,6 +21,7 @@ from jepa_afterstate import (  # noqa: E402
     ActionConditionedJEPA,
     evaluate_jepa,
     load_rust_transitions,
+    train_action_head,
     train_jepa,
 )
 
@@ -67,6 +68,7 @@ def main() -> None:
     parser.add_argument("--init-checkpoint", type=Path)
     parser.add_argument("--replay-input", type=Path, help="optional JSONL replay for policy/value fine-tuning")
     parser.add_argument("--replay-steps", type=int, default=0)
+    parser.add_argument("--action-steps", type=int, default=200)
     parser.add_argument("--heldout-fraction", type=float, default=0.2)
     parser.add_argument("--split-seed", type=int, default=2026090102)
     parser.add_argument("--seed", type=int, default=2026090103)
@@ -93,6 +95,14 @@ def main() -> None:
         batch_size=args.batch_size,
         learning_rate=args.learning_rate,
         seed=args.seed,
+    )
+    training["actionHead"] = train_action_head(
+        model,
+        train_rows,
+        steps=args.action_steps,
+        batch_size=args.batch_size,
+        learning_rate=args.learning_rate,
+        seed=args.seed + 2,
     )
     if args.replay_input and args.replay_steps > 0:
         legacy_root = ROOT_DIR / "research/20260824-gnn-cnn-lab"
@@ -125,6 +135,7 @@ def main() -> None:
                 "hidden_size": args.hidden_size,
                 "message_layers": args.message_layers,
                 "embedding_size": args.embedding_size,
+                "action_head": "afterstate-rank-and-value-v1",
             },
             "online_state_dict": model.online.state_dict(),
             "jepa_state_dict": model.state_dict(),
@@ -139,6 +150,7 @@ def main() -> None:
                 "training": training,
                 "heldout": heldout,
                 "exact_engine_authority": "pathagon-jepa-export / rust-bitboard",
+                "action_head": "afterstate-rank-and-value-v1",
             },
         },
         output_path,

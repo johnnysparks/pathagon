@@ -1,22 +1,32 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { LATEST_RESEARCH, LEAGUE_MODELS, RANKED_LEAGUE_MODELS } from "../app/league-models.ts";
+import { ARCHIVE_LEAGUE_MODELS, LEGACY_LEAGUE_MODELS, LATEST_RESEARCH, LEAGUE_MODELS, RANKED_LEAGUE_MODELS } from "../app/league-models.ts";
+import { DOUBLE_DRAGON_ID, PATHMAN_ID, RANDO_RACCON_ID, SEER_ID, TILE_DRIVER_ID, YANN_TILESON_ID } from "../app/agent-ids.ts";
 
 const rankedIds = [
-  "pathfinder-action-transition-v4-xent",
-  "pathfinder-v0.5.0-trained-evaluator",
-  "pathfinder-v0.4.0-tactical-filter",
-  "surveyor-v0.2.0",
-  "lunatic-v0.1.0",
-  "coin-flip-v0.0.1",
+  PATHMAN_ID,
+  TILE_DRIVER_ID,
+  SEER_ID,
+  DOUBLE_DRAGON_ID,
+  YANN_TILESON_ID,
+  RANDO_RACCON_ID,
 ];
 
 test("official league contains only Rust-engine opponents", () => {
   assert.deepEqual(RANKED_LEAGUE_MODELS.map((model) => model.id), rankedIds);
   assert.ok(RANKED_LEAGUE_MODELS.every((model) => model.rustEngine));
-  assert.ok(LEAGUE_MODELS.some((model) => !model.rustEngine));
-  assert.ok(LEAGUE_MODELS.filter((model) => !model.rustEngine).every((model) => !rankedIds.includes(model.id)));
+  assert.equal(LEAGUE_MODELS.length, 6);
+  assert.deepEqual(LEAGUE_MODELS.map((model) => model.name), ["Pathman", "Tile Driver", "Seer", "Double Dragon", "Yann Tileson", "Rando Raccon"]);
+  assert.equal(LEAGUE_MODELS.find((model) => model.id === PATHMAN_ID)?.status, "default");
+  assert.ok(LEAGUE_MODELS.every((model) => model.playable));
+  assert.ok(LEGACY_LEAGUE_MODELS.some((model) => model.id === "pathfinder-action-transition-v4-xent"));
+  assert.ok(ARCHIVE_LEAGUE_MODELS.length > LEAGUE_MODELS.length);
+});
+
+test("canonical league controls preserve the five-step budget contract", () => {
+  assert.ok(LEAGUE_MODELS.every((model) => model.budget.length > 0));
+  assert.ok(LEAGUE_MODELS.filter((model) => model.playable).every((model) => model.rustEngine));
 });
 
 test("latest research ledger matches the promoted v4 manifest", async () => {

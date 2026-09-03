@@ -9,6 +9,35 @@ use crate::inference::{PolicyValue, PolicyValueModel};
 use crate::search::{evaluate, EvaluationWeights};
 use crate::{Action, GameState};
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::{Duration, Instant};
+
+#[cfg(target_arch = "wasm32")]
+type Deadline = f64;
+
+#[cfg(not(target_arch = "wasm32"))]
+type Deadline = Instant;
+
+#[cfg(target_arch = "wasm32")]
+fn deadline_after_ms(milliseconds: u32) -> Deadline {
+    js_sys::Date::now() + f64::from(milliseconds)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn deadline_after_ms(milliseconds: u32) -> Deadline {
+    Instant::now() + Duration::from_millis(u64::from(milliseconds))
+}
+
+#[cfg(target_arch = "wasm32")]
+fn deadline_reached(deadline: Deadline) -> bool {
+    js_sys::Date::now() >= deadline
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn deadline_reached(deadline: Deadline) -> bool {
+    Instant::now() >= deadline
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PuctConfig {
     pub simulations: u32,
@@ -17,6 +46,14 @@ pub struct PuctConfig {
     /// node. Disabled by default so ordinary policy/value search keeps its
     /// previous inference cost and behavior.
     pub use_action_value_seeds: bool,
+    /// Blend Q/Advantage action-value seeds into tree selection. Zero keeps
+    /// the ordinary policy/value behavior; one uses the full Q seed.
+    pub qadv_weight: f32,
+    /// Hard cap on the number of materialized tree positions, including the
+    /// root. `u64::MAX` disables the cap for callers that only use simulations.
+    pub max_nodes: u64,
+    /// Wall-clock ceiling for one search. Zero disables the ceiling.
+    pub max_time_ms: u32,
 }
 
 impl Default for PuctConfig {
@@ -25,6 +62,9 @@ impl Default for PuctConfig {
             simulations: 64,
             cpuct: 1.5,
             use_action_value_seeds: false,
+            qadv_weight: 1.0,
+            max_nodes: u64::MAX,
+            max_time_ms: 0,
         }
     }
 }
@@ -42,6 +82,7 @@ pub struct PuctResult {
     pub action: Option<Action>,
     pub value: f32,
     pub simulations: u32,
+    pub nodes: u64,
     pub evaluations: Vec<PuctActionEvaluation>,
 }
 
@@ -110,6 +151,7 @@ impl Node {
         root_action_values: Option<Vec<f32>>,
         actions: Option<Vec<Action>>,
         use_action_value_seeds: bool,
+        qadv_weight: f32,
     ) -> Result<f32, String> {
         if self.state.winner.is_some() || self.state.ply >= self.state.config.max_plies {
             self.expanded = true;
@@ -151,7 +193,10 @@ impl Node {
             // Children store values from their own side-to-move perspective,
             // so negate the parent action value exactly as for root seeds.
             for (index, value) in action_values.iter().take(self.actions.len()).enumerate() {
-                self.child_seeds[index] = Some(-value.clamp(-1.0, 1.0));
+                if qadv_weight > 0.0 {
+                    self.child_seeds[index] =
+                        Some(-(value.clamp(-1.0, 1.0) * qadv_weight.clamp(0.0, 1.0)));
+                }
             }
         }
         self.expanded = true;
@@ -256,6 +301,7 @@ pub fn search_with_root_output_and_seeds_and_actions<M: PolicyValueModel>(
     root_seeds: Option<Vec<f32>>,
     root_actions: Option<Vec<Action>>,
 ) -> Result<PuctResult, String> {
+    let deadline = (config.max_time_ms > 0).then(|| deadline_after_ms(config.max_time_ms));
     let root_capacity = config.simulations as usize + crate::MAX_CELL_COUNT as usize + 1;
     let mut tree = Tree::with_capacity(root_capacity);
     let root_index = tree.push(state);
@@ -265,25 +311,35 @@ pub fn search_with_root_output_and_seeds_and_actions<M: PolicyValueModel>(
         None,
         root_actions,
         config.use_action_value_seeds,
+        config.qadv_weight,
     )?;
     if tree.nodes[root_index].actions.is_empty() {
         return Ok(PuctResult {
             action: None,
             value: root_value,
             simulations: 0,
+            nodes: tree.nodes.len() as u64,
             evaluations: Vec::new(),
         });
     }
     seed_root_afterstates(&mut tree, root_index, root_seeds.as_deref());
 
+    let mut completed_simulations = 0;
     for _ in 0..config.simulations {
+        if tree.nodes.len() as u64 >= config.max_nodes || deadline.is_some_and(deadline_reached) {
+            break;
+        }
         simulate(
             &mut tree,
             root_index,
             model,
             config.cpuct,
             config.use_action_value_seeds,
+            config.qadv_weight,
+            config.max_nodes,
+            deadline,
         )?;
+        completed_simulations += 1;
     }
 
     let root = &tree.nodes[root_index];
@@ -315,7 +371,8 @@ pub fn search_with_root_output_and_seeds_and_actions<M: PolicyValueModel>(
     Ok(PuctResult {
         action,
         value: root.mean_value(),
-        simulations: config.simulations,
+        simulations: completed_simulations,
+        nodes: tree.nodes.len() as u64,
         evaluations,
     })
 }
@@ -367,10 +424,22 @@ fn simulate<M: PolicyValueModel>(
     model: &M,
     cpuct: f32,
     use_action_value_seeds: bool,
+    qadv_weight: f32,
+    max_nodes: u64,
+    deadline: Option<Deadline>,
 ) -> Result<f32, String> {
+    if deadline.is_some_and(deadline_reached) {
+        return Ok(0.0);
+    }
     if !tree.nodes[node_index].expanded {
-        let value =
-            tree.nodes[node_index].expand(model, None, None, None, use_action_value_seeds)?;
+        let value = tree.nodes[node_index].expand(
+            model,
+            None,
+            None,
+            None,
+            use_action_value_seeds,
+            qadv_weight,
+        )?;
         tree.nodes[node_index].visits += 1;
         tree.nodes[node_index].value_sum += value;
         return Ok(value);
@@ -393,11 +462,23 @@ fn simulate<M: PolicyValueModel>(
             .state
             .apply_legal(tree.nodes[node_index].actions[index])
             .state;
+        if tree.nodes.len() as u64 >= max_nodes || deadline.is_some_and(deadline_reached) {
+            return Ok(0.0);
+        }
         let child_index = tree.push(next_state);
         tree.nodes[node_index].children[index] = Some(child_index);
         child_index
     };
-    let child_value = simulate(tree, child_index, model, cpuct, use_action_value_seeds)?;
+    let child_value = simulate(
+        tree,
+        child_index,
+        model,
+        cpuct,
+        use_action_value_seeds,
+        qadv_weight,
+        max_nodes,
+        deadline,
+    )?;
     let value = -child_value;
     tree.nodes[node_index].visits += 1;
     tree.nodes[node_index].value_sum += value;
@@ -460,6 +541,9 @@ mod tests {
                 simulations: 12,
                 cpuct: 1.5,
                 use_action_value_seeds: false,
+                qadv_weight: 1.0,
+                max_nodes: u64::MAX,
+                max_time_ms: 0,
             },
         )
         .expect("run PUCT");
@@ -484,11 +568,37 @@ mod tests {
     }
 
     #[test]
+    fn puct_stops_after_the_materialized_node_budget() {
+        let result = search(
+            &TestModel,
+            GameState::new(),
+            PuctConfig {
+                simulations: 12,
+                cpuct: 1.5,
+                use_action_value_seeds: false,
+                qadv_weight: 1.0,
+                max_nodes: 2,
+                max_time_ms: 0,
+            },
+        )
+        .expect("run node-capped PUCT");
+        assert_eq!(result.simulations, 1);
+        assert_eq!(
+            result
+                .evaluations
+                .iter()
+                .map(|evaluation| evaluation.visits)
+                .sum::<u32>(),
+            1
+        );
+    }
+
+    #[test]
     fn root_afterstate_scan_seeds_every_legal_child() {
         let mut tree = Tree::with_capacity(50);
         let root_index = tree.push(GameState::new());
         tree.nodes[root_index]
-            .expand(&TestModel, None, None, None, false)
+            .expand(&TestModel, None, None, None, false, 1.0)
             .expect("expand root");
         let action_count = tree.nodes[root_index].actions.len();
 
@@ -520,6 +630,9 @@ mod tests {
                 simulations: 12,
                 cpuct: 1.5,
                 use_action_value_seeds: false,
+                qadv_weight: 1.0,
+                max_nodes: u64::MAX,
+                max_time_ms: 0,
             },
         )
         .expect("run capped PUCT");
@@ -545,6 +658,9 @@ mod tests {
                 simulations: 0,
                 cpuct: 1.5,
                 use_action_value_seeds: false,
+                qadv_weight: 1.0,
+                max_nodes: u64::MAX,
+                max_time_ms: 0,
             },
             Some(PolicyValue {
                 policy_logits: vec![0.0; crate::model::MAX_ACTIONS],
@@ -609,13 +725,23 @@ mod tests {
         let mut tree = Tree::with_capacity(64);
         let root_index = tree.push(GameState::new());
         tree.nodes[root_index]
-            .expand(&model, None, None, None, true)
+            .expand(&model, None, None, None, true, 1.0)
             .expect("expand root");
         seed_root_afterstates(&mut tree, root_index, None);
 
         // The first root action has the only positive QAdv seed and should be
         // selected before the remaining unvisited actions.
-        simulate(&mut tree, root_index, &model, 1.5, true).expect("simulate");
+        simulate(
+            &mut tree,
+            root_index,
+            &model,
+            1.5,
+            true,
+            1.0,
+            u64::MAX,
+            None,
+        )
+        .expect("simulate");
         assert!(tree.nodes[root_index].children[0].is_some());
 
         let child_index = tree.nodes[root_index].children[0].expect("first child");
