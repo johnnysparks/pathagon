@@ -1389,48 +1389,62 @@ function DecisionTheater({
   canPlayBest,
 }: DecisionTheaterProps) {
   const candidates = ranked.length
-    ? ranked.slice(0, 8).map((candidate) => ({ action: candidate.action, score: candidate.preference, visits: candidate.visits, randomPriority: candidate.randomPriority }))
-    : trace?.candidates.slice(0, 8).map((candidate) => ({ action: candidate.action, score: candidate.score, visits: undefined, randomPriority: undefined })) ?? [];
+    ? ranked.slice(0, 3).map((candidate) => ({ action: candidate.action, score: candidate.preference, visits: candidate.visits, randomPriority: candidate.randomPriority }))
+    : trace?.candidates.slice(0, 3).map((candidate) => ({ action: candidate.action, score: candidate.score, visits: undefined, randomPriority: undefined })) ?? [];
   const bestScore = candidates[0]?.score ?? 0;
   const worstScore = candidates[candidates.length - 1]?.score ?? bestScore;
   const focusedKey = focusedAction ? actionKey(focusedAction) : null;
+  const pulseTimeline = timeline.length ? timeline : trace ? [trace] : [];
+  const pulse = decisionPulse(pulseTimeline);
 
   return (
     <section className="decision-theater" aria-labelledby={titleId}>
       <div className="decision-theater-heading">
         <div>
-          <span className="stat-label">Decision theater</span>
+          <span className="stat-label">Decision pulse</span>
           <h3 id={titleId}>What {opponentName} sees</h3>
         </div>
         <span className={`decision-live ${searching ? "active" : ""}`}><span />{searching ? "Live" : "Standby"}</span>
       </div>
-      <p className="decision-theater-intro">The board glow follows the exact root actions this opponent considered. {interpretation === "random priority/order" ? "This is random priority/order, not strategic goodness or win probability." : "Scores are relative preferences, not win probabilities."}</p>
+      <p className="decision-theater-intro">The board handles the spatial view; this pulse keeps the leading alternatives and search convergence visible. {interpretation === "random priority/order" ? "This is random priority/order, not strategic goodness or win probability." : "Scores are relative preferences, not win probabilities."}</p>
       {trace || candidates.length ? (
         <>
-          <div className="decision-candidate-list" aria-label={`Top moves at search depth ${trace?.depth ?? telemetry?.depth ?? 1}`}>
-            {candidates.map((candidate, index) => {
-              const delta = candidate.score - bestScore;
-              const focused = focusedKey === actionKey(candidate.action);
-              return (
-                <button
-                  key={actionKey(candidate.action)}
-                  className={`decision-candidate ${index === 0 ? "best" : ""} ${focused ? "focused" : ""}`}
-                  type="button"
-                  aria-pressed={focused}
-                  onClick={() => onFocusAction(focused ? null : candidate.action)}
-                >
-                  <span className="decision-candidate-rank">{index + 1}</span>
-                  <span className="decision-candidate-main">
-                    <span className="decision-candidate-move">{formatAction(candidate.action)}</span>
-                    <span className="decision-candidate-bar" aria-hidden="true"><span style={{ width: `${decisionBarWidth(candidate.score, bestScore, worstScore)}%` }} /></span>
-                  </span>
-                  <span className="decision-candidate-score">{interpretation === "random priority/order" ? `order ${index + 1}` : index === 0 ? "best" : formatDecisionDelta(delta)}{candidate.visits ? ` · ${candidate.visits} visits` : ""}</span>
-                </button>
-              );
-            })}
+          <div className="decision-pulse">
+            <div className="decision-pulse-heading">
+              <span>Top 3 moves</span>
+              <strong>{telemetry ? `${telemetry.nodes.toLocaleString()} nodes · ${telemetry.elapsedMs}ms` : searching ? "Search in progress" : "Latest completed pass"}</strong>
+            </div>
+            <div className="decision-pulse-body">
+              <div className="decision-candidate-list" aria-label={`Top moves at search depth ${trace?.depth ?? telemetry?.depth ?? 1}`}>
+                {candidates.map((candidate, index) => {
+                  const focused = focusedKey === actionKey(candidate.action);
+                  return (
+                    <button
+                      key={actionKey(candidate.action)}
+                      className={`decision-candidate ${index === 0 ? "best" : ""} ${focused ? "focused" : ""}`}
+                      type="button"
+                      aria-pressed={focused}
+                      onClick={() => onFocusAction(focused ? null : candidate.action)}
+                    >
+                      <span className="decision-candidate-rank">{index + 1}</span>
+                      <span className="decision-candidate-main">
+                        <span className="decision-candidate-move">{formatAction(candidate.action)}</span>
+                        <span className="decision-candidate-bar" aria-hidden="true"><span style={{ width: `${decisionBarWidth(candidate.score, bestScore, worstScore)}%` }} /></span>
+                      </span>
+                      <span className="decision-candidate-score">{interpretation === "random priority/order" ? `order ${index + 1}` : formatDecisionScore(candidate.score)}{candidate.visits ? ` · ${candidate.visits} visits` : ""}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="decision-stability" aria-label={pulse.ariaLabel}>
+                <div className="decision-stability-heading"><span>{interpretation === "random priority/order" ? "Order stability" : "Search stability"}</span><strong>{pulse.status}</strong></div>
+                {pulse.values.length > 0 ? <DecisionSparkline values={pulse.values} labels={pulse.labels} /> : <span className="decision-stability-empty">{pulse.emptyLabel}</span>}
+                <span className="decision-stability-scale">{pulse.labels.length ? `depth ${pulse.labels[0]} → ${pulse.labels.at(-1)}` : "depth trace pending"}</span>
+              </div>
+            </div>
           </div>
           <div className="decision-depths">
-              <div className="decision-depth-heading"><span>{telemetry ? "Search telemetry" : "Completed passes"}</span><span>{telemetry ? `${telemetry.nodes.toLocaleString()} nodes · ${telemetry.elapsedMs}ms` : trace ? selectedDepth === null ? `Following ${trace.depth}-ply` : `Viewing ${selectedDepth}-ply` : "Board ranking"}</span></div>
+            <div className="decision-depth-heading"><span>Completed passes</span><span>{trace ? selectedDepth === null ? `Following ${trace.depth}-ply` : `Viewing ${selectedDepth}-ply` : "Board ranking"}</span></div>
             <div className="decision-depth-list" role="list" aria-label="Completed search depths">
               {timeline.map((item) => (
                 <button
@@ -1458,6 +1472,57 @@ function DecisionTheater({
   );
 }
 
+function DecisionSparkline({ values, labels }: { values: number[]; labels: number[] }) {
+  const width = 144;
+  const height = 42;
+  const padding = 4;
+  const points = values.map((value, index) => {
+    const x = values.length === 1 ? width / 2 : padding + (index / (values.length - 1)) * (width - padding * 2);
+    const y = height - padding - value * (height - padding * 2);
+    return `${x},${y}`;
+  }).join(" ");
+
+  return <svg className="decision-sparkline" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Search stability across depths ${labels.join(", ")}`}>
+    <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} />
+    <polyline points={points} />
+    {values.map((value, index) => {
+      const x = values.length === 1 ? width / 2 : padding + (index / (values.length - 1)) * (width - padding * 2);
+      const y = height - padding - value * (height - padding * 2);
+      return <circle key={`${labels[index] ?? index}-${value}`} cx={x} cy={y} r="2.5"><title>Depth {labels[index] ?? index + 1}</title></circle>;
+    })}
+  </svg>;
+}
+
+function decisionPulse(timeline: SearchTrace[]) {
+  const passes = timeline
+    .map((item) => {
+      const candidates = [...item.candidates].sort((left, right) => right.score - left.score || actionKey(left.action).localeCompare(actionKey(right.action)));
+      const leader = candidates[0];
+      const runnerUp = candidates[1];
+      return {
+        depth: item.depth,
+        leader: leader ? actionKey(leader.action) : null,
+        lead: leader && runnerUp ? Math.max(0, leader.score - runnerUp.score) : leader ? 1 : 0,
+      };
+    })
+    .filter((pass) => pass.leader !== null);
+  const rawValues = passes.map((pass) => pass.lead);
+  const minimum = Math.min(...rawValues, 0);
+  const maximum = Math.max(...rawValues, 1);
+  const range = Math.max(1e-9, maximum - minimum);
+  const values = rawValues.map((value) => .2 + ((value - minimum) / range) * .8);
+  const leaders = passes.map((pass) => pass.leader);
+  const lastLeader = leaders.at(-1);
+  const stable = leaders.length < 2 || (lastLeader !== null && lastLeader === leaders.at(-2));
+  return {
+    values,
+    labels: passes.map((pass) => pass.depth),
+    status: passes.length === 0 ? "rank only" : passes.length === 1 ? "first pass" : stable ? "stable" : "still shifting",
+    emptyLabel: passes.length === 0 ? "No search trace on this pass" : "Waiting for depth passes",
+    ariaLabel: passes.length === 0 ? "This board evaluation has move rankings but no search trace" : passes.length === 1 ? "Search stability is available after another depth pass" : `Search leader is ${stable ? "stable" : "still shifting"} across ${passes.length} depth passes`,
+  };
+}
+
 function actionKey(action: Action) {
   return action.kind === "place" ? `p:${action.to}` : `m:${action.from}:${action.to}`;
 }
@@ -1479,9 +1544,10 @@ function decisionBarWidth(score: number, bestScore: number, worstScore: number) 
   return Math.round(Math.max(12, Math.min(100, 100 - ((bestScore - score) / range) * 88)));
 }
 
-function formatDecisionDelta(delta: number) {
-  if (Math.abs(delta) < 1) return "near tie";
-  return `Δ ${delta > 0 ? "+" : ""}${Math.round(delta)}`;
+function formatDecisionScore(score: number) {
+  if (!Number.isFinite(score)) return "score —";
+  const precision = Math.abs(score) < 10 && !Number.isInteger(score) ? 2 : 0;
+  return `score ${score.toLocaleString(undefined, { maximumFractionDigits: precision })}`;
 }
 
 function formatAction(action: Action) {
