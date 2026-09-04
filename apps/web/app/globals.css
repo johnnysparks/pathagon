@@ -263,6 +263,8 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .analyst-roster .opponent-picker-card.selected .opponent-card-identity small { color: #6c7e70; }
 .analyst-roster .opponent-picker-card.selected .opponent-glyph { color: #f6ead5; background: var(--dark-piece); }
 .game-support-panel { min-width: 0; padding: 20px; }
+.game-support-panel .game-id-card { align-items: flex-start; margin: 14px 0 4px; }
+.game-support-panel .game-id-card code { font-size: 11px; }
 .opponent-roster { display: grid; gap: 8px; margin-top: 15px; }
 .opponent-card { overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: rgba(251,248,241,.88); box-shadow: inset 0 1px 0 rgba(255,255,255,.62); }
 .opponent-card.play-active { border-color: #8eb59a; box-shadow: inset 3px 0 0 var(--green), inset 0 1px 0 rgba(255,255,255,.62); }

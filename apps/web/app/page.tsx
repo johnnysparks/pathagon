@@ -963,7 +963,7 @@ export default function Home() {
             card={opponent}
             settings={opponentSettings}
             onControl={updateOpponentControl}
-            decision={<DecisionTheater titleId="active-decision-theater-title" opponentName={opponent.name} trace={displayedDecisionTrace} timeline={decisionTraces} ranked={decisionRanked.length ? decisionRanked : opponent.id === analyst.id ? analystMoves : []} telemetry={decisionTelemetry ?? (opponent.id === analyst.id ? analystTelemetry : null)} interpretation={decisionRanked.length ? decisionInterpretation : opponent.id === analyst.id ? analystInterpretation : "relative preference"} selectedDepth={decisionDepth} focusedAction={decisionFocusAction} searching={Boolean(pathfinderProgress) || (opponent.id === analyst.id && analystStatus === "searching")} onSelectDepth={setDecisionDepth} onFocusAction={setDecisionFocusAction} onPlayBestMove={playCurrentBestMove} canPlayBest={Boolean(pathfinderProgress?.action && activePathfinderSearch.current)} />}
+            decision={<DecisionTheater titleId="active-decision-theater-title" opponentName={opponent.name} trace={displayedDecisionTrace} timeline={decisionTraces} ranked={decisionRanked.length ? decisionRanked : opponent.id === analyst.id ? analystMoves : []} telemetry={decisionTelemetry ?? (opponent.id === analyst.id ? analystTelemetry : null)} interpretation={decisionRanked.length ? decisionInterpretation : opponent.id === analyst.id ? analystInterpretation : "relative preference"} selectedDepth={decisionDepth} focusedAction={decisionFocusAction} searching={Boolean(pathfinderProgress) || (opponent.id === analyst.id && analystStatus === "searching")} onSelectDepth={setDecisionDepth} onFocusAction={setDecisionFocusAction} onPlayBestMove={playCurrentBestMove} canPlayBest={Boolean(pathfinderProgress?.action)} />}
           />
         </section>
 
@@ -976,19 +976,6 @@ export default function Home() {
               <button className="result-link" onClick={() => setResultDismissed(false)}>View result</button>
             )}
           </div>
-
-          {gameId && (
-            <div className="game-id-card" aria-label="Game ID and debug log">
-              <div>
-                <span className="stat-label">Game ID</span>
-                <code data-game-id>{gameId}</code>
-                <p>Copy the ID and browser debug bundle for analysis.</p>
-              </div>
-              <button className="copy-button" aria-label="Copy game ID and debug log" onClick={copyGameDebug} type="button">
-                {copyStatus === "copied" ? "Debug copied" : copyStatus === "error" ? "Select debug" : "Copy debug"}
-              </button>
-            </div>
-          )}
 
           {gameId && (
             <pre data-game-debug aria-hidden="true" className="game-debug-copy-buffer">
@@ -1076,6 +1063,18 @@ export default function Home() {
           <div className="panel-topline">
             <div><div className="panel-kicker">Game telemetry</div><p className="panel-subtitle">Rules and runtime details for this position.</p></div>
           </div>
+          {gameId && (
+            <div className="game-id-card" aria-label="Game ID and debug log">
+              <div>
+                <span className="stat-label">Game ID</span>
+                <code data-game-id>{gameId}</code>
+                <p>Copy the ID and browser debug bundle for analysis.</p>
+              </div>
+              <button className="copy-button" aria-label="Copy game ID and debug log" onClick={copyGameDebug} type="button">
+                {copyStatus === "copied" ? "Debug copied" : copyStatus === "error" ? "Select debug" : "Copy debug"}
+              </button>
+            </div>
+          )}
           <dl className="telemetry">
             <div><dt>Legal actions</dt><dd>{actions.length}</dd></div>
             <div><dt>Phase</dt><dd>{game.winner ? "Complete" : game.reserve[game.turn] ? "Placement" : "Movement"}</dd></div>
