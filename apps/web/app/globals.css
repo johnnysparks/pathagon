@@ -31,7 +31,11 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .quiet-button:disabled { cursor: default; opacity: .4; }
 .lab-nav-link { display: inline-flex; align-items: center; text-decoration: none; }
 .game-layout { display: grid; grid-template-columns: minmax(0, 720px) minmax(260px, 1fr); gap: 22px; align-items: start; }
-.play-column, .lab-panel { border: 1px solid var(--line); border-radius: 18px; background: rgba(251,248,241,.88); box-shadow: 0 12px 40px rgba(66,48,28,.08); }
+.play-column, .game-support-panel, .opponent-lab-top { border: 1px solid var(--line); border-radius: 18px; background: rgba(251,248,241,.88); box-shadow: 0 12px 40px rgba(66,48,28,.08); }
+.opponent-lab-top { grid-column: 1 / -1; padding: 18px; background: linear-gradient(145deg, rgba(237,246,237,.96), rgba(251,248,241,.92)); }
+.opponent-lab-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; padding: 0 4px 4px; }
+.opponent-lab-heading h2 { margin: 4px 0 0; color: #294a3b; font-family: Georgia, serif; font-size: 26px; font-weight: 500; letter-spacing: -.025em; }
+.opponent-lab-heading .panel-subtitle { max-width: 650px; }
 .play-column { padding: 16px; }
 .turn-banner { min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 4px 14px; }
 .turn-banner[data-winner="true"] { color: #244a39; }
@@ -218,6 +222,47 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .decision-rank { position: absolute; top: 5%; right: 5%; z-index: 4; display: grid; place-items: center; width: 20%; min-width: 15px; aspect-ratio: 1; border-radius: 50%; color: #fff8eb; background: rgba(41,74,59,.86); font-size: clamp(9px, 1.8vw, 12px); font-weight: 850; line-height: 1; pointer-events: none; }
 @keyframes decision-pulse { 0%, 100% { opacity: .64; transform: scale(.86); } 50% { opacity: 1; transform: scale(1); } }
 @keyframes decision-glow { 0%, 100% { opacity: .64; } 50% { opacity: .92; } }
+.opponent-picker-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-top: 13px; }
+.opponent-picker-card { min-width: 0; min-height: 96px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; border: 1px solid #d7cdbd; border-radius: 13px; padding: 10px; color: var(--ink); background: rgba(255,255,255,.58); box-shadow: inset 0 1px 0 rgba(255,255,255,.7); cursor: pointer; text-align: left; transition: border-color 120ms ease, background 120ms ease, transform 120ms ease, box-shadow 120ms ease; }
+.opponent-picker-card:hover { border-color: #91b39a; transform: translateY(-1px); }
+.opponent-picker-card:focus-visible { outline: 3px solid rgba(56,95,76,.28); outline-offset: 2px; }
+.opponent-picker-card.selected { border-color: #35614a; color: #f8f4eb; background: #315b46; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), 0 5px 14px rgba(56,95,76,.18); }
+.opponent-picker-card:disabled { cursor: not-allowed; opacity: .64; transform: none; }
+.opponent-picker-card.artifact-pending { background: rgba(247,243,235,.8); }
+.opponent-picker-card.selected.artifact-pending { color: var(--ink); background: #ece4d6; }
+.opponent-picker-topline { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: var(--muted); }
+.opponent-picker-topline small { font-size: 10px; font-weight: 850; letter-spacing: .1em; }
+.opponent-picker-topline em { overflow: hidden; color: #6c7e70; font-size: 9px; font-style: normal; font-weight: 850; letter-spacing: .06em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.opponent-picker-card.selected .opponent-picker-topline, .opponent-picker-card.selected .opponent-picker-topline em { color: #b9d5bd; }
+.opponent-picker-main { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.opponent-picker-main .opponent-glyph { width: 34px; height: 34px; flex: 0 0 auto; }
+.opponent-picker-card.selected .opponent-glyph { color: #315b46; background: #e4d9bd; }
+.opponent-picker-main .opponent-card-identity strong { font-size: 15px; }
+.opponent-picker-card.selected .opponent-card-identity small { color: #c4d5c6; }
+.opponent-picker-footer { overflow: hidden; color: #7b7469; font-size: 9px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.opponent-picker-card.selected .opponent-picker-footer { color: #c4d5c6; }
+.opponent-expanded-card { overflow: hidden; margin-top: 12px; border: 1px solid #a9c6ad; border-radius: 16px; background: rgba(255,255,255,.55); box-shadow: inset 0 1px 0 rgba(255,255,255,.7); }
+.opponent-expanded-card.artifact-pending { border-color: #d6cdbc; }
+.opponent-expanded-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px 16px 13px; color: #294a3b; background: rgba(237,246,237,.66); }
+.opponent-expanded-identity { display: flex; min-width: 0; align-items: center; gap: 12px; }
+.opponent-expanded-identity .opponent-glyph { width: 46px; height: 46px; flex: 0 0 auto; font-size: 13px; }
+.opponent-expanded-identity h3 { margin: 3px 0 1px; font-family: Georgia, serif; font-size: 25px; font-weight: 500; letter-spacing: -.025em; }
+.opponent-expanded-identity p { margin: 0; color: #6c7e70; font-size: 11px; font-weight: 750; }
+.playing-badge { flex: 0 0 auto; border: 1px solid #9ebba2; border-radius: 999px; padding: 6px 9px; color: #35614a; background: rgba(255,255,255,.64); font-size: 10px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+.opponent-expanded-card .opponent-card-details { padding: 14px 16px 16px; }
+.opponent-expanded-card .opponent-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 18px; }
+.opponent-expanded-card .opponent-controls .control-heading { grid-column: 1 / -1; }
+.opponent-expanded-card .model-control { min-width: 0; }
+.analyst-roster { margin: 0 0 16px; padding: 14px; border: 1px solid #d0ddce; border-radius: 14px; background: rgba(237,246,237,.54); }
+.analyst-roster-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.analyst-roster-heading h2 { margin: 4px 0 0; color: #294a3b; font-family: Georgia, serif; font-size: 19px; font-weight: 500; letter-spacing: -.02em; }
+.analyst-roster .opponent-picker-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 11px; }
+.analyst-roster .opponent-picker-card { min-height: 83px; padding: 8px; }
+.analyst-roster .opponent-picker-card.selected { color: #294a3b; background: #dcebdc; box-shadow: inset 3px 0 0 var(--green); }
+.analyst-roster .opponent-picker-card.selected .opponent-picker-topline, .analyst-roster .opponent-picker-card.selected .opponent-picker-topline em, .analyst-roster .opponent-picker-card.selected .opponent-picker-footer { color: #35614a; }
+.analyst-roster .opponent-picker-card.selected .opponent-card-identity small { color: #6c7e70; }
+.analyst-roster .opponent-picker-card.selected .opponent-glyph { color: #f6ead5; background: var(--dark-piece); }
+.game-support-panel { min-width: 0; padding: 20px; }
 .opponent-roster { display: grid; gap: 8px; margin-top: 15px; }
 .opponent-card { overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: rgba(251,248,241,.88); box-shadow: inset 0 1px 0 rgba(255,255,255,.62); }
 .opponent-card.play-active { border-color: #8eb59a; box-shadow: inset 3px 0 0 var(--green), inset 0 1px 0 rgba(255,255,255,.62); }
@@ -315,7 +360,11 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
   .topbar { align-items: center; margin-bottom: 16px; }
   .eyebrow { display: none; }
   .game-layout { grid-template-columns: 1fr; }
+  .opponent-lab-top { padding: 14px; }
+  .opponent-picker-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .opponent-expanded-card .opponent-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
   .play-column { padding: 10px; border-radius: 14px; }
+  .game-support-panel { padding: 16px; }
   .board-frame { --edge-size: 24px; width: 100%; margin-top: 7px; }
   .goal-edge { font-size: 6px; letter-spacing: .13em; }
   .coaching-body { grid-template-columns: 170px minmax(0, 1fr); gap: 10px; }
@@ -341,6 +390,22 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
   .result-link { margin-left: auto; }
   .goal-guide { align-items: center; margin-inline: 3px; padding-inline: 9px; }
   .goal-guide strong { max-width: 190px; }
+  .opponent-lab-top { padding: 11px; border-radius: 14px; }
+  .opponent-lab-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .opponent-lab-heading h2 { font-size: 23px; }
+  .opponent-picker-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .opponent-picker-card { min-height: 82px; padding: 8px; }
+  .opponent-picker-main { gap: 6px; }
+  .opponent-picker-main .opponent-glyph { width: 30px; height: 30px; font-size: 9px; }
+  .opponent-picker-main .opponent-card-identity strong { font-size: 14px; }
+  .opponent-expanded-header { align-items: flex-start; padding: 12px; }
+  .opponent-expanded-identity .opponent-glyph { width: 40px; height: 40px; }
+  .opponent-expanded-identity h3 { font-size: 22px; }
+  .opponent-expanded-card .opponent-card-details { padding: 12px; }
+  .opponent-expanded-card .opponent-controls { grid-template-columns: 1fr; }
+  .analyst-roster { padding: 11px; }
+  .analyst-roster-heading { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .analyst-roster .opponent-picker-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .board-frame { --edge-size: 22px; }
   .piece-trays { gap: 6px; }
   .piece-tray { padding-inline: 8px; }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   Action,
@@ -107,7 +106,6 @@ export default function Home() {
   const [opponentId, setOpponentId] = useState(DEFAULT_OPPONENT_ID);
   const [analystId, setAnalystId] = useState(DEFAULT_OPPONENT_ID);
   const [analystFollowing, setAnalystFollowing] = useState(true);
-  const [expandedOpponentId, setExpandedOpponentId] = useState(DEFAULT_OPPONENT_ID);
   const [opponentSettings, setOpponentSettings] = useState<Record<string, Record<string, number>>>({});
   // Keep the first render deterministic for SSR/hydration. The saved browser
   // preference is applied after mount in the effect below.
@@ -119,6 +117,12 @@ export default function Home() {
   const [pendingOpponentId, setPendingOpponentId] = useState<string | null>(null);
   const [rustEngine, setRustEngine] = useState<RustEngine | null>(null);
   const [searchClient] = useState<RustSearchClient | null>(() =>
+    typeof window === "undefined" ? null : createRustSearchClient(),
+  );
+  // Analyst searches get their own worker. A Pathman search is synchronous
+  // inside WASM, so sharing the play worker would let cancellation or a deep
+  // analyst pass interfere with the live turn.
+  const [analystSearchClient] = useState<RustSearchClient | null>(() =>
     typeof window === "undefined" ? null : createRustSearchClient(),
   );
   const [engineError, setEngineError] = useState<string | null>(null);
@@ -138,7 +142,7 @@ export default function Home() {
   const [analystMoves, setAnalystMoves] = useState<RankedAction[]>([]);
   const [analystTelemetry, setAnalystTelemetry] = useState<SearchTelemetry | null>(null);
   const [analystInterpretation, setAnalystInterpretation] = useState<"relative preference" | "random priority/order">("relative preference");
-  const [analystStatus, setAnalystStatus] = useState<"idle" | "searching" | "ready" | "unavailable">("idle");
+  const [analystStatus, setAnalystStatus] = useState<"idle" | "searching" | "ready" | "unavailable" | "following">("idle");
   const [analystError, setAnalystError] = useState<string | null>(null);
   const [decisionDepth, setDecisionDepth] = useState<number | null>(null);
   const [decisionFocusAction, setDecisionFocusAction] = useState<Action | null>(null);
@@ -150,6 +154,7 @@ export default function Home() {
   const resultRef = useRef<HTMLDivElement | null>(null);
   const opponentSwitchDialogRef = useRef<HTMLDivElement | null>(null);
   const analystRequest = useRef(0);
+  const analystSearchRequest = useRef<number | null>(null);
   const fixtureLoaded = useRef(false);
   const recordable = useRef(true);
   const recordedGame = useRef<string | null>(null);
@@ -206,7 +211,9 @@ export default function Home() {
   useEffect(() => () => {
     aiRequest.current = null;
     searchClient?.terminate();
-  }, [searchClient]);
+    analystSearchRequest.current = null;
+    analystSearchClient?.terminate();
+  }, [analystSearchClient, searchClient]);
 
   useEffect(() => {
     if (opponent.id !== SEER_ID && analyst.id !== SEER_ID) return;
@@ -423,6 +430,77 @@ export default function Home() {
         setAnalystStatus(analyst.playable ? "idle" : "unavailable");
         return;
       }
+
+      // The active Pathman search already owns the live trace while the AI is
+      // thinking. Do not start a second search for the same position; this
+      // keeps the feedback loop cheap and gives the summary an honest state.
+      if (game.turn === AI && analyst.id === opponent.id && analyst.id === PATHMAN_ID) {
+        setAnalystStatus("following");
+        return;
+      }
+
+      if (analyst.id === PATHMAN_ID && analystSearchClient) {
+        const timeline: SearchTrace[] = [];
+        const telemetryFor = (progress: SearchProgress): SearchTelemetry => ({
+          budget: {
+            maxNodes: progress.maxNodes,
+            maxTimeMs: analystRuntimeControls.maxTimeMs ?? 0,
+            targetDepth: progress.targetDepth,
+          },
+          elapsedMs: progress.elapsedMs,
+          nodes: progress.nodes,
+          depth: progress.completedDepth,
+          exhausted: progress.exhausted,
+          cancelled: false,
+          trace: [...timeline],
+        });
+        const search = analystSearchClient.search(
+          game,
+          analyst.id,
+          analystRuntimeControls.depth ?? PATHFINDER_SEARCH.depth,
+          analystRuntimeControls.maxTimeMs ?? PATHFINDER_DEADLINE_MS,
+          analystRuntimeControls.maxNodes ?? PATHFINDER_MAX_NODES_DEFAULT,
+          analystRuntimeControls.beamWidth ?? PATHFINDER_SEARCH.beamWidth,
+          (progress) => {
+            if (analystRequest.current !== request) return;
+            setAnalystTelemetry(telemetryFor(progress));
+          },
+          (trace) => {
+            if (analystRequest.current !== request) return;
+            const next = timeline.filter((item) => item.depth !== trace.depth);
+            next.push(trace);
+            timeline.splice(0, timeline.length, ...next.sort((left, right) => left.depth - right.depth));
+            setAnalystMoves(trace.candidates.map((candidate) => ({ action: candidate.action, preference: candidate.score })));
+            setAnalystInterpretation("relative preference");
+            setAnalystTelemetry((current) => current ? { ...current, depth: trace.depth, trace: [...timeline] } : current);
+          },
+        );
+        analystSearchRequest.current = search.requestId;
+        void search.promise.then((progress) => {
+          if (analystRequest.current !== request || analystSearchRequest.current !== search.requestId) return;
+          analystSearchRequest.current = null;
+          if (!progress) {
+            setAnalystStatus("idle");
+            return;
+          }
+          const finalTrace = timeline[timeline.length - 1];
+          if (finalTrace) {
+            setAnalystMoves(finalTrace.candidates.map((candidate) => ({ action: candidate.action, preference: candidate.score })));
+          } else if (progress.action) {
+            setAnalystMoves([{ action: progress.action, preference: progress.score }]);
+          }
+          setAnalystTelemetry(telemetryFor(progress));
+          setAnalystInterpretation("relative preference");
+          setAnalystStatus("ready");
+        }).catch((error: unknown) => {
+          if (analystRequest.current !== request || analystSearchRequest.current !== search.requestId) return;
+          analystSearchRequest.current = null;
+          setAnalystStatus("unavailable");
+          setAnalystError(error instanceof Error ? error.message : String(error));
+        });
+        return;
+      }
+
       try {
         const evaluation = analyst.runtime.evaluateBoard(game, { rustEngine, cnnEngine: cnnEngine ?? undefined, gnnEngine: gnnEngine ?? undefined, qadvEngine: qadvEngine ?? undefined, jepaEngine: jepaEngine ?? undefined }, {
           controls: analystRuntimeControls,
@@ -439,8 +517,14 @@ export default function Home() {
         setAnalystError(error instanceof Error ? error.message : String(error));
       }
     }, 160);
-    return () => clearTimeout(analysisTimer);
-  }, [analyst, analystRuntimeControls, cnnEngine, game, gnnEngine, jepaEngine, qadvEngine, rustEngine]);
+    return () => {
+      clearTimeout(analysisTimer);
+      if (analystSearchRequest.current !== null && analystSearchClient) {
+        analystSearchClient.cancel(analystSearchRequest.current);
+        analystSearchRequest.current = null;
+      }
+    };
+  }, [analyst, analystRuntimeControls, analystSearchClient, cnnEngine, game, gnnEngine, jepaEngine, opponent.id, qadvEngine, rustEngine]);
 
   useEffect(() => {
     const hydrationTimer = window.setTimeout(() => {
@@ -579,6 +663,10 @@ export default function Home() {
 
   function clearAnalysis() {
     analystRequest.current += 1;
+    if (analystSearchRequest.current !== null && analystSearchClient) {
+      analystSearchClient.cancel(analystSearchRequest.current);
+      analystSearchRequest.current = null;
+    }
     setAnalystMoves([]);
     setAnalystTelemetry(null);
     setAnalystStatus("idle");
@@ -654,7 +742,6 @@ export default function Home() {
       setAnalystFollowing(false);
     }
     setOpponentId(id);
-    setExpandedOpponentId(id);
     setGame(createGame());
     setHistory([]);
     setMoveHistory([]);
@@ -736,7 +823,6 @@ export default function Home() {
     if (!selectedAnalyst.playable) return;
     setAnalystId(selectedAnalyst.id);
     setAnalystFollowing(false);
-    setExpandedOpponentId(selectedAnalyst.id);
   }
 
   function updateOpponentControl(id: string, controlId: string, index: number) {
@@ -863,6 +949,24 @@ export default function Home() {
       </header>
 
       <section className="game-layout" aria-label="Pathagon game">
+        <section className="opponent-lab-top" aria-labelledby="opponent-lab-title">
+          <div className="opponent-lab-heading">
+            <div>
+              <span className="panel-kicker">Opponent lab</span>
+              <h2 id="opponent-lab-title">Choose who plays.</h2>
+              <p className="panel-subtitle">Select a player card. The selected opponent’s controls and live decisions stay open above the board.</p>
+            </div>
+            <span className="analyst-follow-status">{analystFollowing ? "Analyst follows play" : "Analyst independent"}</span>
+          </div>
+          <OpponentPicker opponents={OPPONENTS} selectedId={opponent.id} role="play" onSelect={requestOpponentChange} />
+          <ExpandedOpponentCard
+            card={opponent}
+            settings={opponentSettings}
+            onControl={updateOpponentControl}
+            decision={<DecisionTheater titleId="active-decision-theater-title" opponentName={opponent.name} trace={displayedDecisionTrace} timeline={decisionTraces} ranked={decisionRanked.length ? decisionRanked : opponent.id === analyst.id ? analystMoves : []} telemetry={decisionTelemetry ?? (opponent.id === analyst.id ? analystTelemetry : null)} interpretation={decisionRanked.length ? decisionInterpretation : opponent.id === analyst.id ? analystInterpretation : "relative preference"} selectedDepth={decisionDepth} focusedAction={decisionFocusAction} searching={Boolean(pathfinderProgress) || (opponent.id === analyst.id && analystStatus === "searching")} onSelectDepth={setDecisionDepth} onFocusAction={setDecisionFocusAction} onPlayBestMove={playCurrentBestMove} canPlayBest={Boolean(pathfinderProgress?.action && activePathfinderSearch.current)} />}
+          />
+        </section>
+
         <div className="play-column">
           <div className="turn-banner" data-winner={Boolean(game.winner)}>
             <span className={`turn-dot ${game.winner ?? game.turn}`} />
@@ -951,30 +1055,27 @@ export default function Home() {
             interpretation={analystInterpretation}
           />
 
+          <section className="analyst-roster" aria-labelledby="analyst-roster-title">
+            <div className="analyst-roster-heading">
+              <div>
+                <span className="panel-kicker">Board analyst</span>
+                <h2 id="analyst-roster-title">Who should study this board?</h2>
+              </div>
+              <span className="analyst-follow-status">{analystFollowing ? "Following play" : "Independent"}</span>
+            </div>
+            <OpponentPicker opponents={OPPONENTS} selectedId={analyst.id} role="analyst" onSelect={selectAnalyst} />
+          </section>
+
           <div className="piece-trays">
             <PieceTray label="You" player="light" count={game.reserve.light} active={!game.winner && game.turn === HUMAN} />
             <PieceTray label={opponent.name} player="dark" count={game.reserve.dark} active={!game.winner && game.turn === AI} />
           </div>
         </div>
 
-        <aside className="lab-panel">
+        <aside className="game-support-panel">
           <div className="panel-topline">
-            <div><div className="panel-kicker">Opponent lab</div><p className="panel-subtitle">Choose who plays and who studies the board.</p></div>
-            <span className="analyst-follow-status">{analystFollowing ? "Analyst follows play" : "Analyst independent"}</span>
+            <div><div className="panel-kicker">Game telemetry</div><p className="panel-subtitle">Rules and runtime details for this position.</p></div>
           </div>
-          <OpponentCards
-            opponents={OPPONENTS}
-            activeId={opponent.id}
-            analystId={analyst.id}
-            expandedId={expandedOpponentId}
-            settings={opponentSettings}
-            onPlay={(id) => requestOpponentChange(id)}
-            onAnalyze={selectAnalyst}
-            onExpand={(id) => setExpandedOpponentId(id)}
-            onControl={updateOpponentControl}
-            decision={opponent.id === expandedOpponentId ? <DecisionTheater titleId="active-decision-theater-title" opponentName={opponent.name} trace={displayedDecisionTrace} timeline={decisionTraces} ranked={decisionRanked.length ? decisionRanked : opponent.id === analyst.id ? analystMoves : []} telemetry={decisionTelemetry ?? (opponent.id === analyst.id ? analystTelemetry : null)} interpretation={decisionRanked.length ? decisionInterpretation : opponent.id === analyst.id ? analystInterpretation : "relative preference"} selectedDepth={decisionDepth} focusedAction={decisionFocusAction} searching={Boolean(pathfinderProgress) || (opponent.id === analyst.id && analystStatus === "searching")} onSelectDepth={setDecisionDepth} onFocusAction={setDecisionFocusAction} onPlayBestMove={playCurrentBestMove} canPlayBest={Boolean(pathfinderProgress?.action && activePathfinderSearch.current)} /> : null}
-            analystDecision={analyst.id === expandedOpponentId && analyst.id !== opponent.id ? <DecisionTheater titleId="analyst-decision-theater-title" opponentName={analyst.name} trace={null} timeline={[]} ranked={analystMoves} telemetry={analystTelemetry} interpretation={analystInterpretation} selectedDepth={null} focusedAction={null} searching={analystStatus === "searching"} onSelectDepth={() => undefined} onFocusAction={() => undefined} onPlayBestMove={() => undefined} canPlayBest={false} /> : null}
-          />
           <dl className="telemetry">
             <div><dt>Legal actions</dt><dd>{actions.length}</dd></div>
             <div><dt>Phase</dt><dd>{game.winner ? "Complete" : game.reserve[game.turn] ? "Placement" : "Movement"}</dd></div>
@@ -1169,91 +1270,80 @@ function runtimeControlsFor(card: PlayerFacingOpponent, settings: Record<string,
   return Object.fromEntries(card.controls.map((control) => [control.id, control.values[runtimeControlIndex(card, settings, control.id)]]));
 }
 
-function OpponentCards({ opponents, activeId, analystId, expandedId, settings, onPlay, onAnalyze, onExpand, onControl, decision, analystDecision }: {
-  opponents: readonly PlayerFacingOpponent[];
-  activeId: string;
-  analystId: string;
-  expandedId: string;
-  settings: Record<string, Record<string, number>>;
-  onPlay: (id: string) => void;
-  onAnalyze: (id: string) => void;
-  onExpand: (id: string) => void;
-  onControl: (id: string, controlId: string, index: number) => void;
-  decision: ReactNode;
-  analystDecision?: ReactNode;
-}) {
-  return <section className="opponent-roster" aria-label="Opponent cards">
-    {opponents.map((card) => <OpponentCardTile
-      key={card.id}
-      card={card}
-      active={card.id === activeId}
-      analyst={card.id === analystId}
-      expanded={card.id === expandedId}
-      settings={settings}
-      onPlay={onPlay}
-      onAnalyze={onAnalyze}
-      onExpand={onExpand}
-      onControl={onControl}
-      decision={card.id === activeId ? decision : null}
-      analystDecision={card.id === analystId ? analystDecision : null}
-    />)}
-  </section>;
+function statusLabelFor(card: PlayerFacingOpponent) {
+  return card.status === "artifact-pending" ? "Artifact pending" : card.id === PATHMAN_ID ? "Default" : card.nonStrategic ? "Control" : "Ready";
 }
 
-function OpponentCardTile({ card, active, analyst, expanded, settings, onPlay, onAnalyze, onExpand, onControl, decision, analystDecision }: {
+function OpponentPicker({ opponents, selectedId, role, onSelect }: {
+  opponents: readonly PlayerFacingOpponent[];
+  selectedId: string;
+  role: "play" | "analyst";
+  onSelect: (id: string) => void;
+}) {
+  return <div className={`opponent-picker-grid ${role}`} aria-label={role === "play" ? "Choose game opponent" : "Choose board analyst"}>
+    {opponents.map((card, index) => {
+      const selected = card.id === selectedId;
+      const label = role === "play" ? (selected ? "Playing" : statusLabelFor(card)) : (selected ? "Studying" : statusLabelFor(card));
+      return <button
+        key={card.id}
+        className={`opponent-picker-card ${selected ? "selected" : ""} ${card.status === "artifact-pending" ? "artifact-pending" : ""}`}
+        type="button"
+        onClick={() => onSelect(card.id)}
+        disabled={!card.playable}
+        aria-pressed={selected}
+        title={!card.playable ? `Requires ${card.artifact}` : role === "play" ? `Use ${card.cuteName} as the game opponent` : `Use ${card.cuteName} as the board analyst`}
+      >
+        <span className="opponent-picker-topline"><small>#{String(index + 1).padStart(2, "0")}</small><em>{label}</em></span>
+        <span className="opponent-picker-main"><span className="opponent-glyph" aria-hidden="true">{card.glyph}</span><span className="opponent-card-identity"><strong>{card.cuteName}</strong><small>{card.technicalName}</small></span></span>
+        <span className="opponent-picker-footer">{card.nonStrategic ? "Random priority/order" : `${card.capabilities.length} capabilities`}</span>
+      </button>;
+    })}
+  </div>;
+}
+
+function ExpandedOpponentCard({ card, settings, onControl, decision }: {
   card: PlayerFacingOpponent;
-  active: boolean;
-  analyst: boolean;
-  expanded: boolean;
   settings: Record<string, Record<string, number>>;
-  onPlay: (id: string) => void;
-  onAnalyze: (id: string) => void;
-  onExpand: (id: string) => void;
   onControl: (id: string, controlId: string, index: number) => void;
-  decision: ReactNode;
-  analystDecision: ReactNode;
+  decision: JSX.Element;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
-  const statusLabel = card.status === "artifact-pending" ? "Artifact pending" : card.id === PATHMAN_ID ? "Default" : card.nonStrategic ? "Control" : "Ready";
-  return <article className={`opponent-card ${active ? "play-active" : ""} ${analyst ? "analyze-active" : ""} ${expanded ? "expanded" : ""} ${card.status === "artifact-pending" ? "artifact-pending" : ""}`}>
-    <button className="opponent-card-header" type="button" onClick={() => onExpand(card.id)} aria-expanded={expanded}>
-      <span className="opponent-glyph" aria-hidden="true">{card.glyph}</span>
-      <span className="opponent-card-identity"><strong>{card.cuteName}</strong><small>{card.technicalName}</small></span>
-      <span className="opponent-card-chevron" aria-hidden="true">{expanded ? "−" : "+"}</span>
-    </button>
-    <div className="opponent-card-badges"><span>{statusLabel}</span><span>{card.capabilities.length} capabilities</span>{card.nonStrategic ? <span>Order only</span> : null}</div>
-    <div className="opponent-role-row" aria-label={`${card.cuteName} roles`}>
-      <button className={`role-toggle ${active ? "selected" : ""}`} type="button" onClick={() => { onExpand(card.id); onPlay(card.id); }} disabled={!card.playable} aria-pressed={active} title={!card.playable ? `Requires ${card.artifact}` : `Use ${card.cuteName} as the game opponent`}>
-        <span>Play</span>{active ? "On" : "Off"}
-      </button>
-      <button className={`role-toggle ${analyst ? "selected analyst" : ""}`} type="button" onClick={() => { onExpand(card.id); onAnalyze(card.id); }} disabled={!card.playable} aria-pressed={analyst} title={!card.playable ? `Requires ${card.artifact}` : `Use ${card.cuteName} as the board analyst`}>
-        <span>Analyze</span>{analyst ? "On" : "Off"}
-      </button>
+  return <article className={`opponent-expanded-card ${card.status === "artifact-pending" ? "artifact-pending" : ""}`} aria-labelledby="playing-opponent-title">
+    <div className="opponent-expanded-header">
+      <div className="opponent-expanded-identity"><span className="opponent-glyph" aria-hidden="true">{card.glyph}</span><div><span className="panel-kicker">Playing opponent</span><h3 id="playing-opponent-title">{card.cuteName}</h3><p>{card.technicalName}</p></div></div>
+      <span className="playing-badge">{card.status === "artifact-pending" ? "Artifact pending" : "Playing"}</span>
     </div>
-    {expanded && <div className="opponent-card-details">
+    <div className="opponent-card-details">
       <div className="opponent-card-description"><span>{card.personality}</span><button className="info-button" type="button" onClick={() => setInfoOpen((open) => !open)} aria-expanded={infoOpen} aria-label={`More information about ${card.cuteName}`}>(i)</button></div>
       {infoOpen && <p className="opponent-info">{card.description}</p>}
-      {card.status === "artifact-pending" && <p className="artifact-note">This card stays visible for the shared roster, but Play and Analyze unlock only after the real artifact is promoted: <code>{card.artifact}</code></p>}
-      <div className={`opponent-controls ${card.playable ? "" : "disabled"}`} aria-label={`${card.cuteName} controls`}>
-        <div className="control-heading"><span>Model-owned controls</span><small>Five-step presets</small></div>
-        {card.controls.map((control) => {
-          const index = runtimeControlIndex(card, settings, control.id);
-          return <label className="model-control" key={control.id}>
-            <span className="model-control-label"><strong>{control.label}</strong><button className="info-button" type="button" title={control.info} aria-label={`${control.label}: ${control.info}`}>(i)</button><em>{control.format(control.values[index])}</em></span>
-            <input type="range" min={0} max={4} step={1} value={index} disabled={!card.playable} aria-label={`${card.cuteName} ${control.label}`} onChange={(event) => onControl(card.id, control.id, Number(event.target.value))} />
-            <span className="model-control-scale"><small>{control.format(control.values[0])}</small><small>{control.format(control.values[2])}</small><small>{control.format(control.values[4])}</small></span>
-          </label>;
-        })}
-      </div>
+      {card.status === "artifact-pending" && <p className="artifact-note">This card stays visible for the shared roster, but its runtime unlocks after the real artifact is promoted: <code>{card.artifact}</code></p>}
+      <OpponentControls card={card} settings={settings} onControl={onControl} />
       {decision}
-      {analystDecision}
-    </div>}
+    </div>
   </article>;
+}
+
+function OpponentControls({ card, settings, onControl }: {
+  card: PlayerFacingOpponent;
+  settings: Record<string, Record<string, number>>;
+  onControl: (id: string, controlId: string, index: number) => void;
+}) {
+  return <div className={`opponent-controls ${card.playable ? "" : "disabled"}`} aria-label={`${card.cuteName} controls`}>
+    <div className="control-heading"><span>Model-owned controls</span><small>Five-step presets</small></div>
+    {card.controls.map((control) => {
+      const index = runtimeControlIndex(card, settings, control.id);
+      return <label className="model-control" key={control.id}>
+        <span className="model-control-label"><strong>{control.label}</strong><button className="info-button" type="button" title={control.info} aria-label={`${control.label}: ${control.info}`}>(i)</button><em>{control.format(control.values[index])}</em></span>
+        <input type="range" min={0} max={4} step={1} value={index} disabled={!card.playable} aria-label={`${card.cuteName} ${control.label}`} onChange={(event) => onControl(card.id, control.id, Number(event.target.value))} />
+        <span className="model-control-scale"><small>{control.format(control.values[0])}</small><small>{control.format(control.values[2])}</small><small>{control.format(control.values[4])}</small></span>
+      </label>;
+    })}
+  </div>;
 }
 
 function AnalystSummary({ analyst, status, error, ranked, telemetry, interpretation }: {
   analyst: PlayerFacingOpponent;
-  status: "idle" | "searching" | "ready" | "unavailable";
+  status: "idle" | "searching" | "ready" | "unavailable" | "following";
   error: string | null;
   ranked: RankedAction[];
   telemetry: SearchTelemetry | null;
@@ -1261,8 +1351,8 @@ function AnalystSummary({ analyst, status, error, ranked, telemetry, interpretat
 }) {
   const best = ranked[0];
   return <section className="analyst-summary" aria-live="polite" aria-label={`${analyst.name} board evaluation`}>
-    <div className="analyst-summary-heading"><div><span className="panel-kicker">Selected analyst</span><h2>{analyst.name} sees…</h2></div><span className={`analyst-status ${status}`}><span />{status === "searching" ? "Thinking" : status === "ready" ? "Live" : status === "unavailable" ? "Unavailable" : "Waiting"}</span></div>
-    {status === "unavailable" ? <p className="analyst-empty">{error ?? (analyst.playable ? "The analyst could not evaluate this board." : "This opponent needs its real browser artifact before it can analyze.")}</p> : best ? <div className="analyst-result"><strong>{formatAction(best.action)}</strong><span>{interpretation === "random priority/order" ? "random priority/order" : "top relative preference"}</span><small>{telemetry ? `${telemetry.nodes.toLocaleString()} positions · ${telemetry.depth} ply` : "board evaluation ready"}</small></div> : <p className="analyst-empty">{status === "searching" ? "Ranking legal moves…" : "Select Analyze on any ready opponent card."}</p>}
+    <div className="analyst-summary-heading"><div><span className="panel-kicker">Selected analyst</span><h2>{analyst.name} sees…</h2></div><span className={`analyst-status ${status}`}><span />{status === "searching" ? "Thinking" : status === "ready" ? "Live" : status === "following" ? "Following play" : status === "unavailable" ? "Unavailable" : "Waiting"}</span></div>
+    {status === "unavailable" ? <p className="analyst-empty">{error ?? (analyst.playable ? "The analyst could not evaluate this board." : "This opponent needs its real browser artifact before it can analyze.")}</p> : best ? <div className="analyst-result"><strong>{formatAction(best.action)}</strong><span>{interpretation === "random priority/order" ? "random priority/order" : "top relative preference"}</span><small>{telemetry ? `${telemetry.nodes.toLocaleString()} positions · ${telemetry.depth} ply` : "board evaluation ready"}</small></div> : <p className="analyst-empty">{status === "searching" ? "Ranking legal moves…" : status === "following" ? "The active opponent’s live search is shown above." : "Choose an analyst card to evaluate this board."}</p>}
   </section>;
 }
 

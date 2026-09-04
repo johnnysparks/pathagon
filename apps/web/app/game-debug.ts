@@ -38,7 +38,7 @@ export type GameDebugPayload = {
   analyst: {
     id: string;
     name: string;
-    status: "idle" | "searching" | "ready" | "unavailable";
+    status: "idle" | "searching" | "ready" | "unavailable" | "following";
     interpretation: "relative preference" | "random priority/order";
     ranked: RankedAction[];
     telemetry: SearchTelemetry | null;
@@ -68,7 +68,7 @@ type BuildGameDebugPayloadInput = {
   pathfinderProgress: SearchProgress | null;
   analystId: string;
   analystName: string;
-  analystStatus: "idle" | "searching" | "ready" | "unavailable";
+  analystStatus: "idle" | "searching" | "ready" | "unavailable" | "following";
   analystInterpretation: "relative preference" | "random priority/order";
   analystRanked: RankedAction[];
   analystTelemetry: SearchTelemetry | null;
