@@ -274,6 +274,9 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
 .analyst-roster .opponent-picker-card.selected .opponent-picker-topline, .analyst-roster .opponent-picker-card.selected .opponent-picker-topline em, .analyst-roster .opponent-picker-card.selected .opponent-picker-footer { color: #35614a; }
 .analyst-roster .opponent-picker-card.selected .opponent-card-identity small { color: #6c7e70; }
 .analyst-roster .opponent-picker-card.selected .opponent-glyph { color: #f6ead5; background: var(--dark-piece); }
+.analyst-roster > .analyst-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 16px; margin-top: 12px; padding: 10px 12px 11px; border: 1px solid #b6cbb9; border-radius: 11px; background: rgba(255,255,255,.48); }
+.analyst-roster > .analyst-controls .control-heading { grid-column: 1 / -1; }
+.analyst-roster > .analyst-controls .model-control { min-width: 0; margin-top: 10px; }
 .game-support-panel { min-width: 0; padding: 20px; }
 .game-support-panel .game-id-card { align-items: flex-start; margin: 14px 0 4px; }
 .game-support-panel .game-id-card code { font-size: 11px; }
@@ -377,6 +380,7 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
   .opponent-lab-top { padding: 14px; }
   .opponent-picker-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .opponent-expanded-card .opponent-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
+  .analyst-roster > .analyst-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
   .play-column { padding: 10px; border-radius: 14px; }
   .game-support-panel { padding: 16px; }
   .board-frame { --edge-size: 24px; width: 100%; margin-top: 7px; }
@@ -417,6 +421,7 @@ h1 { margin: 3px 0 0; font-family: Georgia, "Times New Roman", serif; font-size:
   .opponent-expanded-identity h3 { font-size: 22px; }
   .opponent-expanded-card .opponent-card-details { padding: 12px; }
   .opponent-expanded-card .opponent-controls { grid-template-columns: 1fr; }
+  .analyst-roster > .analyst-controls { grid-template-columns: 1fr; }
   .analyst-roster { padding: 11px; }
   .analyst-roster-heading { align-items: flex-start; flex-direction: column; gap: 5px; }
   .analyst-roster .opponent-picker-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

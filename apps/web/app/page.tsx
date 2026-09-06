@@ -1051,6 +1051,7 @@ export default function Home() {
               <span className="analyst-follow-status">{analystFollowing ? "Following play" : "Independent"}</span>
             </div>
             <OpponentPicker opponents={OPPONENTS} selectedId={analyst.id} role="analyst" onSelect={selectAnalyst} />
+            <OpponentControls card={analyst} settings={opponentSettings} onControl={updateOpponentControl} purpose="analyst" />
           </section>
 
           <div className="piece-trays">
@@ -1322,13 +1323,14 @@ function ExpandedOpponentCard({ card, settings, onControl, decision }: {
   </article>;
 }
 
-function OpponentControls({ card, settings, onControl }: {
+function OpponentControls({ card, settings, onControl, purpose = "opponent" }: {
   card: PlayerFacingOpponent;
   settings: Record<string, Record<string, number>>;
   onControl: (id: string, controlId: string, index: number) => void;
+  purpose?: "opponent" | "analyst";
 }) {
-  return <div className={`opponent-controls ${card.playable ? "" : "disabled"}`} aria-label={`${card.cuteName} controls`}>
-    <div className="control-heading"><span>Model-owned controls</span><small>Five-step presets</small></div>
+  return <div className={`opponent-controls ${purpose === "analyst" ? "analyst-controls" : ""} ${card.playable ? "" : "disabled"}`} aria-label={`${card.cuteName} ${purpose} controls`}>
+    <div className="control-heading"><span>{purpose === "analyst" ? "Analyst controls" : "Model-owned controls"}</span><small>{purpose === "analyst" ? "Applies to board study" : "Five-step presets"}</small></div>
     {card.controls.map((control) => {
       const index = runtimeControlIndex(card, settings, control.id);
       return <label className="model-control" key={control.id}>
