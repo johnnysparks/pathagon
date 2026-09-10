@@ -17,6 +17,8 @@ Learned policy, Q/advantage, root-sorter, and proof-guided experiments have
 improved some offline metrics but have not produced repeatable promotion-grade
 strength. The scaled explicit transition scorer is the latest validated
 promotion result.
+The 20260910 quiet-regret/value path improved held-out action ranking but did
+not improve the fixed-budget arena curve; its checkpoint remains research-only.
 The seeded-position curriculum increased near-terminal coverage but its short
 ladder candidates remained below their parent. The next useful work should
 change one major variable at a time, use paired colors and held-out positions,
@@ -143,6 +145,11 @@ gates are satisfied.
    general candidates.
 5. [`Can a gated sorter help?`](../research/20260829-can-gated-sorter-help/)
    — completed calibration audit; no useful activation region, so not promoted.
+
+The 20260910 quiet-regret/value experiment is complete and recorded in
+[`../research/20260910-quiet-regret-value/`](../research/20260910-quiet-regret-value/).
+It is retained as infrastructure for action-conditioned targets, but its
+three-point low-budget screen did not beat the frozen tactical-filter control.
 
 Current questions:
 

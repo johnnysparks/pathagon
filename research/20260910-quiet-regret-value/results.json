@@ -1,0 +1,354 @@
+{
+  "arenas": [
+    {
+      "draws": 3,
+      "file": "research/20260910-quiet-regret-value/workspace/arena-2k-learned.jsonl",
+      "gamePoints": 0.484375,
+      "games": 32,
+      "losses": 15,
+      "nodes": 2414082,
+      "plies": 1445,
+      "wins": 14
+    },
+    {
+      "draws": 4,
+      "file": "research/20260910-quiet-regret-value/workspace/arena-32k-learned.jsonl",
+      "gamePoints": 0.46875,
+      "games": 32,
+      "losses": 15,
+      "nodes": 31316593,
+      "plies": 1489,
+      "wins": 13
+    },
+    {
+      "draws": 1,
+      "file": "research/20260910-quiet-regret-value/workspace/arena-8k-learned.jsonl",
+      "gamePoints": 0.578125,
+      "games": 32,
+      "losses": 13,
+      "nodes": 5152159,
+      "plies": 1459,
+      "wins": 18
+    }
+  ],
+  "artifacts": {
+    "checkpoint": "821f6164784ba927132b6df06e6bc329899bfa41600b240ca9d0a081b58026f7",
+    "onnx": "5112f8dec9e857e501863afe1933650766eb1379eb3efa921f6bdea4290f7b81",
+    "targets": "cc66eb01a90c13920eab8dad684ebc142b4bd130236f46b4e141d5f9885dcdca",
+    "training": "39074a3de17170819efe475652b001f16db39cf34ff61593dbf0544ef95fd6e1"
+  },
+  "audits": {
+    "arena-2k-control": {
+      "actionKinds": {
+        "place": 1053,
+        "relocate": 393
+      },
+      "arena": "research/20260910-quiet-regret-value/workspace/arena-2k-control.jsonl",
+      "byColor": {
+        "dark": 716,
+        "light": 730
+      },
+      "captures": 217,
+      "duplicateSequences": 0,
+      "games": 32,
+      "plies": 1446,
+      "reasons": {
+        "path": 27,
+        "threefold-repetition": 5
+      },
+      "uniqueSequences": 32,
+      "winners": {
+        "dark": 14,
+        "draw": 5,
+        "light": 13
+      }
+    },
+    "arena-2k-learned": {
+      "actionKinds": {
+        "place": 1005,
+        "relocate": 440
+      },
+      "arena": "research/20260910-quiet-regret-value/workspace/arena-2k-learned.jsonl",
+      "byColor": {
+        "dark": 716,
+        "light": 729
+      },
+      "captures": 168,
+      "duplicateSequences": 0,
+      "games": 32,
+      "plies": 1445,
+      "reasons": {
+        "max-plies": 2,
+        "path": 29,
+        "threefold-repetition": 1
+      },
+      "uniqueSequences": 32,
+      "winners": {
+        "dark": 16,
+        "draw": 3,
+        "light": 13
+      }
+    },
+    "arena-32k-control": {
+      "actionKinds": {
+        "place": 1072,
+        "relocate": 577
+      },
+      "arena": "research/20260910-quiet-regret-value/workspace/arena-32k-control.jsonl",
+      "byColor": {
+        "dark": 818,
+        "light": 831
+      },
+      "captures": 189,
+      "duplicateSequences": 0,
+      "games": 32,
+      "plies": 1649,
+      "reasons": {
+        "max-plies": 2,
+        "path": 27,
+        "threefold-repetition": 3
+      },
+      "uniqueSequences": 32,
+      "winners": {
+        "dark": 16,
+        "draw": 5,
+        "light": 11
+      }
+    },
+    "arena-32k-learned": {
+      "actionKinds": {
+        "place": 1032,
+        "relocate": 457
+      },
+      "arena": "research/20260910-quiet-regret-value/workspace/arena-32k-learned.jsonl",
+      "byColor": {
+        "dark": 738,
+        "light": 751
+      },
+      "captures": 152,
+      "duplicateSequences": 0,
+      "games": 32,
+      "plies": 1489,
+      "reasons": {
+        "max-plies": 2,
+        "path": 28,
+        "threefold-repetition": 2
+      },
+      "uniqueSequences": 32,
+      "winners": {
+        "dark": 17,
+        "draw": 4,
+        "light": 11
+      }
+    },
+    "arena-8k-control": {
+      "actionKinds": {
+        "place": 1207,
+        "relocate": 382
+      },
+      "arena": "research/20260910-quiet-regret-value/workspace/arena-8k-control.jsonl",
+      "byColor": {
+        "dark": 785,
+        "light": 804
+      },
+      "captures": 365,
+      "duplicateSequences": 0,
+      "games": 32,
+      "plies": 1589,
+      "reasons": {
+        "max-plies": 1,
+        "path": 30,
+        "threefold-repetition": 1
+      },
+      "uniqueSequences": 32,
+      "winners": {
+        "dark": 11,
+        "draw": 2,
+        "light": 19
+      }
+    },
+    "arena-8k-learned": {
+      "actionKinds": {
+        "place": 1171,
+        "relocate": 288
+      },
+      "arena": "research/20260910-quiet-regret-value/workspace/arena-8k-learned.jsonl",
+      "byColor": {
+        "dark": 721,
+        "light": 738
+      },
+      "captures": 330,
+      "duplicateSequences": 0,
+      "games": 32,
+      "plies": 1459,
+      "reasons": {
+        "path": 31,
+        "threefold-repetition": 1
+      },
+      "uniqueSequences": 32,
+      "winners": {
+        "dark": 14,
+        "draw": 1,
+        "light": 17
+      }
+    }
+  },
+  "controls": [
+    {
+      "draws": 5,
+      "file": "research/20260910-quiet-regret-value/workspace/arena-2k-control.jsonl",
+      "gamePoints": 0.453125,
+      "games": 32,
+      "losses": 15,
+      "nodes": 2370229,
+      "plies": 1446,
+      "wins": 12
+    },
+    {
+      "draws": 5,
+      "file": "research/20260910-quiet-regret-value/workspace/arena-32k-control.jsonl",
+      "gamePoints": 0.515625,
+      "games": 32,
+      "losses": 13,
+      "nodes": 37307575,
+      "plies": 1649,
+      "wins": 14
+    },
+    {
+      "draws": 2,
+      "file": "research/20260910-quiet-regret-value/workspace/arena-8k-control.jsonl",
+      "gamePoints": 0.625,
+      "games": 32,
+      "losses": 11,
+      "nodes": 5936782,
+      "plies": 1589,
+      "wins": 19
+    }
+  ],
+  "dataset": {
+    "continuationDifferenceRows": 44,
+    "games": 29,
+    "heldoutGames": 6,
+    "maximumTeacherMargin": 1000000877,
+    "meanTeacherMargin": 62500948.197916664,
+    "minimumTeacherMargin": 100,
+    "opponentTypes": {
+      "heuristic-vs-neural": 22,
+      "heuristic-vs-other": 21,
+      "heuristic-vs-random": 12,
+      "heuristic-vs-search": 29,
+      "neural-vs-heuristic": 3,
+      "neural-vs-neural": 3,
+      "neural-vs-other": 6
+    },
+    "partitions": {
+      "heldout": 23,
+      "train": 73
+    },
+    "phases": {
+      "late": 34,
+      "movement": 15,
+      "opening": 18,
+      "placement": 29
+    },
+    "rows": 96,
+    "rowsWithAnyExhaustion": 3,
+    "trainGames": 23,
+    "turns": {
+      "dark": 52,
+      "light": 44
+    }
+  },
+  "mode": "quiet-regret-value",
+  "training": {
+    "after": {
+      "outcomeRoots": 4,
+      "outcomeTop": 0.25,
+      "pairwise": 0.6647342995169082,
+      "phaseCounts": {
+        "late": 9,
+        "opening": 4,
+        "placement": 10
+      },
+      "qMae": 0.31796423572561017,
+      "rows": 23,
+      "teacherTop1": 0.43478260869565216,
+      "valueMae": 0.20512233377667144
+    },
+    "architecture": {
+      "action_head": "dynamic-place-and-relocate-pair",
+      "action_value_head": "dueling-transition-qadv-v1",
+      "architecture": "residual-mean-message-passing",
+      "global_features": 8,
+      "hidden_size": 64,
+      "message_layers": 8,
+      "node_features": 21,
+      "qadv": true,
+      "transition_features": [
+        "place",
+        "relocate",
+        "from_row",
+        "from_column",
+        "to_row",
+        "to_column",
+        "captured",
+        "own_path_gain",
+        "opponent_path_loss",
+        "own_component_gain",
+        "opponent_component_loss",
+        "own_threat_gain",
+        "opponent_threat_loss",
+        "own_edge_gain",
+        "opponent_edge_loss",
+        "own_piece_delta",
+        "opponent_piece_loss",
+        "own_reserve_delta",
+        "opponent_reserve_gain",
+        "mobility_delta",
+        "immediate_win",
+        "destination_own_neighbors",
+        "destination_opponent_neighbors",
+        "destination_empty_neighbors"
+      ]
+    },
+    "before": {
+      "outcomeRoots": 4,
+      "outcomeTop": 0.25,
+      "pairwise": 0.4579710144927536,
+      "phaseCounts": {
+        "late": 9,
+        "opening": 4,
+        "placement": 10
+      },
+      "qMae": 0.34664025935141934,
+      "rows": 23,
+      "teacherTop1": 0.0,
+      "valueMae": 0.05607422375191084
+    },
+    "data": "research/20260910-quiet-regret-value/workspace/quiet-targets.jsonl",
+    "device": "cpu",
+    "heldoutGames": 6,
+    "heldoutRows": 23,
+    "learningRate": 0.0003,
+    "losses": {
+      "advantage_loss": 0.018315358004142277,
+      "loss": 2.6299168019692103,
+      "outcome_loss": 0.11085384128524069,
+      "policy_loss": 2.2786982195278007,
+      "q_loss": 0.10290867573407013,
+      "rank_loss": 0.6674190860291322,
+      "value_loss": 0.17833596068437213
+    },
+    "mode": "quiet-regret-value",
+    "modelHash": "sha256:a6a584eb3673c0326d0c89dd0be5dfa55c97fb6ff2f67f4b843ede63dae44cca",
+    "outcomeWeight": 0.25,
+    "output": "research/20260910-quiet-regret-value/workspace/quiet-value.pt",
+    "rows": 96,
+    "seed": 20260910,
+    "steps": 3000,
+    "symmetryAugmentation": true,
+    "trainGames": 23,
+    "trainRows": 73,
+    "valueWeight": 0.25
+  }
+}
