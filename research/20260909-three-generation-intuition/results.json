@@ -1,0 +1,438 @@
+{
+  "arenas": {
+    "g0-vs-unguided": {
+      "games": 100,
+      "wins": 47,
+      "losses": 50,
+      "draws": 3,
+      "pointRate": 0.485,
+      "pairedBootstrap95": [
+        0.395,
+        0.575
+      ],
+      "byColor": {
+        "light": 0.51,
+        "dark": 0.46
+      },
+      "terminations": {
+        "path": 97,
+        "threefold-repetition": 2,
+        "max-plies": 1
+      },
+      "uniqueTrajectories": 95,
+      "nodes": {
+        "candidate": 461600464,
+        "control": 459877122
+      },
+      "gameWallSeconds": {
+        "mean": 177.29611484667,
+        "max": 1076.341509167
+      }
+    },
+    "g1-vs-g0": {
+      "games": 100,
+      "wins": 60,
+      "losses": 38,
+      "draws": 2,
+      "pointRate": 0.61,
+      "pairedBootstrap95": [
+        0.525,
+        0.695
+      ],
+      "byColor": {
+        "light": 0.69,
+        "dark": 0.53
+      },
+      "terminations": {
+        "path": 98,
+        "threefold-repetition": 1,
+        "max-plies": 1
+      },
+      "uniqueTrajectories": 91,
+      "nodes": {
+        "candidate": 452490841,
+        "control": 446743643
+      },
+      "gameWallSeconds": {
+        "mean": 82.97301758502,
+        "max": 382.188208958
+      }
+    },
+    "g1-vs-unguided": {
+      "games": 100,
+      "wins": 44,
+      "losses": 51,
+      "draws": 5,
+      "pointRate": 0.465,
+      "pairedBootstrap95": [
+        0.4,
+        0.53
+      ],
+      "byColor": {
+        "light": 0.51,
+        "dark": 0.42
+      },
+      "terminations": {
+        "max-plies": 5,
+        "path": 95
+      },
+      "uniqueTrajectories": 94,
+      "nodes": {
+        "candidate": 468294660,
+        "control": 463018184
+      },
+      "gameWallSeconds": {
+        "mean": 88.29450252502,
+        "max": 572.068912458
+      }
+    },
+    "g2-vs-g0": {
+      "games": 100,
+      "wins": 55,
+      "losses": 42,
+      "draws": 3,
+      "pointRate": 0.565,
+      "pairedBootstrap95": [
+        0.47,
+        0.66
+      ],
+      "byColor": {
+        "light": 0.64,
+        "dark": 0.49
+      },
+      "terminations": {
+        "path": 97,
+        "threefold-repetition": 2,
+        "max-plies": 1
+      },
+      "uniqueTrajectories": 91,
+      "nodes": {
+        "candidate": 433985549,
+        "control": 432845447
+      },
+      "gameWallSeconds": {
+        "mean": 79.29103212166,
+        "max": 397.006185458
+      }
+    },
+    "g2-vs-unguided": {
+      "games": 100,
+      "wins": 50,
+      "losses": 43,
+      "draws": 7,
+      "pointRate": 0.535,
+      "pairedBootstrap95": [
+        0.455,
+        0.615
+      ],
+      "byColor": {
+        "light": 0.57,
+        "dark": 0.5
+      },
+      "terminations": {
+        "max-plies": 6,
+        "path": 93,
+        "threefold-repetition": 1
+      },
+      "uniqueTrajectories": 93,
+      "nodes": {
+        "candidate": 558249852,
+        "control": 552231050
+      },
+      "gameWallSeconds": {
+        "mean": 98.8882914712,
+        "max": 519.813298709
+      }
+    },
+    "g3-vs-g0": {
+      "games": 100,
+      "wins": 51,
+      "losses": 43,
+      "draws": 6,
+      "pointRate": 0.54,
+      "pairedBootstrap95": [
+        0.455,
+        0.625
+      ],
+      "byColor": {
+        "light": 0.61,
+        "dark": 0.47
+      },
+      "terminations": {
+        "path": 94,
+        "max-plies": 4,
+        "threefold-repetition": 2
+      },
+      "uniqueTrajectories": 93,
+      "nodes": {
+        "candidate": 512725593,
+        "control": 513901731
+      },
+      "gameWallSeconds": {
+        "mean": 97.09674701996,
+        "max": 516.558806167
+      }
+    },
+    "g3-vs-unguided": {
+      "games": 100,
+      "wins": 49,
+      "losses": 47,
+      "draws": 4,
+      "pointRate": 0.51,
+      "pairedBootstrap95": [
+        0.425,
+        0.595
+      ],
+      "byColor": {
+        "light": 0.53,
+        "dark": 0.49
+      },
+      "terminations": {
+        "threefold-repetition": 2,
+        "path": 96,
+        "max-plies": 2
+      },
+      "uniqueTrajectories": 93,
+      "nodes": {
+        "candidate": 425969272,
+        "control": 424903332
+      },
+      "gameWallSeconds": {
+        "mean": 74.97715717242001,
+        "max": 490.143209459
+      }
+    }
+  },
+  "generations": {
+    "1": {
+      "phaseCoverage": {
+        "placement": {
+          "selected": 483,
+          "eligible": 458
+        },
+        "relocation": {
+          "selected": 157,
+          "eligible": 155
+        }
+      },
+      "games": 80,
+      "terminations": {
+        "path": 75,
+        "threefold-repetition": 4,
+        "max-plies": 1
+      },
+      "uniqueTrajectories": 80,
+      "relocationPlies": 895,
+      "labels": 640,
+      "eligibleLabels": 613,
+      "completedDepths": {
+        "5": 209,
+        "6": 194,
+        "4": 189,
+        "3": 48
+      },
+      "changedTeacherActions": 347,
+      "training": {
+        "parentSha256": "f11d7ddee101ccab35ee162e53c95ced076b1fb10242443ad562dbd51c1085d4",
+        "modelSha256": "d3cb85bd0813be5cd4da7e786e3300f671278096820864107a4bbd6d5db251ed",
+        "train": {
+          "roots": 491,
+          "top1": 0.2830957230142566,
+          "top3": 0.42362525458248473,
+          "xent": 3.1783910446521464
+        },
+        "heldoutBefore": {
+          "roots": 122,
+          "top1": 0.20491803278688525,
+          "top3": 0.29508196721311475,
+          "xent": 3.615644914204957
+        },
+        "heldoutAfter": {
+          "roots": 122,
+          "top1": 0.22950819672131148,
+          "top3": 0.3114754098360656,
+          "xent": 3.336897853945122
+        },
+        "losses": [
+          3.7875836968664727,
+          3.695085868816026,
+          3.6362895144950107,
+          3.583188804006868,
+          3.5546310508809604,
+          3.5247947311449925,
+          3.4941251308272183,
+          3.4673144722664673,
+          3.447482060633463,
+          3.4182883558108217,
+          3.398414703954747,
+          3.3780457205053747,
+          3.364080124984205,
+          3.347211002696556,
+          3.3339919717394406,
+          3.317963479128486,
+          3.3031309602702463,
+          3.2907946210529073,
+          3.277987087088544,
+          3.264337153517302
+        ],
+        "epochs": 20,
+        "lr": 0.0003,
+        "klWeight": 0.2,
+        "normalizationFrozen": true
+      }
+    },
+    "2": {
+      "phaseCoverage": {
+        "placement": {
+          "selected": 462,
+          "eligible": 451
+        },
+        "relocation": {
+          "selected": 178,
+          "eligible": 174
+        }
+      },
+      "games": 80,
+      "terminations": {
+        "path": 76,
+        "threefold-repetition": 3,
+        "max-plies": 1
+      },
+      "uniqueTrajectories": 80,
+      "relocationPlies": 1039,
+      "labels": 640,
+      "eligibleLabels": 625,
+      "completedDepths": {
+        "5": 241,
+        "6": 164,
+        "4": 176,
+        "3": 59
+      },
+      "changedTeacherActions": 353,
+      "training": {
+        "parentSha256": "d3cb85bd0813be5cd4da7e786e3300f671278096820864107a4bbd6d5db251ed",
+        "modelSha256": "e03e3f6901c54778bdebdc81c6ebbd00dd1bf95c60d2b2135fc7bcf153174d39",
+        "train": {
+          "roots": 991,
+          "top1": 0.29364278506559033,
+          "top3": 0.4450050454086781,
+          "xent": 3.0777349234582134
+        },
+        "heldoutBefore": {
+          "roots": 122,
+          "top1": 0.22950819672131148,
+          "top3": 0.3114754098360656,
+          "xent": 3.336897853945122
+        },
+        "heldoutAfter": {
+          "roots": 122,
+          "top1": 0.20491803278688525,
+          "top3": 0.4098360655737705,
+          "xent": 3.277866768055275
+        },
+        "losses": [
+          3.3583155721576374,
+          3.3376373788332483,
+          3.3208331355353295,
+          3.3054280590066756,
+          3.2880559347261693,
+          3.275167941205076,
+          3.261206315877339,
+          3.245898128247526,
+          3.2365143219108656,
+          3.224340613506637,
+          3.2129905530590825,
+          3.203835352518484,
+          3.189885693108879,
+          3.1818403161378006,
+          3.1713159997486082,
+          3.16085996041986,
+          3.1513851687958696,
+          3.1459712379665596,
+          3.1343032135792623,
+          3.126380252384033
+        ],
+        "epochs": 20,
+        "lr": 0.0003,
+        "klWeight": 0.2,
+        "normalizationFrozen": true
+      }
+    },
+    "3": {
+      "phaseCoverage": {
+        "placement": {
+          "selected": 484,
+          "eligible": 456
+        },
+        "relocation": {
+          "selected": 156,
+          "eligible": 153
+        }
+      },
+      "games": 80,
+      "terminations": {
+        "path": 76,
+        "threefold-repetition": 4
+      },
+      "uniqueTrajectories": 80,
+      "relocationPlies": 1018,
+      "labels": 640,
+      "eligibleLabels": 609,
+      "completedDepths": {
+        "5": 237,
+        "6": 174,
+        "4": 174,
+        "3": 55
+      },
+      "changedTeacherActions": 360,
+      "training": {
+        "parentSha256": "e03e3f6901c54778bdebdc81c6ebbd00dd1bf95c60d2b2135fc7bcf153174d39",
+        "modelSha256": "23fca81154a15dfc2b4f84b81426c8336331f06e1ac7eb2ae039a97867c6fd98",
+        "train": {
+          "roots": 1477,
+          "top1": 0.3073798239675017,
+          "top3": 0.46919431279620855,
+          "xent": 2.9731616079756837
+        },
+        "heldoutBefore": {
+          "roots": 122,
+          "top1": 0.20491803278688525,
+          "top3": 0.4098360655737705,
+          "xent": 3.277866768055275
+        },
+        "heldoutAfter": {
+          "roots": 122,
+          "top1": 0.21311475409836064,
+          "top3": 0.3524590163934426,
+          "xent": 3.3384069670907786
+        },
+        "losses": [
+          3.1786278889904818,
+          3.165782065939766,
+          3.150295188724894,
+          3.139823848839418,
+          3.1239336513805083,
+          3.1158161763285936,
+          3.1050894779324048,
+          3.096258071538114,
+          3.086512675954025,
+          3.0798716656182696,
+          3.0723521671810907,
+          3.065048148276722,
+          3.056061723135215,
+          3.050489510500964,
+          3.041956960327656,
+          3.035482881839161,
+          3.0291976877106714,
+          3.0256161548868175,
+          3.017365206645886,
+          3.011410610390904
+        ],
+        "epochs": 20,
+        "lr": 0.0003,
+        "klWeight": 0.2,
+        "normalizationFrozen": true
+      }
+    }
+  }
+}

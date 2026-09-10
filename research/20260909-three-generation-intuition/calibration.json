@@ -1,0 +1,19 @@
+{
+  "productionGameWallSeconds": [
+    241.53,
+    220.09
+  ],
+  "productionPlies": [
+    56,
+    56
+  ],
+  "labelCount": 32,
+  "labelCompletedDepths": {
+    "5": 16,
+    "6": 8,
+    "4": 6,
+    "3": 2
+  },
+  "eligibleLabelCount": 24,
+  "changedTeacherActions": 20
+}

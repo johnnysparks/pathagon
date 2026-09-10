@@ -1,0 +1,18 @@
+{
+  "rule": {
+    "registeredBeforeArenas": true,
+    "eligibility": "at least 53% overall points against each anchor in color-balanced paired matches, with all native/parity checks passing",
+    "selection": "highest minimum point rate across the two anchors; then highest mean rate; then later generation",
+    "confirmation": "400 fresh paired games against each anchor at the same d5/b256/256k envelope; do not pool with screening games",
+    "promotion": "require lower paired-bootstrap 95% bound above 50% against each anchor and at least 53% overall points; report color splits as diagnostics, plus clean replay, representative-game review, and a separate deployed-latency check",
+    "colorRationale": "Preregistered before any arena started. Balanced pairing controls first-player advantage. Above-50% in each color is not required: it can reject a stronger challenger when Light has an intrinsic advantage. Retain both color splits in every report."
+  },
+  "freshSeedBases": {
+    "g0": 59091000,
+    "unguided": 59092000
+  },
+  "eligibleGenerations": [
+    2
+  ],
+  "generation": 2
+}

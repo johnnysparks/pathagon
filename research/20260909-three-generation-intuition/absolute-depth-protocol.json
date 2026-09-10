@@ -1,0 +1,52 @@
+{
+  "engineCommit": "94a8772e865258e3bcba7dfaf572877d213aa01d",
+  "engineSourceSha256": "309bafb0e66795e623a81cdd963b42bda6bba42651bb760894a92109ac9ca1fe",
+  "generations": 3,
+  "model": "existing-v4-32-32-tanh",
+  "normalization": "frozen-parent",
+  "collection": {
+    "gamesPerGeneration": 80,
+    "depth": 4,
+    "beam": 256,
+    "nodes": 32000,
+    "randomOpeningPlies": 4,
+    "maxPlies": 196,
+    "opponent": "current-generation-self"
+  },
+  "labeling": {
+    "selection": "four evenly spaced plus four smallest policy gaps per game",
+    "depth": 6,
+    "beam": 256,
+    "nodes": 512000,
+    "minCompletedDepth": 5
+  },
+  "training": {
+    "epochs": 20,
+    "learningRate": 0.0003,
+    "weightDecay": 0.002,
+    "parentKLWeight": 0.2,
+    "replay": "cumulative unique states",
+    "heldout": "seed modulo 5 equals zero; fixed generation-one diagnostic holdout; heldout states excluded from training"
+  },
+  "evaluation": {
+    "gamesPerAnchorPerGeneration": 100,
+    "pairedOpeningSeeds": true,
+    "anchors": [
+      "starting-v4",
+      "identical-search-no-learned-root-guidance"
+    ],
+    "depth": 5,
+    "beam": 256,
+    "nodes": 256000,
+    "deadlineMs": null,
+    "maxPlies": 196
+  },
+  "promotion": "screen only; positive finalist requires independent >=400-game paired confirmation, legality and latency gates",
+  "confirmationSelection": {
+    "registeredBeforeArenas": true,
+    "eligibility": "at least 53% points against each anchor, strictly above 50% in each color against each anchor, and all native/parity checks pass",
+    "selection": "highest minimum point rate across the two anchors; then highest mean rate; then later generation",
+    "confirmation": "400 fresh paired games against each anchor at the same d5/b256/256k envelope; do not pool with screening games",
+    "promotion": "require positive lower paired-bootstrap 95% bound above 50% against each anchor, at least 53% points overall and above 50% in each color, clean replay and representative-game review, and a separate deployed-latency check; otherwise do not promote"
+  }
+}

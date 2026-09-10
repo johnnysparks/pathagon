@@ -1,0 +1,269 @@
+{
+  "engineFrozen": true,
+  "architectureAndNormalizationFrozen": true,
+  "nativeFeatureAndLogitParityVerified": true,
+  "threeSequentialWeightUpdates": true,
+  "collectionAndDeploymentBudgetsFrozen": true,
+  "pairedOpeningsVerified": true,
+  "trainingEvaluationSeedsDisjoint": true,
+  "nativeAudits": {
+    "g1-collection": {
+      "actionKinds": {
+        "place": 2748,
+        "relocate": 895
+      },
+      "arena": "/Users/jsparks/dev/codex/projects/pathagon/research/20260909-three-generation-intuition/workspace/g1-collection.jsonl",
+      "byColor": {
+        "dark": 1797,
+        "light": 1846
+      },
+      "captures": 584,
+      "duplicateSequences": 0,
+      "games": 80,
+      "plies": 3643,
+      "reasons": {
+        "max-plies": 1,
+        "path": 75,
+        "threefold-repetition": 4
+      },
+      "uniqueSequences": 80,
+      "winners": {
+        "dark": 29,
+        "draw": 5,
+        "light": 46
+      }
+    },
+    "g2-collection": {
+      "actionKinds": {
+        "place": 2755,
+        "relocate": 1039
+      },
+      "arena": "/Users/jsparks/dev/codex/projects/pathagon/research/20260909-three-generation-intuition/workspace/g2-collection.jsonl",
+      "byColor": {
+        "dark": 1878,
+        "light": 1916
+      },
+      "captures": 587,
+      "duplicateSequences": 0,
+      "games": 80,
+      "plies": 3794,
+      "reasons": {
+        "max-plies": 1,
+        "path": 76,
+        "threefold-repetition": 3
+      },
+      "uniqueSequences": 80,
+      "winners": {
+        "dark": 40,
+        "draw": 4,
+        "light": 36
+      }
+    },
+    "g3-collection": {
+      "actionKinds": {
+        "place": 2764,
+        "relocate": 1018
+      },
+      "arena": "/Users/jsparks/dev/codex/projects/pathagon/research/20260909-three-generation-intuition/workspace/g3-collection.jsonl",
+      "byColor": {
+        "dark": 1867,
+        "light": 1915
+      },
+      "captures": 582,
+      "duplicateSequences": 0,
+      "games": 80,
+      "plies": 3782,
+      "reasons": {
+        "path": 76,
+        "threefold-repetition": 4
+      },
+      "uniqueSequences": 80,
+      "winners": {
+        "dark": 29,
+        "draw": 4,
+        "light": 47
+      }
+    },
+    "g0-vs-unguided": {
+      "actionKinds": {
+        "place": 4143,
+        "relocate": 1350
+      },
+      "arena": "/Users/jsparks/dev/codex/projects/pathagon/research/20260909-three-generation-intuition/workspace/g0-vs-unguided.jsonl",
+      "byColor": {
+        "dark": 2721,
+        "light": 2772
+      },
+      "captures": 1409,
+      "duplicateSequences": 5,
+      "games": 100,
+      "plies": 5493,
+      "reasons": {
+        "max-plies": 1,
+        "path": 97,
+        "threefold-repetition": 2
+      },
+      "uniqueSequences": 95,
+      "winners": {
+        "dark": 46,
+        "draw": 3,
+        "light": 51
+      }
+    },
+    "g1-vs-g0": {
+      "actionKinds": {
+        "place": 4031,
+        "relocate": 1394
+      },
+      "arena": "/Users/jsparks/dev/codex/projects/pathagon/research/20260909-three-generation-intuition/workspace/g1-vs-g0.jsonl",
+      "byColor": {
+        "dark": 2684,
+        "light": 2741
+      },
+      "captures": 1357,
+      "duplicateSequences": 9,
+      "games": 100,
+      "plies": 5425,
+      "reasons": {
+        "max-plies": 1,
+        "path": 98,
+        "threefold-repetition": 1
+      },
+      "uniqueSequences": 91,
+      "winners": {
+        "dark": 41,
+        "draw": 2,
+        "light": 57
+      }
+    },
+    "g1-vs-unguided": {
+      "actionKinds": {
+        "place": 4131,
+        "relocate": 1463
+      },
+      "arena": "/Users/jsparks/dev/codex/projects/pathagon/research/20260909-three-generation-intuition/workspace/g1-vs-unguided.jsonl",
+      "byColor": {
+        "dark": 2771,
+        "light": 2823
+      },
+      "captures": 1424,
+      "duplicateSequences": 6,
+      "games": 100,
+      "plies": 5594,
+      "reasons": {
+        "max-plies": 5,
+        "path": 95
+      },
+      "uniqueSequences": 94,
+      "winners": {
+        "dark": 43,
+        "draw": 5,
+        "light": 52
+      }
+    },
+    "g2-vs-g0": {
+      "actionKinds": {
+        "place": 4002,
+        "relocate": 1280
+      },
+      "arena": "/Users/jsparks/dev/codex/projects/pathagon/research/20260909-three-generation-intuition/workspace/g2-vs-g0.jsonl",
+      "byColor": {
+        "dark": 2612,
+        "light": 2670
+      },
+      "captures": 1340,
+      "duplicateSequences": 9,
+      "games": 100,
+      "plies": 5282,
+      "reasons": {
+        "max-plies": 1,
+        "path": 97,
+        "threefold-repetition": 2
+      },
+      "uniqueSequences": 91,
+      "winners": {
+        "dark": 41,
+        "draw": 3,
+        "light": 56
+      }
+    },
+    "g2-vs-unguided": {
+      "actionKinds": {
+        "place": 4341,
+        "relocate": 1963
+      },
+      "arena": "/Users/jsparks/dev/codex/projects/pathagon/research/20260909-three-generation-intuition/workspace/g2-vs-unguided.jsonl",
+      "byColor": {
+        "dark": 3127,
+        "light": 3177
+      },
+      "captures": 1628,
+      "duplicateSequences": 7,
+      "games": 100,
+      "plies": 6304,
+      "reasons": {
+        "max-plies": 6,
+        "path": 93,
+        "threefold-repetition": 1
+      },
+      "uniqueSequences": 93,
+      "winners": {
+        "dark": 43,
+        "draw": 7,
+        "light": 50
+      }
+    },
+    "g3-vs-g0": {
+      "actionKinds": {
+        "place": 4272,
+        "relocate": 1649
+      },
+      "arena": "/Users/jsparks/dev/codex/projects/pathagon/research/20260909-three-generation-intuition/workspace/g3-vs-g0.jsonl",
+      "byColor": {
+        "dark": 2933,
+        "light": 2988
+      },
+      "captures": 1600,
+      "duplicateSequences": 7,
+      "games": 100,
+      "plies": 5921,
+      "reasons": {
+        "max-plies": 4,
+        "path": 94,
+        "threefold-repetition": 2
+      },
+      "uniqueSequences": 93,
+      "winners": {
+        "dark": 40,
+        "draw": 6,
+        "light": 54
+      }
+    },
+    "g3-vs-unguided": {
+      "actionKinds": {
+        "place": 4111,
+        "relocate": 1202
+      },
+      "arena": "/Users/jsparks/dev/codex/projects/pathagon/research/20260909-three-generation-intuition/workspace/g3-vs-unguided.jsonl",
+      "byColor": {
+        "dark": 2631,
+        "light": 2682
+      },
+      "captures": 1419,
+      "duplicateSequences": 7,
+      "games": 100,
+      "plies": 5313,
+      "reasons": {
+        "max-plies": 2,
+        "path": 96,
+        "threefold-repetition": 2
+      },
+      "uniqueSequences": 93,
+      "winners": {
+        "dark": 46,
+        "draw": 4,
+        "light": 50
+      }
+    }
+  }
+}

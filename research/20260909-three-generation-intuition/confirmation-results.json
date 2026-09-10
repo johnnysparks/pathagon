@@ -1,0 +1,127 @@
+{
+  "generation": 2,
+  "modelSha256": "e03e3f6901c54778bdebdc81c6ebbd00dd1bf95c60d2b2135fc7bcf153174d39",
+  "arenas": {
+    "g0": {
+      "games": 400,
+      "wins": 198,
+      "losses": 183,
+      "draws": 19,
+      "pointRate": 0.51875,
+      "pairedBootstrap95": [
+        0.47875,
+        0.55875
+      ],
+      "byColor": {
+        "light": 0.555,
+        "dark": 0.4825
+      },
+      "terminations": {
+        "path": 381,
+        "max-plies": 17,
+        "threefold-repetition": 2
+      },
+      "uniqueTrajectories": 377,
+      "nodes": {
+        "candidate": 2036269777,
+        "control": 2050082263
+      },
+      "gameWallSeconds": {
+        "mean": 98.8882223077475,
+        "max": 551.796516542
+      }
+    },
+    "unguided": {
+      "games": 400,
+      "wins": 203,
+      "losses": 178,
+      "draws": 19,
+      "pointRate": 0.53125,
+      "pairedBootstrap95": [
+        0.4875,
+        0.57625
+      ],
+      "byColor": {
+        "light": 0.5625,
+        "dark": 0.5
+      },
+      "terminations": {
+        "path": 381,
+        "max-plies": 9,
+        "threefold-repetition": 10
+      },
+      "uniqueTrajectories": 376,
+      "nodes": {
+        "candidate": 1999867743,
+        "control": 1987288987
+      },
+      "gameWallSeconds": {
+        "mean": 97.0873795157175,
+        "max": 531.165979667
+      }
+    }
+  },
+  "nativeAudits": {
+    "g0": {
+      "actionKinds": {
+        "place": 16991,
+        "relocate": 6631
+      },
+      "arena": "/Users/jsparks/dev/codex/projects/pathagon/research/20260909-three-generation-intuition/workspace/confirmation-g2-vs-g0.jsonl",
+      "byColor": {
+        "dark": 11708,
+        "light": 11914
+      },
+      "captures": 6213,
+      "duplicateSequences": 23,
+      "games": 400,
+      "plies": 23622,
+      "reasons": {
+        "max-plies": 17,
+        "path": 381,
+        "threefold-repetition": 2
+      },
+      "uniqueSequences": 377,
+      "winners": {
+        "dark": 176,
+        "draw": 19,
+        "light": 205
+      }
+    },
+    "unguided": {
+      "actionKinds": {
+        "place": 17006,
+        "relocate": 6388
+      },
+      "arena": "/Users/jsparks/dev/codex/projects/pathagon/research/20260909-three-generation-intuition/workspace/confirmation-g2-vs-unguided.jsonl",
+      "byColor": {
+        "dark": 11593,
+        "light": 11801
+      },
+      "captures": 6224,
+      "duplicateSequences": 24,
+      "games": 400,
+      "plies": 23394,
+      "reasons": {
+        "max-plies": 9,
+        "path": 381,
+        "threefold-repetition": 10
+      },
+      "uniqueSequences": 376,
+      "winners": {
+        "dark": 178,
+        "draw": 19,
+        "light": 203
+      }
+    }
+  },
+  "allAnchorsComplete": true,
+  "strengthGatePassed": false,
+  "strengthGateFailedAgainst": [
+    "g0",
+    "unguided"
+  ],
+  "promotionDecision": "not-promoted-strength-gate-failed",
+  "deploymentLatency": "not-run-strength-gate-failed",
+  "promotionPending": []
+}

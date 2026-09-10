@@ -1,0 +1,7 @@
+{
+  "registeredBeforeArenas": true,
+  "eligibility": "at least 53% points against each anchor, strictly above 50% in each color against each anchor, and all native/parity checks pass",
+  "selection": "highest minimum point rate across the two anchors; then highest mean rate; then later generation",
+  "confirmation": "400 fresh paired games against each anchor at the same d5/b256/256k envelope; do not pool with screening games",
+  "promotion": "require positive lower paired-bootstrap 95% bound above 50% against each anchor, at least 53% points overall and above 50% in each color, clean replay and representative-game review, and a separate deployed-latency check; otherwise do not promote"
+}

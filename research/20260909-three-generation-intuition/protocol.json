@@ -1,0 +1,55 @@
+{
+  "engineCommit": "94a8772e865258e3bcba7dfaf572877d213aa01d",
+  "engineSourceSha256": "309bafb0e66795e623a81cdd963b42bda6bba42651bb760894a92109ac9ca1fe",
+  "generations": 3,
+  "model": "existing-v4-32-32-tanh",
+  "normalization": "frozen-parent",
+  "collection": {
+    "gamesPerGeneration": 80,
+    "depth": 4,
+    "beam": 256,
+    "nodes": 32000,
+    "randomOpeningPlies": 4,
+    "maxPlies": 196,
+    "opponent": "current-generation-self"
+  },
+  "labeling": {
+    "selection": "four evenly spaced plus four smallest policy gaps per game",
+    "depth": 6,
+    "beam": 256,
+    "nodes": 512000,
+    "eligibility": "teacher completedDepth strictly exceeds the collecting move completedDepth"
+  },
+  "training": {
+    "epochs": 20,
+    "learningRate": 0.0003,
+    "weightDecay": 0.002,
+    "parentKLWeight": 0.2,
+    "replay": "cumulative unique states",
+    "heldout": "seed modulo 5 equals zero; fixed generation-one diagnostic holdout; heldout states excluded from training"
+  },
+  "evaluation": {
+    "gamesPerAnchorPerGeneration": 100,
+    "pairedOpeningSeeds": true,
+    "anchors": [
+      "starting-v4",
+      "identical-search-no-learned-root-guidance"
+    ],
+    "depth": 5,
+    "beam": 256,
+    "nodes": 256000,
+    "deadlineMs": null,
+    "maxPlies": 196
+  },
+  "promotion": "screen only; positive finalist requires independent >=400-game paired confirmation, legality and latency gates",
+  "confirmationSelection": {
+    "registeredBeforeArenas": true,
+    "eligibility": "at least 53% overall points against each anchor in color-balanced paired matches, with all native/parity checks passing",
+    "selection": "highest minimum point rate across the two anchors; then highest mean rate; then later generation",
+    "confirmation": "400 fresh paired games against each anchor at the same d5/b256/256k envelope; do not pool with screening games",
+    "promotion": "require lower paired-bootstrap 95% bound above 50% against each anchor and at least 53% overall points; report color splits as diagnostics, plus clean replay, representative-game review, and a separate deployed-latency check",
+    "colorRationale": "Preregistered before any arena started. Balanced pairing controls first-player advantage. Above-50% in each color is not required: it can reject a stronger challenger when Light has an intrinsic advantage. Retain both color splits in every report."
+  },
+  "version": 2,
+  "correction": "Absolute-depth-five pilot superseded before any arena: movement roots were almost entirely filtered out. All three learning generations restart at g0 under the relative-depth rule; g1 raw games/labels are reused unchanged."
+}

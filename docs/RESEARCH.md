@@ -22,6 +22,25 @@ ladder candidates remained below their parent. The next useful work should
 change one major variable at a time, use paired colors and held-out positions,
 and preserve the tactical filter as a frozen control.
 
+## Three-generation fixed-budget learning loop
+
+The [20260909 experiment](../research/20260909-three-generation-intuition/)
+completed three sequential policy updates with a frozen engine, architecture,
+normalization, evaluator, and depth-5 / beam-256 / 256k deployment budget. It
+used 240 complete collection games, selective deeper labels, and a 700-game
+paired screen against both starting v4 and the same search with neural root
+ordering disabled. Screen scores did not improve with every generation.
+
+G2 alone qualified for independent confirmation, then scored 51.875% against
+starting v4 in 400 fresh paired games (95% paired interval 47.875–55.875%).
+That fails the registered strength gate; the default remains unchanged. Its
+400-game NN-off confirmation scored 53.125% (48.750–57.625% paired interval),
+which also failed the confidence gate. All 1,740 campaign games and 97,567 moves
+passed native replay audits. The experiment is complete; no model was promoted.
+The initial absolute-depth label filter nearly erased relocation supervision;
+the corrected run uses depth improvement relative to the collecting move and
+preserves the discarded pilot separately.
+
 ## Latest promotion
 
 The v4 promotion gate is recorded in
