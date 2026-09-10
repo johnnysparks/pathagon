@@ -41,6 +41,19 @@ The initial absolute-depth label filter nearly erased relocation supervision;
 the corrected run uses depth improvement relative to the collecting move and
 preserves the discarded pilot separately.
 
+## Teacher quality at the deployment envelope
+
+The [20260910 diagnostic](../research/20260910-teacher-quality-envelope/)
+measured the promoted v4 model at the exact depth-5 / beam-256 / 256k-node
+deployment budget against a depth-6 / beam-256 / 512k-node teacher. On 32
+held-out Ring-1 positions with complete immediate-win action sets and 32
+discriminating three-ply proof positions, both searches hit the independent
+oracle on every root. The raw tactical control also scored 32/32 in each
+suite. The teacher changed two actions, both still oracle-valid, while using
+roughly 2–3× as many nodes and exhausting more often. This isolates no teacher
+advantage in the tested tactical envelope; deeper labels alone should not be
+the next training change.
+
 ## Latest promotion
 
 The v4 promotion gate is recorded in

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "experiment": "teacher-quality-at-deployment-envelope",
+  "rulesVersion": "pathagon-rules-v1",
+  "modelSha256": "f11d7ddee101ccab35ee162e53c95ced076b1fb10242443ad562dbd51c1085d4",
+  "protocol": {
+    "boardSize": 7,
+    "reservePerPlayer": 14,
+    "maxPlies": 196,
+    "deployment": {"depth": 5, "beam": 256, "nodes": 256000},
+    "teacher": {"depth": 6, "beam": 256, "nodes": 512000},
+    "proof": {"horizon": 3, "maxNodes": 50000},
+    "terminalRoots": 32,
+    "proofRoots": 32,
+    "proofHoldout": "sha256(game-key) mod 5 = 0"
+  },
+  "terminal": {
+    "oracle": "complete immediate-win action set",
+    "deploymentHits": 32,
+    "teacherHits": 32,
+    "rawDeploymentHits": 32,
+    "disagreements": 0,
+    "deploymentExhausted": 27,
+    "teacherExhausted": 27,
+    "deploymentNodesMean": 224426.25,
+    "teacherNodesMean": 455097.46875
+  },
+  "proof": {
+    "oracle": "complete non-exhausted three-ply AND/OR action set",
+    "outcomes": {"draw": 27, "win": 5},
+    "deploymentHits": 32,
+    "teacherHits": 32,
+    "rawDeploymentHits": 32,
+    "disagreements": 2,
+    "teacherOnlyHits": 0,
+    "deploymentOnlyHits": 0,
+    "deploymentExhausted": 12,
+    "teacherExhausted": 19,
+    "deploymentNodesMean": 128577.84375,
+    "teacherNodesMean": 342437.34375
+  },
+  "disagreementIds": ["proof-0013", "proof-0016"],
+  "detailReport": "workspace/final.json",
+  "decision": "no-promotion; deeper teacher showed no oracle-quality gain"
+}
