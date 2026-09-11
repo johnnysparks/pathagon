@@ -1,0 +1,984 @@
+{
+  "arenaAggregates": [
+    {
+      "budget": "2k",
+      "candidate": {
+        "draws": 8,
+        "gamePoints": 0.4583333333333333,
+        "games": 48,
+        "losses": 22,
+        "wins": 18
+      },
+      "control": {
+        "draws": 9,
+        "gamePoints": 0.46875,
+        "games": 48,
+        "losses": 21,
+        "wins": 18
+      },
+      "difference": -0.010416666666666685,
+      "seeds": [
+        2026091101,
+        2026091102,
+        2026091103
+      ]
+    },
+    {
+      "budget": "32k",
+      "candidate": {
+        "draws": 6,
+        "gamePoints": 0.5833333333333334,
+        "games": 48,
+        "losses": 17,
+        "wins": 25
+      },
+      "control": {
+        "draws": 0,
+        "gamePoints": 0.4791666666666667,
+        "games": 48,
+        "losses": 25,
+        "wins": 23
+      },
+      "difference": 0.10416666666666669,
+      "seeds": [
+        2026091101,
+        2026091102,
+        2026091103
+      ]
+    },
+    {
+      "budget": "8k",
+      "candidate": {
+        "draws": 3,
+        "gamePoints": 0.4270833333333333,
+        "games": 48,
+        "losses": 26,
+        "wins": 19
+      },
+      "control": {
+        "draws": 6,
+        "gamePoints": 0.5208333333333334,
+        "games": 48,
+        "losses": 20,
+        "wins": 22
+      },
+      "difference": -0.09375000000000006,
+      "seeds": [
+        2026091101,
+        2026091102,
+        2026091103
+      ]
+    }
+  ],
+  "arenas": [
+    {
+      "budget": "2k",
+      "draws": 3,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091101-2k-learned.jsonl",
+      "gamePoints": 0.40625,
+      "games": 16,
+      "losses": 8,
+      "nodes": 1059484,
+      "plies": 647,
+      "seed": 2026091101,
+      "wins": 5
+    },
+    {
+      "budget": "32k",
+      "draws": 3,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091101-32k-learned.jsonl",
+      "gamePoints": 0.59375,
+      "games": 16,
+      "losses": 5,
+      "nodes": 18424198,
+      "plies": 813,
+      "seed": 2026091101,
+      "wins": 8
+    },
+    {
+      "budget": "8k",
+      "draws": 1,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091101-8k-learned.jsonl",
+      "gamePoints": 0.40625,
+      "games": 16,
+      "losses": 9,
+      "nodes": 2867922,
+      "plies": 791,
+      "seed": 2026091101,
+      "wins": 6
+    },
+    {
+      "budget": "2k",
+      "draws": 2,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091102-2k-learned.jsonl",
+      "gamePoints": 0.5625,
+      "games": 16,
+      "losses": 6,
+      "nodes": 1272207,
+      "plies": 764,
+      "seed": 2026091102,
+      "wins": 8
+    },
+    {
+      "budget": "32k",
+      "draws": 0,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091102-32k-learned.jsonl",
+      "gamePoints": 0.625,
+      "games": 16,
+      "losses": 6,
+      "nodes": 11306984,
+      "plies": 580,
+      "seed": 2026091102,
+      "wins": 10
+    },
+    {
+      "budget": "8k",
+      "draws": 1,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091102-8k-learned.jsonl",
+      "gamePoints": 0.40625,
+      "games": 16,
+      "losses": 9,
+      "nodes": 2787982,
+      "plies": 749,
+      "seed": 2026091102,
+      "wins": 6
+    },
+    {
+      "budget": "2k",
+      "draws": 3,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091103-2k-learned.jsonl",
+      "gamePoints": 0.40625,
+      "games": 16,
+      "losses": 8,
+      "nodes": 1095343,
+      "plies": 663,
+      "seed": 2026091103,
+      "wins": 5
+    },
+    {
+      "budget": "32k",
+      "draws": 3,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091103-32k-learned.jsonl",
+      "gamePoints": 0.53125,
+      "games": 16,
+      "losses": 6,
+      "nodes": 19106244,
+      "plies": 838,
+      "seed": 2026091103,
+      "wins": 7
+    },
+    {
+      "budget": "8k",
+      "draws": 1,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091103-8k-learned.jsonl",
+      "gamePoints": 0.46875,
+      "games": 16,
+      "losses": 8,
+      "nodes": 2919542,
+      "plies": 802,
+      "seed": 2026091103,
+      "wins": 7
+    }
+  ],
+  "artifacts": {
+    "checkpoint": "858bfda3a084d92ed9766e09e65697aceb6ad64dc4f1872c79fc93983d666f4c",
+    "onnx": "6f7c45c25cffdb4062c3a41364fea2ac407d1b9e91bd1b3469c9fa1e35bf9fde",
+    "targets": "15d7ef17e5fa9b5833df45db5243767dc4379839b212a3085a69888d1c099ab0",
+    "training": "765afbc24bf897d66b1b650bd462bd368e363607b5133e276cd6ad717f249e63"
+  },
+  "audits": {
+    "arena-seed2026091101-2k-control": {
+      "actionKinds": {
+        "place": 502,
+        "relocate": 220
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091101-2k-control.jsonl",
+      "byColor": {
+        "dark": 356,
+        "light": 366
+      },
+      "captures": 91,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 722,
+      "reasons": {
+        "path": 13,
+        "threefold-repetition": 3
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 5,
+        "draw": 3,
+        "light": 8
+      }
+    },
+    "arena-seed2026091101-2k-learned": {
+      "actionKinds": {
+        "place": 486,
+        "relocate": 161
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091101-2k-learned.jsonl",
+      "byColor": {
+        "dark": 319,
+        "light": 328
+      },
+      "captures": 82,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 647,
+      "reasons": {
+        "path": 13,
+        "threefold-repetition": 3
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 5,
+        "draw": 3,
+        "light": 8
+      }
+    },
+    "arena-seed2026091101-32k-control": {
+      "actionKinds": {
+        "place": 538,
+        "relocate": 99
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091101-32k-control.jsonl",
+      "byColor": {
+        "dark": 315,
+        "light": 322
+      },
+      "captures": 112,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 637,
+      "reasons": {
+        "path": 16
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 9,
+        "light": 7
+      }
+    },
+    "arena-seed2026091101-32k-learned": {
+      "actionKinds": {
+        "place": 558,
+        "relocate": 255
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091101-32k-learned.jsonl",
+      "byColor": {
+        "dark": 401,
+        "light": 412
+      },
+      "captures": 123,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 813,
+      "reasons": {
+        "path": 13,
+        "threefold-repetition": 3
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 2,
+        "draw": 3,
+        "light": 11
+      }
+    },
+    "arena-seed2026091101-8k-control": {
+      "actionKinds": {
+        "place": 637,
+        "relocate": 201
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091101-8k-control.jsonl",
+      "byColor": {
+        "dark": 413,
+        "light": 425
+      },
+      "captures": 205,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 838,
+      "reasons": {
+        "path": 14,
+        "threefold-repetition": 2
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 4,
+        "draw": 2,
+        "light": 10
+      }
+    },
+    "arena-seed2026091101-8k-learned": {
+      "actionKinds": {
+        "place": 633,
+        "relocate": 158
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091101-8k-learned.jsonl",
+      "byColor": {
+        "dark": 390,
+        "light": 401
+      },
+      "captures": 199,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 791,
+      "reasons": {
+        "path": 15,
+        "threefold-repetition": 1
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 5,
+        "draw": 1,
+        "light": 10
+      }
+    },
+    "arena-seed2026091102-2k-control": {
+      "actionKinds": {
+        "place": 508,
+        "relocate": 228
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091102-2k-control.jsonl",
+      "byColor": {
+        "dark": 363,
+        "light": 373
+      },
+      "captures": 93,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 736,
+      "reasons": {
+        "path": 13,
+        "threefold-repetition": 3
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 5,
+        "draw": 3,
+        "light": 8
+      }
+    },
+    "arena-seed2026091102-2k-learned": {
+      "actionKinds": {
+        "place": 505,
+        "relocate": 259
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091102-2k-learned.jsonl",
+      "byColor": {
+        "dark": 379,
+        "light": 385
+      },
+      "captures": 85,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 764,
+      "reasons": {
+        "max-plies": 2,
+        "path": 14
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 8,
+        "draw": 2,
+        "light": 6
+      }
+    },
+    "arena-seed2026091102-32k-control": {
+      "actionKinds": {
+        "place": 540,
+        "relocate": 98
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091102-32k-control.jsonl",
+      "byColor": {
+        "dark": 316,
+        "light": 322
+      },
+      "captures": 115,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 638,
+      "reasons": {
+        "path": 16
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 10,
+        "light": 6
+      }
+    },
+    "arena-seed2026091102-32k-learned": {
+      "actionKinds": {
+        "place": 514,
+        "relocate": 66
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091102-32k-learned.jsonl",
+      "byColor": {
+        "dark": 286,
+        "light": 294
+      },
+      "captures": 87,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 580,
+      "reasons": {
+        "path": 16
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 8,
+        "light": 8
+      }
+    },
+    "arena-seed2026091102-8k-control": {
+      "actionKinds": {
+        "place": 621,
+        "relocate": 190
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091102-8k-control.jsonl",
+      "byColor": {
+        "dark": 399,
+        "light": 412
+      },
+      "captures": 189,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 811,
+      "reasons": {
+        "path": 14,
+        "threefold-repetition": 2
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 3,
+        "draw": 2,
+        "light": 11
+      }
+    },
+    "arena-seed2026091102-8k-learned": {
+      "actionKinds": {
+        "place": 583,
+        "relocate": 166
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091102-8k-learned.jsonl",
+      "byColor": {
+        "dark": 368,
+        "light": 381
+      },
+      "captures": 150,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 749,
+      "reasons": {
+        "path": 15,
+        "threefold-repetition": 1
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 3,
+        "draw": 1,
+        "light": 12
+      }
+    },
+    "arena-seed2026091103-2k-control": {
+      "actionKinds": {
+        "place": 510,
+        "relocate": 228
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091103-2k-control.jsonl",
+      "byColor": {
+        "dark": 364,
+        "light": 374
+      },
+      "captures": 93,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 738,
+      "reasons": {
+        "path": 13,
+        "threefold-repetition": 3
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 5,
+        "draw": 3,
+        "light": 8
+      }
+    },
+    "arena-seed2026091103-2k-learned": {
+      "actionKinds": {
+        "place": 494,
+        "relocate": 169
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091103-2k-learned.jsonl",
+      "byColor": {
+        "dark": 327,
+        "light": 336
+      },
+      "captures": 84,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 663,
+      "reasons": {
+        "path": 13,
+        "threefold-repetition": 3
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 5,
+        "draw": 3,
+        "light": 8
+      }
+    },
+    "arena-seed2026091103-32k-control": {
+      "actionKinds": {
+        "place": 554,
+        "relocate": 104
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091103-32k-control.jsonl",
+      "byColor": {
+        "dark": 326,
+        "light": 332
+      },
+      "captures": 129,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 658,
+      "reasons": {
+        "path": 16
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 10,
+        "light": 6
+      }
+    },
+    "arena-seed2026091103-32k-learned": {
+      "actionKinds": {
+        "place": 575,
+        "relocate": 263
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091103-32k-learned.jsonl",
+      "byColor": {
+        "dark": 414,
+        "light": 424
+      },
+      "captures": 138,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 838,
+      "reasons": {
+        "path": 13,
+        "threefold-repetition": 3
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 3,
+        "draw": 3,
+        "light": 10
+      }
+    },
+    "arena-seed2026091103-8k-control": {
+      "actionKinds": {
+        "place": 643,
+        "relocate": 203
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091103-8k-control.jsonl",
+      "byColor": {
+        "dark": 417,
+        "light": 429
+      },
+      "captures": 205,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 846,
+      "reasons": {
+        "path": 14,
+        "threefold-repetition": 2
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 4,
+        "draw": 2,
+        "light": 10
+      }
+    },
+    "arena-seed2026091103-8k-learned": {
+      "actionKinds": {
+        "place": 641,
+        "relocate": 161
+      },
+      "arena": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091103-8k-learned.jsonl",
+      "byColor": {
+        "dark": 395,
+        "light": 407
+      },
+      "captures": 200,
+      "duplicateSequences": 0,
+      "games": 16,
+      "plies": 802,
+      "reasons": {
+        "path": 15,
+        "threefold-repetition": 1
+      },
+      "uniqueSequences": 16,
+      "winners": {
+        "dark": 4,
+        "draw": 1,
+        "light": 11
+      }
+    }
+  },
+  "controls": [
+    {
+      "budget": "2k",
+      "draws": 3,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091101-2k-control.jsonl",
+      "gamePoints": 0.40625,
+      "games": 16,
+      "losses": 8,
+      "nodes": 1178330,
+      "plies": 722,
+      "seed": 2026091101,
+      "wins": 5
+    },
+    {
+      "budget": "32k",
+      "draws": 0,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091101-32k-control.jsonl",
+      "gamePoints": 0.4375,
+      "games": 16,
+      "losses": 9,
+      "nodes": 12857250,
+      "plies": 637,
+      "seed": 2026091101,
+      "wins": 7
+    },
+    {
+      "budget": "8k",
+      "draws": 2,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091101-8k-control.jsonl",
+      "gamePoints": 0.5,
+      "games": 16,
+      "losses": 7,
+      "nodes": 3150703,
+      "plies": 838,
+      "seed": 2026091101,
+      "wins": 7
+    },
+    {
+      "budget": "2k",
+      "draws": 3,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091102-2k-control.jsonl",
+      "gamePoints": 0.59375,
+      "games": 16,
+      "losses": 5,
+      "nodes": 1204469,
+      "plies": 736,
+      "seed": 2026091102,
+      "wins": 8
+    },
+    {
+      "budget": "32k",
+      "draws": 0,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091102-32k-control.jsonl",
+      "gamePoints": 0.625,
+      "games": 16,
+      "losses": 6,
+      "nodes": 12911095,
+      "plies": 638,
+      "seed": 2026091102,
+      "wins": 10
+    },
+    {
+      "budget": "8k",
+      "draws": 2,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091102-8k-control.jsonl",
+      "gamePoints": 0.4375,
+      "games": 16,
+      "losses": 8,
+      "nodes": 3030451,
+      "plies": 811,
+      "seed": 2026091102,
+      "wins": 6
+    },
+    {
+      "budget": "2k",
+      "draws": 3,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091103-2k-control.jsonl",
+      "gamePoints": 0.40625,
+      "games": 16,
+      "losses": 8,
+      "nodes": 1215417,
+      "plies": 738,
+      "seed": 2026091103,
+      "wins": 5
+    },
+    {
+      "budget": "32k",
+      "draws": 0,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091103-32k-control.jsonl",
+      "gamePoints": 0.375,
+      "games": 16,
+      "losses": 10,
+      "nodes": 13524432,
+      "plies": 658,
+      "seed": 2026091103,
+      "wins": 6
+    },
+    {
+      "budget": "8k",
+      "draws": 2,
+      "file": "research/20260911-calibrated-quiet-value/workspace/arena-seed2026091103-8k-control.jsonl",
+      "gamePoints": 0.625,
+      "games": 16,
+      "losses": 5,
+      "nodes": 3186338,
+      "plies": 846,
+      "seed": 2026091103,
+      "wins": 9
+    }
+  ],
+  "dataset": {
+    "continuationDifferenceRows": 183,
+    "games": 100,
+    "heldoutGames": 48,
+    "maximumTeacherMargin": 1000000444,
+    "meanTeacherMargin": 46875873.447916664,
+    "minimumTeacherMargin": 100,
+    "opponentTypes": {
+      "heuristic-vs-neural": 64,
+      "heuristic-vs-other": 29,
+      "heuristic-vs-random": 11,
+      "heuristic-vs-search": 25,
+      "neural-vs-heuristic": 21,
+      "neural-vs-neural": 20,
+      "neural-vs-other": 10,
+      "neural-vs-random": 10,
+      "neural-vs-search": 1,
+      "other-vs-neural": 1
+    },
+    "partitions": {
+      "heldout": 96,
+      "train": 96
+    },
+    "phases": {
+      "late": 46,
+      "movement": 45,
+      "opening": 53,
+      "placement": 48
+    },
+    "rows": 192,
+    "rowsWithAnyExhaustion": 7,
+    "targetClassPartitions": {
+      "decisive|heldout": 48,
+      "decisive|train": 48,
+      "neutral|heldout": 48,
+      "neutral|train": 48
+    },
+    "targetClasses": {
+      "decisive": 96,
+      "neutral": 96
+    },
+    "trainGames": 52,
+    "turns": {
+      "dark": 93,
+      "light": 99
+    },
+    "valueTargetRange": [
+      -1.0,
+      0.9999998807907104
+    ]
+  },
+  "mode": "calibrated-quiet-regret-value",
+  "protocol": {
+    "analysis": "Report action ranking, value MAE/bias/RMSE by target class, and candidate-versus-control game points separately. Do not promote unless all registered gates pass.",
+    "board": {
+      "maxPlies": 140,
+      "openingRandomPlies": 4,
+      "reservePerPlayer": 14,
+      "size": 7
+    },
+    "budgets": [
+      {
+        "beam": 128,
+        "depth": 3,
+        "name": "2k",
+        "nodes": 2000,
+        "sorterRootLimit": 128,
+        "sorterTopK": 32
+      },
+      {
+        "beam": 128,
+        "depth": 3,
+        "name": "8k",
+        "nodes": 8000,
+        "sorterRootLimit": 128,
+        "sorterTopK": 32
+      },
+      {
+        "beam": 256,
+        "depth": 4,
+        "name": "32k",
+        "nodes": 32000,
+        "sorterRootLimit": 256,
+        "sorterTopK": 64
+      }
+    ],
+    "candidate": {
+      "checkpoint": "workspace/calibrated-value.pt",
+      "id": "calibrated-quiet-qadv-v1",
+      "onnx": "workspace/calibrated-value-qadv.onnx",
+      "startingCheckpoint": "research/20260901-strong-teacher-10k-games/workspace/retraining-mixed-final/gnn-qadv-replay.pt"
+    },
+    "control": {
+      "id": "tactical-filter-control-v1",
+      "opponent": "pathfinder-v0.4.0-tactical-filter"
+    },
+    "gamesPerSeed": 16,
+    "gates": {
+      "aggregateStrengthLower95Above50": false,
+      "aggregateStrengthPointsAboveControl": 0.02,
+      "heldoutPairwiseAtLeast": 0.6,
+      "heldoutTeacherTop1AtLeast": 0.25,
+      "heldoutValueMaeNotAboveBaseline": true
+    },
+    "pairing": "candidate colors alternate by game index within each seed; controls reuse the same seed list",
+    "question": "Does calibrated quiet-position regret/value supervision improve action-conditioned intuition and low-budget strength?",
+    "registeredAt": "2026-09-11",
+    "schemaVersion": 1,
+    "seeds": [
+      2026091101,
+      2026091102,
+      2026091103
+    ],
+    "sorter": {
+      "allActions": true,
+      "maxHeuristicGap": 0,
+      "minMargin": 0.0,
+      "model": "onnx-qadv"
+    },
+    "weights": {
+      "capture": 887,
+      "edge": 74,
+      "material": 112,
+      "path": 241,
+      "structure": 40,
+      "threat": 154
+    }
+  },
+  "training": {
+    "after": {
+      "outcomeRoots": 90,
+      "outcomeTop": 0.25555555555555554,
+      "pairwise": 0.6433566433566433,
+      "phaseCounts": {
+        "late": 21,
+        "movement": 22,
+        "opening": 29,
+        "placement": 24
+      },
+      "qMae": 0.3332044513275226,
+      "rows": 96,
+      "targetClassCounts": {
+        "decisive": 48,
+        "neutral": 48
+      },
+      "teacherTop1": 0.4166666666666667,
+      "valueBias": -0.06577530798434357,
+      "valueMae": 0.3796982819888702,
+      "valueMaeByClass": {
+        "decisive": 0.5772868881031172,
+        "neutral": 0.18210967587462315
+      },
+      "valueRmse": 0.5023981807049797
+    },
+    "architecture": {
+      "action_head": "dynamic-place-and-relocate-pair",
+      "action_value_head": "dueling-transition-qadv-v1",
+      "architecture": "residual-mean-message-passing",
+      "global_features": 8,
+      "hidden_size": 64,
+      "message_layers": 8,
+      "node_features": 21,
+      "qadv": true,
+      "transition_features": [
+        "place",
+        "relocate",
+        "from_row",
+        "from_column",
+        "to_row",
+        "to_column",
+        "captured",
+        "own_path_gain",
+        "opponent_path_loss",
+        "own_component_gain",
+        "opponent_component_loss",
+        "own_threat_gain",
+        "opponent_threat_loss",
+        "own_edge_gain",
+        "opponent_edge_loss",
+        "own_piece_delta",
+        "opponent_piece_loss",
+        "own_reserve_delta",
+        "opponent_reserve_gain",
+        "mobility_delta",
+        "immediate_win",
+        "destination_own_neighbors",
+        "destination_opponent_neighbors",
+        "destination_empty_neighbors"
+      ]
+    },
+    "before": {
+      "outcomeRoots": 90,
+      "outcomeTop": 0.08888888888888889,
+      "pairwise": 0.5305944055944056,
+      "phaseCounts": {
+        "late": 21,
+        "movement": 22,
+        "opening": 29,
+        "placement": 24
+      },
+      "qMae": 0.36634443995232385,
+      "rows": 96,
+      "targetClassCounts": {
+        "decisive": 48,
+        "neutral": 48
+      },
+      "teacherTop1": 0.0625,
+      "valueBias": 0.07531136282644486,
+      "valueMae": 0.3494479676246556,
+      "valueMaeByClass": {
+        "decisive": 0.5967868758780241,
+        "neutral": 0.102109059371287
+      },
+      "valueRmse": 0.47782372480330193
+    },
+    "data": "research/20260911-calibrated-quiet-value/workspace/calibrated-targets.jsonl",
+    "device": "cpu",
+    "heldoutGames": 48,
+    "heldoutRows": 96,
+    "learningRate": 0.0003,
+    "losses": {
+      "advantage_loss": 0.01416846397248628,
+      "loss": 2.7201133585870267,
+      "outcome_loss": 0.17480001047308907,
+      "policy_loss": 2.2803374355733395,
+      "q_loss": 0.08445512739741388,
+      "rank_loss": 0.6558497453853488,
+      "value_loss": 0.19374824651065092
+    },
+    "mode": "calibrated-quiet-regret-value",
+    "modelHash": "sha256:5296d30dbd8d2899f0ae63c01b015fba3d20f1e501e8a5335af7f90f843c2e8e",
+    "outcomeWeight": 0.5,
+    "output": "research/20260911-calibrated-quiet-value/workspace/calibrated-value.pt",
+    "rows": 192,
+    "seed": 20260910,
+    "steps": 4000,
+    "symmetryAugmentation": true,
+    "trainGames": 52,
+    "trainRows": 96,
+    "valueWeight": 0.5
+  }
+}

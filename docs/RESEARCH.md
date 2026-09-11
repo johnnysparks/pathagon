@@ -19,6 +19,9 @@ strength. The scaled explicit transition scorer is the latest validated
 promotion result.
 The 20260910 quiet-regret/value path improved held-out action ranking but did
 not improve the fixed-budget arena curve; its checkpoint remains research-only.
+The 20260911 calibrated follow-up enlarged and balanced the holdout and
+improved action ranking again, but value MAE and the low-budget multi-seed
+curve failed their registered gates; its checkpoint also remains research-only.
 The seeded-position curriculum increased near-terminal coverage but its short
 ladder candidates remained below their parent. The next useful work should
 change one major variable at a time, use paired colors and held-out positions,
@@ -150,6 +153,11 @@ The 20260910 quiet-regret/value experiment is complete and recorded in
 [`../research/20260910-quiet-regret-value/`](../research/20260910-quiet-regret-value/).
 It is retained as infrastructure for action-conditioned targets, but its
 three-point low-budget screen did not beat the frozen tactical-filter control.
+
+The 20260911 calibrated quiet-regret/value follow-up is recorded in
+[`../research/20260911-calibrated-quiet-value/`](../research/20260911-calibrated-quiet-value/).
+It supplies balanced neutral targets and a preregistered three-seed arena, but
+does not clear the joint value and strength gates.
 
 Current questions:
 

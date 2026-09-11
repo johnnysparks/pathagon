@@ -24,6 +24,7 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for a new path. The current direction is in
 
 ## Archive
 
+- [`20260911-calibrated-quiet-value/`](20260911-calibrated-quiet-value/)
 - [`20260910-quiet-regret-value/`](20260910-quiet-regret-value/)
 - [`20260910-teacher-quality-envelope/`](20260910-teacher-quality-envelope/)
 - [`20260909-three-generation-intuition/`](20260909-three-generation-intuition/)

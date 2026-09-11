@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -121,6 +122,12 @@ def arena_report(path: Path) -> dict:
     games = len(rows)
     return {
         "file": str(path),
+        "seed": int(re.search(r"arena-seed(\d+)-", path.name).group(1))
+        if re.search(r"arena-seed(\d+)-", path.name)
+        else None,
+        "budget": re.search(r"arena-seed\d+-(\w+)-", path.name).group(1)
+        if re.search(r"arena-seed\d+-(\w+)-", path.name)
+        else None,
         "games": games,
         "wins": wins,
         "losses": losses,
@@ -135,26 +142,67 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--targets", type=Path, required=True)
     parser.add_argument("--training", type=Path, required=True)
+    parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--onnx", type=Path)
     parser.add_argument("--arena-dir", type=Path, required=True)
     parser.add_argument("--protocol", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    checkpoint = args.checkpoint or args.training.with_name("calibrated-value.pt")
+    onnx = args.onnx or args.training.with_name("calibrated-value-qadv.onnx")
+    arenas = [arena_report(path) for path in sorted(args.arena_dir.glob("arena-seed*-learned.jsonl"))]
+    controls = [arena_report(path) for path in sorted(args.arena_dir.glob("arena-seed*-control.jsonl"))]
+    aggregates = []
+    for budget in sorted({item["budget"] for item in arenas + controls}):
+        candidate = [item for item in arenas if item["budget"] == budget]
+        control = [item for item in controls if item["budget"] == budget]
+        wins = sum(item["wins"] for item in candidate)
+        losses = sum(item["losses"] for item in candidate)
+        draws = sum(item["draws"] for item in candidate)
+        control_wins = sum(item["wins"] for item in control)
+        control_losses = sum(item["losses"] for item in control)
+        control_draws = sum(item["draws"] for item in control)
+        games = wins + losses + draws
+        control_games = control_wins + control_losses + control_draws
+        aggregates.append(
+            {
+                "budget": budget,
+                "seeds": sorted(item["seed"] for item in candidate),
+                "candidate": {
+                    "wins": wins,
+                    "losses": losses,
+                    "draws": draws,
+                    "games": games,
+                    "gamePoints": (wins + 0.5 * draws) / games,
+                },
+                "control": {
+                    "wins": control_wins,
+                    "losses": control_losses,
+                    "draws": control_draws,
+                    "games": control_games,
+                    "gamePoints": (control_wins + 0.5 * control_draws) / control_games,
+                },
+                "difference": (wins + 0.5 * draws) / games
+                - (control_wins + 0.5 * control_draws) / control_games,
+            }
+        )
     report = {
         "mode": "calibrated-quiet-regret-value",
         "artifacts": {
             "targets": sha256(args.targets),
             "training": sha256(args.training),
-            "checkpoint": sha256(args.training.with_name("quiet-value.pt"))
-            if args.training.with_name("quiet-value.pt").exists()
+            "checkpoint": sha256(checkpoint)
+            if checkpoint.exists()
             else None,
-            "onnx": sha256(args.training.with_name("quiet-value-qadv.onnx"))
-            if args.training.with_name("quiet-value-qadv.onnx").exists()
+            "onnx": sha256(onnx)
+            if onnx.exists()
             else None,
         },
         "dataset": dataset_report(args.targets),
         "training": json.loads(args.training.read_text(encoding="utf-8")),
-        "arenas": [arena_report(path) for path in sorted(args.arena_dir.glob("arena-*-learned.jsonl"))],
-        "controls": [arena_report(path) for path in sorted(args.arena_dir.glob("arena-*-control.jsonl"))],
+        "arenas": arenas,
+        "controls": controls,
+        "arenaAggregates": aggregates,
         "audits": {
             path.stem.removesuffix(".audit"): json.loads(path.read_text(encoding="utf-8"))
             for path in sorted(args.arena_dir.glob("arena-*.audit.json"))
