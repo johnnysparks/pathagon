@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "registeredAt": "2026-09-11",
+  "question": "Does restricting learned QAdv sorting to the existing heuristic search pool make the relative-regret action head safe and transferable?",
+  "candidate": {
+    "id": "relative-regret-head-pool-v1",
+    "checkpoint": "workspace/relative-head.pt",
+    "onnx": "workspace/relative-head-qadv.onnx",
+    "sourceExperiment": "research/20260911-relative-regret-head",
+    "startingCheckpoint": "research/20260901-strong-teacher-10k-games/workspace/retraining-mixed-final/gnn-qadv-replay.pt"
+  },
+  "control": {
+    "id": "tactical-filter-control-v1",
+    "opponent": "pathfinder-v0.4.0-tactical-filter"
+  },
+  "board": {"size": 7, "reservePerPlayer": 14, "maxPlies": 140, "openingRandomPlies": 4},
+  "weights": {"path": 241, "material": 112, "capture": 887, "structure": 40, "threat": 154, "edge": 74},
+  "budgets": [
+    {"name": "2k", "depth": 3, "nodes": 2000, "beam": 128, "sorterTopK": 32, "sorterRootLimit": 128},
+    {"name": "8k", "depth": 3, "nodes": 8000, "beam": 128, "sorterTopK": 32, "sorterRootLimit": 128},
+    {"name": "32k", "depth": 4, "nodes": 32000, "beam": 256, "sorterTopK": 64, "sorterRootLimit": 256}
+  ],
+  "seeds": [2026091104, 2026091105, 2026091106],
+  "gamesPerSeed": 16,
+  "pairing": "candidate colors alternate by game index within each seed; control logs are reused from the paired prior matrix with identical settings",
+  "sorter": {"model": "onnx-qadv", "allActions": false, "minMargin": 0.0, "maxHeuristicGap": 0},
+  "gates": {
+    "heldoutTeacherTop1AtLeast": 0.42,
+    "heldoutPairwiseAtLeast": 0.65,
+    "heldoutValueMaeNotAboveBaseline": 0.3494479676246556,
+    "arenaStrengthPointsAboveControlAtLeastByBudget": {"2k": 0.02, "8k": 0.02, "32k": 0.0},
+    "arenaStrengthLower95Above50": false,
+    "allGamesAudited": true
+  },
+  "analysis": "This isolates the deployment integration boundary: the model may reorder only the first heuristic search pool, avoiding extrapolation over actions absent from its training candidates. Report candidate points against the paired control logs and audit every candidate game."
+}
