@@ -1,0 +1,12 @@
+[package]
+name = "pathagon-calibrated-quiet-value"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pathagon-engine = { path = "../../pathagon/engine-rs" }
+serde_json = "1"
+
+[[bin]]
+name = "calibrated-quiet-export"
+path = "src/main.rs"

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "registeredAt": "2026-09-11",
+  "question": "Does calibrated quiet-position regret/value supervision improve action-conditioned intuition and low-budget strength?",
+  "candidate": {
+    "id": "calibrated-quiet-qadv-v1",
+    "checkpoint": "workspace/calibrated-value.pt",
+    "onnx": "workspace/calibrated-value-qadv.onnx",
+    "startingCheckpoint": "research/20260901-strong-teacher-10k-games/workspace/retraining-mixed-final/gnn-qadv-replay.pt"
+  },
+  "control": {
+    "id": "tactical-filter-control-v1",
+    "opponent": "pathfinder-v0.4.0-tactical-filter"
+  },
+  "board": {"size": 7, "reservePerPlayer": 14, "maxPlies": 140, "openingRandomPlies": 4},
+  "weights": {"path": 241, "material": 112, "capture": 887, "structure": 40, "threat": 154, "edge": 74},
+  "budgets": [
+    {"name": "2k", "depth": 3, "nodes": 2000, "beam": 128, "sorterTopK": 32, "sorterRootLimit": 128},
+    {"name": "8k", "depth": 3, "nodes": 8000, "beam": 128, "sorterTopK": 32, "sorterRootLimit": 128},
+    {"name": "32k", "depth": 4, "nodes": 32000, "beam": 256, "sorterTopK": 64, "sorterRootLimit": 256}
+  ],
+  "seeds": [2026091101, 2026091102, 2026091103],
+  "gamesPerSeed": 16,
+  "pairing": "candidate colors alternate by game index within each seed; controls reuse the same seed list",
+  "sorter": {"model": "onnx-qadv", "allActions": true, "minMargin": 0.0, "maxHeuristicGap": 0},
+  "gates": {
+    "heldoutTeacherTop1AtLeast": 0.25,
+    "heldoutPairwiseAtLeast": 0.60,
+    "heldoutValueMaeNotAboveBaseline": true,
+    "aggregateStrengthPointsAboveControl": 0.02,
+    "aggregateStrengthLower95Above50": false
+  },
+  "analysis": "Report action ranking, value MAE/bias/RMSE by target class, and candidate-versus-control game points separately. Do not promote unless all registered gates pass."
+}
