@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "registeredAt": "2026-09-11",
+  "question": "Does relabeling quiet roots at the 32k/beam-256 deployment envelope improve learned action intuition where the 8k teacher was misaligned?",
+  "sourceTargets": "research/20260911-calibrated-quiet-value/workspace/calibrated-targets.jsonl",
+  "teacher": {"depth": 4, "nodes": 32000, "beam": 256, "weights": {"path": 241, "material": 112, "capture": 887, "structure": 40, "threat": 154, "edge": 74}},
+  "candidate": {"id": "envelope-matched-regret-v1", "checkpoint": "workspace/envelope-matched.pt", "onnx": "workspace/envelope-matched-qadv.onnx", "startingCheckpoint": "research/20260901-strong-teacher-10k-games/workspace/retraining-mixed-final/gnn-qadv-replay.pt"},
+  "control": {"id": "tactical-filter-control-v1", "opponent": "pathfinder-v0.4.0-tactical-filter"},
+  "arena": {"budget": "32k", "depth": 4, "nodes": 32000, "beam": 256, "sorterTopK": 64, "sorterRootLimit": 256, "allActions": true, "maxPlies": 140, "openingRandomPlies": 4, "seeds": [2026091107, 2026091108, 2026091109], "gamesPerSeed": 16},
+  "gates": {"heldoutTeacherTop1AtLeast": 0.50, "heldoutPairwiseAtLeast": 0.68, "arenaStrengthPointsAboveControl": 0.02, "allGamesAudited": true},
+  "analysis": "The relabeler keeps the audited quiet-root split and continuation traces, changes only action scores/policy/value ordering, and aligns supervision to the arena's 32k search budget. This is a targeted teacher-quality test, not a claim that the model should generalize across search budgets."
+}

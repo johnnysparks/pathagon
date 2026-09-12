@@ -1,0 +1,8 @@
+[package]
+name = "pathagon-envelope-matched-regret"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pathagon-engine = { package = "pathagon-engine", path = "../../pathagon/engine-rs" }
+serde_json = "1"
