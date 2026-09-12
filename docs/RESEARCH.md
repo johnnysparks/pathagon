@@ -22,6 +22,14 @@ not improve the fixed-budget arena curve; its checkpoint remains research-only.
 The 20260911 calibrated follow-up enlarged and balanced the holdout and
 improved action ranking again, but value MAE and the low-budget multi-seed
 curve failed their registered gates; its checkpoint also remains research-only.
+The 20260911 relative-regret follow-up removed absolute-score saturation and
+kept value calibration fixed, but its learned reorder regressed whole-game
+strength. A deployment-envelope diagnostic found that the 8k teacher matched
+the fixed 8k search on only 38.5% of quiet roots. Relabeling at 32k improved
+heldout action ranking and value MAE but still lost a fresh 32k arena. The
+promote-only Rust integration then produced the first positive signal, 60.4%
+versus 54.2% over 48 games, while reducing completed depth slightly; it remains
+research-only until the cost gate passes.
 The seeded-position curriculum increased near-terminal coverage but its short
 ladder candidates remained below their parent. The next useful work should
 change one major variable at a time, use paired colors and held-out positions,
@@ -58,6 +66,37 @@ suite. The teacher changed two actions, both still oracle-valid, while using
 roughly 2–3× as many nodes and exhausting more often. This isolates no teacher
 advantage in the tested tactical envelope; deeper labels alone should not be
 the next training change.
+
+## Workflow for learned intuition
+
+The current evidence points to a staged workflow that generalizes beyond
+Pathagon. First make the rules engine and a strong raw-search opponent the
+authority, and freeze a deployment envelope. Then collect diverse complete
+trajectories and split by game or source family before labeling. Generate
+action targets with a teacher that is stronger at that same envelope; measure
+teacher agreement with the deployed search before training. Train policy/Q
+heads on action regret or visit distributions, and train the state-value head
+from independent continuation or game outcomes with its own calibration set.
+Keep the value head fixed while testing action supervision so a good move
+signal cannot hide a value regression.
+
+Evaluate four separate things: legal and tactical safety, held-out action
+ranking, held-out value calibration, and paired whole-game strength at the
+actual node budget. During deployment, use the network as an advisory signal
+inside the native search. Preserve the search's ordering and let the model
+promote or break ties only when its signal is calibrated; a model that picks
+the right move but destroys alpha-beta ordering can still make the opponent
+weaker. Record completed depth, nodes, latency, and representative games as
+cost and behavior gates. Promote only when all four quality gates and the cost
+gate pass; otherwise keep the artifact as a named rollback/control and use the
+failure to choose the next data or integration change.
+
+For incremental improvement, update the data distribution before increasing
+optimizer effort: add positions where teacher and search disagree, preserve
+movement and endgame coverage, increase opening entropy, and keep a fresh
+source-disjoint confirmation set. Do not treat a better held-out score against
+a mismatched teacher as intuition, and do not let one favorable arena budget
+stand in for a stable strength curve.
 
 ## Latest promotion
 

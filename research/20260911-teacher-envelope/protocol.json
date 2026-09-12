@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "registeredAt": "2026-09-11",
+  "question": "Are the depth-4/8k quiet-regret teacher labels aligned with the action chosen by the fixed deployment search envelope?",
+  "targets": "research/20260911-calibrated-quiet-value/workspace/calibrated-targets.jsonl",
+  "budgets": [
+    {"name": "2k", "depth": 3, "nodes": 2000, "beam": 128},
+    {"name": "8k", "depth": 3, "nodes": 8000, "beam": 128},
+    {"name": "32k", "depth": 4, "nodes": 32000, "beam": 256}
+  ],
+  "weights": {"path": 241, "material": 112, "capture": 887, "structure": 40, "threat": 154, "edge": 74},
+  "interpretation": "Teacher match is descriptive, not a proof of optimality. A low match between the 8k teacher and 32k search is evidence that the target is envelope-misaligned; a low match at every budget means the target is not a reliable deployment decision signal. This diagnostic precedes another training campaign."
+}

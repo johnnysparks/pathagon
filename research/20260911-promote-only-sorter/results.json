@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "candidate": "envelope-matched-promote-only-v1",
+  "control": "tactical-filter-control-v1",
+  "arena": {
+    "budget": "32k",
+    "games": 48,
+    "candidate": {"wins": 28, "losses": 18, "draws": 2, "gamePoints": 0.6041666666666666},
+    "control": {"wins": 26, "losses": 22, "draws": 0, "gamePoints": 0.5416666666666666},
+    "difference": 0.0625,
+    "seeds": [2026091110, 2026091111, 2026091112]
+  },
+  "cost": {
+    "candidateMeanCompletedDepth": 3.016914904532274,
+    "controlMeanCompletedDepth": 3.0837653756785213,
+    "candidateMeanNodes": 20266.161656240765,
+    "controlMeanNodes": 19711.05275035052,
+    "depthGate": "failed"
+  },
+  "training": {
+    "heldoutTeacherTop1": 0.5208333333333334,
+    "heldoutPairwise": 0.717086210737358,
+    "heldoutValueMae": 0.34305203928124683,
+    "heldoutValueMaeBaseline": 0.3494479676246556
+  },
+  "audit": {"arenaFiles": 6, "games": 96, "duplicateSequences": 0},
+  "decision": "positive strength signal, no promotion because learned promotion lowers completed depth and raises node cost"
+}
