@@ -47,6 +47,7 @@ fn main() {
     let qadv_tree_seeds = !args.contains_key("no-qadv-tree-seeds");
     let sorter_top_k = number(&args, "sorter-top-k", 4_usize);
     let sorter_all_actions = args.contains_key("sorter-all-actions");
+    let sorter_promote_only = args.contains_key("sorter-promote-only");
     let sorter_root_limit = number(&args, "sorter-root-limit", 0_usize);
     let sorter_min_margin = number(&args, "sorter-min-margin", 0.0_f32);
     let sorter_max_heuristic_gap = number(&args, "sorter-max-heuristic-gap", 0_i32);
@@ -311,6 +312,7 @@ fn main() {
             candidate_config,
             sorter_top_k,
             sorter_all_actions,
+            sorter_promote_only,
             sorter_root_limit,
             sorter_min_margin,
             sorter_max_heuristic_gap,
@@ -605,6 +607,7 @@ fn main() {
                 config,
                 sorter_top_k,
                 sorter_all_actions,
+                sorter_promote_only,
                 sorter_root_limit,
                 sorter_min_margin,
                 sorter_max_heuristic_gap,

@@ -157,6 +157,7 @@ pub enum Agent {
         config: SearchConfig,
         top_k: usize,
         sort_all_actions: bool,
+        promote_only: bool,
         root_limit: usize,
         min_margin: f32,
         max_heuristic_gap: i32,
@@ -566,7 +567,7 @@ impl Agent {
         top_k: usize,
         model: Arc<OnnxQAdvModel>,
     ) -> Self {
-        Self::qadv_sorter_with_pool(id, config, top_k, false, 0, 0.0, 0, model)
+        Self::qadv_sorter_with_pool(id, config, top_k, false, false, 0, 0.0, 0, model)
     }
 
     #[cfg(feature = "inference")]
@@ -575,6 +576,7 @@ impl Agent {
         config: SearchConfig,
         top_k: usize,
         sort_all_actions: bool,
+        promote_only: bool,
         root_limit: usize,
         min_margin: f32,
         max_heuristic_gap: i32,
@@ -586,6 +588,7 @@ impl Agent {
             config,
             top_k,
             sort_all_actions,
+            promote_only,
             root_limit,
             min_margin,
             max_heuristic_gap,
@@ -957,6 +960,7 @@ impl Agent {
                 config,
                 top_k,
                 sort_all_actions,
+                promote_only,
                 root_limit,
                 min_margin,
                 max_heuristic_gap,
@@ -967,6 +971,7 @@ impl Agent {
                 *config,
                 *top_k,
                 *sort_all_actions,
+                *promote_only,
                 *root_limit,
                 *min_margin,
                 *max_heuristic_gap,
@@ -1576,6 +1581,7 @@ fn agent_spec_json(agent: &Agent) -> String {
     if let Agent::QAdvSorter {
         top_k,
         sort_all_actions,
+        promote_only,
         root_limit,
         min_margin,
         max_heuristic_gap,
@@ -1591,6 +1597,10 @@ fn agent_spec_json(agent: &Agent) -> String {
             } else {
                 "pathfinder-beam"
             }),
+        );
+        parameters.insert(
+            "sorterPromoteOnly".to_owned(),
+            serde_json::json!(promote_only),
         );
         parameters.insert("sorterRootLimit".to_owned(), serde_json::json!(root_limit));
         parameters.insert("sorterMinMargin".to_owned(), serde_json::json!(min_margin));
@@ -2220,6 +2230,7 @@ fn choose_qadv_sorter(
     config: SearchConfig,
     top_k: usize,
     sort_all_actions: bool,
+    promote_only: bool,
     root_limit: usize,
     min_margin: f32,
     max_heuristic_gap: i32,
@@ -2258,13 +2269,19 @@ fn choose_qadv_sorter(
             .total_cmp(&left.1)
             .then_with(|| left.0.order().cmp(&right.0.order()))
     });
+    let model_best = if promote_only {
+        ranked
+            .iter()
+            .find(|(action, _)| sort_pool[..pool_len].contains(action))
+    } else {
+        ranked.first()
+    };
     let confidence_ok = min_margin <= 0.0
-        || ranked
-            .first()
+        || model_best
             .zip(ranked.iter().find(|(action, _)| *action == sort_pool[0]))
             .is_some_and(|(best, original)| best.1 - original.1 >= min_margin);
     let heuristic_gap_ok = max_heuristic_gap <= 0
-        || ranked.first().is_some_and(|(best, _)| {
+        || model_best.is_some_and(|(best, _)| {
             let original_score = crate::search::evaluate(
                 state.apply_legal(sort_pool[0]).state,
                 state.turn,
@@ -2275,7 +2292,15 @@ fn choose_qadv_sorter(
             (original_score - best_score).abs() <= max_heuristic_gap
         });
     let should_reorder = confidence_ok && heuristic_gap_ok;
-    let mut root_order = if should_reorder {
+    let mut root_order = if should_reorder && promote_only {
+        let mut order = sort_pool.iter().copied().take(pool_len).collect::<Vec<_>>();
+        if let Some((best, _)) = model_best {
+            if let Some(index) = order.iter().position(|action| action == best) {
+                order.swap(0, index);
+            }
+        }
+        order
+    } else if should_reorder {
         ranked
             .into_iter()
             .take(pool_len)

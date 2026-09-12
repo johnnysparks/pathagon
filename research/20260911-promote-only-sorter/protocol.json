@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "registeredAt": "2026-09-11",
+  "question": "Does preserving heuristic alpha-beta order while promoting only one learned action recover the strength lost by full QAdv root reordering?",
+  "candidate": {"id": "envelope-matched-promote-only-v1", "onnx": "workspace/envelope-matched-qadv.onnx", "sourceExperiment": "research/20260911-envelope-matched-regret"},
+  "control": {"id": "tactical-filter-control-v1", "opponent": "pathfinder-v0.4.0-tactical-filter"},
+  "teacher": {"weights": {"path": 241, "material": 112, "capture": 887, "structure": 40, "threat": 154, "edge": 74}},
+  "arena": {"budget": "32k", "depth": 4, "nodes": 32000, "beam": 256, "sorterTopK": 64, "sorterRootLimit": 256, "allActions": true, "promoteOnly": true, "maxPlies": 140, "openingRandomPlies": 4, "seeds": [2026091110, 2026091111, 2026091112], "gamesPerSeed": 16},
+  "gates": {"arenaStrengthPointsAboveControl": 0.02, "meanCompletedDepthNotBelowControl": true, "allGamesAudited": true},
+  "analysis": "The candidate uses the envelope-matched ONNX model and the new Rust --sorter-promote-only integration. It may move one model-ranked action to the front of the first heuristic pool, but the remaining root order is unchanged."
+}
