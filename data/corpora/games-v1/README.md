@@ -21,6 +21,12 @@ targets may be promoted separately into versioned, game-keyed corpus sidecars.
 Every game state can be reconstructed by replaying the canonical action
 sequence in Rust.
 
+This corpus is the source layer for learned intuition experiments, not a
+pre-labeled policy dataset. Build action targets only after choosing a teacher
+envelope and a game-key or source-family split. Keep action regret, continuation
+values, and final outcomes in separately versioned sidecars so a learner cannot
+silently treat selected replay moves as complete root-Q supervision.
+
 Non-empty seeded roots use the root-aware sidecars under `sidecars/`. Their
 `sg1_...` identity hashes the complete initial position together with the
 compact action sequence, and each row retains only rule-independent

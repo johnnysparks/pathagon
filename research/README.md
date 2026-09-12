@@ -4,6 +4,12 @@ Research is a date-first project archive, not a second production tree. Each
 path is named `YYYYMMDD-short-question` and should make sense when read on its
 own. Start with its `README.md`; code and small evidence may sit beside it.
 
+The current goal is to learn calibrated intuition as an advisory layer inside
+the rules-authoritative Rust search. Read [`../docs/RESEARCH.md`](../docs/RESEARCH.md)
+for the active workflow before opening older paths. Historical failures are
+preserved to prevent repeating them; their models and targets are not a roster
+of candidates.
+
 A good archive README records the idea, approach, outcome, generated data,
 project impact, failures, and promotion decision. Research code is allowed to
 be awkward, partially tested, or tied to a one-time format. Large games,

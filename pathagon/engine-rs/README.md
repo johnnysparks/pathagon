@@ -40,3 +40,14 @@ It checks the browser clock during iterative deepening and returns the last
 fully completed iteration, preserving a legal fallback move when the deadline
 is reached. The web app runs this search in a cancelable Worker; the historical
 depth-4 / 2,000-node / beam-8 profile remains available as a research control.
+
+## Learned intuition integration
+
+Research models are evaluated as advisory signals inside this engine. A model
+may rank or promote actions already produced by the native tactical-safe root,
+but Rust remains responsible for legality, tactical proof, alpha-beta search,
+and termination. Preserve native root ordering when possible: a model can
+choose a good action and still weaken the opponent by destroying search
+ordering. Any new integration needs focused tests plus matched-budget evidence
+for action ranking, value calibration, game strength, completed depth, nodes,
+and latency before it can enter `pathagon/opponents/`.

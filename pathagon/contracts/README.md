@@ -23,5 +23,5 @@ an optional complete set; the arrays use the state's legal-action order and
 the source is `mcts-root-q-v1`.
 
 Contract changes require the cross-runtime parity suite. See
-[`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) for runtime ownership and
-[`docs/DATA.md`](../docs/DATA.md) for archive policy.
+[`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) for runtime ownership and
+[`docs/DATA.md`](../../docs/DATA.md) for archive policy.

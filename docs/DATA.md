@@ -18,3 +18,14 @@ ordering, and keep evaluation eligibility explicit.
 The automated durable-data check rejects tracked files over 5 MiB in `data/`,
 `pathagon/contracts`, and deployed model assets. Exceptions should be rare,
 reviewed, and documented with why Git is the right store.
+
+## Learning data
+
+Use canonical move histories and reconstructable Rust states as the source of
+training data. Keep teacher labels in a dated research workspace until their
+perspective, action ordering, source split, phase coverage, and deployment
+envelope have been audited. Promote a sidecar only when it has stable semantics
+and a documented consumer. Search-generated action labels and game outcomes
+answer different questions: action regret or visits train action intuition;
+continuations or final outcomes train state value. Do not mix them into one
+unexamined target or duplicate the same game across learner directories.

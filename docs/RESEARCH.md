@@ -1,5 +1,10 @@
 # Active research direction
 
+The active AI goal is an opponent that improves through play by learning
+calibrated intuition about positions and actions. The network is an advisory
+layer inside a rules-authoritative search, so progress means a repeatable
+strength gain without losing legality, search depth, or cost.
+
 The canonical target is 7×7 with 14 reserves per player. The current user-facing
 default is the explicit transition scorer
 `pathfinder-action-transition-v4-xent`, promoted from the scaled
@@ -32,8 +37,9 @@ versus 54.2% over 48 games, while reducing completed depth slightly; it remains
 research-only until the cost gate passes.
 The seeded-position curriculum increased near-terminal coverage but its short
 ladder candidates remained below their parent. The next useful work should
-change one major variable at a time, use paired colors and held-out positions,
-and preserve the tactical filter as a frozen control.
+change data coverage or runtime integration one major variable at a time, use
+paired colors and held-out positions, and preserve the tactical filter as a
+frozen control.
 
 ## Three-generation fixed-budget learning loop
 
@@ -171,43 +177,30 @@ outweigh the strength of the deeper b256 control. It is exploratory and makes
 no production change until coverage, paired strength, replay, and browser-cost
 gates are satisfied.
 
-## Proposed next paths, ranked
+## Current next step
 
-1. [`What fits in three seconds?`](../research/20260829-what-fits-three-seconds/)
-   — completed without a profile promotion; the responsive browser execution
-   boundary and durable benchmark remain available for a later attempt.
-2. [`Can v0.5 evolve further?`](../research/20260829-can-v05-evolve-further/)
-   — restart evaluator evolution from the promoted weights at the selected
-   product envelope.
-3. [`Can root regret train the evaluator?`](../research/20260829-can-root-regret-train-evaluator/)
-   — pilot complete; held-out regret gain was 0.00113%, so no candidate was
-   promoted and the path is inconclusive pending a stronger teacher.
-4. [`Can curriculum prevent collapse?`](../research/20260829-can-curriculum-prevent-collapse/)
-   — test whether a frozen opponent/opening/phase portfolio produces more
-   general candidates.
-5. [`Can a gated sorter help?`](../research/20260829-can-gated-sorter-help/)
-   — completed calibration audit; no useful activation region, so not promoted.
+Do not start another broad sorter or optimizer sweep. The next learning
+campaign should build a larger disagreement corpus: positions where the raw
+search, matched-budget teacher, and current advisory model choose different
+actions, with deliberate movement, late-game, tactical, and high-entropy
+opening coverage. Keep a fresh game-disjoint confirmation set untouched.
 
-The 20260910 quiet-regret/value experiment is complete and recorded in
-[`../research/20260910-quiet-regret-value/`](../research/20260910-quiet-regret-value/).
-It is retained as infrastructure for action-conditioned targets, but its
-three-point low-budget screen did not beat the frozen tactical-filter control.
+Label that corpus at the intended product envelope, train action intuition and
+state value as separate objectives, and validate the teacher before fitting the
+model. Integrate the result with the promote-only or tie-breaker boundary so
+alpha-beta ordering and completed depth are preserved. A candidate is ready for
+promotion only when held-out ranking, value calibration, whole-game strength,
+legality, and cost all pass on fresh seeds. The positive promote-only result is
+a hypothesis to confirm, not a new default.
 
-The 20260911 calibrated quiet-regret/value follow-up is recorded in
-[`../research/20260911-calibrated-quiet-value/`](../research/20260911-calibrated-quiet-value/).
-It supplies balanced neutral targets and a preregistered three-seed arena, but
-does not clear the joint value and strength gates.
+Recent intuition paths, in reading order, are:
 
-Current questions:
-
-1. Can v4 hold its advantage on a larger post-deployment ladder without
-   increasing the browser search envelope?
-2. Can higher opening entropy improve move ranking without reducing ordinary
-   whole-game strength?
-3. Which opponent portfolio and opening policy produces diverse games without
-   over-weighting deterministic trajectory families?
-4. Which learned artifact, if any, improves the Rust player's strength enough
-   to justify its inference and deployment cost?
+- [`20260911-promote-only-sorter/`](../research/20260911-promote-only-sorter/) — first positive whole-game signal, cost gate failed.
+- [`20260911-envelope-matched-regret/`](../research/20260911-envelope-matched-regret/) — matched labels improved offline fit, arena gate failed.
+- [`20260911-teacher-envelope/`](../research/20260911-teacher-envelope/) — measured teacher/deployment disagreement.
+- [`20260911-relative-regret-head/`](../research/20260911-relative-regret-head/) — removed score saturation, arena regressed.
+- [`20260911-sorter-pool-gating/`](../research/20260911-sorter-pool-gating/), [`20260911-sorter-confidence-gating/`](../research/20260911-sorter-confidence-gating/), and [`20260911-small-sorter-pool/`](../research/20260911-small-sorter-pool/) — deployment ablations that did not clear strength gates.
+- [`20260911-calibrated-quiet-value/`](../research/20260911-calibrated-quiet-value/) and [`20260910-quiet-regret-value/`](../research/20260910-quiet-regret-value/) — initial quiet-regret/value attempts.
 
 Historical evidence and detailed outcomes live with the research paths:
 

@@ -21,3 +21,11 @@ The fixed 7×7 Pathfinder browser/WASM benchmark suite is stored as
 [`fixtures/pathfinder-browser-suite-v1.jsonl`](fixtures/pathfinder-browser-suite-v1.jsonl).
 Its compact positions are shared by latency, legality, and cross-runtime
 checks; timing samples remain in the originating research workspace.
+
+Learned-intuition targets follow the same boundary. Keep experimental action
+labels, continuation values, checkpoints, and arenas in the dated research
+workspace. Promote only a versioned sidecar or model metadata with explicit
+perspective, legal-action ordering, source split, teacher envelope, and an
+active Rust/WASM consumer. The current v4 transition scorer remains the default;
+research QAdv and sorter artifacts are not defaults merely because they are
+loadable.

@@ -81,6 +81,14 @@ Constraints for each level:
 
 # Research experiment and artifact guidance
 
+The project goal is to learn calibrated intuition as an advisory layer inside
+the rules-authoritative Rust search. A learned opponent should improve root
+choices or tie breaks while preserving legality, tactical safety, alpha-beta
+ordering, completed depth, and cost. Evaluate action ranking, state-value
+calibration, whole-game strength, and runtime cost as separate gates. A better
+fit to a mismatched teacher or a single favorable arena is not promotion
+evidence; read `docs/RESEARCH.md` before starting another learning path.
+
 - MUST create research paths directly under `research/` using `YYYYMMDD-short-question` and start each path with a narrative `README.md` based on `research/TEMPLATE.md`.
 - MUST explain the idea, outcome, generated data, project impact, failures, and promotion decision. Machine-readable manifests are optional inside research paths.
 - MAY keep one-time code and loosely formatted small evidence beside the narrative. Automated coverage and strict format enforcement are not required for archived research code.

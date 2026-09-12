@@ -12,6 +12,13 @@ metadata. Experimental checkpoints and Python agents stay with their dated
 research path; promotion means porting behavior to Rust and recording only
 high-value deployable artifacts here.
 
+The current learned-intuition direction is advisory rather than a separate
+neural authority. A candidate must improve a rules-authoritative opponent at a
+fixed budget while preserving search cost and depth. Held-out teacher metrics
+are diagnostics; paired whole-game strength and native replay audits decide
+whether an opponent is supportable. See [`../../docs/RESEARCH.md`](../../docs/RESEARCH.md)
+for the workflow and current promotion status.
+
 ## `pathfinder-v0.5.0-trained-evaluator`
 
 The Pathfinder · Trained is a Rust tactical-filter search opponent using the

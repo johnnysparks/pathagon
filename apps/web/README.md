@@ -24,3 +24,8 @@ stable custom domain if absolute social preview URLs matter.
 The web property owns everything here, including `app/`, `db/`, `drizzle/`,
 `public/`, `worker/`, and its build configuration. Stable game rules and
 interchange formats live under [`../../pathagon/`](../../pathagon/).
+
+The browser presents only supported Rust/WASM opponents as the official
+product. Learned-intuition experiments remain research artifacts until their
+advisory integration, matched-budget strength, replay legality, and browser
+cost have all been validated and promoted.

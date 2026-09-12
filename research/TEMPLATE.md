@@ -37,3 +37,13 @@ prevented from this run going perfectly?
 ## Next decision
 
 State whether to continue, revisit, promote, or retire the path.
+
+## Decision gates
+
+For learned-opponent work, record the frozen search envelope and control,
+source-disjoint train/held-out split, teacher quality at that envelope, held-out
+action ranking, state-value calibration, paired whole-game strength, legality
+audit, and completed-depth/node/latency cost. Treat a model as advisory inside
+native search unless this evidence supports promotion. Historical negative
+results remain useful when they identify which gate failed and what data or
+integration change the next path will test.

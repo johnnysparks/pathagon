@@ -30,3 +30,17 @@ deployment configuration belong to the app that uses them.
 
 Read [`docs/README.md`](docs/README.md) for the documentation index and
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the ownership boundaries.
+
+## Current project goal
+
+The long-term AI goal is an opponent that gets better through play by learning
+useful intuition about positions and actions. The intended design is a
+rules-authoritative Rust search with a learned advisory layer: action intuition
+should improve root choices or tie breaks without replacing legality, tactical
+safety, or alpha-beta search. State-value learning is evaluated separately from
+action ranking, and every candidate must pass held-out, whole-game, legality,
+and search-cost gates before it can become supported.
+
+Start with [`docs/RESEARCH.md`](docs/RESEARCH.md) before opening historical
+experiments. It records the current workflow, the evidence behind it, and the
+mistakes that future work should avoid.

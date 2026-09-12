@@ -18,6 +18,17 @@ fixtures in `data`, but must not depend on an archived research implementation.
 Research may import anything while exploring. If research succeeds, port the
 behavior into Rust and promote only the data/artifacts that have durable value.
 
+## Opponent learning boundary
+
+The learning loop has four owners. Rust defines the rules, legal actions,
+tactical safety, search envelope, and native replay audit. Research paths create
+source-disjoint trajectories and teacher targets, then train action and value
+signals as separate hypotheses. The runtime integrates a learned signal only
+as an advisory root-order hint that preserves native legality and search
+ordering. Promotion requires held-out action ranking, value calibration,
+paired whole-game strength, and node/depth/latency evidence at the intended
+budget. A better fit to a teacher or a single favorable arena is not enough.
+
 The browser retains a TypeScript rules adapter for UI state and parity checks,
 but the Rust engine is the supported high-throughput and opponent runtime. A
 second app should use a shared Rust/WASM or contract boundary rather than import

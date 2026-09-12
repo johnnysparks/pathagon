@@ -80,3 +80,10 @@ bearer tokens; there is intentionally no listing endpoint for them.
 Archive exports may be used to build datasets after validation, deduplication,
 and a documented train/held-out split. Human games remain a separate source
 until their privacy and consent policy permits training use.
+
+For opponent learning, archive data is evidence rather than an automatic
+training target. Keep source games disjoint across training, diagnostics, and
+arenas; preserve agent and model provenance; and distinguish selected-action
+replay from complete action-value or outcome supervision. A model enters the
+official ladder only after the Rust/WASM implementation passes the research
+promotion gates described in [`../../../docs/RESEARCH.md`](../../../docs/RESEARCH.md).

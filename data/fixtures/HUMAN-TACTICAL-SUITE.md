@@ -38,5 +38,6 @@ and enumerates all legal dark replies to prove the forced `C3`/`D3` finish.
 Keep these positions out of ordinary training batches. Use them to compare
 Pathfinder variants at matched budgets: baseline alpha-beta, wider beams,
 transposition-table ordering, selective tactical extensions, and QAdv root
-sorting. Promotion requires improvement here without regressing the existing
-solver-labelled tactical suite or paired-game gates.
+sorting used as an advisory tie-breaker. Promotion requires improvement here
+without regressing the existing solver-labelled tactical suite, paired-game
+strength, or completed-depth and node-cost gates.
